@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
 import Banking from "./pages/Banking";
 import Clients from "./pages/Clients";
+import BAMS from "./pages/BAMS";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/sales" element={<Sales />} />
+            <Route path="/bams" element={<BAMS />} />
             <Route path="/banking" element={<Banking />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/payment-methods" element={<div className="p-8 text-center text-gray-500">Payment Methods - Coming Soon</div>} />

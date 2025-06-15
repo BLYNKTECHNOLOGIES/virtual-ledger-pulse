@@ -11,7 +11,8 @@ import {
   Clock,
   List,
   Bell,
-  ShoppingCart
+  ShoppingCart,
+  CreditCard
 } from "lucide-react";
 
 import {
@@ -30,6 +31,7 @@ import {
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Sales Order", url: "/sales", icon: ShoppingCart },
+  { title: "BAMS", url: "/bams", icon: CreditCard },
   { title: "Banking", url: "/banking", icon: Banknote },
   { title: "Payment Methods", url: "/payment-methods", icon: Database },
   { title: "Clients", url: "/clients", icon: User },

@@ -10,7 +10,8 @@ import {
   Shield,
   Clock,
   List,
-  Bell
+  Bell,
+  ShoppingCart
 } from "lucide-react";
 
 import {
@@ -28,6 +29,7 @@ import {
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: Home },
+  { title: "Sales Order", url: "/sales", icon: ShoppingCart },
   { title: "Banking", url: "/banking", icon: Banknote },
   { title: "Payment Methods", url: "/payment-methods", icon: Database },
   { title: "Clients", url: "/clients", icon: User },
@@ -38,14 +40,15 @@ const navigationItems = [
 ];
 
 export function AppSidebar() {
-  const { collapsed } = useSidebar();
+  const { state } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
+  const collapsed = state === "collapsed";
 
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible>
+    <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
       <div className="p-4 border-b bg-blue-600">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white rounded flex items-center justify-center">

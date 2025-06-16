@@ -22,8 +22,8 @@ export function Login({ onLogin }: LoginProps) {
   const [resetToken, setResetToken] = useState("");
   
   const [loginData, setLoginData] = useState({
-    email: "",
-    password: "",
+    email: "blynk@gmail.com",
+    password: "12345",
   });
   
   const [signupData, setSignupData] = useState({

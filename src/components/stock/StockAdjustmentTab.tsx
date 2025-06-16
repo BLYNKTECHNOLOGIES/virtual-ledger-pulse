@@ -67,8 +67,8 @@ export function StockAdjustmentTab() {
         .select(`
           *,
           products(name, code),
-          from_warehouse:from_warehouse_id(name),
-          to_warehouse:to_warehouse_id(name)
+          from_warehouse:warehouses!stock_adjustments_from_warehouse_id_fkey(name),
+          to_warehouse:warehouses!stock_adjustments_to_warehouse_id_fkey(name)
         `)
         .order('created_at', { ascending: false });
       

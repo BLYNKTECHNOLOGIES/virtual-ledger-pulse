@@ -1,11 +1,14 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PurchaseMethodForm } from "./purchase/PurchaseMethodForm";
 import { PurchaseSummaryCards } from "./purchase/PurchaseSummaryCards";
 import { PurchaseMethodsTable } from "./purchase/PurchaseMethodsTable";
+import { PurchaseMethodsListTable } from "./purchase/PurchaseMethodsListTable";
 import { usePurchaseMethods } from "./purchase/usePurchaseMethods";
 import { PurchasePaymentMethod, PurchaseMethodFormData } from "./purchase/types";
+import { List, Plus } from "lucide-react";
 
 export function PurchaseManagement() {
   const {
@@ -117,17 +120,44 @@ export function PurchaseManagement() {
       />
 
       <Card>
-        <CardHeader>
-          <CardTitle>Purchase Payment Methods</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PurchaseMethodsTable
-            purchasePaymentMethods={purchasePaymentMethods}
-            isLoading={isLoading}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            isDeleting={deleteMethodMutation.isPending}
-          />
+        <CardContent className="p-6">
+          <Tabs defaultValue="manage" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manage" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Manage Methods
+              </TabsTrigger>
+              <TabsTrigger value="list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                All Payment Methods
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="manage">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Purchase Payment Methods</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PurchaseMethodsTable
+                    purchasePaymentMethods={purchasePaymentMethods}
+                    isLoading={isLoading}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    isDeleting={deleteMethodMutation.isPending}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="list">
+              <PurchaseMethodsListTable
+                purchasePaymentMethods={purchasePaymentMethods}
+                bankAccounts={bankAccounts}
+                isLoading={isLoading}
+              />
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Smartphone, Building, TrendingDown, Wallet } from "lucide-react";
+import { Smartphone, Building, TrendingDown, Wallet, Users, CreditCard } from "lucide-react";
 import { PurchasePaymentMethod, BankAccount } from "./types";
 
 interface PurchaseSummaryCardsProps {
@@ -37,13 +37,44 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
       .reduce((sum, account) => sum + account.balance, 0) || 0;
   };
 
+  const getTotalMethods = () => {
+    return purchasePaymentMethods?.length || 0;
+  };
+
+  const getActiveMethods = () => {
+    return purchasePaymentMethods?.filter(m => m.is_active).length || 0;
+  };
+
+  const getTotalUsedAmount = () => {
+    return purchasePaymentMethods
+      ?.filter(m => m.is_active)
+      .reduce((sum, m) => sum + m.current_usage, 0) || 0;
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Users className="h-4 w-4 text-gray-600" />
+            Total Methods
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-gray-900">
+            {getTotalMethods()}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {getActiveMethods()} active
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Smartphone className="h-4 w-4 text-blue-600" />
-            Available UPI Limit
+            Available UPI
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -51,7 +82,7 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
             ₹{getTotalAvailableUPI().toLocaleString()}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {purchasePaymentMethods?.filter(m => m.type === "UPI" && m.is_active).length || 0} active UPI methods
+            {purchasePaymentMethods?.filter(m => m.type === "UPI" && m.is_active).length || 0} methods
           </p>
         </CardContent>
       </Card>
@@ -60,7 +91,7 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Building className="h-4 w-4 text-green-600" />
-            Available Bank Transfer Limit
+            Available Bank Transfer
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -68,7 +99,7 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
             ₹{getTotalAvailableBankTransfer().toLocaleString()}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {purchasePaymentMethods?.filter(m => m.type === "Bank Transfer" && m.is_active).length || 0} active bank accounts
+            {purchasePaymentMethods?.filter(m => m.type === "Bank Transfer" && m.is_active).length || 0} methods
           </p>
         </CardContent>
       </Card>
@@ -77,7 +108,7 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-orange-600" />
-            Total Account Balance
+            Account Balance
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -85,7 +116,24 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
             ₹{getTotalAccountBalance().toLocaleString()}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Linked bank accounts balance
+            Linked accounts
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-red-600" />
+            Used Amount
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-red-600">
+            ₹{getTotalUsedAmount().toLocaleString()}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Current usage
           </p>
         </CardContent>
       </Card>
@@ -102,7 +150,7 @@ export function PurchaseSummaryCards({ purchasePaymentMethods, bankAccounts }: P
             ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString()}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Combined purchasing power
+            Purchasing power
           </p>
         </CardContent>
       </Card>

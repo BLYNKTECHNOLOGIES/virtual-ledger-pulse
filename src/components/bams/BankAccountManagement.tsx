@@ -18,7 +18,7 @@ interface BankAccount {
   account_name: string;
   bank_name: string;
   account_number: string;
-  ifsc_code: string;
+  IFSC: string; // Updated to match database column name
   branch?: string;
   balance: number;
   status: "ACTIVE" | "INACTIVE";
@@ -65,7 +65,7 @@ export function BankAccountManagement() {
           account_name: accountData.account_name,
           bank_name: accountData.bank_name,
           account_number: accountData.account_number,
-          ifsc_code: accountData.ifsc_code,
+          IFSC: accountData.ifsc_code, // Map form field to database column
           branch: accountData.branch || null,
           balance: parseFloat(accountData.balance),
           status: accountData.status
@@ -100,7 +100,7 @@ export function BankAccountManagement() {
           account_name: accountData.account_name,
           bank_name: accountData.bank_name,
           account_number: accountData.account_number,
-          ifsc_code: accountData.ifsc_code,
+          IFSC: accountData.ifsc_code, // Map form field to database column
           branch: accountData.branch || null,
           balance: parseFloat(accountData.balance),
           status: accountData.status,
@@ -153,7 +153,7 @@ export function BankAccountManagement() {
       account_name: account.account_name,
       bank_name: account.bank_name,
       account_number: account.account_number,
-      ifsc_code: account.ifsc_code,
+      ifsc_code: account.IFSC || "", // Map database column to form field
       branch: account.branch || "",
       balance: account.balance.toString(),
       status: account.status
@@ -317,7 +317,7 @@ export function BankAccountManagement() {
                     <TableCell className="font-medium">{account.account_name}</TableCell>
                     <TableCell>{account.bank_name}</TableCell>
                     <TableCell>{account.account_number}</TableCell>
-                    <TableCell>{account.ifsc_code}</TableCell>
+                    <TableCell>{account.IFSC}</TableCell>
                     <TableCell>{account.branch || "-"}</TableCell>
                     <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
                       ₹{account.balance.toLocaleString()}

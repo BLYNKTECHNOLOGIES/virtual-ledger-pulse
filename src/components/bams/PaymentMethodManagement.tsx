@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,13 +68,13 @@ export function PaymentMethodManagement() {
     },
   });
 
-  // Fetch bank accounts for dropdown
+  // Fetch active bank accounts for dropdown
   const { data: bankAccounts } = useQuery({
     queryKey: ['active_bank_accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('*')
+        .select('id, account_name, bank_name, account_number, IFSC')
         .eq('status', 'ACTIVE')
         .order('account_name');
       
@@ -261,7 +260,7 @@ export function PaymentMethodManagement() {
                   </div>
                 ) : (
                   <div>
-                    <Label htmlFor="bank_account_id">Bank Account *</Label>
+                    <Label htmlFor="bank_account_id">Select Bank Account *</Label>
                     <Select value={formData.bank_account_id} onValueChange={(value) => 
                       setFormData(prev => ({ ...prev, bank_account_id: value }))
                     }>
@@ -271,7 +270,12 @@ export function PaymentMethodManagement() {
                       <SelectContent>
                         {bankAccounts?.map((account) => (
                           <SelectItem key={account.id} value={account.id}>
-                            {account.bank_name} - {account.account_number}
+                            <div className="flex flex-col">
+                              <span className="font-medium">{account.account_name}</span>
+                              <span className="text-sm text-gray-500">
+                                {account.bank_name} - {account.account_number} ({account.IFSC})
+                              </span>
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -408,7 +412,12 @@ export function PaymentMethodManagement() {
                         method.upi_id
                       ) : (
                         method.bank_accounts ? 
-                          `${method.bank_accounts.bank_name} - ${method.bank_accounts.account_number}` : 
+                          <div className="flex flex-col">
+                            <span className="font-medium">{method.bank_accounts.account_name}</span>
+                            <span className="text-sm text-gray-500">
+                              {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
+                            </span>
+                          </div> : 
                           "Bank account not found"
                       )}
                     </TableCell>

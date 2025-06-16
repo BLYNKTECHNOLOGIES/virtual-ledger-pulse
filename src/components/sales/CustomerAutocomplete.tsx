@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -33,14 +34,24 @@ export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: Cus
   const handleClientSelect = (client: any) => {
     onChange(client.name);
     if (onRiskLevelChange) {
-      onRiskLevelChange(client.default_risk_level || 'MEDIUM');
+      // Map client risk appetite to payment method risk categories
+      const riskMapping = {
+        'HIGH': 'High Risk',
+        'MEDIUM': 'Medium Risk', 
+        'LOW': 'Low Risk',
+        'NONE': 'No Risk'
+      };
+      const mappedRisk = riskMapping[client.risk_appetite as keyof typeof riskMapping] || 'Medium Risk';
+      onRiskLevelChange(mappedRisk);
     }
     setShowSuggestions(false);
   };
 
   return (
     <div className="relative">
+      <Label htmlFor="customerName">Customer Name *</Label>
       <Input
+        id="customerName"
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -49,6 +60,7 @@ export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: Cus
         onFocus={() => setShowSuggestions(true)}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         placeholder="Enter customer name"
+        required
       />
       
       {showSuggestions && filteredClients.length > 0 && (
@@ -61,7 +73,8 @@ export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: Cus
             >
               <div className="font-medium">{client.name}</div>
               <div className="text-sm text-gray-500">
-                Risk: {client.default_risk_level} | Type: {client.client_type}
+                Risk: {client.risk_appetite} | Type: {client.client_type}
+                {client.monthly_limit && ` | Limit: ₹${client.monthly_limit.toLocaleString()}`}
               </div>
             </div>
           ))}

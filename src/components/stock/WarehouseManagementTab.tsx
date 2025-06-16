@@ -55,6 +55,8 @@ export function WarehouseManagementTab() {
         .select(`
           warehouse_id,
           product_id,
+          movement_type,
+          quantity,
           products(name, code, unit_of_measurement),
           warehouses(name)
         `);
@@ -106,9 +108,9 @@ export function WarehouseManagementTab() {
         .select(`
           *,
           products(name, code, unit_of_measurement),
-          warehouse:warehouse_id(name, location),
-          from_warehouse:from_warehouse_id(name),
-          to_warehouse:to_warehouse_id(name)
+          warehouse:warehouses!warehouse_id(name, location),
+          from_warehouse:warehouses!from_warehouse_id(name),
+          to_warehouse:warehouses!to_warehouse_id(name)
         `)
         .order('adjustment_date', { ascending: false });
       if (error) throw error;

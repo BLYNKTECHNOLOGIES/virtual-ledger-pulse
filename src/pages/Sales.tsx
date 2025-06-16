@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Plus, Search, Filter, Download } from "lucide-react";
@@ -16,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 
 export default function Sales() {
-  const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
   const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,10 +95,6 @@ export default function Sales() {
             <Plus className="h-4 w-4 mr-2" />
             New Sales Entry
           </Button>
-          <Button variant="outline" onClick={() => setShowNewOrderDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Order
-          </Button>
         </div>
       </div>
 
@@ -114,12 +110,10 @@ export default function Sales() {
               />
             </div>
             <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
-              </DialogTrigger>
+              <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Filter Sales Orders</DialogTitle>
@@ -266,222 +260,6 @@ export default function Sales() {
         open={showSalesEntryDialog} 
         onOpenChange={setShowSalesEntryDialog}
       />
-
-      {/* Old order creation dialog */}
-      <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Sales Order</DialogTitle>
-          </DialogHeader>
-          
-          {/* Step 1: Choose Order Type */}
-          
-            
-              
-                
-                  
-                    
-                      
-                        
-                        Repeat Order
-                        Existing client order
-                      
-                    
-                  
-                
-                
-                  
-                    
-                      
-                        
-                        New Client
-                        First time client order
-                      
-                    
-                  
-                
-              
-              
-                
-                  Select Existing Client
-                  
-                    
-                      Search and select client
-                      
-                        
-                          GAGANDEEP SINGH BHOGAL - BINANCE (Risk: Low)
-                        
-                          Shadab Ahmed - BYBIT (Risk: Medium)
-                        
-                          PHIAMPHU - BINANCE (Risk: High)
-                        
-                      
-                    
-                  
-                
-              
-            
-          
-
-          {/* Step 2: Enter Order Amount */}
-          
-            
-              
-                Order Amount (₹)
-                
-              
-              
-                
-                  
-                    
-                      COSMOS Limit Check
-                      Monthly Limit: ₹50000
-                      Used: ₹14000
-                      Available: ₹36000
-                      Risk Level: Low
-                    
-                  
-                
-              
-              
-                
-                  
-                    COSMOS Alert
-                  
-                  Order amount ₹ exceeds available COSMOS limit of ₹36000
-                
-              
-              
-                Back
-                Continue
-              
-            
-          
-
-          {/* Step 3: Choose Payment Method */}
-          
-            
-              
-                
-                  
-                    
-                      
-                        
-                        UPI Payment
-                        Quick UPI transfer
-                      
-                    
-                  
-                
-                
-                  
-                    
-                      
-                        
-                        Bank Transfer
-                        IMPS/NEFT transfer
-                      
-                    
-                  
-                
-              
-              
-                Back
-              
-            
-          
-
-          {/* Step 4: Action Buttons */}
-          
-            
-              
-                Payment Method Assigned
-                
-                  UPI ID: lowrisk@paytm (Risk: Low)
-                  Share this payment method with the client
-                
-              
-              
-                Back
-                
-                  
-                    Order Cancelled
-                  
-                
-                
-                  
-                    Alternative Method
-                  
-                
-                
-                  
-                    Payment Received
-                  
-                
-              
-            
-          
-
-          {/* Step 5: Final Sales Entry */}
-          
-            
-              
-                Final Sales Entry Form
-                
-                  
-                    Customer Name *
-                    
-                  
-                  
-                    Platform Name *
-                    
-                  
-                  
-                    Order Number *
-                    
-                  
-                  
-                    Quantity *
-                    
-                  
-                  
-                    Price per Item *
-                    
-                  
-                  
-                    Total Amount *
-                    
-                  
-                  
-                    Payment Received In (Bank) *
-                    
-                      
-                        Select bank account
-                      
-                        
-                          HDFC Bank - 50100***4321
-                        
-                          ICICI Bank - 40200***5432
-                        
-                          SBI - 30100***6543
-                        
-                      
-                    
-                  
-                  
-                    Credits Applied
-                    
-                  
-                
-                
-                  Back
-                  Submit Sales Entry
-                
-              
-            
-          
-        </DialogContent>
-      </Dialog>
-    
+    </div>
   );
 }

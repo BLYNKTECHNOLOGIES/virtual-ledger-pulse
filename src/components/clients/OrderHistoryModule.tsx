@@ -51,11 +51,11 @@ const orderHistory = [
 
 export function OrderHistoryModule() {
   return (
-    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-      <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-t-lg">
+    <Card>
+      <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
+            <History className="h-5 w-5 text-blue-600" />
             Order History Module
           </CardTitle>
           <div className="flex gap-2">
@@ -63,53 +63,53 @@ export function OrderHistoryModule() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input 
                 placeholder="Search orders..." 
-                className="pl-10 w-48 bg-white/90"
+                className="pl-10 w-48"
               />
             </div>
-            <Button size="sm" variant="outline" className="bg-white/90 border-gray-200 hover:bg-white">
+            <Button size="sm" variant="outline">
               <Filter className="h-4 w-4 mr-1" />
               Filter
             </Button>
-            <Button size="sm" variant="outline" className="bg-white/90 border-gray-200 hover:bg-white">
+            <Button size="sm" variant="outline">
               <Download className="h-4 w-4 mr-1" />
               Export
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-gray-200">
-                <TableHead className="font-semibold text-gray-700">Order ID</TableHead>
-                <TableHead className="font-semibold text-gray-700">Date</TableHead>
-                <TableHead className="font-semibold text-gray-700">Type</TableHead>
-                <TableHead className="font-semibold text-gray-700">Amount</TableHead>
-                <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                <TableHead className="font-semibold text-gray-700">Actions</TableHead>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {orderHistory.map((order, index) => (
-                <TableRow key={index} className="border-gray-100 hover:bg-gray-50/50">
+                <TableRow key={index}>
                   <TableCell className="font-medium text-blue-600">
                     {order.orderId}
                   </TableCell>
-                  <TableCell className="text-gray-700">{order.date}</TableCell>
+                  <TableCell>{order.date}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={order.type === 'Buy' ? 'text-green-600 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'}>
+                    <Badge variant="outline" className={order.type === 'Buy' ? 'text-green-600' : 'text-red-600'}>
                       {order.type}
                     </Badge>
                   </TableCell>
-                  <TableCell className="font-semibold text-gray-800">{order.amount}</TableCell>
+                  <TableCell className="font-semibold">{order.amount}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className={order.statusColor}>
                       {order.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50">
+                    <Button size="sm" variant="ghost">
                       View Details
                     </Button>
                   </TableCell>

@@ -105,7 +105,7 @@ export function EnhancedOrderCreationDialog({
       'LOW': 'Low Risk',
       'NONE': 'No Risk'
     };
-    return riskMapping[clientRisk as keyof typeof riskMapping] || 'High Risk';
+    return riskMapping[clientRisk as keyof typeof riskMapping] || 'HIGH';
   };
 
   // Fetch payment methods based on client risk and type

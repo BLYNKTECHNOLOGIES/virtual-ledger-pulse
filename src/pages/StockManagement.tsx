@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, TrendingUp, Settings, FileText, BarChart } from "lucide-react";
+import { Package, TrendingUp, Settings, FileText, BarChart, Building } from "lucide-react";
 import { ProductListingTab } from "@/components/stock/ProductListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
-import { StockAdjustmentTab } from "@/components/stock/StockAdjustmentTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
+import { WarehouseManagementTab } from "@/components/stock/WarehouseManagementTab";
 
 export default function StockManagement() {
   return (
@@ -25,11 +25,11 @@ export default function StockManagement() {
           </TabsTrigger>
           <TabsTrigger value="transactions" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Stock In/Out
+            Stock Transactions
           </TabsTrigger>
-          <TabsTrigger value="adjustment" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Stock Adjustment
+          <TabsTrigger value="warehouse" className="flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            Warehouse Management
           </TabsTrigger>
           <TabsTrigger value="valuation" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
@@ -49,8 +49,8 @@ export default function StockManagement() {
           <StockTransactionsTab />
         </TabsContent>
 
-        <TabsContent value="adjustment">
-          <StockAdjustmentTab />
+        <TabsContent value="warehouse">
+          <WarehouseManagementTab />
         </TabsContent>
 
         <TabsContent value="valuation">

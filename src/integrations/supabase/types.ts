@@ -539,45 +539,51 @@ export type Database = {
       }
       products: {
         Row: {
-          category: string
+          average_buying_price: number | null
+          average_selling_price: number | null
           code: string
           cost_price: number
           created_at: string
           current_stock_quantity: number
           id: string
           name: string
-          reorder_level: number
           selling_price: number
+          total_purchases: number | null
+          total_sales: number | null
           unit_of_measurement: string
           updated_at: string
           warehouse_id: string | null
           warehouse_stock: Json | null
         }
         Insert: {
-          category: string
+          average_buying_price?: number | null
+          average_selling_price?: number | null
           code: string
           cost_price: number
           created_at?: string
           current_stock_quantity?: number
           id?: string
           name: string
-          reorder_level?: number
           selling_price: number
+          total_purchases?: number | null
+          total_sales?: number | null
           unit_of_measurement: string
           updated_at?: string
           warehouse_id?: string | null
           warehouse_stock?: Json | null
         }
         Update: {
-          category?: string
+          average_buying_price?: number | null
+          average_selling_price?: number | null
           code?: string
           cost_price?: number
           created_at?: string
           current_stock_quantity?: number
           id?: string
           name?: string
-          reorder_level?: number
           selling_price?: number
+          total_purchases?: number | null
+          total_sales?: number | null
           unit_of_measurement?: string
           updated_at?: string
           warehouse_id?: string | null
@@ -908,6 +914,7 @@ export type Database = {
           reference_number: string | null
           to_warehouse_id: string | null
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           adjustment_date?: string
@@ -922,6 +929,7 @@ export type Database = {
           reference_number?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           adjustment_date?: string
@@ -936,6 +944,7 @@ export type Database = {
           reference_number?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
           {
@@ -955,6 +964,13 @@ export type Database = {
           {
             foreignKeyName: "stock_adjustments_to_warehouse_id_fkey"
             columns: ["to_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_warehouse_id_fkey"
+            columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
             referencedColumns: ["id"]
@@ -1037,6 +1053,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      warehouse_stock_movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          movement_type: string
+          product_id: string
+          quantity: number
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+          warehouse_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type: string
+          product_id: string
+          quantity: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          warehouse_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          movement_type?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_stock_movements_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouses: {
         Row: {

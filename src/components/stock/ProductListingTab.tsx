@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,7 +25,7 @@ export function ProductListingTab() {
         .order('name');
 
       if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+        query = query.or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`);
       }
 
       const { data, error } = await query;
@@ -35,10 +34,10 @@ export function ProductListingTab() {
     },
   });
 
-  const getStockStatus = (currentStock: number, reorderLevel: number) => {
+  const getStockStatus = (currentStock: number) => {
     if (currentStock === 0) {
       return <Badge variant="destructive">Out of Stock</Badge>;
-    } else if (currentStock <= reorderLevel) {
+    } else if (currentStock <= 10) {
       return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
     } else {
       return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
@@ -61,7 +60,7 @@ export function ProductListingTab() {
           <div className="flex items-center space-x-2 mb-6">
             <Search className="h-4 w-4 text-gray-400" />
             <Input
-              placeholder="Search products by name, code, or category..."
+              placeholder="Search products by name or code..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -77,12 +76,11 @@ export function ProductListingTab() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Product Code</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Category</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reorder Level</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Cost Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Selling Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Buying Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Selling Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Total Purchases</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
@@ -92,7 +90,6 @@ export function ProductListingTab() {
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-mono text-sm">{product.code}</td>
                       <td className="py-3 px-4 font-medium">{product.name}</td>
-                      <td className="py-3 px-4">{product.category}</td>
                       <td className="py-3 px-4">
                         {product.warehouses ? (
                           <div>
@@ -104,11 +101,11 @@ export function ProductListingTab() {
                         )}
                       </td>
                       <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
-                      <td className="py-3 px-4">{product.reorder_level} {product.unit_of_measurement}</td>
-                      <td className="py-3 px-4">₹{product.cost_price}</td>
-                      <td className="py-3 px-4">₹{product.selling_price}</td>
+                      <td className="py-3 px-4">₹{product.average_buying_price || product.cost_price}</td>
+                      <td className="py-3 px-4">₹{product.average_selling_price || product.selling_price}</td>
+                      <td className="py-3 px-4">{product.total_purchases || 0}</td>
                       <td className="py-3 px-4">
-                        {getStockStatus(product.current_stock_quantity, product.reorder_level)}
+                        {getStockStatus(product.current_stock_quantity)}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">

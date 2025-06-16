@@ -15,19 +15,21 @@ export function InventoryValuationTab() {
 
       if (productsError) throw productsError;
 
-      // Calculate total inventory value
+      // Calculate total inventory value using average buying price
       const totalValue = products?.reduce((sum, product) => {
-        return sum + (product.current_stock_quantity * product.cost_price);
+        const buyingPrice = product.average_buying_price || product.cost_price;
+        return sum + (product.current_stock_quantity * buyingPrice);
       }, 0) || 0;
 
-      // Calculate total selling value
+      // Calculate total selling value using average selling price
       const totalSellingValue = products?.reduce((sum, product) => {
-        return sum + (product.current_stock_quantity * product.selling_price);
+        const sellingPrice = product.average_selling_price || product.selling_price;
+        return sum + (product.current_stock_quantity * sellingPrice);
       }, 0) || 0;
 
-      // Count low stock items
+      // Count low stock items (using threshold of 10)
       const lowStockItems = products?.filter(product => 
-        product.current_stock_quantity <= product.reorder_level
+        product.current_stock_quantity <= 10 && product.current_stock_quantity > 0
       ).length || 0;
 
       // Count out of stock items
@@ -70,7 +72,7 @@ export function InventoryValuationTab() {
           <CardContent>
             <div className="text-2xl font-bold">₹{inventoryData?.totalValue?.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Based on cost price
+              Based on average buying price
             </p>
           </CardContent>
         </Card>
@@ -127,8 +129,8 @@ export function InventoryValuationTab() {
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Cost Price</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Selling Price</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Buying Price</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Selling Price</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Total Cost Value</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Total Selling Value</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Potential Profit</th>
@@ -136,16 +138,18 @@ export function InventoryValuationTab() {
               </thead>
               <tbody>
                 {inventoryData?.products?.map((product) => {
-                  const totalCostValue = product.current_stock_quantity * product.cost_price;
-                  const totalSellingValue = product.current_stock_quantity * product.selling_price;
+                  const buyingPrice = product.average_buying_price || product.cost_price;
+                  const sellingPrice = product.average_selling_price || product.selling_price;
+                  const totalCostValue = product.current_stock_quantity * buyingPrice;
+                  const totalSellingValue = product.current_stock_quantity * sellingPrice;
                   const profit = totalSellingValue - totalCostValue;
                   
                   return (
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
-                      <td className="py-3 px-4">₹{product.cost_price}</td>
-                      <td className="py-3 px-4">₹{product.selling_price}</td>
+                      <td className="py-3 px-4">₹{buyingPrice}</td>
+                      <td className="py-3 px-4">₹{sellingPrice}</td>
                       <td className="py-3 px-4 font-medium">₹{totalCostValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">₹{totalSellingValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">

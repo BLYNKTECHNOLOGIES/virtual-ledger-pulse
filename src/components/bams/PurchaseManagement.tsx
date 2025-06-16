@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,6 @@ interface PurchaseMethod {
   currentUsage: number;
   lastReset: string;
   isActive: boolean;
-  bankAccountId?: string;
   bankAccountName?: string;
 }
 
@@ -35,39 +35,7 @@ interface BankAccount {
 
 export function PurchaseManagement() {
   const { toast } = useToast();
-  const [purchaseMethods, setPurchaseMethods] = useState<PurchaseMethod[]>([
-    {
-      id: "1",
-      type: "UPI",
-      name: "Primary UPI Account",
-      paymentLimit: 200000,
-      frequency: "24 hours",
-      currentUsage: 75000,
-      lastReset: "2024-01-15T00:00:00",
-      isActive: true
-    },
-    {
-      id: "2",
-      type: "Bank Transfer",
-      name: "HDFC Current Account",
-      paymentLimit: 1000000,
-      frequency: "Daily",
-      currentUsage: 350000,
-      lastReset: "2024-01-15T00:00:00",
-      isActive: true
-    },
-    {
-      id: "3",
-      type: "UPI",
-      name: "Secondary UPI Account",
-      paymentLimit: 150000,
-      frequency: "24 hours",
-      currentUsage: 150000,
-      lastReset: "2024-01-15T00:00:00",
-      isActive: false
-    }
-  ]);
-
+  const [purchaseMethods, setPurchaseMethods] = useState<PurchaseMethod[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PurchaseMethod | null>(null);
@@ -76,8 +44,42 @@ export function PurchaseManagement() {
     name: "",
     paymentLimit: "",
     frequency: "24 hours" as "24 hours" | "Daily",
-    bankAccountId: ""
+    bankAccountName: ""
   });
+
+  // Fetch purchase methods from Supabase
+  useEffect(() => {
+    const fetchPurchaseMethods = async () => {
+      const { data, error } = await supabase
+        .from('purchase_payment_methods')
+        .select('*')
+        .order('created_at');
+
+      if (error) {
+        console.error('Error fetching purchase methods:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch purchase methods.",
+          variant: "destructive",
+        });
+      } else {
+        const formattedMethods = data?.map(method => ({
+          id: method.id,
+          type: method.type === 'UPI' ? 'UPI' : 'Bank Transfer',
+          name: method.bank_account_name || 'Unnamed Method',
+          paymentLimit: method.payment_limit,
+          frequency: method.frequency as "24 hours" | "Daily",
+          currentUsage: method.current_usage || 0,
+          lastReset: method.last_reset || new Date().toISOString(),
+          isActive: method.is_active,
+          bankAccountName: method.bank_account_name
+        })) || [];
+        setPurchaseMethods(formattedMethods);
+      }
+    };
+
+    fetchPurchaseMethods();
+  }, [toast]);
 
   // Fetch bank accounts from Supabase
   useEffect(() => {
@@ -102,47 +104,78 @@ export function PurchaseManagement() {
     fetchBankAccounts();
   }, [toast]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const selectedBankAccount = bankAccounts.find(acc => acc.id === formData.bankAccountId);
-    
-    if (editingMethod) {
-      setPurchaseMethods(prev => prev.map(method => 
-        method.id === editingMethod.id 
-          ? {
-              ...method,
-              ...formData,
-              paymentLimit: parseFloat(formData.paymentLimit),
-              bankAccountId: formData.bankAccountId,
-              bankAccountName: selectedBankAccount?.account_name
-            }
-          : method
-      ));
+    try {
+      if (editingMethod) {
+        const { error } = await supabase
+          .from('purchase_payment_methods')
+          .update({
+            type: formData.type,
+            payment_limit: parseFloat(formData.paymentLimit),
+            frequency: formData.frequency,
+            bank_account_name: formData.bankAccountName || null
+          })
+          .eq('id', editingMethod.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Purchase Method Updated",
+          description: "The purchase method has been successfully updated.",
+        });
+      } else {
+        const { error } = await supabase
+          .from('purchase_payment_methods')
+          .insert({
+            type: formData.type,
+            payment_limit: parseFloat(formData.paymentLimit),
+            frequency: formData.frequency,
+            bank_account_name: formData.bankAccountName || null,
+            current_usage: 0,
+            is_active: true
+          });
+
+        if (error) throw error;
+
+        toast({
+          title: "Purchase Method Added",
+          description: "New purchase method has been successfully added.",
+        });
+      }
+
+      // Refresh the list
+      const { data } = await supabase
+        .from('purchase_payment_methods')
+        .select('*')
+        .order('created_at');
+
+      if (data) {
+        const formattedMethods = data.map(method => ({
+          id: method.id,
+          type: method.type === 'UPI' ? 'UPI' : 'Bank Transfer',
+          name: method.bank_account_name || 'Unnamed Method',
+          paymentLimit: method.payment_limit,
+          frequency: method.frequency as "24 hours" | "Daily",
+          currentUsage: method.current_usage || 0,
+          lastReset: method.last_reset || new Date().toISOString(),
+          isActive: method.is_active,
+          bankAccountName: method.bank_account_name
+        }));
+        setPurchaseMethods(formattedMethods);
+      }
+
+      resetForm();
+      setIsAddDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving purchase method:', error);
       toast({
-        title: "Purchase Method Updated",
-        description: "The purchase method has been successfully updated.",
-      });
-    } else {
-      const newMethod: PurchaseMethod = {
-        id: Date.now().toString(),
-        ...formData,
-        paymentLimit: parseFloat(formData.paymentLimit),
-        currentUsage: 0,
-        lastReset: new Date().toISOString(),
-        isActive: true,
-        bankAccountId: formData.bankAccountId,
-        bankAccountName: selectedBankAccount?.account_name
-      };
-      setPurchaseMethods(prev => [...prev, newMethod]);
-      toast({
-        title: "Purchase Method Added",
-        description: "New purchase method has been successfully added.",
+        title: "Error",
+        description: "Failed to save purchase method.",
+        variant: "destructive",
       });
     }
-
-    resetForm();
-    setIsAddDialogOpen(false);
   };
 
   const handleEdit = (method: PurchaseMethod) => {
@@ -152,17 +185,35 @@ export function PurchaseManagement() {
       name: method.name,
       paymentLimit: method.paymentLimit.toString(),
       frequency: method.frequency,
-      bankAccountId: method.bankAccountId || ""
+      bankAccountName: method.bankAccountName || ""
     });
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (methodId: string) => {
-    setPurchaseMethods(prev => prev.filter(method => method.id !== methodId));
-    toast({
-      title: "Purchase Method Deleted",
-      description: "The purchase method has been successfully deleted.",
-    });
+  const handleDelete = async (methodId: string) => {
+    try {
+      const { error } = await supabase
+        .from('purchase_payment_methods')
+        .delete()
+        .eq('id', methodId);
+
+      if (error) throw error;
+
+      // Remove from local state
+      setPurchaseMethods(prev => prev.filter(method => method.id !== methodId));
+      
+      toast({
+        title: "Purchase Method Deleted",
+        description: "The purchase method has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error('Error deleting purchase method:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete purchase method.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -171,7 +222,7 @@ export function PurchaseManagement() {
       name: "",
       paymentLimit: "",
       frequency: "24 hours",
-      bankAccountId: ""
+      bankAccountName: ""
     });
     setEditingMethod(null);
   };
@@ -237,31 +288,20 @@ export function PurchaseManagement() {
 
               <div>
                 <Label htmlFor="bankAccount">Link Bank Account</Label>
-                <Select value={formData.bankAccountId} onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, bankAccountId: value }))
+                <Select value={formData.bankAccountName} onValueChange={(value) => 
+                  setFormData(prev => ({ ...prev, bankAccountName: value }))
                 }>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a bank account" />
                   </SelectTrigger>
                   <SelectContent>
                     {bankAccounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
+                      <SelectItem key={account.id} value={account.account_name}>
                         {account.bank_name} - {account.account_name} ({account.account_number})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="name">Method Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Primary UPI Account, HDFC Current Account"
-                  required
-                />
               </div>
 
               <div>
@@ -366,7 +406,6 @@ export function PurchaseManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
-                <TableHead>Name</TableHead>
                 <TableHead>Linked Account</TableHead>
                 <TableHead>Limit</TableHead>
                 <TableHead>Used</TableHead>
@@ -394,7 +433,6 @@ export function PurchaseManagement() {
                         {method.type}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{method.name}</TableCell>
                     <TableCell>
                       {method.bankAccountName ? (
                         <span className="text-sm text-gray-600">{method.bankAccountName}</span>

@@ -707,7 +707,7 @@ export type Database = {
       }
       purchase_payment_methods: {
         Row: {
-          bank_account_id: string
+          bank_account_name: string | null
           created_at: string
           current_usage: number | null
           custom_frequency: string | null
@@ -720,7 +720,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          bank_account_id: string
+          bank_account_name?: string | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null
@@ -733,7 +733,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          bank_account_id?: string
+          bank_account_name?: string | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null
@@ -747,18 +747,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_purchase_payment_methods_bank_account"
-            columns: ["bank_account_id"]
+            foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
+            columns: ["bank_account_name"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_payment_methods_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_accounts"
-            referencedColumns: ["id"]
+            referencedColumns: ["account_name"]
           },
         ]
       }

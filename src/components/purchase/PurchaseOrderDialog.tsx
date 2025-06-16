@@ -39,7 +39,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     { product_id: "", quantity: 0, unit_price: 0, warehouse_id: "" }
   ]);
 
-  // Fetch purchase payment methods
+  // Fetch purchase payment methods with bank account details
   const { data: purchasePaymentMethods } = useQuery({
     queryKey: ['purchase_payment_methods'],
     queryFn: async () => {
@@ -47,7 +47,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         .from('purchase_payment_methods')
         .select(`
           *,
-          bank_accounts:bank_account_id(account_name, bank_name, balance)
+          bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name, bank_name, balance)
         `)
         .eq('is_active', true)
         .order('created_at');
@@ -175,18 +175,18 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
             .eq('id', purchaseData.purchase_payment_method_id);
         }
 
-        // Update bank account balance (reduce balance)
+        // Update bank account balance (reduce balance) if bank account is linked
         const { data: paymentMethodWithBank } = await supabase
           .from('purchase_payment_methods')
-          .select('bank_account_id')
+          .select('bank_account_name')
           .eq('id', purchaseData.purchase_payment_method_id)
           .single();
 
-        if (paymentMethodWithBank?.bank_account_id) {
+        if (paymentMethodWithBank?.bank_account_name) {
           const { data: bankAccount } = await supabase
             .from('bank_accounts')
             .select('balance')
-            .eq('id', paymentMethodWithBank.bank_account_id)
+            .eq('account_name', paymentMethodWithBank.bank_account_name)
             .single();
             
           if (bankAccount) {
@@ -195,7 +195,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
               .update({ 
                 balance: bankAccount.balance - totalAmount 
               })
-              .eq('id', paymentMethodWithBank.bank_account_id);
+              .eq('account_name', paymentMethodWithBank.bank_account_name);
           }
         }
       }
@@ -261,7 +261,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
   const getAvailableLimit = (methodId: string) => {
     const method = purchasePaymentMethods?.find(m => m.id === methodId);
     if (!method) return 0;
-    return method.payment_limit - method.current_usage;
+    return method.payment_limit - (method.current_usage || 0);
   };
 
   return (
@@ -303,11 +303,12 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                   <SelectContent>
                     {purchasePaymentMethods?.map((method) => (
                       <SelectItem key={method.id} value={method.id}>
-                        {method.bank_accounts?.account_name} - {method.bank_accounts?.bank_name}
-                        <br />
-                        <span className="text-xs text-gray-500">
-                          Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
-                        </span>
+                        <div className="flex flex-col">
+                          <span>{method.bank_account_name || 'Unnamed Method'}</span>
+                          <span className="text-xs text-gray-500">
+                            Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
+                          </span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>

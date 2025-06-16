@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download, FileText } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText, Bell } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OrderTypeSelectionDialog } from "@/components/sales/OrderTypeSelectionDialog";
 import { EnhancedOrderCreationDialog } from "@/components/sales/EnhancedOrderCreationDialog";
 import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export default function Sales() {
   const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
@@ -27,6 +28,7 @@ export default function Sales() {
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
+  const [salesEntryData, setSalesEntryData] = useState<any>(null);
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -62,6 +64,12 @@ export default function Sales() {
   const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
     setSelectedOrderType(type);
     setShowEnhancedOrderDialog(true);
+  };
+
+  const handleSalesEntryOpen = (data: any) => {
+    setSalesEntryData(data);
+    setShowSalesEntryDialog(true);
+    setShowEnhancedOrderDialog(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -109,6 +117,7 @@ export default function Sales() {
           <p className="text-gray-600 mt-1">Core Sales Processing Module - Track orders from creation to payment confirmation</p>
         </div>
         <div className="flex gap-2">
+          <NotificationDropdown />
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -331,12 +340,14 @@ export default function Sales() {
         open={showEnhancedOrderDialog}
         onOpenChange={setShowEnhancedOrderDialog}
         orderType={selectedOrderType}
+        onSalesEntryOpen={handleSalesEntryOpen}
       />
 
-      {/* Legacy Sales Entry Dialog (for backward compatibility) */}
+      {/* Sales Entry Dialog with pre-filled data */}
       <SalesEntryDialog 
         open={showSalesEntryDialog} 
         onOpenChange={setShowSalesEntryDialog}
+        preFilledData={salesEntryData}
       />
     </div>
   );

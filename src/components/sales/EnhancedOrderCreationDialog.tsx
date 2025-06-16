@@ -16,6 +16,7 @@ interface EnhancedOrderCreationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orderType: 'repeat' | 'new' | null;
+  onSalesEntryOpen?: (data: any) => void;
 }
 
 interface OrderStep {
@@ -25,7 +26,8 @@ interface OrderStep {
 export function EnhancedOrderCreationDialog({ 
   open, 
   onOpenChange, 
-  orderType 
+  orderType,
+  onSalesEntryOpen 
 }: EnhancedOrderCreationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -122,8 +124,8 @@ export function EnhancedOrderCreationDialog({
       
       const mappedRiskCategory = mapClientRiskToPaymentRisk(selectedClient.risk_appetite);
       
-      // For Bank Transfer, fetch methods with type 'Bank Account'
-      const methodType = paymentType === 'Bank Transfer' ? 'Bank Account' : paymentType;
+      // Use the correct type for Bank Account methods
+      const methodType = paymentType;
       
       let query = supabase
         .from('sales_payment_methods')
@@ -268,6 +270,17 @@ export function EnhancedOrderCreationDialog({
   };
 
   const handlePaymentReceived = () => {
+    if (onSalesEntryOpen) {
+      const salesData = {
+        customerName: selectedClient?.name || '',
+        amount: orderAmount,
+        paymentMethod: selectedPaymentMethod,
+        clientPhone: selectedClient?.phone || '',
+        clientEmail: selectedClient?.email || '',
+        platform: selectedClient?.platform || newClientData.platform
+      };
+      onSalesEntryOpen(salesData);
+    }
     setCurrentStep('completion');
   };
 
@@ -487,7 +500,7 @@ export function EnhancedOrderCreationDialog({
                   </Card>
 
                   <Card className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => setPaymentType('Bank Transfer')}>
+                        onClick={() => setPaymentType('Bank Account')}>
                     <CardHeader className="pb-3">
                       <CardTitle className="flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-green-600" />
@@ -500,7 +513,7 @@ export function EnhancedOrderCreationDialog({
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Available {paymentType} Method for {selectedClient?.risk_appetite} Risk Client</Label>
+                  <Label>Available {paymentType === 'Bank Account' ? 'Bank Transfer' : paymentType} Method for {selectedClient?.risk_appetite} Risk Client</Label>
                   <Button variant="outline" size="sm" onClick={() => {
                     setPaymentType(null);
                     setSelectedPaymentMethod(null);
@@ -581,7 +594,7 @@ export function EnhancedOrderCreationDialog({
                   </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
-                    No {paymentType} methods available with sufficient limit for {selectedClient?.risk_appetite} risk level clients.
+                    No {paymentType === 'Bank Account' ? 'Bank Transfer' : paymentType} methods available with sufficient limit for {selectedClient?.risk_appetite} risk level clients.
                     <br />
                     <span className="text-sm">Try selecting a different payment type or contact admin to set up payment methods.</span>
                     

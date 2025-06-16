@@ -14,6 +14,7 @@ import { FileUpload } from "./FileUpload";
 interface SalesEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preFilledData?: any;
 }
 
 interface SalesEntryForm {
@@ -27,9 +28,10 @@ interface SalesEntryForm {
   description: string;
   riskLevel: string;
   attachmentUrls: string[];
+  warehouseId: string;
 }
 
-export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) {
+export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEntryDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -43,8 +45,30 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     orderDate: new Date().toISOString().split('T')[0],
     description: "",
     riskLevel: "",
-    attachmentUrls: []
+    attachmentUrls: [],
+    warehouseId: ""
   });
+
+  // Pre-fill form data when dialog opens with data from order creation
+  useEffect(() => {
+    if (preFilledData && open) {
+      setFormData(prev => ({
+        ...prev,
+        customerName: preFilledData.customerName || "",
+        // Auto-calculate quantity when amount and price are known
+        quantity: preFilledData.amount && prev.sellingPrice ? 
+          Math.floor(preFilledData.amount / prev.sellingPrice) : 0,
+      }));
+    }
+  }, [preFilledData, open]);
+
+  // Auto-calculate quantity when price changes
+  useEffect(() => {
+    if (preFilledData?.amount && formData.sellingPrice > 0) {
+      const calculatedQuantity = Math.floor(preFilledData.amount / formData.sellingPrice);
+      setFormData(prev => ({ ...prev, quantity: calculatedQuantity }));
+    }
+  }, [formData.sellingPrice, preFilledData?.amount]);
 
   // Fetch products from stock management
   const { data: products } = useQuery({
@@ -54,6 +78,20 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         .from('products')
         .select('*')
         .gt('current_stock_quantity', 0);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch warehouses
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true);
       
       if (error) throw error;
       return data;
@@ -74,8 +112,20 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
+  // Auto-fill bank account based on payment method from order creation
+  useEffect(() => {
+    if (preFilledData?.paymentMethod && bankAccounts) {
+      const matchingBank = bankAccounts.find(bank => 
+        bank.account_name === preFilledData.paymentMethod.bank_accounts?.account_name
+      );
+      if (matchingBank) {
+        setFormData(prev => ({ ...prev, bankAccountId: matchingBank.id }));
+      }
+    }
+  }, [preFilledData?.paymentMethod, bankAccounts]);
+
   const selectedProduct = products?.find(p => p.id === formData.productId);
-  const totalAmount = formData.quantity * formData.sellingPrice;
+  const totalAmount = preFilledData?.amount || (formData.quantity * formData.sellingPrice);
 
   const createSalesMutation = useMutation({
     mutationFn: async (salesData: SalesEntryForm) => {
@@ -190,7 +240,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       orderDate: new Date().toISOString().split('T')[0],
       description: "",
       riskLevel: "",
-      attachmentUrls: []
+      attachmentUrls: [],
+      warehouseId: ""
     });
   };
 
@@ -229,11 +280,17 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column */}
             <div className="space-y-4">
-              <CustomerAutocomplete
-                value={formData.customerName}
-                onChange={(value) => setFormData(prev => ({ ...prev, customerName: value }))}
-                onRiskLevelChange={(riskLevel) => setFormData(prev => ({ ...prev, riskLevel }))}
-              />
+              <div>
+                <Label htmlFor="customerName">Customer Name *</Label>
+                <Input
+                  id="customerName"
+                  value={formData.customerName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
+                  required
+                  readOnly={!!preFilledData?.customerName}
+                  className={preFilledData?.customerName ? "bg-gray-100" : ""}
+                />
+              </div>
               
               <div>
                 <Label htmlFor="orderNumber">Order Number *</Label>
@@ -243,6 +300,24 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
                   required
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="warehouse">Warehouse *</Label>
+                <Select value={formData.warehouseId} onValueChange={(value) => 
+                  setFormData(prev => ({ ...prev, warehouseId: value }))
+                }>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses?.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name} - {warehouse.location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -269,24 +344,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="quantity">Quantity *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    max={selectedProduct?.current_stock_quantity || 0}
-                    value={formData.quantity}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
-                    required
-                  />
-                  {selectedProduct && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Available: {selectedProduct.current_stock_quantity} {selectedProduct.unit_of_measurement}
-                    </p>
-                  )}
-                </div>
-
-                <div>
                   <Label htmlFor="sellingPrice">Price per Unit *</Label>
                   <Input
                     id="sellingPrice"
@@ -296,6 +353,26 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                     onChange={(e) => setFormData(prev => ({ ...prev, sellingPrice: parseFloat(e.target.value) || 0 }))}
                     required
                   />
+                </div>
+                
+                <div>
+                  <Label htmlFor="quantity">Quantity *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    min="1"
+                    max={selectedProduct?.current_stock_quantity || 0}
+                    value={formData.quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    required
+                    readOnly={!!preFilledData?.amount}
+                    className={preFilledData?.amount ? "bg-gray-100" : ""}
+                  />
+                  {selectedProduct && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Available: {selectedProduct.current_stock_quantity} {selectedProduct.unit_of_measurement}
+                    </p>
+                  )}
                 </div>
               </div>
 

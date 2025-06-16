@@ -6,14 +6,14 @@ import { BarChart, TrendingUp, AlertTriangle, Activity } from "lucide-react";
 
 export function TradingPatternAnalysis() {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+      <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
         <CardTitle className="flex items-center gap-2">
-          <BarChart className="h-5 w-5 text-blue-600" />
+          <BarChart className="h-5 w-5" />
           Trading Pattern Analysis
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">67</div>
@@ -59,15 +59,15 @@ export function TradingPatternAnalysis() {
         </div>
 
         <div className="flex gap-2 pt-4 border-t mt-4">
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" className="border-blue-200 hover:bg-blue-50">
             <TrendingUp className="h-4 w-4 mr-1" />
             View Charts
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" className="border-blue-200 hover:bg-blue-50">
             <Activity className="h-4 w-4 mr-1" />
             Pattern Settings
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" className="border-blue-200 hover:bg-blue-50">
             <AlertTriangle className="h-4 w-4 mr-1" />
             Alert Rules
           </Button>

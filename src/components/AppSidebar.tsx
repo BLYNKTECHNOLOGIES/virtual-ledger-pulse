@@ -83,8 +83,8 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4">
+    <Sidebar className="bg-gradient-to-b from-blue-800 to-blue-900 border-r-0">
+      <SidebarHeader className="p-4 bg-gradient-to-r from-blue-700 to-blue-800">
         <div className="flex items-center gap-3">
           <img 
             src="/lovable-uploads/25d24f27-f300-4057-b894-aa71e4e6fe12.png" 
@@ -92,21 +92,21 @@ export function AppSidebar() {
             className="h-8 w-auto"
           />
           <div>
-            <h2 className="text-sm font-semibold text-primary">BLYNK VIRTUAL</h2>
-            <p className="text-xs text-muted-foreground">TECHNOLOGIES</p>
+            <h2 className="text-sm font-semibold text-white">BLYNK VIRTUAL</h2>
+            <p className="text-xs text-blue-200">TECHNOLOGIES</p>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="bg-gradient-to-b from-blue-800 to-blue-900">
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-blue-200 font-medium">MAIN MENU</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="text-blue-100 hover:bg-blue-700/50 hover:text-white data-[active]:bg-blue-600 data-[active]:text-white transition-colors">
                     <a href={item.url}>
-                      <item.icon />
+                      <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
@@ -116,8 +116,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <div className="text-xs text-muted-foreground">
+      <SidebarFooter className="p-4 bg-gradient-to-r from-blue-800 to-blue-900">
+        <div className="text-xs text-blue-200">
           © 2025 BLYNK Virtual Technologies
         </div>
       </SidebarFooter>

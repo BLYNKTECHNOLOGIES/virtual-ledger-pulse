@@ -8,6 +8,8 @@ import { ArrowLeft, User, Calendar, Tag, Phone, Mail, MapPin, TrendingUp, FileTe
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnalysis";
+import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 
 export default function ClientDetail() {
   const { clientId } = useParams();
@@ -74,7 +76,7 @@ export default function ClientDetail() {
   const priority = getClientPriority(getClientValueScore());
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
@@ -83,49 +85,52 @@ export default function ClientDetail() {
               variant="outline" 
               size="sm"
               onClick={() => navigate('/clients')}
+              className="border-blue-200 hover:bg-blue-50"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Clients
             </Button>
-            <h1 className="text-3xl font-bold">Client Detail - {client.name}</h1>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Client Detail - {client.name}
+            </h1>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-4 mt-6">
-          <Card className="p-4">
+          <Card className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
             <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-blue-600" />
+              <User className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-600">Add New Client</p>
-                <p className="text-xs text-blue-600">2 Pending Approvals</p>
+                <p className="text-sm opacity-90">Add New Client</p>
+                <p className="text-xs">2 Pending Approvals</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
             <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-orange-600" />
+              <FileText className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-600">Re-KYC Required</p>
-                <p className="text-xs text-orange-600">5 Clients</p>
+                <p className="text-sm opacity-90">Re-KYC Required</p>
+                <p className="text-xs">5 Clients</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 bg-gradient-to-r from-red-500 to-red-600 text-white border-0">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+              <AlertTriangle className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-600">Cosmos Alerts</p>
-                <p className="text-xs text-red-600">3 Active</p>
+                <p className="text-sm opacity-90">Cosmos Alerts</p>
+                <p className="text-xs">3 Active</p>
               </div>
             </div>
           </Card>
-          <Card className="p-4">
+          <Card className="p-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
             <div className="flex items-center gap-3">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
+              <TrendingUp className="h-5 w-5" />
               <div>
-                <p className="text-sm text-gray-600">High Value Clients</p>
-                <p className="text-xs text-purple-600">12 Platinum</p>
+                <p className="text-sm opacity-90">High Value Clients</p>
+                <p className="text-xs">12 Platinum</p>
               </div>
             </div>
           </Card>
@@ -134,18 +139,18 @@ export default function ClientDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Client Overview Panel */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-blue-600" />
+              <User className="h-5 w-5" />
               Client Overview Panel
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">Client Name</label>
-                <p className="text-lg font-semibold">{client.name}</p>
+                <p className="text-lg font-semibold text-gray-800">{client.name}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Client ID</label>
@@ -188,11 +193,11 @@ export default function ClientDetail() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-blue-200 hover:bg-blue-50">
                 <Tag className="h-4 w-4 mr-1" />
                 Edit Details
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-blue-200 hover:bg-blue-50">
                 View Full Profile
               </Button>
             </div>
@@ -200,14 +205,14 @@ export default function ClientDetail() {
         </Card>
 
         {/* Monthly Limits & Cosmos Alerts */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-green-600" />
+              <Shield className="h-5 w-5" />
               Monthly Limits & Cosmos Alerts
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-600">First Order Value</label>
@@ -224,7 +229,7 @@ export default function ClientDetail() {
                 <label className="text-sm font-medium text-gray-600">Monthly Usage</label>
                 <span className="text-sm font-medium">{usagePercentage.toFixed(0)}% Used</span>
               </div>
-              <Progress value={usagePercentage} className="h-2" />
+              <Progress value={usagePercentage} className="h-3" />
               <div className="flex justify-between text-sm text-gray-500 mt-1">
                 <span>Used: ₹{currentUsed.toLocaleString()}</span>
                 <span>Remaining: ₹{remaining.toLocaleString()}</span>
@@ -255,11 +260,11 @@ export default function ClientDetail() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-green-200 hover:bg-green-50">
                 <TrendingUp className="h-4 w-4 mr-1" />
                 Request Limit Increase
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-green-200 hover:bg-green-50">
                 <AlertTriangle className="h-4 w-4 mr-1" />
                 Cosmos Settings
               </Button>
@@ -268,14 +273,14 @@ export default function ClientDetail() {
         </Card>
 
         {/* Client Value Score */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
+              <TrendingUp className="h-5 w-5" />
               Client Value Score
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div>
               <label className="text-sm font-medium text-gray-600">Monthly Purchase Value</label>
               <p className="text-2xl font-bold text-green-600">₹{currentUsed.toLocaleString()}</p>
@@ -297,14 +302,14 @@ export default function ClientDetail() {
         </Card>
 
         {/* KYC & Bank Account Info */}
-        <Card>
-          <CardHeader>
+        <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5" />
               KYC & Bank Account Info
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">PAN Card</span>
@@ -328,22 +333,32 @@ export default function ClientDetail() {
               </div>
             </div>
 
-            <Button size="sm" variant="outline" className="w-full">
+            <Button size="sm" variant="outline" className="w-full border-indigo-200 hover:bg-indigo-50">
               <CreditCard className="h-4 w-4 mr-2" />
               Manage KYC Documents
             </Button>
           </CardContent>
         </Card>
 
+        {/* Trading Pattern Analysis */}
+        <div className="lg:col-span-2">
+          <TradingPatternAnalysis />
+        </div>
+
+        {/* Order History Module */}
+        <div className="lg:col-span-2">
+          <OrderHistoryModule />
+        </div>
+
         {/* Purpose & Communication */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="lg:col-span-2 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-green-600" />
+              <MessageCircle className="h-5 w-5" />
               Purpose & Communication
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-6">
             <div className="grid grid-cols-3 gap-6">
               <div>
                 <label className="text-sm font-medium text-gray-600">Purpose of Buying</label>
@@ -375,11 +390,11 @@ export default function ClientDetail() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-teal-200 hover:bg-teal-50">
                 <MessageCircle className="h-4 w-4 mr-1" />
                 Add Note
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" className="border-teal-200 hover:bg-teal-50">
                 Communication Log
               </Button>
             </div>

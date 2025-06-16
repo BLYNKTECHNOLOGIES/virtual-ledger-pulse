@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +36,7 @@ export function EnhancedOrderCreationDialog({
   const [cosmosAlert, setCosmosAlert] = useState<boolean>(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
+  const [alternativeAttempted, setAlternativeAttempted] = useState<boolean>(false);
   
   const [newClientData, setNewClientData] = useState({
     name: "",
@@ -74,13 +74,52 @@ export function EnhancedOrderCreationDialog({
     },
   });
 
-  // Fetch payment methods based on client risk and type
-  const { data: paymentMethods } = useQuery({
-    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite, paymentType],
+  // Fetch client's previous payment methods for prioritization
+  const { data: previousPaymentMethods } = useQuery({
+    queryKey: ['client_previous_payments', selectedClient?.id],
     queryFn: async () => {
-      if (!paymentType) return [];
+      if (!selectedClient?.id) return [];
       
       const { data, error } = await supabase
+        .from('sales_orders')
+        .select('sales_payment_method_id')
+        .eq('client_name', selectedClient.name)
+        .eq('payment_status', 'COMPLETED')
+        .not('sales_payment_method_id', 'is', null)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedClient?.id && currentStep === 'payment'
+  });
+
+  // Map client risk appetite to payment method risk category
+  const mapClientRiskToPaymentRisk = (clientRisk: string) => {
+    const riskMapping = {
+      'HIGH': 'High Risk',
+      'MEDIUM': 'Medium Risk',
+      'LOW': 'Low Risk',
+      'NONE': 'No Risk'
+    };
+    return riskMapping[clientRisk as keyof typeof riskMapping] || 'Medium Risk';
+  };
+
+  // Fetch payment methods based on client risk and type
+  const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
+    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite, paymentType, alternativeAttempted],
+    queryFn: async () => {
+      if (!paymentType || !selectedClient?.risk_appetite) return [];
+      
+      console.log('Fetching payment methods for:', {
+        paymentType,
+        clientRisk: selectedClient.risk_appetite,
+        mappedRisk: mapClientRiskToPaymentRisk(selectedClient.risk_appetite)
+      });
+      
+      const mappedRiskCategory = mapClientRiskToPaymentRisk(selectedClient.risk_appetite);
+      
+      let query = supabase
         .from('sales_payment_methods')
         .select(`
           *,
@@ -88,12 +127,35 @@ export function EnhancedOrderCreationDialog({
         `)
         .eq('is_active', true)
         .eq('type', paymentType)
-        .order('created_at');
+        .eq('risk_category', mappedRiskCategory);
+
+      const { data, error } = await query.order('created_at');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching payment methods:', error);
+        throw error;
+      }
+      
+      console.log('Fetched payment methods:', data);
+      
+      // If this is not an alternative attempt, prioritize based on previous usage
+      if (!alternativeAttempted && previousPaymentMethods && previousPaymentMethods.length > 0) {
+        const usedMethodIds = previousPaymentMethods.map(pm => pm.sales_payment_method_id);
+        const prioritized = data.sort((a, b) => {
+          const aUsed = usedMethodIds.includes(a.id);
+          const bUsed = usedMethodIds.includes(b.id);
+          if (aUsed && !bUsed) return -1;
+          if (!aUsed && bUsed) return 1;
+          return 0;
+        });
+        
+        // Return only the top priority method for initial selection
+        return prioritized.slice(0, 1);
+      }
+      
       return data;
     },
-    enabled: !!paymentType && currentStep === 'payment'
+    enabled: !!paymentType && !!selectedClient?.risk_appetite && currentStep === 'payment'
   });
 
   const resetDialog = () => {
@@ -103,6 +165,7 @@ export function EnhancedOrderCreationDialog({
     setCosmosAlert(false);
     setSelectedPaymentMethod(null);
     setPaymentType(null);
+    setAlternativeAttempted(false);
     setNewClientData({
       name: "",
       phone: "",
@@ -176,8 +239,9 @@ export function EnhancedOrderCreationDialog({
   };
 
   const handleAlternativePayment = () => {
-    setPaymentType(null);
+    setAlternativeAttempted(true);
     setSelectedPaymentMethod(null);
+    // Keep the same payment type but fetch alternative methods
   };
 
   const handlePaymentReceived = () => {
@@ -187,6 +251,14 @@ export function EnhancedOrderCreationDialog({
   const getAvailableLimit = (method: any) => {
     return method.payment_limit - (method.current_usage || 0);
   };
+
+  // Auto-select the first available payment method when type is chosen
+  useEffect(() => {
+    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentMethod && paymentType) {
+      const firstMethod = paymentMethods[0];
+      setSelectedPaymentMethod(firstMethod);
+    }
+  }, [paymentMethods, selectedPaymentMethod, paymentType]);
 
   if (!orderType) return null;
 
@@ -315,6 +387,7 @@ export function EnhancedOrderCreationDialog({
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-medium">Selected Client: {selectedClient?.name}</h3>
               <p className="text-sm text-gray-600">
+                Risk Level: {selectedClient?.risk_appetite} | 
                 Monthly Limit: ₹{selectedClient?.monthly_limit?.toLocaleString() || '50,000'} | 
                 Used: ₹{selectedClient?.current_month_used?.toLocaleString() || '0'}
               </p>
@@ -358,7 +431,9 @@ export function EnhancedOrderCreationDialog({
           <div className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-medium">Order Amount: ₹{orderAmount.toLocaleString()}</h3>
-              <p className="text-sm text-gray-600">Client: {selectedClient?.name}</p>
+              <p className="text-sm text-gray-600">
+                Client: {selectedClient?.name} | Risk Level: {selectedClient?.risk_appetite}
+              </p>
             </div>
 
             {!paymentType ? (
@@ -389,46 +464,71 @@ export function EnhancedOrderCreationDialog({
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Available {paymentType} Methods</Label>
-                  <Button variant="outline" size="sm" onClick={() => setPaymentType(null)}>
+                  <Label>Available {paymentType} Methods for {selectedClient?.risk_appetite} Risk Client</Label>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    setPaymentType(null);
+                    setSelectedPaymentMethod(null);
+                    setAlternativeAttempted(false);
+                  }}>
                     Change Type
                   </Button>
                 </div>
 
-                {paymentMethods?.map((method) => (
-                  <Card key={method.id} className={`cursor-pointer transition-all ${
-                    selectedPaymentMethod?.id === method.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
-                  }`} onClick={() => handlePaymentMethodSelection(method)}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">
-                            {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            Risk: {method.risk_category} | Available: ₹{getAvailableLimit(method).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">
-                            ₹{method.payment_limit.toLocaleString()}
+                {paymentMethodsLoading ? (
+                  <div className="text-center py-4">Loading payment methods...</div>
+                ) : paymentMethods && paymentMethods.length > 0 ? (
+                  <div className="space-y-4">
+                    {paymentMethods.map((method) => (
+                      <Card key={method.id} className={`cursor-pointer transition-all ${
+                        selectedPaymentMethod?.id === method.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
+                      }`} onClick={() => handlePaymentMethodSelection(method)}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">
+                                {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
+                              </h4>
+                              <p className="text-sm text-gray-600">
+                                Risk: {method.risk_category} | Available: ₹{getAvailableLimit(method).toLocaleString()}
+                              </p>
+                              {method.type === 'Bank Transfer' && method.bank_accounts && (
+                                <p className="text-xs text-gray-500">
+                                  Bank: {method.bank_accounts.bank_name}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                ₹{method.payment_limit.toLocaleString()}
+                              </div>
+                              <div className="text-xs text-gray-500">Limit</div>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">Limit</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    ))}
 
-                {selectedPaymentMethod && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-blue-900">Selected Payment Method</h4>
-                    <p className="text-sm text-blue-700">
-                      {selectedPaymentMethod.type === 'UPI' ? 
-                        selectedPaymentMethod.upi_id : 
-                        selectedPaymentMethod.bank_accounts?.account_name
-                      }
-                    </p>
+                    {selectedPaymentMethod && (
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-900">Selected Payment Method</h4>
+                        <p className="text-sm text-blue-700">
+                          {selectedPaymentMethod.type === 'UPI' ? 
+                            selectedPaymentMethod.upi_id : 
+                            selectedPaymentMethod.bank_accounts?.account_name
+                          }
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          Risk Category: {selectedPaymentMethod.risk_category} | 
+                          Available: ₹{getAvailableLimit(selectedPaymentMethod).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No {paymentType} methods available for {selectedClient?.risk_appetite} risk level clients.
+                    <br />
+                    <span className="text-sm">Try selecting a different payment type or contact admin to set up payment methods.</span>
                   </div>
                 )}
 
@@ -437,18 +537,22 @@ export function EnhancedOrderCreationDialog({
                     <XCircle className="h-4 w-4 mr-2" />
                     Cancel Order
                   </Button>
-                  <Button variant="outline" onClick={handleAlternativePayment}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Alternative Method
-                  </Button>
-                  <Button 
-                    onClick={handlePaymentReceived} 
-                    disabled={!selectedPaymentMethod}
-                    className="flex-1"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Payment Received
-                  </Button>
+                  {paymentMethods && paymentMethods.length > 0 && (
+                    <>
+                      <Button variant="outline" onClick={handleAlternativePayment}>
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Alternative Method
+                      </Button>
+                      <Button 
+                        onClick={handlePaymentReceived} 
+                        disabled={!selectedPaymentMethod}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Payment Received
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             )}

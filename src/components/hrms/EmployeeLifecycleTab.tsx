@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserCheck, FileText, Users, LogOut } from "lucide-react";
 import { OnboardingDialog } from "./OnboardingDialog";
+import { EmployeeInformationTab } from "./EmployeeInformationTab";
+import { OffboardingTab } from "./OffboardingTab";
 
 export function EmployeeLifecycleTab() {
   const [showOnboardingDialog, setShowOnboardingDialog] = useState(false);
@@ -87,21 +89,7 @@ export function EmployeeLifecycleTab() {
         </TabsContent>
 
         <TabsContent value="employee-info">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Employee Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No employee records found</p>
-                <Button className="mt-4">Add Employee Information</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <EmployeeInformationTab />
         </TabsContent>
 
         <TabsContent value="status">
@@ -122,20 +110,7 @@ export function EmployeeLifecycleTab() {
         </TabsContent>
 
         <TabsContent value="offboarding">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <LogOut className="h-5 w-5" />
-                Employee Offboarding
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <LogOut className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No offboarding processes active</p>
-              </div>
-            </CardContent>
-          </Card>
+          <OffboardingTab />
         </TabsContent>
       </Tabs>
 

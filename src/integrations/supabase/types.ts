@@ -111,11 +111,68 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_offboarding: {
+        Row: {
+          assets_returned: boolean | null
+          created_at: string
+          employee_id: string
+          exit_interview_completed: boolean | null
+          final_settlement_amount: number | null
+          handover_status: string
+          id: string
+          initiated_by: string | null
+          last_working_day: string | null
+          notice_period_days: number | null
+          reason_for_leaving: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assets_returned?: boolean | null
+          created_at?: string
+          employee_id: string
+          exit_interview_completed?: boolean | null
+          final_settlement_amount?: number | null
+          handover_status?: string
+          id?: string
+          initiated_by?: string | null
+          last_working_day?: string | null
+          notice_period_days?: number | null
+          reason_for_leaving?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assets_returned?: boolean | null
+          created_at?: string
+          employee_id?: string
+          exit_interview_completed?: boolean | null
+          final_settlement_amount?: number | null
+          handover_status?: string
+          id?: string
+          initiated_by?: string | null
+          last_working_day?: string | null
+          notice_period_days?: number | null
+          reason_for_leaving?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_offboarding_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           created_at: string
           date_of_joining: string
           department: string
+          department_code: string | null
           designation: string
           email: string
           employee_id: string
@@ -132,6 +189,7 @@ export type Database = {
           created_at?: string
           date_of_joining: string
           department: string
+          department_code?: string | null
           designation: string
           email: string
           employee_id: string
@@ -148,6 +206,7 @@ export type Database = {
           created_at?: string
           date_of_joining?: string
           department?: string
+          department_code?: string | null
           designation?: string
           email?: string
           employee_id?: string
@@ -512,6 +571,103 @@ export type Database = {
           upi_id?: string | null
         }
         Relationships: []
+      }
+      performance_review_criteria: {
+        Row: {
+          category: string
+          created_at: string
+          criteria: string
+          id: string
+          review_id: string
+          score: number | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          criteria: string
+          id?: string
+          review_id: string
+          score?: number | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          criteria?: string
+          id?: string
+          review_id?: string
+          score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_review_criteria_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "performance_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_reviews: {
+        Row: {
+          created_at: string
+          employee_comments: string | null
+          employee_id: string
+          final_score: number | null
+          hrd_comments: string | null
+          hrd_name: string | null
+          hrd_signature: string | null
+          id: string
+          review_date: string
+          review_period: string
+          status: string
+          supervisor_comments: string | null
+          supervisor_name: string | null
+          supervisor_signature: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_comments?: string | null
+          employee_id: string
+          final_score?: number | null
+          hrd_comments?: string | null
+          hrd_name?: string | null
+          hrd_signature?: string | null
+          id?: string
+          review_date?: string
+          review_period: string
+          status?: string
+          supervisor_comments?: string | null
+          supervisor_name?: string | null
+          supervisor_signature?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_comments?: string | null
+          employee_id?: string
+          final_score?: number | null
+          hrd_comments?: string | null
+          hrd_name?: string | null
+          hrd_signature?: string | null
+          id?: string
+          review_date?: string
+          review_period?: string
+          status?: string
+          supervisor_comments?: string | null
+          supervisor_name?: string | null
+          supervisor_signature?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reviews_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platforms: {
         Row: {
@@ -1140,6 +1296,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_employee_id: {
+        Args: { dept: string; designation: string }
+        Returns: string
+      }
       get_default_risk_level: {
         Args: Record<PropertyKey, never>
         Returns: string

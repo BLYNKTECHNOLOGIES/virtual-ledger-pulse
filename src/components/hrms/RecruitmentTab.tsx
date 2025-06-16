@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,8 @@ import { CreateJobPostingDialog } from "./CreateJobPostingDialog";
 import { AddApplicantDialog } from "./AddApplicantDialog";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
 import { AddOfferDocumentDialog } from "./AddOfferDocumentDialog";
+import { PendingInterviewsTable } from "./PendingInterviewsTable";
+import { OfferDocumentsTable } from "./OfferDocumentsTable";
 
 export function RecruitmentTab() {
   const { toast } = useToast();
@@ -144,7 +145,8 @@ export function RecruitmentTab() {
       'INTERVIEW': 'bg-yellow-100 text-yellow-800',
       'SELECTED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
-      'NOT_INTERESTED': 'bg-gray-100 text-gray-800'
+      'NOT_INTERESTED': 'bg-gray-100 text-gray-800',
+      'ONBOARDED': 'bg-purple-100 text-purple-800'
     };
     return <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{status}</Badge>;
   };
@@ -170,6 +172,12 @@ export function RecruitmentTab() {
           Add Offer Document
         </Button>
       </div>
+
+      {/* Pending Interviews */}
+      <PendingInterviewsTable />
+
+      {/* Offer Documents */}
+      <OfferDocumentsTable />
 
       {/* Job Postings */}
       <Card>

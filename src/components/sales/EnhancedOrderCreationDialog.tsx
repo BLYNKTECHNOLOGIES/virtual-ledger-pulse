@@ -35,15 +35,16 @@ export function EnhancedOrderCreationDialog({
   const [orderAmount, setOrderAmount] = useState<number>(0);
   const [cosmosAlert, setCosmosAlert] = useState<boolean>(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
-  const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
+  const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Account' | null>(null);
   const [alternativeAttempted, setAlternativeAttempted] = useState<boolean>(false);
+  const [alternativeCount, setAlternativeCount] = useState<number>(0);
   
   const [newClientData, setNewClientData] = useState({
     name: "",
     phone: "",
     email: "",
     platform: "",
-    risk_appetite: "MEDIUM"
+    risk_appetite: "HIGH"
   });
 
   // Fetch clients for repeat orders
@@ -98,26 +99,31 @@ export function EnhancedOrderCreationDialog({
   const mapClientRiskToPaymentRisk = (clientRisk: string) => {
     const riskMapping = {
       'HIGH': 'High Risk',
-      'MEDIUM': 'Medium Risk',
+      'MEDIUM': 'Medium Risk', 
       'LOW': 'Low Risk',
       'NONE': 'No Risk'
     };
-    return riskMapping[clientRisk as keyof typeof riskMapping] || 'Medium Risk';
+    return riskMapping[clientRisk as keyof typeof riskMapping] || 'High Risk';
   };
 
   // Fetch payment methods based on client risk and type
   const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
-    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite, paymentType, alternativeAttempted],
+    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite, paymentType, alternativeCount, orderAmount],
     queryFn: async () => {
-      if (!paymentType || !selectedClient?.risk_appetite) return [];
+      if (!paymentType || !selectedClient?.risk_appetite || cosmosAlert) return [];
       
       console.log('Fetching payment methods for:', {
         paymentType,
         clientRisk: selectedClient.risk_appetite,
-        mappedRisk: mapClientRiskToPaymentRisk(selectedClient.risk_appetite)
+        mappedRisk: mapClientRiskToPaymentRisk(selectedClient.risk_appetite),
+        alternativeCount,
+        orderAmount
       });
       
       const mappedRiskCategory = mapClientRiskToPaymentRisk(selectedClient.risk_appetite);
+      
+      // For Bank Transfer, fetch methods with type 'Bank Account'
+      const methodType = paymentType === 'Bank Transfer' ? 'Bank Account' : paymentType;
       
       let query = supabase
         .from('sales_payment_methods')
@@ -126,7 +132,7 @@ export function EnhancedOrderCreationDialog({
           bank_accounts:bank_account_id(account_name, bank_name, balance)
         `)
         .eq('is_active', true)
-        .eq('type', paymentType)
+        .eq('type', methodType)
         .eq('risk_category', mappedRiskCategory);
 
       const { data, error } = await query.order('created_at');
@@ -138,10 +144,22 @@ export function EnhancedOrderCreationDialog({
       
       console.log('Fetched payment methods:', data);
       
+      // Filter methods with available limit >= order amount
+      const filteredMethods = data.filter(method => {
+        const availableLimit = method.payment_limit - (method.current_usage || 0);
+        return availableLimit >= orderAmount;
+      });
+      
+      console.log('Filtered methods with sufficient limit:', filteredMethods);
+      
+      if (filteredMethods.length === 0) {
+        return [];
+      }
+
       // If this is not an alternative attempt, prioritize based on previous usage
-      if (!alternativeAttempted && previousPaymentMethods && previousPaymentMethods.length > 0) {
+      if (alternativeCount === 0 && previousPaymentMethods && previousPaymentMethods.length > 0) {
         const usedMethodIds = previousPaymentMethods.map(pm => pm.sales_payment_method_id);
-        const prioritized = data.sort((a, b) => {
+        const prioritized = filteredMethods.sort((a, b) => {
           const aUsed = usedMethodIds.includes(a.id);
           const bUsed = usedMethodIds.includes(b.id);
           if (aUsed && !bUsed) return -1;
@@ -153,9 +171,10 @@ export function EnhancedOrderCreationDialog({
         return prioritized.slice(0, 1);
       }
       
-      return data;
+      // For alternative attempts, skip previously shown methods and return one at a time
+      return filteredMethods.slice(alternativeCount, alternativeCount + 1);
     },
-    enabled: !!paymentType && !!selectedClient?.risk_appetite && currentStep === 'payment'
+    enabled: !!paymentType && !!selectedClient?.risk_appetite && currentStep === 'payment' && !cosmosAlert
   });
 
   const resetDialog = () => {
@@ -166,12 +185,13 @@ export function EnhancedOrderCreationDialog({
     setSelectedPaymentMethod(null);
     setPaymentType(null);
     setAlternativeAttempted(false);
+    setAlternativeCount(0);
     setNewClientData({
       name: "",
       phone: "",
       email: "",
       platform: "",
-      risk_appetite: "MEDIUM"
+      risk_appetite: "HIGH"
     });
   };
 
@@ -192,8 +212,9 @@ export function EnhancedOrderCreationDialog({
     
     const newClient = {
       ...newClientData,
-      monthly_limit: 50000, // Default limit
-      current_month_used: 0
+      monthly_limit: null, // Default limit is null for new clients
+      current_month_used: 0,
+      risk_appetite: "HIGH" // Default risk level is HIGH for new clients
     };
     setSelectedClient(newClient);
     setCurrentStep('amount');
@@ -209,17 +230,19 @@ export function EnhancedOrderCreationDialog({
       return;
     }
 
-    // Check COSMOS limits
-    const monthlyLimit = selectedClient?.monthly_limit || 50000;
+    // Check COSMOS limits only if client has a monthly limit
+    const monthlyLimit = selectedClient?.monthly_limit;
     const currentUsed = selectedClient?.current_month_used || 0;
     
-    if (currentUsed + orderAmount > monthlyLimit) {
+    if (monthlyLimit && (currentUsed + orderAmount > monthlyLimit)) {
       setCosmosAlert(true);
       toast({
         title: "COSMOS Alert Triggered",
         description: "Order amount exceeds client's monthly limit. Alert sent to assistant manager.",
         variant: "destructive",
       });
+      // Don't proceed to payment step when COSMOS alert is triggered
+      return;
     }
     
     setCurrentStep('payment');
@@ -239,9 +262,9 @@ export function EnhancedOrderCreationDialog({
   };
 
   const handleAlternativePayment = () => {
-    setAlternativeAttempted(true);
+    setAlternativeCount(prev => prev + 1);
     setSelectedPaymentMethod(null);
-    // Keep the same payment type but fetch alternative methods
+    // Keep the same payment type but fetch next alternative method
   };
 
   const handlePaymentReceived = () => {
@@ -254,11 +277,11 @@ export function EnhancedOrderCreationDialog({
 
   // Auto-select the first available payment method when type is chosen
   useEffect(() => {
-    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentMethod && paymentType) {
+    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentMethod && paymentType && !cosmosAlert) {
       const firstMethod = paymentMethods[0];
       setSelectedPaymentMethod(firstMethod);
     }
-  }, [paymentMethods, selectedPaymentMethod, paymentType]);
+  }, [paymentMethods, selectedPaymentMethod, paymentType, cosmosAlert]);
 
   if (!orderType) return null;
 
@@ -388,7 +411,7 @@ export function EnhancedOrderCreationDialog({
               <h3 className="font-medium">Selected Client: {selectedClient?.name}</h3>
               <p className="text-sm text-gray-600">
                 Risk Level: {selectedClient?.risk_appetite} | 
-                Monthly Limit: ₹{selectedClient?.monthly_limit?.toLocaleString() || '50,000'} | 
+                Monthly Limit: {selectedClient?.monthly_limit ? `₹${selectedClient.monthly_limit.toLocaleString()}` : 'No Limit'} | 
                 Used: ₹{selectedClient?.current_month_used?.toLocaleString() || '0'}
               </p>
             </div>
@@ -406,28 +429,41 @@ export function EnhancedOrderCreationDialog({
             </div>
 
             {cosmosAlert && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertTriangle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-800">
-                  <strong>COSMOS Alert:</strong> This order exceeds the client's monthly limit. 
-                  An alert has been sent to the assistant manager.
-                </AlertDescription>
-              </Alert>
+              <div className="space-y-4">
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    <strong>COSMOS Limit Breached:</strong> Order is pending for approval. 
+                    The order amount exceeds the client's monthly limit and requires assistant manager approval.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setCurrentStep('client')}>
+                    Back
+                  </Button>
+                  <Button variant="destructive" onClick={handleOrderCancellation} className="flex-1">
+                    Cancel Order
+                  </Button>
+                </div>
+              </div>
             )}
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setCurrentStep('client')}>
-                Back
-              </Button>
-              <Button onClick={handleAmountSubmission} className="flex-1">
-                Continue to Payment Method
-              </Button>
-            </div>
+            {!cosmosAlert && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setCurrentStep('client')}>
+                  Back
+                </Button>
+                <Button onClick={handleAmountSubmission} className="flex-1">
+                  Continue to Payment Method
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
         {/* Step 3: Payment Method Selection */}
-        {currentStep === 'payment' && (
+        {currentStep === 'payment' && !cosmosAlert && (
           <div className="space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="font-medium">Order Amount: ₹{orderAmount.toLocaleString()}</h3>
@@ -464,11 +500,11 @@ export function EnhancedOrderCreationDialog({
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Available {paymentType} Methods for {selectedClient?.risk_appetite} Risk Client</Label>
+                  <Label>Available {paymentType} Method for {selectedClient?.risk_appetite} Risk Client</Label>
                   <Button variant="outline" size="sm" onClick={() => {
                     setPaymentType(null);
                     setSelectedPaymentMethod(null);
-                    setAlternativeAttempted(false);
+                    setAlternativeCount(0);
                   }}>
                     Change Type
                   </Button>
@@ -491,7 +527,7 @@ export function EnhancedOrderCreationDialog({
                               <p className="text-sm text-gray-600">
                                 Risk: {method.risk_category} | Available: ₹{getAvailableLimit(method).toLocaleString()}
                               </p>
-                              {method.type === 'Bank Transfer' && method.bank_accounts && (
+                              {method.type === 'Bank Account' && method.bank_accounts && (
                                 <p className="text-xs text-gray-500">
                                   Bank: {method.bank_accounts.bank_name}
                                 </p>
@@ -523,22 +559,12 @@ export function EnhancedOrderCreationDialog({
                         </p>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No {paymentType} methods available for {selectedClient?.risk_appetite} risk level clients.
-                    <br />
-                    <span className="text-sm">Try selecting a different payment type or contact admin to set up payment methods.</span>
-                  </div>
-                )}
 
-                <div className="flex gap-2">
-                  <Button variant="destructive" onClick={handleOrderCancellation}>
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Cancel Order
-                  </Button>
-                  {paymentMethods && paymentMethods.length > 0 && (
-                    <>
+                    <div className="flex gap-2">
+                      <Button variant="destructive" onClick={handleOrderCancellation}>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancel Order
+                      </Button>
                       <Button variant="outline" onClick={handleAlternativePayment}>
                         <RotateCcw className="h-4 w-4 mr-2" />
                         Alternative Method
@@ -551,9 +577,22 @@ export function EnhancedOrderCreationDialog({
                         <CheckCircle className="h-4 w-4 mr-2" />
                         Payment Received
                       </Button>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    No {paymentType} methods available with sufficient limit for {selectedClient?.risk_appetite} risk level clients.
+                    <br />
+                    <span className="text-sm">Try selecting a different payment type or contact admin to set up payment methods.</span>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <Button variant="destructive" onClick={handleOrderCancellation}>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Cancel Order
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

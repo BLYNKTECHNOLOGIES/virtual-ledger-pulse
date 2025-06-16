@@ -102,13 +102,21 @@ export function FinalSalesEntryDialog({
         }
       }
 
-      // Update client monthly usage
-      await supabase
+      // Update client monthly usage - fixed syntax
+      const { data: currentClient } = await supabase
         .from('clients')
-        .update({ 
-          current_month_used: supabase.sql`current_month_used + ${orderData.amount}`
-        })
-        .eq('name', orderData.clientName);
+        .select('current_month_used')
+        .eq('name', orderData.clientName)
+        .single();
+
+      if (currentClient) {
+        await supabase
+          .from('clients')
+          .update({ 
+            current_month_used: (currentClient.current_month_used || 0) + orderData.amount
+          })
+          .eq('name', orderData.clientName);
+      }
 
       return data;
     },

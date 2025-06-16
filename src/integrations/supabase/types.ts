@@ -13,36 +13,36 @@ export type Database = {
         Row: {
           account_name: string
           account_number: string
-          account_type: string
           balance: number
           bank_name: string
           branch: string | null
           created_at: string
           id: string
+          IFSC: string | null
           status: string
           updated_at: string
         }
         Insert: {
           account_name: string
           account_number: string
-          account_type: string
           balance?: number
           bank_name: string
           branch?: string | null
           created_at?: string
           id?: string
+          IFSC?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           account_name?: string
           account_number?: string
-          account_type?: string
           balance?: number
           bank_name?: string
           branch?: string | null
           created_at?: string
           id?: string
+          IFSC?: string | null
           status?: string
           updated_at?: string
         }
@@ -58,6 +58,7 @@ export type Database = {
           created_at: string
           current_month_used: number | null
           date_of_onboarding: string
+          default_risk_level: string | null
           email: string | null
           first_order_value: number | null
           id: string
@@ -77,6 +78,7 @@ export type Database = {
           created_at?: string
           current_month_used?: number | null
           date_of_onboarding: string
+          default_risk_level?: string | null
           email?: string | null
           first_order_value?: number | null
           id?: string
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string
           current_month_used?: number | null
           date_of_onboarding?: string
+          default_risk_level?: string | null
           email?: string | null
           first_order_value?: number | null
           id?: string
@@ -365,7 +368,6 @@ export type Database = {
           current_stock_quantity: number
           id: string
           name: string
-          reorder_level: number
           selling_price: number
           unit_of_measurement: string
           updated_at: string
@@ -378,7 +380,6 @@ export type Database = {
           current_stock_quantity?: number
           id?: string
           name: string
-          reorder_level?: number
           selling_price: number
           unit_of_measurement: string
           updated_at?: string
@@ -391,7 +392,6 @@ export type Database = {
           current_stock_quantity?: number
           id?: string
           name?: string
-          reorder_level?: number
           selling_price?: number
           unit_of_measurement?: string
           updated_at?: string
@@ -401,37 +401,49 @@ export type Database = {
       sales_orders: {
         Row: {
           amount: number
+          attachment_urls: string[] | null
           client_name: string
           created_at: string
+          created_by: string | null
           delivery_date: string | null
+          description: string | null
           id: string
           order_date: string
           order_number: string
           payment_status: string
+          risk_level: string | null
           status: string
           updated_at: string
         }
         Insert: {
           amount: number
+          attachment_urls?: string[] | null
           client_name: string
           created_at?: string
+          created_by?: string | null
           delivery_date?: string | null
+          description?: string | null
           id?: string
           order_date: string
           order_number: string
           payment_status?: string
+          risk_level?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          attachment_urls?: string[] | null
           client_name?: string
           created_at?: string
+          created_by?: string | null
           delivery_date?: string | null
+          description?: string | null
           id?: string
           order_date?: string
           order_number?: string
           payment_status?: string
+          risk_level?: string | null
           status?: string
           updated_at?: string
         }
@@ -487,12 +499,42 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_default_risk_level: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

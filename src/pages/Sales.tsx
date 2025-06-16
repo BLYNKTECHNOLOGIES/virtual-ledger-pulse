@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -70,6 +70,19 @@ export default function Sales() {
     }
   };
 
+  const getRiskLevelBadge = (level: string) => {
+    switch (level) {
+      case 'HIGH':
+        return <Badge className="bg-red-100 text-red-800">High Risk</Badge>;
+      case 'MEDIUM':
+        return <Badge className="bg-yellow-100 text-yellow-800">Medium Risk</Badge>;
+      case 'LOW':
+        return <Badge className="bg-green-100 text-green-800">Low Risk</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const clearFilters = () => {
     setFilterPaymentStatus("");
     setFilterDateFrom(undefined);
@@ -84,7 +97,7 @@ export default function Sales() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Sales Order Management</h1>
-          <p className="text-gray-600 mt-1">Core sales processing module for all platform orders</p>
+          <p className="text-gray-600 mt-1">Enhanced sales processing with customer tracking and file management</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
@@ -223,17 +236,31 @@ export default function Sales() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Payment Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Order Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Attachments</th>
                   </tr>
                 </thead>
                 <tbody>
                   {salesOrders?.map((order) => (
                     <tr key={order.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
-                      <td className="py-3 px-4">{order.client_name}</td>
+                      <td className="py-3 px-4">
+                        <div>
+                          <div className="font-medium">{order.client_name}</div>
+                          {order.description && (
+                            <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                              {order.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-4 font-medium">₹{order.amount}</td>
+                      <td className="py-3 px-4">
+                        {order.risk_level && getRiskLevelBadge(order.risk_level)}
+                      </td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
                       <td className="py-3 px-4">
                         <Badge variant={order.status === 'DELIVERED' ? 'default' : 'secondary'}>
@@ -241,6 +268,30 @@ export default function Sales() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+                      <td className="py-3 px-4">
+                        {order.attachment_urls && order.attachment_urls.length > 0 ? (
+                          <div className="flex gap-1">
+                            {order.attachment_urls.slice(0, 2).map((url, index) => (
+                              <Button
+                                key={index}
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0"
+                                onClick={() => window.open(url, '_blank')}
+                              >
+                                <FileText className="h-3 w-3" />
+                              </Button>
+                            ))}
+                            {order.attachment_urls.length > 2 && (
+                              <span className="text-xs text-gray-500">
+                                +{order.attachment_urls.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

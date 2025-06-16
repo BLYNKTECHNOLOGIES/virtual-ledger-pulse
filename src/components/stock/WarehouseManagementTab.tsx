@@ -169,11 +169,67 @@ export function WarehouseManagementTab() {
 
   const createAdjustmentMutation = useMutation({
     mutationFn: async (adjustmentData: any) => {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Create stock adjustment record
+      const { data: adjustment, error: adjustmentError } = await supabase
         .from('stock_adjustments')
-        .insert(adjustmentData);
-      if (error) throw error;
-      return data;
+        .insert({
+          ...adjustmentData,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (adjustmentError) throw adjustmentError;
+
+      // Create corresponding warehouse stock movements
+      if (adjustmentData.adjustment_type === 'TRANSFER') {
+        // Create OUT movement from source warehouse
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: adjustmentData.from_warehouse_id,
+            product_id: adjustmentData.product_id,
+            movement_type: 'OUT',
+            quantity: adjustmentData.quantity,
+            reason: 'Transfer out',
+            reference_id: adjustment.id,
+            reference_type: 'stock_adjustment',
+            created_by: user?.id
+          });
+
+        // Create IN movement to destination warehouse
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: adjustmentData.to_warehouse_id,
+            product_id: adjustmentData.product_id,
+            movement_type: 'IN',
+            quantity: adjustmentData.quantity,
+            reason: 'Transfer in',
+            reference_id: adjustment.id,
+            reference_type: 'stock_adjustment',
+            created_by: user?.id
+          });
+      } else {
+        // For LOST and CORRECTION adjustments
+        const movementType = adjustmentData.adjustment_type === 'LOST' ? 'OUT' : 'ADJUSTMENT';
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: adjustmentData.warehouse_id,
+            product_id: adjustmentData.product_id,
+            movement_type: movementType,
+            quantity: adjustmentData.quantity,
+            reason: adjustmentData.reason || adjustmentData.adjustment_type,
+            reference_id: adjustment.id,
+            reference_type: 'stock_adjustment',
+            created_by: user?.id
+          });
+      }
+
+      return adjustment;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock_adjustments'] });

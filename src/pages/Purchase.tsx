@@ -5,17 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Download, FileText, ShoppingCart } from "lucide-react";
+import { Plus, Search, Filter, Download, FileText, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PurchaseOrderDialog } from "@/components/purchase/PurchaseOrderDialog";
+import { EnhancedPurchaseOrderDialog } from "@/components/purchase/EnhancedPurchaseOrderDialog";
 
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch purchase orders from database
+  // Fetch purchase orders from database with enhanced data
   const { data: purchaseOrders, isLoading } = useQuery({
     queryKey: ['purchase_orders', searchTerm],
     queryFn: async () => {
@@ -23,7 +23,16 @@ export default function Purchase() {
         .from('purchase_orders')
         .select(`
           *,
-          bank_accounts:bank_account_id(account_name, bank_name)
+          bank_accounts:bank_account_id(account_name, bank_name),
+          purchase_payment_methods:purchase_payment_method_id(type, bank_account_name),
+          purchase_order_items(
+            id,
+            product_id,
+            quantity,
+            unit_price,
+            total_price,
+            products(name, code)
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -36,6 +45,69 @@ export default function Purchase() {
       return data;
     },
   });
+
+  const handleExportCSV = () => {
+    if (!purchaseOrders || purchaseOrders.length === 0) return;
+
+    const csvHeaders = [
+      'Order Number',
+      'Supplier',
+      'Contact Number',
+      'Product Name',
+      'Quantity',
+      'Unit Price',
+      'Total Amount',
+      'Payment Method',
+      'Warehouse',
+      'Status',
+      'Date',
+      'Created At'
+    ];
+
+    const csvData = purchaseOrders.flatMap(order => 
+      order.purchase_order_items?.map(item => [
+        order.order_number,
+        order.supplier_name,
+        order.contact_number || '',
+        item.products?.name || '',
+        item.quantity,
+        item.unit_price,
+        item.total_price,
+        order.purchase_payment_methods?.type || '',
+        order.warehouse_name || '',
+        order.status,
+        format(new Date(order.order_date), 'MMM dd, yyyy'),
+        format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
+      ]) || [[
+        order.order_number,
+        order.supplier_name,
+        order.contact_number || '',
+        '',
+        '',
+        '',
+        order.total_amount,
+        order.purchase_payment_methods?.type || '',
+        order.warehouse_name || '',
+        order.status,
+        format(new Date(order.order_date), 'MMM dd, yyyy'),
+        format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
+      ]]
+    );
+
+    const csvContent = [csvHeaders, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `purchase_orders_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -59,9 +131,9 @@ export default function Purchase() {
           <p className="text-gray-600 mt-1">Manage inventory purchases and supplier orders</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Button onClick={() => setShowPurchaseOrderDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -104,8 +176,13 @@ export default function Purchase() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Bank Account</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Contact</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Total</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Payment Method</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
@@ -123,23 +200,46 @@ export default function Purchase() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-medium">₹{order.total_amount}</td>
+                      <td className="py-3 px-4">{order.contact_number || '-'}</td>
                       <td className="py-3 px-4">
-                        {order.bank_accounts ? (
-                          <div className="text-sm">
-                            <div className="font-medium">{order.bank_accounts.account_name}</div>
-                            <div className="text-gray-500">{order.bank_accounts.bank_name}</div>
+                        {order.purchase_order_items && order.purchase_order_items.length > 0 ? (
+                          <div>
+                            <div className="font-medium">{order.purchase_order_items[0].products?.name}</div>
+                            {order.purchase_order_items.length > 1 && (
+                              <div className="text-xs text-gray-500">+{order.purchase_order_items.length - 1} more</div>
+                            )}
                           </div>
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
+                      <td className="py-3 px-4">
+                        {order.purchase_order_items?.[0]?.quantity || '-'}
+                      </td>
+                      <td className="py-3 px-4">
+                        ₹{order.purchase_order_items?.[0]?.unit_price || 0}
+                      </td>
+                      <td className="py-3 px-4 font-medium">₹{order.total_amount}</td>
+                      <td className="py-3 px-4">
+                        {order.purchase_payment_methods?.type || '-'}
+                      </td>
+                      <td className="py-3 px-4">
+                        {order.warehouse_name || '-'}
+                      </td>
                       <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                       <td className="py-3 px-4">
-                        <Button variant="ghost" size="sm">
-                          View Details
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -155,8 +255,8 @@ export default function Purchase() {
         </CardContent>
       </Card>
 
-      {/* Purchase Order Dialog */}
-      <PurchaseOrderDialog 
+      {/* Enhanced Purchase Order Dialog */}
+      <EnhancedPurchaseOrderDialog 
         open={showPurchaseOrderDialog} 
         onOpenChange={setShowPurchaseOrderDialog}
       />

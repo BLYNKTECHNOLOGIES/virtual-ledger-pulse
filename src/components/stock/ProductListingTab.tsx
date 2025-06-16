@@ -18,10 +18,7 @@ export function ProductListingTab() {
     queryFn: async () => {
       let query = supabase
         .from('products')
-        .select(`
-          *,
-          warehouses:warehouse_id(name, location)
-        `)
+        .select('*')
         .order('name');
 
       if (searchTerm) {
@@ -76,7 +73,6 @@ export function ProductListingTab() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Product Code</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Buying Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Avg Selling Price</th>
@@ -90,16 +86,6 @@ export function ProductListingTab() {
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-mono text-sm">{product.code}</td>
                       <td className="py-3 px-4 font-medium">{product.name}</td>
-                      <td className="py-3 px-4">
-                        {product.warehouses ? (
-                          <div>
-                            <div className="font-medium">{product.warehouses.name}</div>
-                            <div className="text-sm text-gray-500">{product.warehouses.location}</div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">No warehouse assigned</span>
-                        )}
-                      </td>
                       <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
                       <td className="py-3 px-4">₹{product.average_buying_price || product.cost_price}</td>
                       <td className="py-3 px-4">₹{product.average_selling_price || product.selling_price}</td>

@@ -18,11 +18,9 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
   const [formData, setFormData] = useState({
     name: "",
     code: "",
-    category: "",
     unit_of_measurement: "",
     cost_price: "",
     selling_price: "",
-    reorder_level: "",
     current_stock_quantity: "0"
   });
 
@@ -36,7 +34,6 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
           ...data,
           cost_price: parseFloat(data.cost_price),
           selling_price: parseFloat(data.selling_price),
-          reorder_level: parseInt(data.reorder_level),
           current_stock_quantity: parseInt(data.current_stock_quantity)
         }]);
       
@@ -52,11 +49,9 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
       setFormData({
         name: "",
         code: "",
-        category: "",
         unit_of_measurement: "",
         cost_price: "",
         selling_price: "",
-        reorder_level: "",
         current_stock_quantity: "0"
       });
     },
@@ -102,22 +97,6 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
           </div>
 
           <div>
-            <Label htmlFor="category">Category</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Electronics">Electronics</SelectItem>
-                <SelectItem value="Apparel">Apparel</SelectItem>
-                <SelectItem value="Food">Food</SelectItem>
-                <SelectItem value="Books">Books</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
             <Label htmlFor="unit">Unit of Measurement</Label>
             <Select value={formData.unit_of_measurement} onValueChange={(value) => setFormData({...formData, unit_of_measurement: value})}>
               <SelectTrigger>
@@ -156,17 +135,6 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="reorder_level">Reorder Level</Label>
-            <Input
-              id="reorder_level"
-              type="number"
-              value={formData.reorder_level}
-              onChange={(e) => setFormData({...formData, reorder_level: e.target.value})}
-              required
-            />
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

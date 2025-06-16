@@ -1,11 +1,10 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -50,7 +49,7 @@ export function StockTransactionsTab() {
           purchase_orders(order_number, supplier_name, order_date),
           products(name, code, unit_of_measurement)
         `)
-        .order('created_at', { ascending: false });
+        .order('id', { ascending: false });
 
       if (error) throw error;
       return data;
@@ -95,12 +94,6 @@ export function StockTransactionsTab() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Stock Transactions</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Stock Entry
-              </Button>
-            </div>
           </div>
         </CardHeader>
         <CardContent>

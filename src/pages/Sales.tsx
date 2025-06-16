@@ -9,15 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download, FileText, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SalesWorkflowManager } from "@/components/sales/SalesWorkflowManager";
+import { SalesOrderDialog } from "@/components/sales/SalesOrderDialog";
 
 export default function Sales() {
-  const [showSalesWorkflow, setShowSalesWorkflow] = useState(false);
+  const [showSalesOrderDialog, setShowSalesOrderDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -58,15 +58,13 @@ export default function Sales() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return <Badge className="bg-green-100 text-green-800">✅ Payment Received</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Payment Received</Badge>;
       case "PARTIAL":
-        return <Badge className="bg-yellow-100 text-yellow-800">🟡 Partial Payment</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
       case "PENDING":
-        return <Badge className="bg-blue-100 text-blue-800">⏳ Pending</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">Pending</Badge>;
       case "FAILED":
-        return <Badge className="bg-red-100 text-red-800">❌ Failed</Badge>;
-      case "CANCELLED":
-        return <Badge className="bg-gray-100 text-gray-800">🔴 Cancelled</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -106,7 +104,7 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setShowSalesWorkflow(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => setShowSalesOrderDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -145,7 +143,6 @@ export default function Sales() {
                         <SelectItem value="PARTIAL">Partial</SelectItem>
                         <SelectItem value="COMPLETED">Completed</SelectItem>
                         <SelectItem value="FAILED">Failed</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -261,17 +258,16 @@ export default function Sales() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4">{order.platform || '-'}</td>
-                      <td className="py-3 px-4 font-medium">₹{order.amount?.toLocaleString()}</td>
+                      <td className="py-3 px-4">{order.platform}</td>
+                      <td className="py-3 px-4 font-medium">₹{order.amount}</td>
                       <td className="py-3 px-4 text-sm">
-                        {order.quantity || 1} × ₹{order.price_per_unit?.toLocaleString() || order.amount?.toLocaleString()}
+                        {order.quantity} × ₹{order.price_per_unit}
                       </td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
                       <td className="py-3 px-4">
                         {order.cosmos_alert && (
                           <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Alert
+                            ⚠️ Alert
                           </Badge>
                         )}
                       </td>
@@ -314,10 +310,10 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Sales Workflow Manager */}
-      <SalesWorkflowManager 
-        open={showSalesWorkflow} 
-        onOpenChange={setShowSalesWorkflow}
+      {/* Sales Order Dialog */}
+      <SalesOrderDialog 
+        open={showSalesOrderDialog} 
+        onOpenChange={setShowSalesOrderDialog}
       />
     </div>
   );

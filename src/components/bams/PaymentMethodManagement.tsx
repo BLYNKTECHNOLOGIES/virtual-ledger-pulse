@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface PaymentMethod {
+  id: string;
+  type: string;
+  upi_id?: string;
+  bank_account_id?: string;
+  risk_category: string;
+  payment_limit: number;
+  frequency: string;
+  custom_frequency?: string;
+  current_usage: number;
+  is_active: boolean;
+  bank_accounts?: {
+    account_name: string;
+    bank_name: string;
+    balance: number;
+  };
+}
+
 export function PaymentMethodManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<any>(null);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   
   const [formData, setFormData] = useState({
@@ -29,7 +48,7 @@ export function PaymentMethodManagement() {
     custom_frequency: "",
   });
 
-  // Fetch bank accounts from central database
+  // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
@@ -91,8 +110,8 @@ export function PaymentMethodManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Sales Payment Method Created",
-        description: "Payment method has been successfully created and linked to central bank account.",
+        title: "Payment Method Created",
+        description: "Sales payment method has been successfully created.",
       });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       setShowDialog(false);
@@ -120,8 +139,8 @@ export function PaymentMethodManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Purchase Payment Method Created",
-        description: "Payment method has been successfully created and linked to central bank account.",
+        title: "Payment Method Created",
+        description: "Purchase payment method has been successfully created.",
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
       setShowDialog(false);
@@ -194,10 +213,7 @@ export function PaymentMethodManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">Payment Method Management</h2>
-          <p className="text-gray-600">Configure payment methods for sales and purchase operations</p>
-        </div>
+        <h2 className="text-2xl font-bold">Payment Method Management</h2>
         <Button onClick={() => setShowDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add Payment Method
@@ -383,12 +399,7 @@ export function PaymentMethodManagement() {
                   <SelectContent>
                     {bankAccounts?.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{account.account_name}</span>
-                          <span className="text-sm text-gray-500">
-                            {account.bank_name} - {account.account_number} (₹{account.balance.toLocaleString()})
-                          </span>
-                        </div>
+                        {account.account_name} - {account.bank_name} (₹{account.balance.toLocaleString()})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -414,12 +425,10 @@ export function PaymentMethodManagement() {
             )}
 
             <div>
-              <Label htmlFor="payment_limit">Payment Limit (₹) *</Label>
+              <Label htmlFor="payment_limit">Payment Limit *</Label>
               <Input
                 id="payment_limit"
                 type="number"
-                min="0"
-                step="0.01"
                 value={formData.payment_limit}
                 onChange={(e) => setFormData(prev => ({ ...prev, payment_limit: parseFloat(e.target.value) || 0 }))}
                 required

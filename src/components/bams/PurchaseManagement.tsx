@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2 } from "lucide-react";
+import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,6 +31,7 @@ interface BankAccount {
   account_name: string;
   account_number: string;
   IFSC: string;
+  balance: number;
 }
 
 export function PurchaseManagement() {
@@ -65,7 +66,7 @@ export function PurchaseManagement() {
       } else {
         const formattedMethods = data?.map(method => ({
           id: method.id,
-          type: method.type === 'UPI' ? 'UPI' : 'Bank Transfer',
+          type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',
           paymentLimit: method.payment_limit,
           frequency: method.frequency as "24 hours" | "Daily",
@@ -86,7 +87,7 @@ export function PurchaseManagement() {
     const fetchBankAccounts = async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('id, bank_name, account_name, account_number, IFSC')
+        .select('id, bank_name, account_name, account_number, IFSC, balance')
         .eq('status', 'ACTIVE');
 
       if (error) {
@@ -154,7 +155,7 @@ export function PurchaseManagement() {
       if (data) {
         const formattedMethods = data.map(method => ({
           id: method.id,
-          type: method.type === 'UPI' ? 'UPI' : 'Bank Transfer',
+          type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',
           paymentLimit: method.payment_limit,
           frequency: method.frequency as "24 hours" | "Daily",
@@ -245,6 +246,20 @@ export function PurchaseManagement() {
     return purchaseMethods
       .filter(m => m.type === "Bank Transfer" && m.isActive)
       .reduce((sum, m) => sum + getAvailableLimit(m), 0);
+  };
+
+  const getTotalBankBalance = () => {
+    // Get unique bank account names from active purchase methods
+    const uniqueAccountNames = new Set(
+      purchaseMethods
+        .filter(m => m.isActive && m.bankAccountName)
+        .map(m => m.bankAccountName)
+    );
+
+    // Sum balances of unique bank accounts
+    return bankAccounts
+      .filter(account => uniqueAccountNames.has(account.account_name))
+      .reduce((sum, account) => sum + account.balance, 0);
   };
 
   return (
@@ -344,7 +359,7 @@ export function PurchaseManagement() {
       </div>
 
       {/* Available Limits Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -375,6 +390,23 @@ export function PurchaseManagement() {
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {purchaseMethods.filter(m => m.type === "Bank Transfer" && m.isActive).length} active bank accounts
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-orange-600" />
+              Total Bank Balance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              ₹{getTotalBankBalance().toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              From linked bank accounts
             </p>
           </CardContent>
         </Card>

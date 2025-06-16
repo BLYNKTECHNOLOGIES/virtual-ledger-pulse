@@ -4,46 +4,69 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Layout } from "./components/Layout";
-import Dashboard from "./pages/Dashboard";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { useState } from "react";
+import { Login } from "@/components/auth/Login";
+import Layout from "./components/Layout";
+import Index from "./pages/Index";
 import Sales from "./pages/Sales";
-import Banking from "./pages/Banking";
-import Clients from "./pages/Clients";
+import Purchase from "./pages/Purchase";
 import BAMS from "./pages/BAMS";
+import Clients from "./pages/Clients";
 import HRMS from "./pages/HRMS";
 import Payroll from "./pages/Payroll";
 import Compliance from "./pages/Compliance";
 import StockManagement from "./pages/StockManagement";
 import Accounting from "./pages/Accounting";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/sales" element={<Sales />} />
-            <Route path="/bams" element={<BAMS />} />
-            <Route path="/banking" element={<Banking />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/hrms" element={<HRMS />} />
-            <Route path="/payroll" element={<Payroll />} />
-            <Route path="/compliance" element={<Compliance />} />
-            <Route path="/stock" element={<StockManagement />} />
-            <Route path="/accounting" element={<Accounting />} />
-            <Route path="/payment-methods" element={<div className="p-8 text-center text-gray-500">Payment Methods - Coming Soon</div>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const handleLogin = (credentials: { email: string; password: string }) => {
+    // In a real app, you'd validate credentials against a backend
+    setIsLoggedIn(true);
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Login onLogin={handleLogin} />
+          <Toaster />
+          <Sonner />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route path="/purchase" element={<Purchase />} />
+                <Route path="/bams" element={<BAMS />} />
+                <Route path="/clients" element={<Clients />} />
+                <Route path="/hrms" element={<HRMS />} />
+                <Route path="/payroll" element={<Payroll />} />
+                <Route path="/compliance" element={<Compliance />} />
+                <Route path="/stock" element={<StockManagement />} />
+                <Route path="/accounting" element={<Accounting />} />
+              </Routes>
+            </Layout>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

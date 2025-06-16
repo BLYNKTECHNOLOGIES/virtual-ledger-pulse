@@ -268,7 +268,7 @@ export function ClientDashboard() {
                         <tr key={order.id} className="border-b">
                           <td className="py-2 px-3 font-mono">{order.order_number}</td>
                           <td className="py-2 px-3">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                          <td className="py-2 px-3">{order.platform}</td>
+                          <td className="py-2 px-3">{order.platform || 'N/A'}</td>
                           <td className="py-2 px-3">₹{order.amount}</td>
                           <td className="py-2 px-3">
                             <Badge variant={order.payment_status === 'COMPLETED' ? 'default' : 'secondary'}>

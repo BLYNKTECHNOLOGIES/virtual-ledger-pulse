@@ -4,134 +4,138 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddProductDialog } from "./AddProductDialog";
-
-interface Product {
-  id: string;
-  code: string;
-  name: string;
-  category: string;
-  current_stock_quantity: number;
-  cost_price: number;
-  selling_price: number;
-  unit_of_measurement: string;
-  reorder_level: number;
-  created_at: string;
-  updated_at: string;
-}
 
 export function ProductListingTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const queryClient = useQueryClient();
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products'],
-    queryFn: async (): Promise<Product[]> => {
-      const { data, error } = await supabase
+    queryKey: ['products', searchTerm],
+    queryFn: async () => {
+      let query = supabase
         .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
+        .select(`
+          *,
+          warehouses:warehouse_id(name, location)
+        `)
+        .order('name');
+
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data as Product[];
+      return data;
     },
   });
 
-  const filteredProducts = products?.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.code.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getStockStatus = (currentStock: number, reorderLevel: number) => {
+    if (currentStock === 0) {
+      return <Badge variant="destructive">Out of Stock</Badge>;
+    } else if (currentStock <= reorderLevel) {
+      return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
+    } else {
+      return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
+    }
+  };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Product Inventory</CardTitle>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Search className="h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search products..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-8">Loading products...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-200 p-3 text-left">Product Code</th>
-                  <th className="border border-gray-200 p-3 text-left">Product Name</th>
-                  <th className="border border-gray-200 p-3 text-left">Category</th>
-                  <th className="border border-gray-200 p-3 text-left">Stock Quantity</th>
-                  <th className="border border-gray-200 p-3 text-left">Cost Price</th>
-                  <th className="border border-gray-200 p-3 text-left">Selling Price</th>
-                  <th className="border border-gray-200 p-3 text-left">Status</th>
-                  <th className="border border-gray-200 p-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts?.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="border border-gray-200 p-3">{product.code}</td>
-                    <td className="border border-gray-200 p-3 font-medium">{product.name}</td>
-                    <td className="border border-gray-200 p-3">{product.category}</td>
-                    <td className="border border-gray-200 p-3">
-                      <span className={product.current_stock_quantity <= (product.reorder_level || 0) ? "text-red-600 font-semibold" : ""}>
-                        {product.current_stock_quantity} {product.unit_of_measurement}
-                      </span>
-                    </td>
-                    <td className="border border-gray-200 p-3">₹{product.cost_price}</td>
-                    <td className="border border-gray-200 p-3">₹{product.selling_price}</td>
-                    <td className="border border-gray-200 p-3">
-                      {product.current_stock_quantity <= (product.reorder_level || 0) ? (
-                        <Badge variant="destructive">Low Stock</Badge>
-                      ) : (
-                        <Badge variant="secondary">In Stock</Badge>
-                      )}
-                    </td>
-                    <td className="border border-gray-200 p-3">
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredProducts?.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No products found. Add your first product to get started.
-              </div>
-            )}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Product Inventory</CardTitle>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
           </div>
-        )}
-      </CardContent>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2 mb-6">
+            <Search className="h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search products by name, code, or category..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
 
-      <AddProductDialog 
-        open={showAddDialog} 
-        onOpenChange={setShowAddDialog}
-      />
-    </Card>
+          {isLoading ? (
+            <div className="text-center py-8">Loading products...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product Code</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Category</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reorder Level</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Cost Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Selling Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products?.map((product) => (
+                    <tr key={product.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 font-mono text-sm">{product.code}</td>
+                      <td className="py-3 px-4 font-medium">{product.name}</td>
+                      <td className="py-3 px-4">{product.category}</td>
+                      <td className="py-3 px-4">
+                        {product.warehouses ? (
+                          <div>
+                            <div className="font-medium">{product.warehouses.name}</div>
+                            <div className="text-sm text-gray-500">{product.warehouses.location}</div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">No warehouse assigned</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
+                      <td className="py-3 px-4">{product.reorder_level} {product.unit_of_measurement}</td>
+                      <td className="py-3 px-4">₹{product.cost_price}</td>
+                      <td className="py-3 px-4">₹{product.selling_price}</td>
+                      <td className="py-3 px-4">
+                        {getStockStatus(product.current_stock_quantity, product.reorder_level)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {products?.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No products found. Add your first product to get started.
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <AddProductDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
+    </div>
   );
 }

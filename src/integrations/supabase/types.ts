@@ -162,37 +162,93 @@ export type Database = {
         }
         Relationships: []
       }
-      job_applicants: {
+      interview_schedules: {
         Row: {
-          applied_at: string
-          email: string
+          applicant_id: string
+          created_at: string
           id: string
-          job_posting_id: string
-          name: string
-          phone: string | null
-          resume_url: string | null
+          interview_date: string
+          interview_type: string | null
+          interviewer_name: string | null
+          notes: string | null
           status: string
           updated_at: string
         }
         Insert: {
-          applied_at?: string
-          email: string
+          applicant_id: string
+          created_at?: string
           id?: string
-          job_posting_id: string
-          name: string
-          phone?: string | null
-          resume_url?: string | null
+          interview_date: string
+          interview_type?: string | null
+          interviewer_name?: string | null
+          notes?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          applicant_id?: string
+          created_at?: string
+          id?: string
+          interview_date?: string
+          interview_type?: string | null
+          interviewer_name?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_schedules_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applicants: {
+        Row: {
+          address: string | null
+          applied_at: string
+          email: string
+          id: string
+          is_interested: boolean | null
+          job_posting_id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          resume_url: string | null
+          stage: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          applied_at?: string
+          email: string
+          id?: string
+          is_interested?: boolean | null
+          job_posting_id: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          resume_url?: string | null
+          stage?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
           applied_at?: string
           email?: string
           id?: string
+          is_interested?: boolean | null
           job_posting_id?: string
           name?: string
+          notes?: string | null
           phone?: string | null
           resume_url?: string | null
+          stage?: string | null
           status?: string
           updated_at?: string
         }
@@ -359,6 +415,128 @@ export type Database = {
         }
         Relationships: []
       }
+      offer_documents: {
+        Row: {
+          applicant_id: string
+          created_at: string
+          document_type: string
+          document_url: string | null
+          id: string
+          notes: string | null
+          response_date: string | null
+          sent_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applicant_id: string
+          created_at?: string
+          document_type: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          response_date?: string | null
+          sent_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applicant_id?: string
+          created_at?: string
+          document_type?: string
+          document_url?: string | null
+          id?: string
+          notes?: string | null
+          response_date?: string | null
+          sent_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_documents_applicant_id_fkey"
+            columns: ["applicant_id"]
+            isOneToOne: false
+            referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_methods: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          current_daily_used: number | null
+          current_monthly_used: number | null
+          daily_limit: number | null
+          id: string
+          ifsc_code: string | null
+          is_active: boolean
+          monthly_limit: number | null
+          risk_category: string
+          type: string
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          current_daily_used?: number | null
+          current_monthly_used?: number | null
+          daily_limit?: number | null
+          id?: string
+          ifsc_code?: string | null
+          is_active?: boolean
+          monthly_limit?: number | null
+          risk_category: string
+          type: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          current_daily_used?: number | null
+          current_monthly_used?: number | null
+          daily_limit?: number | null
+          id?: string
+          ifsc_code?: string | null
+          is_active?: boolean
+          monthly_limit?: number | null
+          risk_category?: string
+          type?: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
+      platforms: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string
@@ -372,6 +550,7 @@ export type Database = {
           selling_price: number
           unit_of_measurement: string
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
           category: string
@@ -385,6 +564,7 @@ export type Database = {
           selling_price: number
           unit_of_measurement: string
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
           category?: string
@@ -398,22 +578,139 @@ export type Database = {
           selling_price?: number
           unit_of_measurement?: string
           updated_at?: string
+          warehouse_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_items: {
+        Row: {
+          id: string
+          product_id: string
+          purchase_order_id: string
+          quantity: number
+          total_price: number
+          unit_price: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          purchase_order_id: string
+          quantity: number
+          total_price: number
+          unit_price: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          purchase_order_id?: string
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          bank_account_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          order_date: string
+          order_number: string
+          status: string
+          supplier_name: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          order_date: string
+          order_number: string
+          status?: string
+          supplier_name: string
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          order_date?: string
+          order_number?: string
+          status?: string
+          supplier_name?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_orders: {
         Row: {
           amount: number
           attachment_urls: string[] | null
           client_name: string
+          cosmos_alert: boolean | null
           created_at: string
           created_by: string | null
+          credits_applied: number | null
           delivery_date: string | null
           description: string | null
           id: string
           order_date: string
           order_number: string
+          payment_method_id: string | null
           payment_status: string
+          platform: string | null
+          price_per_unit: number | null
+          quantity: number | null
           risk_level: string | null
           status: string
           updated_at: string
@@ -422,14 +719,20 @@ export type Database = {
           amount: number
           attachment_urls?: string[] | null
           client_name: string
+          cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null
+          credits_applied?: number | null
           delivery_date?: string | null
           description?: string | null
           id?: string
           order_date: string
           order_number: string
+          payment_method_id?: string | null
           payment_status?: string
+          platform?: string | null
+          price_per_unit?: number | null
+          quantity?: number | null
           risk_level?: string | null
           status?: string
           updated_at?: string
@@ -438,14 +741,20 @@ export type Database = {
           amount?: number
           attachment_urls?: string[] | null
           client_name?: string
+          cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null
+          credits_applied?: number | null
           delivery_date?: string | null
           description?: string | null
           id?: string
           order_date?: string
           order_number?: string
+          payment_method_id?: string | null
           payment_status?: string
+          platform?: string | null
+          price_per_unit?: number | null
+          quantity?: number | null
           risk_level?: string | null
           status?: string
           updated_at?: string
@@ -525,6 +834,33 @@ export type Database = {
           id?: string
           setting_key?: string
           setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name?: string
           updated_at?: string
         }
         Relationships: []

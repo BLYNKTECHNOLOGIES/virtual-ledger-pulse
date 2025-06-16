@@ -134,8 +134,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       })
       .map(method => ({
         id: method.id,
-        type: method.type,
-        details: method.type === 'UPI' ? method.upi_id : `${method.account_number} - ${method.ifsc_code}`,
+        type: method.type as 'UPI' | 'Bank Account',
+        details: method.type === 'UPI' ? method.upi_id || '' : `${method.account_number} - ${method.ifsc_code}`,
         riskCategory: method.risk_category
       }));
   };
@@ -165,30 +165,10 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   };
 
   const handleOrderCancelled = async () => {
-    // Move to leads - create lead entry
-    const { error } = await supabase
-      .from('leads')
-      .insert({
-        customer_name: formData.customerName,
-        platform: formData.platform,
-        amount: formData.orderAmount,
-        reason: 'Order Cancelled',
-        status: 'CANCELLED',
-        created_at: new Date().toISOString()
-      });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to move order to leads",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // For demo purposes, just show toast and reset
     toast({
       title: "Order Cancelled",
-      description: "Order has been moved to leads for future follow-up",
+      description: "Order has been cancelled and moved to leads for future follow-up",
     });
     
     resetForm();

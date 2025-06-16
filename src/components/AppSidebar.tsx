@@ -11,6 +11,7 @@ import {
   Scale,
   Package,
   BookOpen,
+  ShoppingCart,
 } from "lucide-react"
 
 import {
@@ -37,6 +38,11 @@ const items = [
     title: "Sales",
     url: "/sales",
     icon: TrendingUp,
+  },
+  {
+    title: "Purchase",
+    url: "/purchase",
+    icon: ShoppingCart,
   },
   {
     title: "BAMS",

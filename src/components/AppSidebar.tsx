@@ -12,6 +12,7 @@ import {
   Package,
   BookOpen,
   ShoppingCart,
+  Settings,
 } from "lucide-react"
 
 import {
@@ -58,6 +59,12 @@ const items = [
     url: "/clients",
     icon: Users,
     color: "text-cyan-600"
+  },
+  {
+    title: "User Management",
+    url: "/user-management",
+    icon: Settings,
+    color: "text-indigo-600"
   },
   {
     title: "HRMS",

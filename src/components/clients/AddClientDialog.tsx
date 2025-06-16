@@ -33,27 +33,67 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     first_order_value: '',
     monthly_limit: '',
     current_month_used: '0',
-    date_of_onboarding: undefined as Date | undefined,
+    date_of_onboarding: new Date(),
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      client_id: '',
+      email: '',
+      phone: '',
+      client_type: '',
+      risk_appetite: 'MEDIUM',
+      kyc_status: 'PENDING',
+      assigned_operator: '',
+      buying_purpose: '',
+      first_order_value: '',
+      monthly_limit: '',
+      current_month_used: '0',
+      date_of_onboarding: new Date(),
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
+      // Validation
+      if (!formData.name.trim()) {
+        throw new Error("Client name is required");
+      }
+      if (!formData.client_id.trim()) {
+        throw new Error("Client ID is required");
+      }
+      if (!formData.client_type) {
+        throw new Error("Client type is required");
+      }
+
       const { error } = await supabase
         .from('clients')
         .insert([{
-          ...formData,
+          name: formData.name.trim(),
+          client_id: formData.client_id.trim(),
+          email: formData.email.trim() || null,
+          phone: formData.phone.trim() || null,
+          client_type: formData.client_type,
+          risk_appetite: formData.risk_appetite,
+          kyc_status: formData.kyc_status,
+          assigned_operator: formData.assigned_operator.trim() || null,
+          buying_purpose: formData.buying_purpose.trim() || null,
           first_order_value: formData.first_order_value ? Number(formData.first_order_value) : null,
           monthly_limit: formData.monthly_limit ? Number(formData.monthly_limit) : null,
-          current_month_used: Number(formData.current_month_used),
-          date_of_onboarding: formData.date_of_onboarding ? format(formData.date_of_onboarding, 'yyyy-MM-dd') : null,
+          current_month_used: Number(formData.current_month_used) || 0,
+          date_of_onboarding: format(formData.date_of_onboarding, 'yyyy-MM-dd'),
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -61,29 +101,15 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       });
 
       onOpenChange(false);
-      setFormData({
-        name: '',
-        client_id: '',
-        email: '',
-        phone: '',
-        client_type: '',
-        risk_appetite: 'MEDIUM',
-        kyc_status: 'PENDING',
-        assigned_operator: '',
-        buying_purpose: '',
-        first_order_value: '',
-        monthly_limit: '',
-        current_month_used: '0',
-        date_of_onboarding: undefined,
-      });
+      resetForm();
       
       // Refresh the page to show new client
       window.location.reload();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client:', error);
       toast({
         title: "Error",
-        description: "Failed to create client. Please try again.",
+        description: error.message || "Failed to create client. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -107,6 +133,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                placeholder="Enter client name"
               />
             </div>
             
@@ -117,6 +144,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 value={formData.client_id}
                 onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
                 required
+                placeholder="Enter unique client ID"
               />
             </div>
           </div>
@@ -129,6 +157,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="Enter email address"
               />
             </div>
             
@@ -138,6 +167,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="Enter phone number"
               />
             </div>
           </div>
@@ -194,6 +224,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 id="assigned_operator"
                 value={formData.assigned_operator}
                 onChange={(e) => setFormData({ ...formData, assigned_operator: e.target.value })}
+                placeholder="Enter operator name"
               />
             </div>
           </div>
@@ -204,6 +235,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
               id="buying_purpose"
               value={formData.buying_purpose}
               onChange={(e) => setFormData({ ...formData, buying_purpose: e.target.value })}
+              placeholder="Enter buying purpose"
             />
           </div>
 
@@ -213,8 +245,11 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
               <Input
                 id="first_order_value"
                 type="number"
+                min="0"
+                step="0.01"
                 value={formData.first_order_value}
                 onChange={(e) => setFormData({ ...formData, first_order_value: e.target.value })}
+                placeholder="Enter first order value"
               />
             </div>
             
@@ -223,8 +258,11 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
               <Input
                 id="monthly_limit"
                 type="number"
+                min="0"
+                step="0.01"
                 value={formData.monthly_limit}
                 onChange={(e) => setFormData({ ...formData, monthly_limit: e.target.value })}
+                placeholder="Enter monthly limit"
               />
             </div>
           </div>
@@ -248,7 +286,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 <Calendar
                   mode="single"
                   selected={formData.date_of_onboarding}
-                  onSelect={(date) => setFormData({ ...formData, date_of_onboarding: date })}
+                  onSelect={(date) => setFormData({ ...formData, date_of_onboarding: date || new Date() })}
                   initialFocus
                 />
               </PopoverContent>

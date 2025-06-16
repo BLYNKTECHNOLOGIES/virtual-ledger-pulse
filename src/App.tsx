@@ -10,6 +10,9 @@ import Sales from "./pages/Sales";
 import Banking from "./pages/Banking";
 import Clients from "./pages/Clients";
 import BAMS from "./pages/BAMS";
+import HRMS from "./pages/HRMS";
+import Payroll from "./pages/Payroll";
+import Compliance from "./pages/Compliance";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,11 +30,11 @@ const App = () => (
             <Route path="/bams" element={<BAMS />} />
             <Route path="/banking" element={<Banking />} />
             <Route path="/clients" element={<Clients />} />
+            <Route path="/hrms" element={<HRMS />} />
+            <Route path="/payroll" element={<Payroll />} />
+            <Route path="/compliance" element={<Compliance />} />
             <Route path="/payment-methods" element={<div className="p-8 text-center text-gray-500">Payment Methods - Coming Soon</div>} />
             <Route path="/risk" element={<div className="p-8 text-center text-gray-500">Risk Management - Coming Soon</div>} />
-            <Route path="/hrms" element={<div className="p-8 text-center text-gray-500">HRMS - Coming Soon</div>} />
-            <Route path="/payroll" element={<div className="p-8 text-center text-gray-500">Payroll Management - Coming Soon</div>} />
-            <Route path="/compliance" element={<div className="p-8 text-center text-gray-500">Compliance Tracking - Coming Soon</div>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

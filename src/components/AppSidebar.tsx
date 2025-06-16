@@ -12,7 +12,10 @@ import {
   List,
   Bell,
   ShoppingCart,
-  CreditCard
+  CreditCard,
+  Users,
+  Calculator,
+  FileText
 } from "lucide-react";
 
 import {
@@ -36,9 +39,9 @@ const navigationItems = [
   { title: "Payment Methods", url: "/payment-methods", icon: Database },
   { title: "Clients", url: "/clients", icon: User },
   { title: "Risk", url: "/risk", icon: Shield },
-  { title: "HRMS", url: "/hrms", icon: User },
-  { title: "Payroll", url: "/payroll", icon: Clock },
-  { title: "Compliance", url: "/compliance", icon: List },
+  { title: "HRMS", url: "/hrms", icon: Users },
+  { title: "Payroll", url: "/payroll", icon: Calculator },
+  { title: "Compliance", url: "/compliance", icon: FileText },
 ];
 
 export function AppSidebar() {

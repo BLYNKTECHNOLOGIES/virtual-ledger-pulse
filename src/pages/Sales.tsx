@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download, FileText, Bell } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -67,9 +68,58 @@ export default function Sales() {
   };
 
   const handleSalesEntryOpen = (data: any) => {
-    setSalesEntryData(data);
+    // Add live timestamp to sales entry data
+    const dataWithTimestamp = {
+      ...data,
+      timestamp: new Date().toISOString(),
+      orderDate: new Date().toISOString().split('T')[0],
+      orderTime: new Date().toLocaleTimeString()
+    };
+    setSalesEntryData(dataWithTimestamp);
     setShowSalesEntryDialog(true);
     setShowEnhancedOrderDialog(false);
+  };
+
+  const handleExportCSV = () => {
+    if (!salesOrders || salesOrders.length === 0) return;
+
+    const csvHeaders = [
+      'Order Number',
+      'Customer',
+      'Platform', 
+      'Amount',
+      'Quantity',
+      'Price Per Unit',
+      'Status',
+      'Date',
+      'Created At'
+    ];
+
+    const csvData = salesOrders.map(order => [
+      order.order_number,
+      order.client_name,
+      order.platform || '',
+      order.amount,
+      order.quantity || 1,
+      order.price_per_unit || order.amount,
+      order.payment_status,
+      format(new Date(order.order_date), 'MMM dd, yyyy'),
+      format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
+    ]);
+
+    const csvContent = [csvHeaders, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sales_orders_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (status: string) => {
@@ -84,19 +134,6 @@ export default function Sales() {
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
-    }
-  };
-
-  const getRiskLevelBadge = (level: string) => {
-    switch (level) {
-      case 'HIGH':
-        return <Badge className="bg-red-100 text-red-800">High Risk</Badge>;
-      case 'MEDIUM':
-        return <Badge className="bg-yellow-100 text-yellow-800">Medium Risk</Badge>;
-      case 'LOW':
-        return <Badge className="bg-green-100 text-green-800">Low Risk</Badge>;
-      default:
-        return null;
     }
   };
 
@@ -118,9 +155,9 @@ export default function Sales() {
         </div>
         <div className="flex gap-2">
           <NotificationDropdown />
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
           <Button onClick={() => setShowOrderTypeDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -255,11 +292,12 @@ export default function Sales() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Qty × Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Files</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -278,17 +316,9 @@ export default function Sales() {
                       </td>
                       <td className="py-3 px-4">{order.platform}</td>
                       <td className="py-3 px-4 font-medium">₹{order.amount}</td>
-                      <td className="py-3 px-4 text-sm">
-                        {order.quantity} × ₹{order.price_per_unit}
-                      </td>
+                      <td className="py-3 px-4">{order.quantity || 1}</td>
+                      <td className="py-3 px-4">₹{order.price_per_unit || order.amount}</td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
-                      <td className="py-3 px-4">
-                        {order.cosmos_alert && (
-                          <Badge variant="destructive" className="text-xs">
-                            ⚠️ Alert
-                          </Badge>
-                        )}
-                      </td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                       <td className="py-3 px-4">
                         {order.attachment_urls && order.attachment_urls.length > 0 ? (
@@ -313,6 +343,19 @@ export default function Sales() {
                         ) : (
                           <span className="text-gray-400">-</span>
                         )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}

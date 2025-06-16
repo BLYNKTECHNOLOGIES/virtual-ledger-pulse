@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FileUpload } from "./FileUpload";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
+import { WarehouseSelector } from "@/components/stock/WarehouseSelector";
+import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -27,6 +28,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     order_number: "",
     client_name: "",
     platform: "",
+    product_id: "",
+    warehouse_id: "",
     amount: 0,
     quantity: 1,
     price_per_unit: 0,
@@ -40,6 +43,16 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   });
   
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   // Fetch sales payment methods
   const { data: salesPaymentMethods } = useQuery({
@@ -89,6 +102,22 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         .single();
 
       if (error) throw error;
+
+      // Create warehouse stock movement for sales (OUT movement)
+      if (orderData.product_id && orderData.warehouse_id) {
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: orderData.warehouse_id,
+            product_id: orderData.product_id,
+            movement_type: 'OUT',
+            quantity: orderData.quantity,
+            reason: 'Sales Order',
+            reference_id: data.id,
+            reference_type: 'sales_order',
+            created_by: user?.id
+          });
+      }
 
       // Update payment method usage if provided
       if (orderData.sales_payment_method_id) {
@@ -142,6 +171,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         description: "Sales order has been successfully created.",
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       resetForm();
@@ -161,6 +191,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       order_number: "",
       client_name: "",
       platform: "",
+      product_id: "",
+      warehouse_id: "",
       amount: 0,
       quantity: 1,
       price_per_unit: 0,
@@ -177,6 +209,16 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.warehouse_id && formData.product_id) {
+      toast({
+        title: "Error",
+        description: "Please select a warehouse for the product",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createSalesOrderMutation.mutate(formData);
   };
 
@@ -252,6 +294,37 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="product_id">Product</Label>
+                <Select value={formData.product_id} onValueChange={(value) => setFormData(prev => ({ ...prev, product_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{product.name} ({product.code})</span>
+                          <StockStatusBadge productId={product.id} className="ml-2" />
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.product_id && (
+                <div>
+                  <WarehouseSelector
+                    value={formData.warehouse_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: value }))}
+                    productId={formData.product_id}
+                    showStockInfo={true}
+                    label="Select Warehouse *"
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -341,25 +414,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                             {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {method.risk_category} • Available: ₹{getAvailableLimit(method.id).toLocaleString()}
+                            {method.risk_category}
                           </span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                
-                {formData.sales_payment_method_id && (
-                  <div className="mt-2 space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span>Usage Limit</span>
-                      <span>
-                        {salesPaymentMethods?.find(m => m.id === formData.sales_payment_method_id)?.current_usage.toLocaleString()} / {salesPaymentMethods?.find(m => m.id === formData.sales_payment_method_id)?.payment_limit.toLocaleString()}
-                      </span>
-                    </div>
-                    <Progress value={getUsagePercentage(formData.sales_payment_method_id)} className="h-2" />
-                  </div>
-                )}
               </div>
 
               <div>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { WarehouseSelector } from "@/components/stock/WarehouseSelector";
+import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 
 interface EnhancedPurchaseOrderDialogProps {
   open: boolean;
@@ -33,7 +34,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch products
+  // Fetch products with current stock information
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
@@ -89,6 +90,8 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
 
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (data: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Create purchase order
       const { data: order, error: orderError } = await supabase
         .from('purchase_orders')
@@ -98,10 +101,11 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
           contact_number: data.contactNumber,
           total_amount: data.totalAmount,
           purchase_payment_method_id: data.paymentMethodId || null,
-          warehouse_name: warehouses?.find(w => w.id === data.warehouseId)?.name,
+          warehouse_name: data.warehouseName,
           description: data.description,
           order_date: data.orderDate,
-          status: 'PENDING'
+          status: 'PENDING',
+          created_by: user?.id
         })
         .select()
         .single();
@@ -122,6 +126,20 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
           });
 
         if (itemError) throw itemError;
+
+        // Create warehouse stock movement for purchase
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: data.warehouseId,
+            product_id: data.productId,
+            movement_type: 'IN',
+            quantity: data.quantity,
+            reason: 'Purchase Order',
+            reference_id: order.id,
+            reference_type: 'purchase_order',
+            created_by: user?.id
+          });
       }
 
       return order;
@@ -132,6 +150,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
         description: "Purchase order created successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
       resetForm();
       onOpenChange(false);
     },
@@ -163,7 +182,24 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createPurchaseOrderMutation.mutate(formData);
+    
+    if (!formData.warehouseId) {
+      toast({
+        title: "Error",
+        description: "Please select a warehouse",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get warehouse name for the order
+    const selectedWarehouse = warehouses?.find(w => w.id === formData.warehouseId);
+    const dataToSubmit = {
+      ...formData,
+      warehouseName: selectedWarehouse?.name || ''
+    };
+
+    createPurchaseOrderMutation.mutate(dataToSubmit);
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -247,7 +283,10 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
                 <SelectContent>
                   {products?.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
-                      {product.name} ({product.code})
+                      <div className="flex items-center justify-between w-full">
+                        <span>{product.name} ({product.code})</span>
+                        <StockStatusBadge productId={product.id} className="ml-2" />
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -255,19 +294,12 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange }: EnhancedPurc
             </div>
             
             <div>
-              <Label htmlFor="warehouseId">Warehouse</Label>
-              <Select value={formData.warehouseId} onValueChange={(value) => handleInputChange('warehouseId', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
-                </SelectTrigger>
-                <SelectContent>
-                  {warehouses?.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <WarehouseSelector
+                value={formData.warehouseId}
+                onValueChange={(value) => handleInputChange('warehouseId', value)}
+                productId={formData.productId}
+                showStockInfo={!!formData.productId}
+              />
             </div>
           </div>
 

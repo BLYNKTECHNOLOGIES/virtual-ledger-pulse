@@ -44,11 +44,6 @@ const items = [
     icon: Building2,
   },
   {
-    title: "Banking",
-    url: "/banking",
-    icon: CreditCard,
-  },
-  {
     title: "Clients",
     url: "/clients",
     icon: Users,
@@ -84,7 +79,17 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <h2 className="text-lg font-semibold text-primary">BLYNK Virtual Technologies</h2>
+        <div className="flex items-center gap-3">
+          <img 
+            src="/lovable-uploads/25d24f27-f300-4057-b894-aa71e4e6fe12.png" 
+            alt="Blynk Virtual Technologies" 
+            className="h-8 w-auto"
+          />
+          <div>
+            <h2 className="text-sm font-semibold text-primary">BLYNK VIRTUAL</h2>
+            <p className="text-xs text-muted-foreground">TECHNOLOGIES</p>
+          </div>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

@@ -9,15 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download, FileText, ExternalLink } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
+import { SalesOrderDialog } from "@/components/sales/SalesOrderDialog";
 
 export default function Sales() {
-  const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
+  const [showSalesOrderDialog, setShowSalesOrderDialog] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -96,17 +96,17 @@ export default function Sales() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sales Order Management</h1>
-          <p className="text-gray-600 mt-1">Enhanced sales processing with customer tracking and file management</p>
+          <h1 className="text-3xl font-bold text-gray-900">🧾 Sales Order Processing</h1>
+          <p className="text-gray-600 mt-1">Core Sales Processing Module - Track orders from creation to payment confirmation</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setShowSalesEntryDialog(true)}>
+          <Button onClick={() => setShowSalesOrderDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            New Sales Entry
+            New Order
           </Button>
         </div>
       </div>
@@ -117,7 +117,7 @@ export default function Sales() {
           <div className="flex gap-4">
             <div className="flex-1">
               <Input 
-                placeholder="Search by order number, customer name..." 
+                placeholder="Search by order number, customer name, platform..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -220,7 +220,7 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Sales Orders List */}
+      {/* Sales Orders Dashboard */}
       <Card>
         <CardHeader>
           <CardTitle>Sales Orders Dashboard</CardTitle>
@@ -235,12 +235,13 @@ export default function Sales() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Payment Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Order Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Qty × Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Attachments</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Files</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -257,15 +258,18 @@ export default function Sales() {
                           )}
                         </div>
                       </td>
+                      <td className="py-3 px-4">{order.platform}</td>
                       <td className="py-3 px-4 font-medium">₹{order.amount}</td>
-                      <td className="py-3 px-4">
-                        {order.risk_level && getRiskLevelBadge(order.risk_level)}
+                      <td className="py-3 px-4 text-sm">
+                        {order.quantity} × ₹{order.price_per_unit}
                       </td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
                       <td className="py-3 px-4">
-                        <Badge variant={order.status === 'DELIVERED' ? 'default' : 'secondary'}>
-                          {order.status}
-                        </Badge>
+                        {order.cosmos_alert && (
+                          <Badge variant="destructive" className="text-xs">
+                            ⚠️ Alert
+                          </Badge>
+                        )}
                       </td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                       <td className="py-3 px-4">
@@ -298,7 +302,7 @@ export default function Sales() {
               </table>
               {salesOrders?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
-                  No sales orders found. Create your first sales entry to get started.
+                  No sales orders found. Create your first sales order to get started.
                 </div>
               )}
             </div>
@@ -306,10 +310,10 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Sales Entry Dialog */}
-      <SalesEntryDialog 
-        open={showSalesEntryDialog} 
-        onOpenChange={setShowSalesEntryDialog}
+      {/* Sales Order Dialog */}
+      <SalesOrderDialog 
+        open={showSalesOrderDialog} 
+        onOpenChange={setShowSalesOrderDialog}
       />
     </div>
   );

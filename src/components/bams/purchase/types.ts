@@ -24,6 +24,7 @@ export interface BankAccount {
   account_number: string;
   IFSC: string;
   balance: number;
+  status: string;
 }
 
 export interface PurchaseMethodFormData {

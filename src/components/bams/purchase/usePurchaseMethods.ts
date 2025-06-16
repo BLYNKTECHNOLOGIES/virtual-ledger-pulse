@@ -36,7 +36,7 @@ export function usePurchaseMethods() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('id, account_name, bank_name, account_number, IFSC, balance')
+        .select('id, account_name, bank_name, account_number, IFSC, balance, status')
         .eq('status', 'ACTIVE')
         .order('account_name');
       

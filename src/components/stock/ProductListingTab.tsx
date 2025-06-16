@@ -9,6 +9,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddProductDialog } from "./AddProductDialog";
 
+interface Product {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  current_stock_quantity: number;
+  cost_price: number;
+  selling_price: number;
+  unit_of_measurement: string;
+  reorder_level: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export function ProductListingTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -16,14 +30,14 @@ export function ProductListingTab() {
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['products'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Product[]> => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as Product[];
     },
   });
 
@@ -78,14 +92,14 @@ export function ProductListingTab() {
                     <td className="border border-gray-200 p-3 font-medium">{product.name}</td>
                     <td className="border border-gray-200 p-3">{product.category}</td>
                     <td className="border border-gray-200 p-3">
-                      <span className={product.current_stock_quantity <= product.reorder_level ? "text-red-600 font-semibold" : ""}>
+                      <span className={product.current_stock_quantity <= (product.reorder_level || 0) ? "text-red-600 font-semibold" : ""}>
                         {product.current_stock_quantity} {product.unit_of_measurement}
                       </span>
                     </td>
                     <td className="border border-gray-200 p-3">₹{product.cost_price}</td>
                     <td className="border border-gray-200 p-3">₹{product.selling_price}</td>
                     <td className="border border-gray-200 p-3">
-                      {product.current_stock_quantity <= product.reorder_level ? (
+                      {product.current_stock_quantity <= (product.reorder_level || 0) ? (
                         <Badge variant="destructive">Low Stock</Badge>
                       ) : (
                         <Badge variant="secondary">In Stock</Badge>

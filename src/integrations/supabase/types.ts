@@ -368,6 +368,7 @@ export type Database = {
           current_stock_quantity: number
           id: string
           name: string
+          reorder_level: number
           selling_price: number
           unit_of_measurement: string
           updated_at: string
@@ -380,6 +381,7 @@ export type Database = {
           current_stock_quantity?: number
           id?: string
           name: string
+          reorder_level?: number
           selling_price: number
           unit_of_measurement: string
           updated_at?: string
@@ -392,6 +394,7 @@ export type Database = {
           current_stock_quantity?: number
           id?: string
           name?: string
+          reorder_level?: number
           selling_price?: number
           unit_of_measurement?: string
           updated_at?: string

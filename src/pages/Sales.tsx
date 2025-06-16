@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,201 +6,76 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Download, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle,
-  ShoppingCart,
-  CreditCard,
-  Banknote as BanknoteIcon
-} from "lucide-react";
-
-// Mock data for existing clients
-const existingClients = [
-  { id: "CLI001", name: "GAGANDEEP SINGH BHOGAL", platform: "BINANCE", riskLevel: "Low", monthlyLimit: 50000, usedLimit: 14000 },
-  { id: "CLI002", name: "Shadab Ahmed", platform: "BYBIT", riskLevel: "Medium", monthlyLimit: 30000, usedLimit: 20000 },
-  { id: "CLI003", name: "PHIAMPHU", platform: "BINANCE", riskLevel: "High", monthlyLimit: 25000, usedLimit: 20000 },
-];
-
-// Mock data for sales orders
-const salesOrders = [
-  {
-    id: "SO001",
-    orderNumber: "227676169152143114424",
-    customerName: "GAGANDEEP SINGH BHOGAL",
-    platform: "BINANCE SS",
-    totalAmount: "14,000.00",
-    pricePerItem: "91.75",
-    quantity: "152.58855586",
-    paymentMethod: "UPI",
-    status: "completed",
-    date: "2024-01-15",
-    entryBy: "Admin User"
-  },
-  {
-    id: "SO002",
-    orderNumber: "227676174815613000992",
-    customerName: "Shadab Ahmed",
-    platform: "BYBIT",
-    totalAmount: "20,000.00",
-    pricePerItem: "91.75",
-    quantity: "217.98365123",
-    paymentMethod: "Bank Transfer",
-    status: "alternative",
-    date: "2024-01-15",
-    entryBy: "Admin User"
-  },
-  {
-    id: "SO003",
-    orderNumber: "227676028397043834888",
-    customerName: "PHIAMPHU",
-    platform: "BINANCE SS",
-    totalAmount: "20,000.00",
-    pricePerItem: "92.05",
-    quantity: "217.27322108",
-    paymentMethod: "UPI",
-    status: "cancelled",
-    date: "2024-01-14",
-    entryBy: "Admin User"
-  }
-];
-
-type OrderStep = "type" | "amount" | "payment" | "actions" | "entry";
-type OrderType = "repeat" | "new";
-type PaymentMethod = "upi" | "bank";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Plus, Search, Filter, Download } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 
 export default function Sales() {
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false);
-  const [currentStep, setCurrentStep] = useState<OrderStep>("type");
-  const [orderType, setOrderType] = useState<OrderType>("repeat");
-  const [selectedClient, setSelectedClient] = useState<string>("");
-  const [orderAmount, setOrderAmount] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("upi");
-  const [cosmosAlert, setCosmosAlert] = useState<string>("");
-  const [assignedPaymentDetails, setAssignedPaymentDetails] = useState<string>("");
+  const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
+  const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>();
+  const [filterDateTo, setFilterDateTo] = useState<Date>();
 
-  // New Order Form States
-  const [newOrderForm, setNewOrderForm] = useState({
-    customerName: "",
-    platform: "",
-    orderNumber: "",
-    quantity: "",
-    pricePerItem: "",
-    totalAmount: "",
-    paymentBank: "",
-    creditsApplied: ""
+  // Fetch sales orders from database
+  const { data: salesOrders, isLoading } = useQuery({
+    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryFn: async () => {
+      let query = supabase
+        .from('sales_orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (searchTerm) {
+        query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+      }
+
+      if (filterPaymentStatus) {
+        query = query.eq('payment_status', filterPaymentStatus);
+      }
+
+      if (filterDateFrom) {
+        query = query.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
+      }
+
+      if (filterDateTo) {
+        query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
   });
-
-  const handleOrderTypeSelection = (type: OrderType) => {
-    setOrderType(type);
-    setCurrentStep("amount");
-  };
-
-  const handleAmountValidation = () => {
-    const amount = parseFloat(orderAmount);
-    
-    if (orderType === "repeat" && selectedClient) {
-      const client = existingClients.find(c => c.id === selectedClient);
-      if (client) {
-        const availableLimit = client.monthlyLimit - client.usedLimit;
-        if (amount > availableLimit) {
-          setCosmosAlert(`Order amount ₹${amount} exceeds available COSMOS limit of ₹${availableLimit}`);
-          return;
-        }
-      }
-    }
-    
-    setCosmosAlert("");
-    setCurrentStep("payment");
-  };
-
-  const handlePaymentMethodSelection = (method: PaymentMethod) => {
-    setPaymentMethod(method);
-    
-    // Mock payment assignment logic
-    const riskLevel = orderType === "new" ? "High" : existingClients.find(c => c.id === selectedClient)?.riskLevel || "High";
-    
-    if (method === "upi") {
-      setAssignedPaymentDetails(`UPI ID: ${riskLevel.toLowerCase()}risk@paytm (Risk: ${riskLevel})`);
-    } else {
-      setAssignedPaymentDetails(`Bank: HDFC Bank, A/C: 50100***4321 (Risk: ${riskLevel})`);
-    }
-    
-    setCurrentStep("actions");
-  };
-
-  const handleOrderAction = (action: "cancelled" | "alternative" | "received") => {
-    if (action === "cancelled") {
-      // Move to leads tab (mock action)
-      setShowNewOrderDialog(false);
-      resetForm();
-    } else if (action === "alternative") {
-      setCurrentStep("payment");
-      setAssignedPaymentDetails("");
-    } else if (action === "received") {
-      setCurrentStep("entry");
-      // Pre-fill form data
-      if (orderType === "repeat" && selectedClient) {
-        const client = existingClients.find(c => c.id === selectedClient);
-        if (client) {
-          setNewOrderForm(prev => ({
-            ...prev,
-            customerName: client.name,
-            platform: client.platform,
-            totalAmount: orderAmount
-          }));
-        }
-      } else {
-        setNewOrderForm(prev => ({
-          ...prev,
-          totalAmount: orderAmount
-        }));
-      }
-    }
-  };
-
-  const handleSalesEntry = () => {
-    // Mock sales entry submission
-    console.log("Sales entry submitted:", newOrderForm);
-    setShowNewOrderDialog(false);
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setCurrentStep("type");
-    setOrderType("repeat");
-    setSelectedClient("");
-    setOrderAmount("");
-    setPaymentMethod("upi");
-    setCosmosAlert("");
-    setAssignedPaymentDetails("");
-    setNewOrderForm({
-      customerName: "",
-      platform: "",
-      orderNumber: "",
-      quantity: "",
-      pricePerItem: "",
-      totalAmount: "",
-      paymentBank: "",
-      creditsApplied: ""
-    });
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "completed":
+      case "COMPLETED":
         return <Badge className="bg-green-100 text-green-800">Payment Received</Badge>;
-      case "alternative":
-        return <Badge className="bg-yellow-100 text-yellow-800">Alternative Method</Badge>;
-      case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+      case "PARTIAL":
+        return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
+      case "PENDING":
+        return <Badge className="bg-blue-100 text-blue-800">Pending</Badge>;
+      case "FAILED":
+        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
+  };
+
+  const clearFilters = () => {
+    setFilterPaymentStatus("");
+    setFilterDateFrom(undefined);
+    setFilterDateTo(undefined);
+    setSearchTerm("");
+    setShowFilterDialog(false);
   };
 
   return (
@@ -217,249 +91,14 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Sales Order</DialogTitle>
-              </DialogHeader>
-              
-              {/* Step 1: Choose Order Type */}
-              {currentStep === "type" && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Step 1: Choose Order Type</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="cursor-pointer hover:shadow-md" onClick={() => handleOrderTypeSelection("repeat")}>
-                      <CardContent className="p-6 text-center">
-                        <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                        <h4 className="font-semibold">Repeat Order</h4>
-                        <p className="text-sm text-gray-600">Existing client order</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="cursor-pointer hover:shadow-md" onClick={() => handleOrderTypeSelection("new")}>
-                      <CardContent className="p-6 text-center">
-                        <Plus className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-                        <h4 className="font-semibold">New Client</h4>
-                        <p className="text-sm text-gray-600">First time client order</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  {orderType === "repeat" && (
-                    <div className="mt-4">
-                      <Label>Select Existing Client</Label>
-                      <Select value={selectedClient} onValueChange={setSelectedClient}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Search and select client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {existingClients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} - {client.platform} (Risk: {client.riskLevel})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Step 2: Enter Order Amount */}
-              {currentStep === "amount" && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Step 2: Enter Order Amount</h3>
-                  <div>
-                    <Label>Order Amount (₹)</Label>
-                    <Input
-                      type="number"
-                      value={orderAmount}
-                      onChange={(e) => setOrderAmount(e.target.value)}
-                      placeholder="Enter order amount"
-                    />
-                  </div>
-                  
-                  {orderType === "repeat" && selectedClient && (
-                    <div className="p-4 bg-blue-50 rounded-lg">
-                      {(() => {
-                        const client = existingClients.find(c => c.id === selectedClient);
-                        if (client) {
-                          const availableLimit = client.monthlyLimit - client.usedLimit;
-                          return (
-                            <div>
-                              <h4 className="font-semibold">COSMOS Limit Check</h4>
-                              <p>Monthly Limit: ₹{client.monthlyLimit}</p>
-                              <p>Used: ₹{client.usedLimit}</p>
-                              <p>Available: ₹{availableLimit}</p>
-                              <p>Risk Level: {client.riskLevel}</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                  )}
-                  
-                  {cosmosAlert && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <span className="text-red-800 font-semibold">COSMOS Alert</span>
-                      </div>
-                      <p className="text-red-700 mt-1">{cosmosAlert}</p>
-                    </div>
-                  )}
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setCurrentStep("type")}>Back</Button>
-                    <Button onClick={handleAmountValidation} disabled={!orderAmount || cosmosAlert !== ""}>
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 3: Choose Payment Method */}
-              {currentStep === "payment" && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Step 3: Choose Payment Method</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="cursor-pointer hover:shadow-md" onClick={() => handlePaymentMethodSelection("upi")}>
-                      <CardContent className="p-6 text-center">
-                        <CreditCard className="h-12 w-12 mx-auto mb-4 text-purple-600" />
-                        <h4 className="font-semibold">UPI Payment</h4>
-                        <p className="text-sm text-gray-600">Quick UPI transfer</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="cursor-pointer hover:shadow-md" onClick={() => handlePaymentMethodSelection("bank")}>
-                      <CardContent className="p-6 text-center">
-                        <BanknoteIcon className="h-12 w-12 mx-auto mb-4 text-green-600" />
-                        <h4 className="font-semibold">Bank Transfer</h4>
-                        <p className="text-sm text-gray-600">IMPS/NEFT transfer</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                  
-                  <Button variant="outline" onClick={() => setCurrentStep("amount")}>Back</Button>
-                </div>
-              )}
-
-              {/* Step 4: Action Buttons */}
-              {currentStep === "actions" && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Payment Method Assigned</h3>
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="font-semibold text-green-800">{assignedPaymentDetails}</p>
-                    <p className="text-sm text-green-600 mt-1">Share this payment method with the client</p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setCurrentStep("payment")}>Back</Button>
-                    <Button variant="destructive" onClick={() => handleOrderAction("cancelled")}>
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Order Cancelled
-                    </Button>
-                    <Button variant="secondary" onClick={() => handleOrderAction("alternative")}>
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Alternative Method
-                    </Button>
-                    <Button onClick={() => handleOrderAction("received")}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Payment Received
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 5: Final Sales Entry */}
-              {currentStep === "entry" && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Final Sales Entry Form</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Customer Name *</Label>
-                      <Input
-                        value={newOrderForm.customerName}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, customerName: e.target.value }))}
-                        placeholder="Enter customer name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Platform Name *</Label>
-                      <Input
-                        value={newOrderForm.platform}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, platform: e.target.value }))}
-                        placeholder="Enter platform name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Order Number *</Label>
-                      <Input
-                        value={newOrderForm.orderNumber}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, orderNumber: e.target.value }))}
-                        placeholder="Enter order number"
-                      />
-                    </div>
-                    <div>
-                      <Label>Quantity *</Label>
-                      <Input
-                        value={newOrderForm.quantity}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, quantity: e.target.value }))}
-                        placeholder="Enter quantity"
-                      />
-                    </div>
-                    <div>
-                      <Label>Price per Item *</Label>
-                      <Input
-                        value={newOrderForm.pricePerItem}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, pricePerItem: e.target.value }))}
-                        placeholder="Enter price per item"
-                      />
-                    </div>
-                    <div>
-                      <Label>Total Amount *</Label>
-                      <Input
-                        value={newOrderForm.totalAmount}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, totalAmount: e.target.value }))}
-                        placeholder="Total amount"
-                      />
-                    </div>
-                    <div>
-                      <Label>Payment Received In (Bank) *</Label>
-                      <Select value={newOrderForm.paymentBank} onValueChange={(value) => setNewOrderForm(prev => ({ ...prev, paymentBank: value }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bank account" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="hdfc">HDFC Bank - 50100***4321</SelectItem>
-                          <SelectItem value="icici">ICICI Bank - 40200***5432</SelectItem>
-                          <SelectItem value="sbi">SBI - 30100***6543</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Credits Applied</Label>
-                      <Input
-                        value={newOrderForm.creditsApplied}
-                        onChange={(e) => setNewOrderForm(prev => ({ ...prev, creditsApplied: e.target.value }))}
-                        placeholder="Enter credits applied (optional)"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setCurrentStep("actions")}>Back</Button>
-                    <Button onClick={handleSalesEntry}>Submit Sales Entry</Button>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
+          <Button onClick={() => setShowSalesEntryDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Sales Entry
+          </Button>
+          <Button variant="outline" onClick={() => setShowNewOrderDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Order
+          </Button>
         </div>
       </div>
 
@@ -468,12 +107,104 @@ export default function Sales() {
         <CardContent className="p-4">
           <div className="flex gap-4">
             <div className="flex-1">
-              <Input placeholder="Search by order number, customer name, platform..." />
+              <Input 
+                placeholder="Search by order number, customer name..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
+            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Filter Sales Orders</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Payment Status</Label>
+                    <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="PARTIAL">Partial</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="FAILED">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Date From</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateFrom && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateFrom ? format(filterDateFrom, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateFrom}
+                            onSelect={setFilterDateFrom}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div>
+                      <Label>Date To</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateTo && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateTo ? format(filterDateTo, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateTo}
+                            onSelect={setFilterDateTo}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                    <Button onClick={() => setShowFilterDialog(false)}>
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline">
               <Search className="h-4 w-4 mr-2" />
               Search
@@ -488,38 +219,269 @@ export default function Sales() {
           <CardTitle>Sales Orders Dashboard</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Payment Method</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Entry By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salesOrders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-sm">{order.orderNumber}</td>
-                    <td className="py-3 px-4">{order.customerName}</td>
-                    <td className="py-3 px-4">{order.platform}</td>
-                    <td className="py-3 px-4 font-medium">₹{order.totalAmount}</td>
-                    <td className="py-3 px-4">{order.paymentMethod}</td>
-                    <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
-                    <td className="py-3 px-4">{order.date}</td>
-                    <td className="py-3 px-4">{order.entryBy}</td>
+          {isLoading ? (
+            <div className="text-center py-8">Loading sales orders...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Payment Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Order Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {salesOrders?.map((order) => (
+                    <tr key={order.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
+                      <td className="py-3 px-4">{order.client_name}</td>
+                      <td className="py-3 px-4 font-medium">₹{order.amount}</td>
+                      <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={order.status === 'DELIVERED' ? 'default' : 'secondary'}>
+                          {order.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {salesOrders?.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  No sales orders found. Create your first sales entry to get started.
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
-    </div>
+
+      {/* Sales Entry Dialog */}
+      <SalesEntryDialog 
+        open={showSalesEntryDialog} 
+        onOpenChange={setShowSalesEntryDialog}
+      />
+
+      {/* Old order creation dialog */}
+      <Dialog open={showNewOrderDialog} onOpenChange={setShowNewOrderDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Sales Order</DialogTitle>
+          </DialogHeader>
+          
+          {/* Step 1: Choose Order Type */}
+          
+            
+              
+                
+                  
+                    
+                      
+                        
+                        Repeat Order
+                        Existing client order
+                      
+                    
+                  
+                
+                
+                  
+                    
+                      
+                        
+                        New Client
+                        First time client order
+                      
+                    
+                  
+                
+              
+              
+                
+                  Select Existing Client
+                  
+                    
+                      Search and select client
+                      
+                        
+                          GAGANDEEP SINGH BHOGAL - BINANCE (Risk: Low)
+                        
+                          Shadab Ahmed - BYBIT (Risk: Medium)
+                        
+                          PHIAMPHU - BINANCE (Risk: High)
+                        
+                      
+                    
+                  
+                
+              
+            
+          
+
+          {/* Step 2: Enter Order Amount */}
+          
+            
+              
+                Order Amount (₹)
+                
+              
+              
+                
+                  
+                    
+                      COSMOS Limit Check
+                      Monthly Limit: ₹50000
+                      Used: ₹14000
+                      Available: ₹36000
+                      Risk Level: Low
+                    
+                  
+                
+              
+              
+                
+                  
+                    COSMOS Alert
+                  
+                  Order amount ₹ exceeds available COSMOS limit of ₹36000
+                
+              
+              
+                Back
+                Continue
+              
+            
+          
+
+          {/* Step 3: Choose Payment Method */}
+          
+            
+              
+                
+                  
+                    
+                      
+                        
+                        UPI Payment
+                        Quick UPI transfer
+                      
+                    
+                  
+                
+                
+                  
+                    
+                      
+                        
+                        Bank Transfer
+                        IMPS/NEFT transfer
+                      
+                    
+                  
+                
+              
+              
+                Back
+              
+            
+          
+
+          {/* Step 4: Action Buttons */}
+          
+            
+              
+                Payment Method Assigned
+                
+                  UPI ID: lowrisk@paytm (Risk: Low)
+                  Share this payment method with the client
+                
+              
+              
+                Back
+                
+                  
+                    Order Cancelled
+                  
+                
+                
+                  
+                    Alternative Method
+                  
+                
+                
+                  
+                    Payment Received
+                  
+                
+              
+            
+          
+
+          {/* Step 5: Final Sales Entry */}
+          
+            
+              
+                Final Sales Entry Form
+                
+                  
+                    Customer Name *
+                    
+                  
+                  
+                    Platform Name *
+                    
+                  
+                  
+                    Order Number *
+                    
+                  
+                  
+                    Quantity *
+                    
+                  
+                  
+                    Price per Item *
+                    
+                  
+                  
+                    Total Amount *
+                    
+                  
+                  
+                    Payment Received In (Bank) *
+                    
+                      
+                        Select bank account
+                      
+                        
+                          HDFC Bank - 50100***4321
+                        
+                          ICICI Bank - 40200***5432
+                        
+                          SBI - 30100***6543
+                        
+                      
+                    
+                  
+                  
+                    Credits Applied
+                    
+                  
+                
+                
+                  Back
+                  Submit Sales Entry
+                
+              
+            
+          
+        </DialogContent>
+      </Dialog>
+    
   );
 }

@@ -45,8 +45,7 @@ export function EnhancedOrderCreationDialog({
     name: "",
     phone: "",
     email: "",
-    platform: "",
-    risk_appetite: "HIGH"
+    platform: ""
   });
 
   // Fetch clients for repeat orders
@@ -192,8 +191,7 @@ export function EnhancedOrderCreationDialog({
       name: "",
       phone: "",
       email: "",
-      platform: "",
-      risk_appetite: "HIGH"
+      platform: ""
     });
   };
 
@@ -216,7 +214,7 @@ export function EnhancedOrderCreationDialog({
       ...newClientData,
       monthly_limit: null, // Default limit is null for new clients
       current_month_used: 0,
-      risk_appetite: "HIGH" // Default risk level is HIGH for new clients
+      risk_appetite: "HIGH" // Always set to HIGH by default
     };
     setSelectedClient(newClient);
     setCurrentStep('amount');
@@ -391,22 +389,6 @@ export function EnhancedOrderCreationDialog({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="risk">Risk Appetite</Label>
-                  <Select value={newClientData.risk_appetite} onValueChange={(value) => 
-                    setNewClientData(prev => ({ ...prev, risk_appetite: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LOW">Low Risk</SelectItem>
-                      <SelectItem value="MEDIUM">Medium Risk</SelectItem>
-                      <SelectItem value="HIGH">High Risk</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <Button onClick={handleNewClientCreation} className="w-full">

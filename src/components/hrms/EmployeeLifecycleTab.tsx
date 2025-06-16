@@ -4,14 +4,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserPlus, UserCheck, UserX, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { UserCheck, FileText, Users, LogOut } from "lucide-react";
+import { OnboardingDialog } from "./OnboardingDialog";
 
 export function EmployeeLifecycleTab() {
-  const [employees] = useState([
-    { id: 1, name: "Ravi Sharma", department: "Sales", status: "Active", joinDate: "2023-01-15" },
-    { id: 2, name: "Priya Singh", department: "IT", status: "Active", joinDate: "2023-03-20" },
-    { id: 3, name: "Amit Kumar", department: "HR", status: "Resigned", joinDate: "2022-11-10" },
-  ]);
+  const [showOnboardingDialog, setShowOnboardingDialog] = useState(false);
+  const [checkedItems, setCheckedItems] = useState({
+    documents: false,
+    training: false,
+    assets: false,
+    welcome: false
+  });
+
+  const onboardingItems = [
+    { id: 'documents', label: 'Documents Submission (ID proof, address proof)', checked: checkedItems.documents },
+    { id: 'training', label: 'Training Schedules Completed', checked: checkedItems.training },
+    { id: 'assets', label: 'Asset Allocation (laptop, ID card)', checked: checkedItems.assets },
+    { id: 'welcome', label: 'Welcome Email Sent', checked: checkedItems.welcome }
+  ];
+
+  const allChecked = Object.values(checkedItems).every(Boolean);
+
+  const handleCheckChange = (id: string, checked: boolean) => {
+    setCheckedItems(prev => ({
+      ...prev,
+      [id]: checked
+    }));
+  };
 
   return (
     <div className="space-y-6">
@@ -28,38 +48,39 @@ export function EmployeeLifecycleTab() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="h-5 w-5" />
+                  <UserCheck className="h-5 w-5" />
                   Employee Onboarding
                 </CardTitle>
-                <Button>
-                  <UserPlus className="h-4 w-4 mr-2" />
+                <Button 
+                  onClick={() => setShowOnboardingDialog(true)}
+                  disabled={!allChecked}
+                  className={!allChecked ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  <UserCheck className="h-4 w-4 mr-2" />
                   Start Onboarding
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg">
-                  <h3 className="font-semibold mb-2">Onboarding Checklist</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Document submission (ID proof, address proof)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Training schedule assignment</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Asset allocation (laptop, ID card)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">Welcome email sent</span>
-                    </div>
+                <h3 className="font-semibold mb-4">Onboarding Checklist</h3>
+                {onboardingItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={item.id}
+                      checked={item.checked}
+                      onCheckedChange={(checked) => handleCheckChange(item.id, checked as boolean)}
+                    />
+                    <label htmlFor={item.id} className="text-sm">{item.label}</label>
                   </div>
-                </div>
+                ))}
+                
+                {allChecked && (
+                  <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-green-800 font-medium">✓ All checklist items completed!</p>
+                    <p className="text-green-600 text-sm">You can now start the onboarding process.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -74,22 +95,10 @@ export function EmployeeLifecycleTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {employees.map((employee) => (
-                  <div key={employee.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{employee.name}</h3>
-                      <p className="text-sm text-gray-600">{employee.department}</p>
-                      <p className="text-sm text-gray-500">Joined: {employee.joinDate}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={employee.status === "Active" ? "default" : "secondary"}>
-                        {employee.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">View Profile</Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No employee records found</p>
+                <Button className="mt-4">Add Employee Information</Button>
               </div>
             </CardContent>
           </Card>
@@ -99,28 +108,14 @@ export function EmployeeLifecycleTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <UserCheck className="h-5 w-5" />
-                Employee Status Management
+                <FileText className="h-5 w-5" />
+                Employee Status Tracking
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">15</div>
-                  <div className="text-sm text-gray-600">Active</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-600">2</div>
-                  <div className="text-sm text-gray-600">On Leave</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-red-600">1</div>
-                  <div className="text-sm text-gray-600">Resigned</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-gray-600">0</div>
-                  <div className="text-sm text-gray-600">Terminated</div>
-                </div>
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No status changes recorded</p>
               </div>
             </CardContent>
           </Card>
@@ -130,20 +125,24 @@ export function EmployeeLifecycleTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <UserX className="h-5 w-5" />
+                <LogOut className="h-5 w-5" />
                 Employee Offboarding
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <UserX className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No pending offboarding processes</p>
-                <Button className="mt-4">Start Offboarding Process</Button>
+                <LogOut className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No offboarding processes active</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <OnboardingDialog 
+        open={showOnboardingDialog} 
+        onOpenChange={setShowOnboardingDialog}
+      />
     </div>
   );
 }

@@ -2,67 +2,89 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Calendar, FileText, User } from "lucide-react";
+import { Users, Briefcase, Calendar, FileText } from "lucide-react";
+import { CreateJobPostingDialog } from "./CreateJobPostingDialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export function RecruitmentTab() {
-  const [jobPostings] = useState([
-    { id: 1, title: "Software Engineer", department: "IT", status: "Open", applications: 15 },
-    { id: 2, title: "Sales Manager", department: "Sales", status: "On Hold", applications: 8 },
-    { id: 3, title: "HR Executive", department: "HR", status: "Closed", applications: 23 },
-  ]);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
-  const [applicants] = useState([
-    { id: 1, name: "John Doe", position: "Software Engineer", status: "Interview Scheduled", email: "john@example.com" },
-    { id: 2, name: "Jane Smith", position: "Sales Manager", status: "Under Review", email: "jane@example.com" },
-    { id: 3, name: "Mike Johnson", position: "HR Executive", status: "Offered", email: "mike@example.com" },
-  ]);
+  const { data: jobPostings, isLoading } = useQuery({
+    queryKey: ['job-postings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_postings')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="jobs" className="space-y-4">
+      <Tabs defaultValue="postings" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="jobs">Job Postings</TabsTrigger>
+          <TabsTrigger value="postings">Job Postings</TabsTrigger>
           <TabsTrigger value="applicants">Applicant Tracking</TabsTrigger>
           <TabsTrigger value="interviews">Interview Scheduling</TabsTrigger>
-          <TabsTrigger value="offers">Offer Management</TabsTrigger>
+          <TabsTrigger value="offers">Offers & Documents</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="jobs">
+        <TabsContent value="postings">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+                  <Briefcase className="h-5 w-5" />
                   Job Postings
                 </CardTitle>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Briefcase className="h-4 w-4 mr-2" />
                   Create Job Posting
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {jobPostings.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{job.title}</h3>
-                      <p className="text-sm text-gray-600">{job.department} Department</p>
-                      <p className="text-sm text-gray-500">{job.applications} applications</p>
+              {isLoading ? (
+                <div className="text-center py-8">Loading job postings...</div>
+              ) : jobPostings && jobPostings.length > 0 ? (
+                <div className="space-y-4">
+                  {jobPostings.map((job) => (
+                    <div key={job.id} className="p-4 border rounded-lg">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-semibold text-lg">{job.title}</h3>
+                          <p className="text-gray-600">{job.department} • {job.location}</p>
+                        </div>
+                        <Badge variant={job.status === 'OPEN' ? 'default' : 'secondary'}>
+                          {job.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-2">{job.description}</p>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span>Experience: {job.experience_required || 'Not specified'}</span>
+                        <span>Type: {job.job_type.replace('_', ' ')}</span>
+                        {job.salary_range_min && job.salary_range_max && (
+                          <span>Salary: ₹{job.salary_range_min} - ₹{job.salary_range_max}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={job.status === "Open" ? "default" : job.status === "On Hold" ? "secondary" : "outline"}>
-                        {job.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">View Details</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Briefcase className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">No job postings created yet</p>
+                  <Button className="mt-4" onClick={() => setShowCreateDialog(true)}>
+                    Create First Job Posting
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -71,33 +93,14 @@ export function RecruitmentTab() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
+                <Users className="h-5 w-5" />
                 Applicant Tracking
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <Input placeholder="Search applicants..." className="flex-1" />
-                  <Button variant="outline">
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-                {applicants.map((applicant) => (
-                  <div key={applicant.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{applicant.name}</h3>
-                      <p className="text-sm text-gray-600">{applicant.position}</p>
-                      <p className="text-sm text-gray-500">{applicant.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={applicant.status === "Offered" ? "default" : "secondary"}>
-                        {applicant.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">View Profile</Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No applicants yet</p>
               </div>
             </CardContent>
           </Card>
@@ -115,7 +118,6 @@ export function RecruitmentTab() {
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">No interviews scheduled</p>
-                <Button className="mt-4">Schedule Interview</Button>
               </div>
             </CardContent>
           </Card>
@@ -124,18 +126,25 @@ export function RecruitmentTab() {
         <TabsContent value="offers">
           <Card>
             <CardHeader>
-              <CardTitle>Offer Management</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Offers & Documents
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
                 <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No offers generated</p>
-                <Button className="mt-4">Create Offer Letter</Button>
+                <p className="text-gray-500">No offers or documents</p>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <CreateJobPostingDialog 
+        open={showCreateDialog} 
+        onOpenChange={setShowCreateDialog}
+      />
     </div>
   );
 }

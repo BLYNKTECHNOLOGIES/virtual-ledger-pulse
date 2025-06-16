@@ -13,6 +13,8 @@ import BAMS from "./pages/BAMS";
 import HRMS from "./pages/HRMS";
 import Payroll from "./pages/Payroll";
 import Compliance from "./pages/Compliance";
+import StockManagement from "./pages/StockManagement";
+import Accounting from "./pages/Accounting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,8 +35,9 @@ const App = () => (
             <Route path="/hrms" element={<HRMS />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/compliance" element={<Compliance />} />
+            <Route path="/stock" element={<StockManagement />} />
+            <Route path="/accounting" element={<Accounting />} />
             <Route path="/payment-methods" element={<div className="p-8 text-center text-gray-500">Payment Methods - Coming Soon</div>} />
-            <Route path="/risk" element={<div className="p-8 text-center text-gray-500">Risk Management - Coming Soon</div>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

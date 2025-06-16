@@ -1,12 +1,14 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Download, FileText, Edit, Trash2 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Plus, Search, Filter, Download, FileText, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EnhancedPurchaseOrderDialog } from "@/components/purchase/EnhancedPurchaseOrderDialog";
@@ -14,10 +16,14 @@ import { EnhancedPurchaseOrderDialog } from "@/components/purchase/EnhancedPurch
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>();
+  const [filterDateTo, setFilterDateTo] = useState<Date>();
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   // Fetch purchase orders from database with enhanced data
   const { data: purchaseOrders, isLoading } = useQuery({
-    queryKey: ['purchase_orders', searchTerm],
+    queryKey: ['purchase_orders', searchTerm, filterDateFrom, filterDateTo],
     queryFn: async () => {
       let query = supabase
         .from('purchase_orders')
@@ -40,11 +46,47 @@ export default function Purchase() {
         query = query.or(`order_number.ilike.%${searchTerm}%,supplier_name.ilike.%${searchTerm}%`);
       }
 
+      if (filterDateFrom) {
+        query = query.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
+      }
+
+      if (filterDateTo) {
+        query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
+
+  const handleEditOrder = (order: any) => {
+    setEditingOrder(order);
+    setShowPurchaseOrderDialog(true);
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (confirm('Are you sure you want to delete this purchase order?')) {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', orderId);
+      
+      if (error) {
+        console.error('Error deleting order:', error);
+      } else {
+        // Refetch data
+        window.location.reload();
+      }
+    }
+  };
+
+  const clearFilters = () => {
+    setFilterDateFrom(undefined);
+    setFilterDateTo(undefined);
+    setSearchTerm("");
+    setShowFilterDialog(false);
+  };
 
   const handleExportCSV = () => {
     if (!purchaseOrders || purchaseOrders.length === 0) return;
@@ -142,7 +184,7 @@ export default function Purchase() {
         </div>
       </div>
 
-      {/* Search Bar */}
+      {/* Search and Filter Bar */}
       <Card>
         <CardContent className="p-4">
           <div className="flex gap-4">
@@ -153,6 +195,81 @@ export default function Purchase() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
+              <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
+                <Filter className="h-4 w-4 mr-2" />
+                Filter by Date
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Filter Purchase Orders by Date</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Date From</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateFrom && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateFrom ? format(filterDateFrom, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateFrom}
+                            onSelect={setFilterDateFrom}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium">Date To</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateTo && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateTo ? format(filterDateTo, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateTo}
+                            onSelect={setFilterDateTo}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                    <Button onClick={() => setShowFilterDialog(false)}>
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
             <Button variant="outline">
               <Search className="h-4 w-4 mr-2" />
               Search
@@ -233,10 +350,10 @@ export default function Purchase() {
                           <Button variant="ghost" size="sm">
                             View Details
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteOrder(order.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -259,6 +376,7 @@ export default function Purchase() {
       <EnhancedPurchaseOrderDialog 
         open={showPurchaseOrderDialog} 
         onOpenChange={setShowPurchaseOrderDialog}
+        editingOrder={editingOrder}
       />
     </div>
   );

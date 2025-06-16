@@ -97,13 +97,14 @@ export function AppSidebar() {
       <SidebarHeader className="p-4 border-b border-blue-700">
         <div className="flex items-center gap-3">
           <img 
-            src="/lovable-uploads/25d24f27-f300-4057-b894-aa71e4e6fe12.png" 
+            src="/lovable-uploads/4205ce8e-c85a-484a-8110-c3a24054deab.png" 
             alt="Blynk Virtual Technologies" 
             className="h-8 w-auto"
           />
           <div>
-            <h2 className="text-sm font-semibold text-white">BLYNK VIRTUAL</h2>
-            <p className="text-xs text-blue-200">TECHNOLOGIES</p>
+            <h2 className="text-xs font-semibold text-white">BLYNK VIRTUAL TECHNOLOGIES</h2>
+            <p className="text-xs text-blue-200">PRIVATE LIMITED</p>
+            <p className="text-xs text-blue-300 mt-1">Leading Virtual Asset Service Provider</p>
           </div>
         </div>
       </SidebarHeader>
@@ -128,7 +129,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t border-blue-700">
         <div className="text-xs text-blue-200">
-          © 2025 BLYNK Virtual Technologies
+          © 2025 BLYNK Virtual Technologies Pvt. Ltd.
         </div>
       </SidebarFooter>
     </Sidebar>

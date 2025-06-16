@@ -21,20 +21,20 @@ export default function ClientDetail() {
 
       {/* Row 1: Client Overview and Monthly Limits */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ClientOverviewPanel clientId={clientId} />
-        <MonthlyLimitsPanel clientId={clientId} />
+        <ClientOverviewPanel />
+        <MonthlyLimitsPanel />
       </div>
 
       {/* Row 2: Client Value Score and KYC/Bank Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ClientValueScore clientId={clientId} />
-        <KYCBankInfo clientId={clientId} />
+        <ClientValueScore />
+        <KYCBankInfo />
       </div>
 
       {/* Row 3: Purpose Communication and Buying/Selling Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PurposeCommunication clientId={clientId} />
-        <BuyingSellingSoonTracker clientId={clientId} />
+        <PurposeCommunication />
+        <BuyingSellingSoonTracker />
       </div>
 
       {/* Row 4: Trading Pattern Analysis */}

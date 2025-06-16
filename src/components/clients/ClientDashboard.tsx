@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, AlertTriangle, CheckCircle, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AddClientDialog } from "./AddClientDialog";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const navigate = useNavigate();
 
   // Fetch clients
@@ -87,7 +88,7 @@ export function ClientDashboard() {
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Approve New Clients (2)
               </Button>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Client
               </Button>
@@ -175,6 +176,12 @@ export function ClientDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Client Dialog */}
+      <AddClientDialog 
+        open={showAddClientDialog} 
+        onOpenChange={setShowAddClientDialog}
+      />
     </div>
   );
 }

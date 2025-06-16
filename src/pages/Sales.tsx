@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +29,7 @@ export default function Sales() {
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [salesEntryData, setSalesEntryData] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -143,6 +143,27 @@ export default function Sales() {
     setFilterDateTo(undefined);
     setSearchTerm("");
     setShowFilterDialog(false);
+  };
+
+  const handleEditOrder = (order: any) => {
+    setEditingOrder(order);
+    setShowSalesEntryDialog(true);
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (confirm('Are you sure you want to delete this order?')) {
+      const { error } = await supabase
+        .from('sales_orders')
+        .delete()
+        .eq('id', orderId);
+      
+      if (error) {
+        console.error('Error deleting order:', error);
+      } else {
+        // Refetch data
+        window.location.reload();
+      }
+    }
   };
 
   return (
@@ -349,10 +370,10 @@ export default function Sales() {
                           <Button variant="ghost" size="sm">
                             View Details
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button variant="ghost" size="sm" onClick={() => handleDeleteOrder(order.id)}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -390,7 +411,7 @@ export default function Sales() {
       <SalesEntryDialog 
         open={showSalesEntryDialog} 
         onOpenChange={setShowSalesEntryDialog}
-        preFilledData={salesEntryData}
+        preFilledData={editingOrder || salesEntryData}
       />
     </div>
   );

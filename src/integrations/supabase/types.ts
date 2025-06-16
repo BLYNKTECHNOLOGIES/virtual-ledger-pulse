@@ -551,6 +551,7 @@ export type Database = {
           unit_of_measurement: string
           updated_at: string
           warehouse_id: string | null
+          warehouse_stock: Json | null
         }
         Insert: {
           category: string
@@ -565,6 +566,7 @@ export type Database = {
           unit_of_measurement: string
           updated_at?: string
           warehouse_id?: string | null
+          warehouse_stock?: Json | null
         }
         Update: {
           category?: string
@@ -579,6 +581,7 @@ export type Database = {
           unit_of_measurement?: string
           updated_at?: string
           warehouse_id?: string | null
+          warehouse_stock?: Json | null
         }
         Relationships: [
           {
@@ -651,6 +654,7 @@ export type Database = {
           id: string
           order_date: string
           order_number: string
+          purchase_payment_method_id: string | null
           status: string
           supplier_name: string
           total_amount: number
@@ -664,6 +668,7 @@ export type Database = {
           id?: string
           order_date: string
           order_number: string
+          purchase_payment_method_id?: string | null
           status?: string
           supplier_name: string
           total_amount: number
@@ -677,6 +682,7 @@ export type Database = {
           id?: string
           order_date?: string
           order_number?: string
+          purchase_payment_method_id?: string | null
           status?: string
           supplier_name?: string
           total_amount?: number
@@ -685,6 +691,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "purchase_orders_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_purchase_payment_method_id_fkey"
+            columns: ["purchase_payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_payment_methods: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          current_usage: number | null
+          custom_frequency: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_reset: string | null
+          payment_limit: number
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          current_usage?: number | null
+          custom_frequency?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_reset?: string | null
+          payment_limit?: number
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          current_usage?: number | null
+          custom_frequency?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_reset?: string | null
+          payment_limit?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_payment_methods_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
@@ -706,12 +766,12 @@ export type Database = {
           id: string
           order_date: string
           order_number: string
-          payment_method_id: string | null
           payment_status: string
           platform: string | null
           price_per_unit: number | null
           quantity: number | null
           risk_level: string | null
+          sales_payment_method_id: string | null
           status: string
           updated_at: string
         }
@@ -728,12 +788,12 @@ export type Database = {
           id?: string
           order_date: string
           order_number: string
-          payment_method_id?: string | null
           payment_status?: string
           platform?: string | null
           price_per_unit?: number | null
           quantity?: number | null
           risk_level?: string | null
+          sales_payment_method_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -750,16 +810,147 @@ export type Database = {
           id?: string
           order_date?: string
           order_number?: string
-          payment_method_id?: string | null
           payment_status?: string
           platform?: string | null
           price_per_unit?: number | null
           quantity?: number | null
           risk_level?: string | null
+          sales_payment_method_id?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_sales_payment_method_id_fkey"
+            columns: ["sales_payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "sales_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_payment_methods: {
+        Row: {
+          bank_account_id: string | null
+          created_at: string
+          current_usage: number | null
+          custom_frequency: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_reset: string | null
+          payment_limit: number
+          risk_category: string
+          type: string
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          bank_account_id?: string | null
+          created_at?: string
+          current_usage?: number | null
+          custom_frequency?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_reset?: string | null
+          payment_limit?: number
+          risk_category: string
+          type: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          bank_account_id?: string | null
+          created_at?: string
+          current_usage?: number | null
+          custom_frequency?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_reset?: string | null
+          payment_limit?: number
+          risk_category?: string
+          type?: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_payment_methods_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_adjustments: {
+        Row: {
+          adjustment_date: string
+          adjustment_type: string
+          created_at: string
+          created_by: string | null
+          from_warehouse_id: string | null
+          id: string
+          product_id: string
+          quantity: number
+          reason: string | null
+          reference_number: string | null
+          to_warehouse_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjustment_date?: string
+          adjustment_type: string
+          created_at?: string
+          created_by?: string | null
+          from_warehouse_id?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          reason?: string | null
+          reference_number?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjustment_date?: string
+          adjustment_type?: string
+          created_at?: string
+          created_by?: string | null
+          from_warehouse_id?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+          reference_number?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_from_warehouse_id_fkey"
+            columns: ["from_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_adjustments_to_warehouse_id_fkey"
+            columns: ["to_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_transactions: {
         Row: {

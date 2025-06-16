@@ -1,397 +1,478 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Smartphone, Building } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Edit, Trash2, CreditCard, Building } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface PaymentMethod {
   id: string;
-  type: "UPI" | "Bank Account";
-  upiId?: string;
-  accountNumber?: string;
-  ifscCode?: string;
-  accountHolderName?: string;
-  riskCategory: "High Risk" | "Medium Risk" | "Low Risk" | "No Risk";
-  paymentLimit: number;
-  frequency: "24 hours" | "Daily" | "48 hours" | "Custom";
-  customFrequency?: string;
-  isActive: boolean;
-  currentUsage: number;
-  lastReset: string;
+  type: string;
+  upi_id?: string;
+  bank_account_id?: string;
+  risk_category: string;
+  payment_limit: number;
+  frequency: string;
+  custom_frequency?: string;
+  current_usage: number;
+  is_active: boolean;
+  bank_accounts?: {
+    account_name: string;
+    bank_name: string;
+    balance: number;
+  };
 }
 
 export function PaymentMethodManagement() {
   const { toast } = useToast();
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: "1",
-      type: "UPI",
-      upiId: "blynk@paytm",
-      riskCategory: "Low Risk",
-      paymentLimit: 100000,
-      frequency: "24 hours",
-      isActive: true,
-      currentUsage: 25000,
-      lastReset: "2024-01-15T00:00:00"
-    },
-    {
-      id: "2",
-      type: "Bank Account",
-      accountNumber: "1234567890",
-      ifscCode: "HDFC0001234",
-      accountHolderName: "Blynk Virtual Technologies",
-      riskCategory: "No Risk",
-      paymentLimit: 500000,
-      frequency: "Daily",
-      isActive: true,
-      currentUsage: 150000,
-      lastReset: "2024-01-15T00:00:00"
-    }
-  ]);
-
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const [showDialog, setShowDialog] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
+  const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
+  
   const [formData, setFormData] = useState({
-    type: "UPI" as "UPI" | "Bank Account",
-    upiId: "",
-    accountNumber: "",
-    ifscCode: "",
-    accountHolderName: "",
-    riskCategory: "Medium Risk" as "High Risk" | "Medium Risk" | "Low Risk" | "No Risk",
-    paymentLimit: "",
-    frequency: "24 hours" as "24 hours" | "Daily" | "48 hours" | "Custom",
-    customFrequency: ""
+    type: "",
+    upi_id: "",
+    bank_account_id: "",
+    risk_category: "",
+    payment_limit: 0,
+    frequency: "",
+    custom_frequency: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (editingMethod) {
-      setPaymentMethods(prev => prev.map(method => 
-        method.id === editingMethod.id 
-          ? {
-              ...method,
-              ...formData,
-              paymentLimit: parseFloat(formData.paymentLimit)
-            }
-          : method
-      ));
+  // Fetch bank accounts
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch sales payment methods
+  const { data: salesPaymentMethods, isLoading: salesLoading } = useQuery({
+    queryKey: ['sales_payment_methods'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(account_name, bank_name, balance)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch purchase payment methods
+  const { data: purchasePaymentMethods, isLoading: purchaseLoading } = useQuery({
+    queryKey: ['purchase_payment_methods'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(account_name, bank_name, balance)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createSalesPaymentMethodMutation = useMutation({
+    mutationFn: async (methodData: any) => {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .insert([methodData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
       toast({
-        title: "Payment Method Updated",
-        description: "The payment method has been successfully updated.",
+        title: "Payment Method Created",
+        description: "Sales payment method has been successfully created.",
       });
-    } else {
-      const newMethod: PaymentMethod = {
-        id: Date.now().toString(),
-        ...formData,
-        paymentLimit: parseFloat(formData.paymentLimit),
-        isActive: true,
-        currentUsage: 0,
-        lastReset: new Date().toISOString()
-      };
-      setPaymentMethods(prev => [...prev, newMethod]);
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      setShowDialog(false);
+      resetForm();
+    },
+    onError: (error) => {
       toast({
-        title: "Payment Method Added",
-        description: "New payment method has been successfully added and activated.",
+        title: "Error",
+        description: `Failed to create payment method: ${error.message}`,
+        variant: "destructive",
       });
-    }
+    },
+  });
 
-    resetForm();
-    setIsAddDialogOpen(false);
-  };
+  const createPurchasePaymentMethodMutation = useMutation({
+    mutationFn: async (methodData: any) => {
+      const { data, error } = await supabase
+        .from('purchase_payment_methods')
+        .insert([methodData])
+        .select()
+        .single();
 
-  const handleEdit = (method: PaymentMethod) => {
-    setEditingMethod(method);
-    setFormData({
-      type: method.type,
-      upiId: method.upiId || "",
-      accountNumber: method.accountNumber || "",
-      ifscCode: method.ifscCode || "",
-      accountHolderName: method.accountHolderName || "",
-      riskCategory: method.riskCategory,
-      paymentLimit: method.paymentLimit.toString(),
-      frequency: method.frequency,
-      customFrequency: method.customFrequency || ""
-    });
-    setIsAddDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setPaymentMethods(prev => prev.filter(method => method.id !== id));
-    toast({
-      title: "Payment Method Removed",
-      description: "The payment method has been successfully removed.",
-    });
-  };
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment Method Created",
+        description: "Purchase payment method has been successfully created.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
+      setShowDialog(false);
+      resetForm();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create payment method: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
 
   const resetForm = () => {
     setFormData({
-      type: "UPI",
-      upiId: "",
-      accountNumber: "",
-      ifscCode: "",
-      accountHolderName: "",
-      riskCategory: "Medium Risk",
-      paymentLimit: "",
-      frequency: "24 hours",
-      customFrequency: ""
+      type: "",
+      upi_id: "",
+      bank_account_id: "",
+      risk_category: "",
+      payment_limit: 0,
+      frequency: "",
+      custom_frequency: "",
     });
     setEditingMethod(null);
   };
 
-  const getRiskBadgeVariant = (risk: string) => {
-    switch (risk) {
-      case "High Risk": return "destructive";
-      case "Medium Risk": return "secondary";
-      case "Low Risk": return "default";
-      case "No Risk": return "outline";
-      default: return "default";
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const submitData = {
+      ...formData,
+      payment_limit: Number(formData.payment_limit),
+    };
+
+    // Remove upi_id if type is Bank Account, remove bank_account_id if type is UPI
+    if (formData.type === 'Bank Account') {
+      delete submitData.upi_id;
+    } else if (formData.type === 'UPI') {
+      delete submitData.bank_account_id;
+    }
+
+    if (activeTab === 'sales') {
+      createSalesPaymentMethodMutation.mutate(submitData);
+    } else {
+      // For purchase, only bank account is allowed
+      createPurchasePaymentMethodMutation.mutate({
+        bank_account_id: formData.bank_account_id,
+        payment_limit: Number(formData.payment_limit),
+        frequency: formData.frequency,
+        custom_frequency: formData.custom_frequency,
+      });
     }
   };
 
-  const getAvailableLimit = (method: PaymentMethod) => {
-    return method.paymentLimit - method.currentUsage;
+  const getUsagePercentage = (current: number, limit: number) => {
+    return limit > 0 ? Math.min((current / limit) * 100, 100) : 0;
+  };
+
+  const getRiskBadge = (risk: string) => {
+    const colors = {
+      'High Risk': 'bg-red-100 text-red-800',
+      'Medium Risk': 'bg-yellow-100 text-yellow-800',
+      'Low Risk': 'bg-green-100 text-green-800',
+      'No Risk': 'bg-blue-100 text-blue-800'
+    };
+    return <Badge className={colors[risk as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{risk}</Badge>;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Payment Method Management</h2>
-          <p className="text-gray-600">Configure UPI and bank account payment methods for sales</p>
+        <h2 className="text-2xl font-bold">Payment Method Management</h2>
+        <Button onClick={() => setShowDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Payment Method
+        </Button>
+      </div>
+
+      {/* Tab Selection */}
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === 'sales' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('sales')}
+        >
+          Sales Payment Methods
+        </Button>
+        <Button
+          variant={activeTab === 'purchase' ? 'default' : 'outline'}
+          onClick={() => setActiveTab('purchase')}
+        >
+          Purchase Payment Methods
+        </Button>
+      </div>
+
+      {/* Sales Payment Methods */}
+      {activeTab === 'sales' && (
+        <div className="grid gap-4">
+          {salesLoading ? (
+            <div className="text-center py-8">Loading sales payment methods...</div>
+          ) : (
+            salesPaymentMethods?.map((method) => (
+              <Card key={method.id}>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      {method.type === 'UPI' ? (
+                        <CreditCard className="h-8 w-8 text-blue-500" />
+                      ) : (
+                        <Building className="h-8 w-8 text-green-500" />
+                      )}
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
+                        </h3>
+                        <p className="text-gray-600">
+                          {method.type} • {method.frequency}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getRiskBadge(method.risk_category)}
+                      <Badge variant={method.is_active ? "default" : "secondary"}>
+                        {method.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {method.type === 'Bank Account' && method.bank_accounts && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{method.bank_accounts.bank_name}</span>
+                        <span className="text-green-600 font-semibold">
+                          ₹{method.bank_accounts.balance.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Usage Limit</span>
+                      <span>₹{method.current_usage.toLocaleString()} / ₹{method.payment_limit.toLocaleString()}</span>
+                    </div>
+                    <Progress value={getUsagePercentage(method.current_usage, method.payment_limit)} />
+                    <div className="text-xs text-gray-500">
+                      Available: ₹{(method.payment_limit - method.current_usage).toLocaleString()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-          setIsAddDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Payment Method
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingMethod ? "Edit Payment Method" : "Add New Payment Method"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      )}
+
+      {/* Purchase Payment Methods */}
+      {activeTab === 'purchase' && (
+        <div className="grid gap-4">
+          {purchaseLoading ? (
+            <div className="text-center py-8">Loading purchase payment methods...</div>
+          ) : (
+            purchasePaymentMethods?.map((method) => (
+              <Card key={method.id}>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <Building className="h-8 w-8 text-green-500" />
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {method.bank_accounts?.account_name}
+                        </h3>
+                        <p className="text-gray-600">
+                          Bank Account • {method.frequency}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant={method.is_active ? "default" : "secondary"}>
+                      {method.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+
+                  {method.bank_accounts && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{method.bank_accounts.bank_name}</span>
+                        <span className="text-green-600 font-semibold">
+                          ₹{method.bank_accounts.balance.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Usage Limit</span>
+                      <span>₹{method.current_usage.toLocaleString()} / ₹{method.payment_limit.toLocaleString()}</span>
+                    </div>
+                    <Progress value={getUsagePercentage(method.current_usage, method.payment_limit)} />
+                    <div className="text-xs text-gray-500">
+                      Available: ₹{(method.payment_limit - method.current_usage).toLocaleString()}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Add/Edit Payment Method Dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingMethod ? 'Edit' : 'Add'} {activeTab === 'sales' ? 'Sales' : 'Purchase'} Payment Method
+            </DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {activeTab === 'sales' && (
               <div>
-                <Label htmlFor="type">Payment Method Type</Label>
-                <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Account") => 
-                  setFormData(prev => ({ ...prev, type: value }))
-                }>
+                <Label htmlFor="type">Payment Type *</Label>
+                <Select onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select payment type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="UPI">UPI (Unified Payments Interface)</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
                     <SelectItem value="Bank Account">Bank Account</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            )}
 
-              {formData.type === "UPI" ? (
-                <div>
-                  <Label htmlFor="upiId">UPI ID</Label>
-                  <Input
-                    id="upiId"
-                    value={formData.upiId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, upiId: e.target.value }))}
-                    placeholder="example@paytm"
-                    required
-                  />
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="accountNumber">Account Number</Label>
-                    <Input
-                      id="accountNumber"
-                      value={formData.accountNumber}
-                      onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ifscCode">IFSC Code</Label>
-                    <Input
-                      id="ifscCode"
-                      value={formData.ifscCode}
-                      onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="accountHolderName">Account Holder Name</Label>
-                    <Input
-                      id="accountHolderName"
-                      value={formData.accountHolderName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, accountHolderName: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="riskCategory">Risk Category</Label>
-                  <Select value={formData.riskCategory} onValueChange={(value: any) => 
-                    setFormData(prev => ({ ...prev, riskCategory: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="High Risk">High Risk</SelectItem>
-                      <SelectItem value="Medium Risk">Medium Risk</SelectItem>
-                      <SelectItem value="Low Risk">Low Risk</SelectItem>
-                      <SelectItem value="No Risk">No Risk</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="paymentLimit">Payment Limit (₹)</Label>
-                  <Input
-                    id="paymentLimit"
-                    type="number"
-                    value={formData.paymentLimit}
-                    onChange={(e) => setFormData(prev => ({ ...prev, paymentLimit: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="frequency">Frequency</Label>
-                  <Select value={formData.frequency} onValueChange={(value: any) => 
-                    setFormData(prev => ({ ...prev, frequency: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="24 hours">24 Hours</SelectItem>
-                      <SelectItem value="Daily">Daily (Resets at 11:59 PM)</SelectItem>
-                      <SelectItem value="48 hours">48 Hours</SelectItem>
-                      <SelectItem value="Custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.frequency === "Custom" && (
-                  <div>
-                    <Label htmlFor="customFrequency">Custom Frequency</Label>
-                    <Input
-                      id="customFrequency"
-                      value={formData.customFrequency}
-                      onChange={(e) => setFormData(prev => ({ ...prev, customFrequency: e.target.value }))}
-                      placeholder="e.g., 72 hours, 1 week"
-                    />
-                  </div>
-                )}
+            {activeTab === 'sales' && formData.type === 'UPI' && (
+              <div>
+                <Label htmlFor="upi_id">UPI ID *</Label>
+                <Input
+                  id="upi_id"
+                  value={formData.upi_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, upi_id: e.target.value }))}
+                  placeholder="example@paytm"
+                  required
+                />
               </div>
+            )}
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingMethod ? "Update Method" : "Add & Activate"}
-                </Button>
+            {(activeTab === 'purchase' || formData.type === 'Bank Account') && (
+              <div>
+                <Label htmlFor="bank_account_id">Bank Account *</Label>
+                <Select onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts?.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} - {account.bank_name} (₹{account.balance.toLocaleString()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
+            )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Active Payment Methods</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>Risk Level</TableHead>
-                <TableHead>Limit</TableHead>
-                <TableHead>Available</TableHead>
-                <TableHead>Frequency</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paymentMethods.map((method) => (
-                <TableRow key={method.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {method.type === "UPI" ? (
-                        <Smartphone className="h-4 w-4 text-blue-600" />
-                      ) : (
-                        <Building className="h-4 w-4 text-green-600" />
-                      )}
-                      {method.type}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {method.type === "UPI" ? (
-                      <div className="font-medium">{method.upiId}</div>
-                    ) : (
-                      <div>
-                        <div className="font-medium">{method.accountNumber}</div>
-                        <div className="text-sm text-gray-500">{method.ifscCode}</div>
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getRiskBadgeVariant(method.riskCategory)}>
-                      {method.riskCategory}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>₹{method.paymentLimit.toLocaleString()}</TableCell>
-                  <TableCell className={getAvailableLimit(method) < method.paymentLimit * 0.2 ? "text-red-600 font-medium" : ""}>
-                    ₹{getAvailableLimit(method).toLocaleString()}
-                  </TableCell>
-                  <TableCell>{method.frequency}</TableCell>
-                  <TableCell>
-                    <Badge variant={method.isActive ? "default" : "secondary"}>
-                      {method.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(method)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(method.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            {activeTab === 'sales' && (
+              <div>
+                <Label htmlFor="risk_category">Risk Category *</Label>
+                <Select onValueChange={(value) => setFormData(prev => ({ ...prev, risk_category: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select risk category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="No Risk">No Risk</SelectItem>
+                    <SelectItem value="Low Risk">Low Risk</SelectItem>
+                    <SelectItem value="Medium Risk">Medium Risk</SelectItem>
+                    <SelectItem value="High Risk">High Risk</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="payment_limit">Payment Limit *</Label>
+              <Input
+                id="payment_limit"
+                type="number"
+                value={formData.payment_limit}
+                onChange={(e) => setFormData(prev => ({ ...prev, payment_limit: parseFloat(e.target.value) || 0 }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="frequency">Frequency *</Label>
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, frequency: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24 hours">24 hours</SelectItem>
+                  <SelectItem value="Daily">Daily</SelectItem>
+                  <SelectItem value="48 hours">48 hours</SelectItem>
+                  <SelectItem value="Custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.frequency === 'Custom' && (
+              <div>
+                <Label htmlFor="custom_frequency">Custom Frequency</Label>
+                <Input
+                  id="custom_frequency"
+                  value={formData.custom_frequency}
+                  onChange={(e) => setFormData(prev => ({ ...prev, custom_frequency: e.target.value }))}
+                  placeholder="e.g., 72 hours, Weekly"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingMethod ? 'Update' : 'Create'} Payment Method
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

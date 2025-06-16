@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,10 +13,15 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SalesOrderDialog } from "@/components/sales/SalesOrderDialog";
+import { OrderTypeSelectionDialog } from "@/components/sales/OrderTypeSelectionDialog";
+import { EnhancedOrderCreationDialog } from "@/components/sales/EnhancedOrderCreationDialog";
+import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 
 export default function Sales() {
-  const [showSalesOrderDialog, setShowSalesOrderDialog] = useState(false);
+  const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
+  const [showEnhancedOrderDialog, setShowEnhancedOrderDialog] = useState(false);
+  const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
+  const [selectedOrderType, setSelectedOrderType] = useState<'repeat' | 'new' | null>(null);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -54,6 +58,11 @@ export default function Sales() {
       return data;
     },
   });
+
+  const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
+    setSelectedOrderType(type);
+    setShowEnhancedOrderDialog(true);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -104,7 +113,7 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={() => setShowSalesOrderDialog(true)}>
+          <Button onClick={() => setShowOrderTypeDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -310,10 +319,24 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Sales Order Dialog */}
-      <SalesOrderDialog 
-        open={showSalesOrderDialog} 
-        onOpenChange={setShowSalesOrderDialog}
+      {/* Order Type Selection Dialog */}
+      <OrderTypeSelectionDialog 
+        open={showOrderTypeDialog}
+        onOpenChange={setShowOrderTypeDialog}
+        onOrderTypeSelected={handleOrderTypeSelection}
+      />
+
+      {/* Enhanced Order Creation Dialog */}
+      <EnhancedOrderCreationDialog 
+        open={showEnhancedOrderDialog}
+        onOpenChange={setShowEnhancedOrderDialog}
+        orderType={selectedOrderType}
+      />
+
+      {/* Legacy Sales Entry Dialog (for backward compatibility) */}
+      <SalesEntryDialog 
+        open={showSalesEntryDialog} 
+        onOpenChange={setShowSalesEntryDialog}
       />
     </div>
   );

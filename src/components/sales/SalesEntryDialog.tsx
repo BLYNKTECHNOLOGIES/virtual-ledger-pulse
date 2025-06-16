@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -354,7 +353,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               </div>
 
               <FileUpload
-                onFilesChange={(urls) => setFormData(prev => ({ ...prev, attachmentUrls: urls }))}
+                onFilesUploaded={(urls) => setFormData(prev => ({ ...prev, attachmentUrls: urls }))}
+                existingFiles={formData.attachmentUrls}
               />
             </div>
           </div>

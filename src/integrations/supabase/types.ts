@@ -648,6 +648,7 @@ export type Database = {
       purchase_orders: {
         Row: {
           bank_account_id: string | null
+          contact_number: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -659,9 +660,11 @@ export type Database = {
           supplier_name: string
           total_amount: number
           updated_at: string
+          warehouse_name: string | null
         }
         Insert: {
           bank_account_id?: string | null
+          contact_number?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -673,9 +676,11 @@ export type Database = {
           supplier_name: string
           total_amount: number
           updated_at?: string
+          warehouse_name?: string | null
         }
         Update: {
           bank_account_id?: string | null
+          contact_number?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -687,6 +692,7 @@ export type Database = {
           supplier_name?: string
           total_amount?: number
           updated_at?: string
+          warehouse_name?: string | null
         }
         Relationships: [
           {

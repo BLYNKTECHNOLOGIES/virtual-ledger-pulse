@@ -6,135 +6,143 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Eye, EyeOff } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface BankAccount {
-  id: string;
-  bankName: string;
-  accountNumber: string;
-  ifscCode: string;
-  accountHolderName: string;
-  accountBalance: number;
-  status: "active" | "inactive";
-  inactivityReason?: string;
-  inactivityDate?: string;
-  inactivityNote?: string;
-}
 
 export function BankAccountManagement() {
   const { toast } = useToast();
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: "1",
-      bankName: "HDFC Bank",
-      accountNumber: "1234567890",
-      ifscCode: "HDFC0001234",
-      accountHolderName: "Blynk Virtual Technologies",
-      accountBalance: 250000,
-      status: "active"
-    },
-    {
-      id: "2",
-      bankName: "ICICI Bank",
-      accountNumber: "9876543210",
-      ifscCode: "ICIC0009876",
-      accountHolderName: "Blynk Virtual Technologies",
-      accountBalance: 150000,
-      status: "inactive",
-      inactivityReason: "Account frozen",
-      inactivityDate: "2024-01-15",
-      inactivityNote: "Under bank investigation"
-    }
-  ]);
-
+  const queryClient = useQueryClient();
+  
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [editingAccount, setEditingAccount] = useState<any>(null);
   const [formData, setFormData] = useState({
-    bankName: "",
-    accountNumber: "",
-    ifscCode: "",
-    accountHolderName: "",
-    accountBalance: "",
-    status: "active" as "active" | "inactive",
-    inactivityReason: "",
-    inactivityNote: ""
+    account_name: "",
+    bank_name: "",
+    account_number: "",
+    IFSC: "",
+    branch: "",
+    balance: "",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE"
+  });
+
+  // Fetch bank accounts from database
+  const { data: bankAccounts, isLoading } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createBankAccountMutation = useMutation({
+    mutationFn: async (accountData: any) => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .insert([{
+          ...accountData,
+          balance: parseFloat(accountData.balance) || 0
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bank Account Added",
+        description: "New bank account has been successfully added to the central database.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      resetForm();
+      setIsAddDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to add bank account: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateBankAccountMutation = useMutation({
+    mutationFn: async (accountData: any) => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .update({
+          ...accountData,
+          balance: parseFloat(accountData.balance) || 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingAccount.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bank Account Updated",
+        description: "Bank account has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      resetForm();
+      setIsAddDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to update bank account: ${error.message}`,
+        variant: "destructive",
+      });
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (editingAccount) {
-      setBankAccounts(prev => prev.map(account => 
-        account.id === editingAccount.id 
-          ? {
-              ...account,
-              ...formData,
-              accountBalance: parseFloat(formData.accountBalance),
-              inactivityDate: formData.status === "inactive" ? new Date().toISOString().split('T')[0] : undefined
-            }
-          : account
-      ));
-      toast({
-        title: "Bank Account Updated",
-        description: "The bank account has been successfully updated.",
-      });
+      updateBankAccountMutation.mutate(formData);
     } else {
-      const newAccount: BankAccount = {
-        id: Date.now().toString(),
-        ...formData,
-        accountBalance: parseFloat(formData.accountBalance),
-        inactivityDate: formData.status === "inactive" ? new Date().toISOString().split('T')[0] : undefined
-      };
-      setBankAccounts(prev => [...prev, newAccount]);
-      toast({
-        title: "Bank Account Added",
-        description: "New bank account has been successfully added.",
-      });
+      createBankAccountMutation.mutate(formData);
     }
-
-    setFormData({
-      bankName: "",
-      accountNumber: "",
-      ifscCode: "",
-      accountHolderName: "",
-      accountBalance: "",
-      status: "active",
-      inactivityReason: "",
-      inactivityNote: ""
-    });
-    setIsAddDialogOpen(false);
-    setEditingAccount(null);
   };
 
-  const handleEdit = (account: BankAccount) => {
+  const handleEdit = (account: any) => {
     setEditingAccount(account);
     setFormData({
-      bankName: account.bankName,
-      accountNumber: account.accountNumber,
-      ifscCode: account.ifscCode,
-      accountHolderName: account.accountHolderName,
-      accountBalance: account.accountBalance.toString(),
-      status: account.status,
-      inactivityReason: account.inactivityReason || "",
-      inactivityNote: account.inactivityNote || ""
+      account_name: account.account_name || "",
+      bank_name: account.bank_name || "",
+      account_number: account.account_number || "",
+      IFSC: account.IFSC || "",
+      branch: account.branch || "",
+      balance: account.balance?.toString() || "0",
+      status: account.status || "ACTIVE"
     });
     setIsAddDialogOpen(true);
   };
 
   const resetForm = () => {
     setFormData({
-      bankName: "",
-      accountNumber: "",
-      ifscCode: "",
-      accountHolderName: "",
-      accountBalance: "",
-      status: "active",
-      inactivityReason: "",
-      inactivityNote: ""
+      account_name: "",
+      bank_name: "",
+      account_number: "",
+      IFSC: "",
+      branch: "",
+      balance: "",
+      status: "ACTIVE"
     });
     setEditingAccount(null);
   };
@@ -143,130 +151,16 @@ export function BankAccountManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Bank Account Management</h2>
-          <p className="text-gray-600">Manage bank accounts for receiving sales payments</p>
+          <h2 className="text-2xl font-bold text-gray-900">Central Bank Account Management</h2>
+          <p className="text-gray-600">Manage bank accounts for both sales and purchase operations</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-          setIsAddDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Bank Account
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingAccount ? "Edit Bank Account" : "Add New Bank Account"}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="bankName">Bank Name</Label>
-                  <Input
-                    id="bankName"
-                    value={formData.bankName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, bankName: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="accountNumber">Account Number</Label>
-                  <Input
-                    id="accountNumber"
-                    value={formData.accountNumber}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="ifscCode">IFSC Code</Label>
-                  <Input
-                    id="ifscCode"
-                    value={formData.ifscCode}
-                    onChange={(e) => setFormData(prev => ({ ...prev, ifscCode: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="accountHolderName">Account Holder Name</Label>
-                  <Input
-                    id="accountHolderName"
-                    value={formData.accountHolderName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accountHolderName: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="accountBalance">Account Balance (₹)</Label>
-                  <Input
-                    id="accountBalance"
-                    type="number"
-                    value={formData.accountBalance}
-                    onChange={(e) => setFormData(prev => ({ ...prev, accountBalance: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Account Status</Label>
-                  <Select value={formData.status} onValueChange={(value: "active" | "inactive") => 
-                    setFormData(prev => ({ ...prev, status: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {formData.status === "inactive" && (
-                <div className="space-y-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                  <div>
-                    <Label htmlFor="inactivityReason">Reason for Inactivity</Label>
-                    <Select value={formData.inactivityReason} onValueChange={(value) => 
-                      setFormData(prev => ({ ...prev, inactivityReason: value }))
-                    }>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select reason" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Account frozen">Account frozen</SelectItem>
-                        <SelectItem value="Account closed">Account closed</SelectItem>
-                        <SelectItem value="Bank issues">Bank issues or disputes</SelectItem>
-                        <SelectItem value="Temporarily inactive">Temporarily inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="inactivityNote">Additional Notes</Label>
-                    <Textarea
-                      id="inactivityNote"
-                      value={formData.inactivityNote}
-                      onChange={(e) => setFormData(prev => ({ ...prev, inactivityNote: e.target.value }))}
-                      placeholder="Optional notes about the inactivity..."
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingAccount ? "Update Account" : "Add Account"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => setIsAddDialogOpen(true)}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Bank Account
+        </Button>
       </div>
 
       <Card>
@@ -274,52 +168,168 @@ export function BankAccountManagement() {
           <CardTitle>Bank Accounts</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bank Name</TableHead>
-                <TableHead>Account Number</TableHead>
-                <TableHead>IFSC Code</TableHead>
-                <TableHead>Account Holder</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bankAccounts.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell className="font-medium">{account.bankName}</TableCell>
-                  <TableCell>{account.accountNumber}</TableCell>
-                  <TableCell>{account.ifscCode}</TableCell>
-                  <TableCell>{account.accountHolderName}</TableCell>
-                  <TableCell>₹{account.accountBalance.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={account.status === "active" ? "default" : "destructive"}>
-                      {account.status === "active" ? (
-                        <><Eye className="h-3 w-3 mr-1" /> Active</>
-                      ) : (
-                        <><EyeOff className="h-3 w-3 mr-1" /> Inactive</>
-                      )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(account)}
-                      className="flex items-center gap-1"
-                    >
-                      <Edit className="h-3 w-3" />
-                      Edit
-                    </Button>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-8">Loading bank accounts...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account Name</TableHead>
+                  <TableHead>Bank Name</TableHead>
+                  <TableHead>Account Number</TableHead>
+                  <TableHead>IFSC Code</TableHead>
+                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {bankAccounts?.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell className="font-medium">{account.account_name}</TableCell>
+                    <TableCell>{account.bank_name}</TableCell>
+                    <TableCell className="font-mono">{account.account_number}</TableCell>
+                    <TableCell className="font-mono">{account.IFSC}</TableCell>
+                    <TableCell className="font-medium">₹{account.balance?.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
+                        {account.status === "ACTIVE" ? (
+                          <><Eye className="h-3 w-3 mr-1" /> Active</>
+                        ) : (
+                          <><EyeOff className="h-3 w-3 mr-1" /> Inactive</>
+                        )}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(account)}
+                        className="flex items-center gap-1"
+                      >
+                        <Edit className="h-3 w-3" />
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          
+          {bankAccounts?.length === 0 && !isLoading && (
+            <div className="text-center py-8 text-gray-500">
+              No bank accounts found. Add your first bank account to get started.
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Add/Edit Bank Account Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+        setIsAddDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAccount ? "Edit Bank Account" : "Add New Bank Account"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="account_name">Account Name *</Label>
+                <Input
+                  id="account_name"
+                  value={formData.account_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, account_name: e.target.value }))}
+                  placeholder="e.g., Blynk Virtual Technologies"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="bank_name">Bank Name *</Label>
+                <Input
+                  id="bank_name"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bank_name: e.target.value }))}
+                  placeholder="e.g., HDFC Bank"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="account_number">Account Number *</Label>
+                <Input
+                  id="account_number"
+                  value={formData.account_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, account_number: e.target.value }))}
+                  placeholder="Enter account number"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="IFSC">IFSC Code *</Label>
+                <Input
+                  id="IFSC"
+                  value={formData.IFSC}
+                  onChange={(e) => setFormData(prev => ({ ...prev, IFSC: e.target.value }))}
+                  placeholder="e.g., HDFC0001234"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="branch">Branch</Label>
+                <Input
+                  id="branch"
+                  value={formData.branch}
+                  onChange={(e) => setFormData(prev => ({ ...prev, branch: e.target.value }))}
+                  placeholder="Branch name/location"
+                />
+              </div>
+              <div>
+                <Label htmlFor="balance">Current Balance (₹) *</Label>
+                <Input
+                  id="balance"
+                  type="number"
+                  step="0.01"
+                  value={formData.balance}
+                  onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="status">Account Status *</Label>
+              <Select value={formData.status} onValueChange={(value: "ACTIVE" | "INACTIVE") => 
+                setFormData(prev => ({ ...prev, status: value }))
+              }>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={createBankAccountMutation.isPending || updateBankAccountMutation.isPending}
+              >
+                {editingAccount ? "Update Account" : "Add Account"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

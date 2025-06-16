@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,8 +248,31 @@ export function PaymentMethodManagement() {
                   </Select>
                 </div>
 
-                {formData.type === "UPI" ? (
-                  <div>
+                <div>
+                  <Label htmlFor="bank_account_id">Select Bank Account *</Label>
+                  <Select value={formData.bank_account_id} onValueChange={(value) => 
+                    setFormData(prev => ({ ...prev, bank_account_id: value }))
+                  }>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bank account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts?.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{account.account_name}</span>
+                            <span className="text-sm text-gray-500">
+                              {account.bank_name} - {account.account_number} ({account.IFSC})
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.type === "UPI" && (
+                  <div className="col-span-2">
                     <Label htmlFor="upi_id">UPI ID *</Label>
                     <Input
                       id="upi_id"
@@ -257,29 +281,6 @@ export function PaymentMethodManagement() {
                       placeholder="user@paytm"
                       required={formData.type === "UPI"}
                     />
-                  </div>
-                ) : (
-                  <div>
-                    <Label htmlFor="bank_account_id">Select Bank Account *</Label>
-                    <Select value={formData.bank_account_id} onValueChange={(value) => 
-                      setFormData(prev => ({ ...prev, bank_account_id: value }))
-                    }>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select bank account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bankAccounts?.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{account.account_name}</span>
-                              <span className="text-sm text-gray-500">
-                                {account.bank_name} - {account.account_number} ({account.IFSC})
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 )}
 
@@ -409,7 +410,14 @@ export function PaymentMethodManagement() {
                     </TableCell>
                     <TableCell>
                       {method.type === "UPI" ? (
-                        method.upi_id
+                        <div className="flex flex-col">
+                          <span className="font-medium">{method.upi_id}</span>
+                          {method.bank_accounts && (
+                            <span className="text-sm text-gray-500">
+                              via {method.bank_accounts.account_name}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         method.bank_accounts ? 
                           <div className="flex flex-col">

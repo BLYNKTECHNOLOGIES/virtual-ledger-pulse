@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BankAccountManagement } from "@/components/bams/BankAccountManagement";
 import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManagement";
 import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
-import { CreditCard, Building, ShoppingBag } from "lucide-react";
+import { PurchasePaymentMethodsList } from "@/components/purchase/PurchasePaymentMethodsList";
+import { CreditCard, Building, ShoppingBag, List } from "lucide-react";
 
 export default function BAMS() {
   return (
@@ -21,7 +22,7 @@ export default function BAMS() {
       <Card>
         <CardContent className="p-6">
           <Tabs defaultValue="bank-accounts" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="bank-accounts" className="flex items-center gap-2">
                 <Building className="h-4 w-4" />
                 Bank Accounts (Sales)
@@ -33,6 +34,10 @@ export default function BAMS() {
               <TabsTrigger value="purchases" className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4" />
                 Purchase Management
+              </TabsTrigger>
+              <TabsTrigger value="purchase-methods-list" className="flex items-center gap-2">
+                <List className="h-4 w-4" />
+                Purchase Methods List
               </TabsTrigger>
             </TabsList>
 
@@ -46,6 +51,10 @@ export default function BAMS() {
 
             <TabsContent value="purchases">
               <PurchaseManagement />
+            </TabsContent>
+
+            <TabsContent value="purchase-methods-list">
+              <PurchasePaymentMethodsList />
             </TabsContent>
           </Tabs>
         </CardContent>

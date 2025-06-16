@@ -11,6 +11,7 @@ import Sales from "./pages/Sales";
 import Purchase from "./pages/Purchase";
 import BAMS from "./pages/BAMS";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
 import HRMS from "./pages/HRMS";
 import Payroll from "./pages/Payroll";
 import Compliance from "./pages/Compliance";
@@ -34,6 +35,7 @@ const App = () => {
                 <Route path="/purchase" element={<Purchase />} />
                 <Route path="/bams" element={<BAMS />} />
                 <Route path="/clients" element={<Clients />} />
+                <Route path="/clients/:clientId" element={<ClientDetail />} />
                 <Route path="/hrms" element={<HRMS />} />
                 <Route path="/payroll" element={<Payroll />} />
                 <Route path="/compliance" element={<Compliance />} />

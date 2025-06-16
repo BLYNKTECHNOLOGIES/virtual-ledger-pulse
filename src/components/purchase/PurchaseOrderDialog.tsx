@@ -123,32 +123,21 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
 
       if (itemsError) throw itemsError;
 
-      // Update product stock quantities
+      // Update product stock quantities manually
       for (const item of items) {
-        const { error: stockError } = await supabase.rpc(
-          'update_product_stock',
-          {
-            product_id: item.product_id,
-            quantity_change: item.quantity
-          }
-        );
-        
-        if (stockError) {
-          // If RPC function doesn't exist, update manually
-          const { data: product } = await supabase
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+          
+        if (product) {
+          await supabase
             .from('products')
-            .select('current_stock_quantity')
-            .eq('id', item.product_id)
-            .single();
-            
-          if (product) {
-            await supabase
-              .from('products')
-              .update({ 
-                current_stock_quantity: product.current_stock_quantity + item.quantity 
-              })
-              .eq('id', item.product_id);
-          }
+            .update({ 
+              current_stock_quantity: product.current_stock_quantity + item.quantity 
+            })
+            .eq('id', item.product_id);
         }
       }
 

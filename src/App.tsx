@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useState } from "react";
 import { Login } from "@/components/auth/Login";
-import Layout from "./components/Layout";
+import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import Sales from "./pages/Sales";
 import Purchase from "./pages/Purchase";

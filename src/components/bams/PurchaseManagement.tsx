@@ -1,100 +1,149 @@
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PurchaseMethodForm } from "./purchase/PurchaseMethodForm";
-import { PurchaseSummaryCards } from "./purchase/PurchaseSummaryCards";
-import { PurchaseMethodsTable } from "./purchase/PurchaseMethodsTable";
-import { PurchaseMethodsListTable } from "./purchase/PurchaseMethodsListTable";
-import { usePurchaseMethods } from "./purchase/usePurchaseMethods";
-import { PurchasePaymentMethod, PurchaseMethodFormData } from "./purchase/types";
-import { List, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+interface PurchaseMethod {
+  id: string;
+  type: "UPI" | "Bank Transfer";
+  name: string;
+  paymentLimit: number;
+  frequency: "24 hours" | "Daily";
+  currentUsage: number;
+  lastReset: string;
+  isActive: boolean;
+}
 
 export function PurchaseManagement() {
-  const {
-    purchasePaymentMethods,
-    bankAccounts,
-    isLoading,
-    createMethodMutation,
-    updateMethodMutation,
-    deleteMethodMutation,
-  } = usePurchaseMethods();
+  const { toast } = useToast();
+  const [purchaseMethods, setPurchaseMethods] = useState<PurchaseMethod[]>([
+    {
+      id: "1",
+      type: "UPI",
+      name: "Primary UPI Account",
+      paymentLimit: 200000,
+      frequency: "24 hours",
+      currentUsage: 75000,
+      lastReset: "2024-01-15T00:00:00",
+      isActive: true
+    },
+    {
+      id: "2",
+      type: "Bank Transfer",
+      name: "HDFC Current Account",
+      paymentLimit: 1000000,
+      frequency: "Daily",
+      currentUsage: 350000,
+      lastReset: "2024-01-15T00:00:00",
+      isActive: true
+    },
+    {
+      id: "3",
+      type: "UPI",
+      name: "Secondary UPI Account",
+      paymentLimit: 150000,
+      frequency: "24 hours",
+      currentUsage: 150000,
+      lastReset: "2024-01-15T00:00:00",
+      isActive: false
+    }
+  ]);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<PurchasePaymentMethod | null>(null);
+  const [editingMethod, setEditingMethod] = useState<PurchaseMethod | null>(null);
+  const [formData, setFormData] = useState({
+    type: "UPI" as "UPI" | "Bank Transfer",
+    name: "",
+    paymentLimit: "",
+    frequency: "24 hours" as "24 hours" | "Daily"
+  });
 
-  const handleSubmit = (formData: PurchaseMethodFormData) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (editingMethod) {
-      updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
+      setPurchaseMethods(prev => prev.map(method => 
+        method.id === editingMethod.id 
+          ? {
+              ...method,
+              ...formData,
+              paymentLimit: parseFloat(formData.paymentLimit)
+            }
+          : method
+      ));
+      toast({
+        title: "Purchase Method Updated",
+        description: "The purchase method has been successfully updated.",
+      });
     } else {
-      createMethodMutation.mutate(formData);
+      const newMethod: PurchaseMethod = {
+        id: Date.now().toString(),
+        ...formData,
+        paymentLimit: parseFloat(formData.paymentLimit),
+        currentUsage: 0,
+        lastReset: new Date().toISOString(),
+        isActive: true
+      };
+      setPurchaseMethods(prev => [...prev, newMethod]);
+      toast({
+        title: "Purchase Method Added",
+        description: "New purchase method has been successfully added.",
+      });
     }
+
+    resetForm();
     setIsAddDialogOpen(false);
-    setEditingMethod(null);
   };
 
-  const handleEdit = (method: PurchasePaymentMethod) => {
+  const handleEdit = (method: PurchaseMethod) => {
     setEditingMethod(method);
+    setFormData({
+      type: method.type,
+      name: method.name,
+      paymentLimit: method.paymentLimit.toString(),
+      frequency: method.frequency
+    });
     setIsAddDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this purchase payment method?")) {
-      deleteMethodMutation.mutate(id);
-    }
-  };
-
-  const handleCancel = () => {
-    setIsAddDialogOpen(false);
+  const resetForm = () => {
+    setFormData({
+      type: "UPI",
+      name: "",
+      paymentLimit: "",
+      frequency: "24 hours"
+    });
     setEditingMethod(null);
   };
 
-  // Validation function for purchase orders
-  const validatePurchaseOrder = (amount: number) => {
-    const getAvailableLimit = (method: PurchasePaymentMethod) => {
-      return method.payment_limit - method.current_usage;
-    };
-
-    const getTotalAvailableUPI = () => {
-      return purchasePaymentMethods
-        ?.filter(m => m.type === "UPI" && m.is_active)
-        .reduce((sum, m) => sum + getAvailableLimit(m), 0) || 0;
-    };
-
-    const getTotalAvailableBankTransfer = () => {
-      return purchasePaymentMethods
-        ?.filter(m => m.type === "Bank Transfer" && m.is_active)
-        .reduce((sum, m) => sum + getAvailableLimit(m), 0) || 0;
-    };
-
-    const getTotalAccountBalance = () => {
-      const linkedAccountIds = new Set(
-        purchasePaymentMethods
-          ?.filter(m => m.is_active)
-          .map(m => m.bank_account_id)
-      );
-      
-      return bankAccounts
-        ?.filter(account => linkedAccountIds.has(account.id))
-        .reduce((sum, account) => sum + account.balance, 0) || 0;
-    };
-
-    const totalAvailable = getTotalAvailableUPI() + getTotalAvailableBankTransfer();
-    const totalBalance = getTotalAccountBalance();
-    
-    if (amount > totalBalance) {
-      throw new Error(`Purchase amount (₹${amount.toLocaleString()}) exceeds total account balance (₹${totalBalance.toLocaleString()})`);
-    }
-    
-    if (amount > totalAvailable) {
-      throw new Error(`Purchase amount (₹${amount.toLocaleString()}) exceeds available payment limit (₹${totalAvailable.toLocaleString()})`);
-    }
-    
-    return true;
+  const getAvailableLimit = (method: PurchaseMethod) => {
+    return method.paymentLimit - method.currentUsage;
   };
 
-  // Expose validation function globally (if needed by other components)
-  (window as any).validatePurchaseOrder = validatePurchaseOrder;
+  const getUsagePercentage = (method: PurchaseMethod) => {
+    return (method.currentUsage / method.paymentLimit) * 100;
+  };
+
+  const getTotalAvailableUPI = () => {
+    return purchaseMethods
+      .filter(m => m.type === "UPI" && m.isActive)
+      .reduce((sum, m) => sum + getAvailableLimit(m), 0);
+  };
+
+  const getTotalAvailableBankTransfer = () => {
+    return purchaseMethods
+      .filter(m => m.type === "Bank Transfer" && m.isActive)
+      .reduce((sum, m) => sum + getAvailableLimit(m), 0);
+  };
 
   return (
     <div className="space-y-6">
@@ -103,61 +152,213 @@ export function PurchaseManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Purchase Management</h2>
           <p className="text-gray-600">Manage payment methods for company purchases</p>
         </div>
-        <PurchaseMethodForm
-          bankAccounts={bankAccounts}
-          editingMethod={editingMethod}
-          onSubmit={handleSubmit}
-          onCancel={handleCancel}
-          isSubmitting={createMethodMutation.isPending || updateMethodMutation.isPending}
-          isOpen={isAddDialogOpen}
-          onOpenChange={setIsAddDialogOpen}
-        />
+        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+          setIsAddDialogOpen(open);
+          if (!open) resetForm();
+        }}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              Add Purchase Method
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>
+                {editingMethod ? "Edit Purchase Method" : "Add New Purchase Method"}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="type">Payment Method Type</Label>
+                <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Transfer") => 
+                  setFormData(prev => ({ ...prev, type: value }))
+                }>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UPI">UPI Payment</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer (IMPS/NEFT)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="name">Method Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Primary UPI Account, HDFC Current Account"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="paymentLimit">Payment Limit (₹)</Label>
+                <Input
+                  id="paymentLimit"
+                  type="number"
+                  value={formData.paymentLimit}
+                  onChange={(e) => setFormData(prev => ({ ...prev, paymentLimit: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="frequency">Frequency</Label>
+                <Select value={formData.frequency} onValueChange={(value: "24 hours" | "Daily") => 
+                  setFormData(prev => ({ ...prev, frequency: value }))
+                }>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24 hours">24 Hours</SelectItem>
+                    <SelectItem value="Daily">Daily (Resets at 11:59 PM)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingMethod ? "Update Method" : "Add Method"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <PurchaseSummaryCards 
-        purchasePaymentMethods={purchasePaymentMethods}
-        bankAccounts={bankAccounts}
-      />
+      {/* Available Limits Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Smartphone className="h-4 w-4 text-blue-600" />
+              Available UPI Limit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">
+              ₹{getTotalAvailableUPI().toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {purchaseMethods.filter(m => m.type === "UPI" && m.isActive).length} active UPI methods
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building className="h-4 w-4 text-green-600" />
+              Available Bank Transfer Limit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ₹{getTotalAvailableBankTransfer().toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {purchaseMethods.filter(m => m.type === "Bank Transfer" && m.isActive).length} active bank accounts
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-purple-600" />
+              Total Available
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Combined purchasing power
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
-        <CardContent className="p-6">
-          <Tabs defaultValue="manage" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="manage" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Manage Methods
-              </TabsTrigger>
-              <TabsTrigger value="list" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
-                All Payment Methods
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="manage">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Purchase Payment Methods</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <PurchaseMethodsTable
-                    purchasePaymentMethods={purchasePaymentMethods}
-                    isLoading={isLoading}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    isDeleting={deleteMethodMutation.isPending}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="list">
-              <PurchaseMethodsListTable
-                purchasePaymentMethods={purchasePaymentMethods}
-                bankAccounts={bankAccounts}
-                isLoading={isLoading}
-              />
-            </TabsContent>
-          </Tabs>
+        <CardHeader>
+          <CardTitle>Purchase Payment Methods</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Type</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Limit</TableHead>
+                <TableHead>Used</TableHead>
+                <TableHead>Available</TableHead>
+                <TableHead>Usage</TableHead>
+                <TableHead>Frequency</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {purchaseMethods.map((method) => {
+                const usagePercentage = getUsagePercentage(method);
+                const availableLimit = getAvailableLimit(method);
+                
+                return (
+                  <TableRow key={method.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {method.type === "UPI" ? (
+                          <Smartphone className="h-4 w-4 text-blue-600" />
+                        ) : (
+                          <Building className="h-4 w-4 text-green-600" />
+                        )}
+                        {method.type}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{method.name}</TableCell>
+                    <TableCell>₹{method.paymentLimit.toLocaleString()}</TableCell>
+                    <TableCell>₹{method.currentUsage.toLocaleString()}</TableCell>
+                    <TableCell className={availableLimit === 0 ? "text-red-600 font-medium" : ""}>
+                      ₹{availableLimit.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={usagePercentage} className="w-16" />
+                        <span className="text-xs">{usagePercentage.toFixed(0)}%</span>
+                        {usagePercentage >= 100 && (
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{method.frequency}</TableCell>
+                    <TableCell>
+                      <Badge variant={method.isActive ? "default" : "secondary"}>
+                        {method.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(method)}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>

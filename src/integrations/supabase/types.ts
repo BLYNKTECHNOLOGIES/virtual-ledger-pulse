@@ -716,7 +716,6 @@ export type Database = {
           is_active: boolean
           last_reset: string | null
           payment_limit: number
-          type: string
           updated_at: string
         }
         Insert: {
@@ -729,7 +728,6 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
-          type?: string
           updated_at?: string
         }
         Update: {
@@ -742,17 +740,9 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
-          type?: string
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_purchase_payment_methods_bank_account"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_accounts"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "purchase_payment_methods_bank_account_id_fkey"
             columns: ["bank_account_id"]

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,30 +39,18 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     { product_id: "", quantity: 0, unit_price: 0, warehouse_id: "" }
   ]);
 
-  // Fetch purchase payment methods with bank account details
+  // Fetch purchase payment methods
   const { data: purchasePaymentMethods } = useQuery({
     queryKey: ['purchase_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
-        .select('*')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(account_name, bank_name, balance)
+        `)
         .eq('is_active', true)
         .order('created_at');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch bank accounts separately
-  const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE')
-        .order('bank_name');
       
       if (error) throw error;
       return data;
@@ -275,10 +264,6 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     return method.payment_limit - method.current_usage;
   };
 
-  const getBankAccountInfo = (bankAccountId: string) => {
-    return bankAccounts?.find(account => account.id === bankAccountId);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -316,22 +301,15 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                     <SelectValue placeholder="Select payment method" />
                   </SelectTrigger>
                   <SelectContent>
-                    {purchasePaymentMethods?.map((method) => {
-                      const bankAccount = getBankAccountInfo(method.bank_account_id);
-                      return (
-                        <SelectItem key={method.id} value={method.id}>
-                          <div className="flex flex-col">
-                            <span>{bankAccount?.bank_name} - {method.type}</span>
-                            <span className="text-xs text-gray-500">
-                              Account: {bankAccount?.account_number}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
+                    {purchasePaymentMethods?.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.bank_accounts?.account_name} - {method.bank_accounts?.bank_name}
+                        <br />
+                        <span className="text-xs text-gray-500">
+                          Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
+                        </span>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

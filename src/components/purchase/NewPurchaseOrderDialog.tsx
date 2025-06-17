@@ -21,12 +21,13 @@ interface Product {
   unit_of_measurement: string;
 }
 
-interface OrderItem {
-  productId: string;
+interface ProductItem {
+  id: string;
+  product_id: string;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  warehouseId?: string;
+  unit_price: number;
+  total_price: number;
+  warehouse_id?: string;
 }
 
 interface NewPurchaseOrderDialogProps {
@@ -39,6 +40,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
+    orderNumber: "",
     supplierName: "",
     contactNumber: "",
     orderDate: new Date().toISOString().split('T')[0],
@@ -49,8 +51,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     warehouseName: ""
   });
 
-  const [items, setItems] = useState<OrderItem[]>([]);
-  const [selectedPaymentAccount, setSelectedPaymentAccount] = useState("");
+  const [items, setItems] = useState<ProductItem[]>([]);
 
   // Fetch products
   const { data: products } = useQuery({
@@ -79,35 +80,18 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     },
   });
 
-  // Fetch bank accounts
-  const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE')
-        .order('account_name');
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
   const tdsRate = 1; // 1% TDS
   const tdsAmount = formData.tdsApplied ? (subtotal * tdsRate) / 100 : 0;
   const netPayableAmount = subtotal - tdsAmount;
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
-      // Generate order number
-      const orderNumber = `PO-${Date.now()}`;
-
       const { data: order, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
-          order_number: orderNumber,
+          order_number: orderData.orderNumber,
           supplier_name: orderData.supplierName,
           contact_number: orderData.contactNumber,
           order_date: orderData.orderDate,
@@ -119,7 +103,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           description: orderData.description,
           assigned_to: orderData.assignedTo,
           warehouse_name: orderData.warehouseName,
-          bank_account_id: selectedPaymentAccount || null,
           status: 'PENDING'
         })
         .select()
@@ -130,11 +113,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       // Insert order items
       const orderItems = items.map(item => ({
         purchase_order_id: order.id,
-        product_id: item.productId,
+        product_id: item.product_id,
         quantity: item.quantity,
-        unit_price: item.unitPrice,
-        total_price: item.totalPrice,
-        warehouse_id: item.warehouseId
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        warehouse_id: item.warehouse_id
       }));
 
       const { error: itemsError } = await supabase
@@ -142,30 +125,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
-
-      // Reduce payment limit from selected account if selected
-      if (selectedPaymentAccount) {
-        const amountToDeduct = formData.tdsApplied ? netPayableAmount : subtotal;
-        
-        const { data: paymentMethods, error: pmError } = await supabase
-          .from('purchase_payment_methods')
-          .select('*')
-          .eq('bank_account_id', selectedPaymentAccount)
-          .eq('is_active', true);
-
-        if (!pmError && paymentMethods && paymentMethods.length > 0) {
-          const paymentMethod = paymentMethods[0];
-          const { error: updateError } = await supabase
-            .from('purchase_payment_methods')
-            .update({ 
-              current_usage: paymentMethod.current_usage + amountToDeduct,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', paymentMethod.id);
-
-          if (updateError) console.error('Error updating payment method usage:', updateError);
-        }
-      }
 
       return order;
     },
@@ -176,9 +135,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
-      if (selectedPaymentAccount) {
-        queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
-      }
       resetForm();
       onOpenChange(false);
     },
@@ -193,6 +149,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
   const resetForm = () => {
     setFormData({
+      orderNumber: "",
       supplierName: "",
       contactNumber: "",
       orderDate: new Date().toISOString().split('T')[0],
@@ -203,16 +160,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       warehouseName: ""
     });
     setItems([]);
-    setSelectedPaymentAccount("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.supplierName || items.length === 0) {
+    if (!formData.orderNumber || !formData.supplierName || items.length === 0) {
       toast({
         title: "Error",
-        description: "Please fill in supplier name and add at least one item.",
+        description: "Please fill in order number, supplier name and add at least one item.",
         variant: "destructive",
       });
       return;
@@ -231,6 +187,16 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="orderNumber">Order Number *</Label>
+              <Input
+                id="orderNumber"
+                value={formData.orderNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
+                placeholder="Enter order number"
+                required
+              />
+            </div>
             <div>
               <Label htmlFor="supplierName">Supplier Name *</Label>
               <Input
@@ -358,23 +324,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
               </div>
             </CardContent>
           </Card>
-
-          {/* Payment Account Selection */}
-          <div>
-            <Label htmlFor="paymentAccount">Payment Account (Optional)</Label>
-            <Select onValueChange={setSelectedPaymentAccount}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select payment account" />
-              </SelectTrigger>
-              <SelectContent>
-                {bankAccounts?.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.account_name} - {account.bank_name} (₹{account.balance.toFixed(2)})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

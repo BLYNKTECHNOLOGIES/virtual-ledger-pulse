@@ -52,6 +52,9 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
   });
 
   const addNewItem = () => {
+    // Only allow one item
+    if (items.length > 0) return;
+    
     const newItem: ProductItem = {
       id: Date.now().toString(),
       product_id: '',
@@ -59,7 +62,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       unit_price: 0,
       warehouse_id: ''
     };
-    onItemsChange([...items, newItem]);
+    onItemsChange([newItem]);
   };
 
   const updateItem = (id: string, field: keyof ProductItem, value: any) => {
@@ -93,11 +96,19 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
   return (
     <div className="space-y-4 border rounded-lg p-4">
       <div className="flex justify-between items-center">
-        <Label className="text-lg font-semibold">Product Items</Label>
-        <Button type="button" onClick={addNewItem} variant="outline" size="sm">
-          Add Product
-        </Button>
+        <Label className="text-lg font-semibold">Product Item</Label>
+        {items.length === 0 && (
+          <Button type="button" onClick={addNewItem} variant="outline" size="sm">
+            Add Product
+          </Button>
+        )}
       </div>
+
+      {items.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Click "Add Product" to select a product for this purchase order
+        </div>
+      )}
 
       {items.map((item) => {
         const selectedProduct = products?.find(p => p.id === item.product_id);
@@ -185,11 +196,13 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
         );
       })}
 
-      <div className="flex justify-end">
-        <div className="text-lg font-semibold">
-          Total Amount: ₹{getTotalAmount().toFixed(2)}
+      {items.length > 0 && (
+        <div className="flex justify-end">
+          <div className="text-lg font-semibold">
+            Total Amount: ₹{getTotalAmount().toFixed(2)}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

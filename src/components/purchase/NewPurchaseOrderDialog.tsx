@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,12 +41,16 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     ifsc_code: "",
     assigned_to: "",
     order_date: new Date().toISOString().split('T')[0],
+    tds_applied: false,
+    pan_number: "",
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
 
-  // Calculate total amount from product items
+  // Calculate amounts
   const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
+  const tdsAmount = formData.tds_applied ? totalAmount * 0.01 : 0; // 1% TDS
+  const netPayableAmount = formData.tds_applied ? totalAmount - tdsAmount : totalAmount;
 
   // Fetch clients for supplier dropdown
   const { data: clients } = useQuery({
@@ -94,6 +100,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           ifsc_code: orderData.ifsc_code,
           assigned_to: orderData.assigned_to,
           total_amount: totalAmount,
+          tds_applied: orderData.tds_applied,
+          pan_number: orderData.pan_number,
+          tds_amount: tdsAmount,
+          net_payable_amount: netPayableAmount,
+          tax_amount: tdsAmount,
           order_date: orderData.order_date,
           created_by: user?.id,
           status: 'PENDING'
@@ -121,12 +132,32 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         if (itemsError) throw itemsError;
       }
 
+      // Create TDS record if TDS is applied
+      if (orderData.tds_applied) {
+        const currentYear = new Date().getFullYear();
+        const financialYear = `${currentYear}-${currentYear + 1}`;
+        
+        const { error: tdsError } = await supabase
+          .from('tds_records')
+          .insert({
+            purchase_order_id: purchaseOrder.id,
+            pan_number: orderData.pan_number,
+            total_amount: totalAmount,
+            tds_rate: 1.0,
+            tds_amount: tdsAmount,
+            net_payable_amount: netPayableAmount,
+            financial_year: financialYear
+          });
+
+        if (tdsError) throw tdsError;
+      }
+
       return purchaseOrder;
     },
     onSuccess: () => {
       toast({
         title: "Purchase Order Created",
-        description: "Purchase order has been created with product items.",
+        description: "Purchase order has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
@@ -155,6 +186,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       ifsc_code: "",
       assigned_to: "",
       order_date: new Date().toISOString().split('T')[0],
+      tds_applied: false,
+      pan_number: "",
     });
     setProductItems([]);
   };
@@ -174,14 +207,35 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (productItems.length === 0) {
+    
+    // Validation
+    if (!formData.contact_number.trim()) {
       toast({
         title: "Error",
-        description: "Please add at least one product item.",
+        description: "Contact number is mandatory.",
         variant: "destructive",
       });
       return;
     }
+
+    if (productItems.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add a product item.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.tds_applied && !formData.pan_number.trim()) {
+      toast({
+        title: "Error",
+        description: "PAN number is mandatory when TDS is applied.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createPurchaseOrderMutation.mutate(formData);
   };
 
@@ -238,11 +292,12 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
 
             <div>
-              <Label htmlFor="contact_number">Contact Number</Label>
+              <Label htmlFor="contact_number">Contact Number *</Label>
               <Input
                 id="contact_number"
                 value={formData.contact_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, contact_number: e.target.value }))}
+                required
               />
             </div>
 
@@ -263,13 +318,50 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
 
             <div>
-              <Label>Total Amount (Auto-calculated)</Label>
+              <Label>Total Amount</Label>
               <Input
                 value={`₹${totalAmount.toFixed(2)}`}
                 readOnly
                 className="bg-gray-50 font-semibold"
               />
             </div>
+          </div>
+
+          {/* TDS Section */}
+          <div className="space-y-4 border rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="tds_applied"
+                checked={formData.tds_applied}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, tds_applied: !!checked }))}
+              />
+              <Label htmlFor="tds_applied" className="text-lg font-semibold">TDS Applied (1%)</Label>
+            </div>
+
+            {formData.tds_applied && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="pan_number">PAN Number *</Label>
+                  <Input
+                    id="pan_number"
+                    value={formData.pan_number}
+                    onChange={(e) => setFormData(prev => ({ ...prev, pan_number: e.target.value.toUpperCase() }))}
+                    placeholder="Enter PAN number"
+                    required={formData.tds_applied}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>TDS Amount (1%):</span>
+                    <span className="font-semibold">₹{tdsAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Net Payable Amount:</span>
+                    <span>₹{netPayableAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

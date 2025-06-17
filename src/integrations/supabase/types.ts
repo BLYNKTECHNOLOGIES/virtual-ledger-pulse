@@ -1035,14 +1035,19 @@ export type Database = {
           failure_reason: string | null
           id: string
           ifsc_code: string | null
+          net_payable_amount: number | null
           order_date: string
           order_number: string
+          pan_number: string | null
           payment_method_type: string | null
           payment_method_used: string | null
           payment_proof_url: string | null
           purchase_payment_method_id: string | null
           status: string
           supplier_name: string
+          tax_amount: number | null
+          tds_amount: number | null
+          tds_applied: boolean | null
           total_amount: number
           updated_at: string
           upi_id: string | null
@@ -1061,14 +1066,19 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           ifsc_code?: string | null
+          net_payable_amount?: number | null
           order_date: string
           order_number: string
+          pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
           payment_proof_url?: string | null
           purchase_payment_method_id?: string | null
           status?: string
           supplier_name: string
+          tax_amount?: number | null
+          tds_amount?: number | null
+          tds_applied?: boolean | null
           total_amount: number
           updated_at?: string
           upi_id?: string | null
@@ -1087,14 +1097,19 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           ifsc_code?: string | null
+          net_payable_amount?: number | null
           order_date?: string
           order_number?: string
+          pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
           payment_proof_url?: string | null
           purchase_payment_method_id?: string | null
           status?: string
           supplier_name?: string
+          tax_amount?: number | null
+          tds_amount?: number | null
+          tds_applied?: boolean | null
           total_amount?: number
           updated_at?: string
           upi_id?: string | null
@@ -1508,6 +1523,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tds_records: {
+        Row: {
+          created_at: string
+          deduction_date: string
+          financial_year: string
+          id: string
+          net_payable_amount: number
+          pan_number: string
+          purchase_order_id: string | null
+          tds_amount: number
+          tds_certificate_number: string | null
+          tds_rate: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deduction_date?: string
+          financial_year: string
+          id?: string
+          net_payable_amount: number
+          pan_number: string
+          purchase_order_id?: string | null
+          tds_amount: number
+          tds_certificate_number?: string | null
+          tds_rate?: number
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deduction_date?: string
+          financial_year?: string
+          id?: string
+          net_payable_amount?: number
+          pan_number?: string
+          purchase_order_id?: string | null
+          tds_amount?: number
+          tds_certificate_number?: string | null
+          tds_rate?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tds_records_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouse_stock_movements: {
         Row: {

@@ -14,58 +14,14 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-interface TransactionRecord {
-  id: string;
-  date: Date;
-  type: "Credit" | "Debit";
-  ledger: "Income" | "Expense" | "Sales" | "Purchase" | "Transfer";
-  bankAccount: string;
-  amount: number;
-  description: string;
-  reference: string;
-}
-
 export function DirectoryTab() {
-  const [transactions] = useState<TransactionRecord[]>([
-    {
-      id: "1",
-      date: new Date("2024-01-15"),
-      type: "Credit",
-      ledger: "Income",
-      bankAccount: "HDFC Current Account",
-      amount: 50000,
-      description: "Client payment received",
-      reference: "TXN001"
-    },
-    {
-      id: "2",
-      date: new Date("2024-01-16"),
-      type: "Debit",
-      ledger: "Expense",
-      bankAccount: "HDFC Current Account",
-      amount: 15000,
-      description: "Office rent payment",
-      reference: "TXN002"
-    },
-    {
-      id: "3",
-      date: new Date("2024-01-17"),
-      type: "Credit",
-      ledger: "Sales",
-      bankAccount: "ICICI Savings Account",
-      amount: 75000,
-      description: "Product sale",
-      reference: "TXN003"
-    }
-  ]);
-
   const [filters, setFilters] = useState({
     dateFrom: undefined as Date | undefined,
     dateTo: undefined as Date | undefined,
     amountMin: "",
     amountMax: "",
-    bankAccount: "",
-    ledgerType: "",
+    bankAccountId: "",
+    transactionType: "",
     searchTerm: ""
   });
 
@@ -84,34 +40,61 @@ export function DirectoryTab() {
     },
   });
 
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = !filters.searchTerm || 
-      transaction.description.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      transaction.reference.toLowerCase().includes(filters.searchTerm.toLowerCase());
-    
-    const matchesDateFrom = !filters.dateFrom || transaction.date >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || transaction.date <= filters.dateTo;
-    
-    const matchesAmountMin = !filters.amountMin || transaction.amount >= parseFloat(filters.amountMin);
-    const matchesAmountMax = !filters.amountMax || transaction.amount <= parseFloat(filters.amountMax);
-    
-    const matchesBankAccount = !filters.bankAccount || transaction.bankAccount === filters.bankAccount;
-    const matchesLedger = !filters.ledgerType || transaction.ledger === filters.ledgerType;
+  // Fetch all transactions
+  const { data: transactions, isLoading } = useQuery({
+    queryKey: ['bank_transactions', filters],
+    queryFn: async () => {
+      let query = supabase
+        .from('bank_transactions')
+        .select(`
+          *,
+          bank_accounts!bank_account_id(account_name, bank_name)
+        `)
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false });
 
-    return matchesSearch && matchesDateFrom && matchesDateTo && 
-           matchesAmountMin && matchesAmountMax && matchesBankAccount && matchesLedger;
+      // Apply filters
+      if (filters.dateFrom) {
+        query = query.gte('transaction_date', format(filters.dateFrom, 'yyyy-MM-dd'));
+      }
+      if (filters.dateTo) {
+        query = query.lte('transaction_date', format(filters.dateTo, 'yyyy-MM-dd'));
+      }
+      if (filters.amountMin) {
+        query = query.gte('amount', parseFloat(filters.amountMin));
+      }
+      if (filters.amountMax) {
+        query = query.lte('amount', parseFloat(filters.amountMax));
+      }
+      if (filters.bankAccountId) {
+        query = query.eq('bank_account_id', filters.bankAccountId);
+      }
+      if (filters.transactionType) {
+        query = query.eq('transaction_type', filters.transactionType);
+      }
+      if (filters.searchTerm) {
+        query = query.or(`description.ilike.%${filters.searchTerm}%,reference_number.ilike.%${filters.searchTerm}%`);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      return data;
+    },
   });
 
   const downloadCSV = () => {
+    if (!transactions || transactions.length === 0) return;
+
     const headers = ["Date", "Type", "Ledger", "Bank Account", "Amount", "Description", "Reference"];
-    const csvData = filteredTransactions.map(t => [
-      format(t.date, "yyyy-MM-dd"),
-      t.type,
-      t.ledger,
-      t.bankAccount,
+    const csvData = transactions.map(t => [
+      format(new Date(t.transaction_date), "yyyy-MM-dd"),
+      t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN' ? 'Credit' : 'Debit',
+      t.transaction_type,
+      t.bank_accounts?.account_name || 'Unknown',
       t.amount,
-      t.description,
-      t.reference
+      t.description || '',
+      t.reference_number || ''
     ]);
 
     const csvContent = [headers, ...csvData]
@@ -125,6 +108,33 @@ export function DirectoryTab() {
     a.download = `transactions_${format(new Date(), "yyyy-MM-dd")}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getTransactionTypeDisplay = (type: string) => {
+    switch (type) {
+      case 'INCOME':
+      case 'TRANSFER_IN':
+        return 'Credit';
+      case 'EXPENSE':
+      case 'TRANSFER_OUT':
+        return 'Debit';
+      default:
+        return type;
+    }
+  };
+
+  const getTransactionLedger = (type: string) => {
+    switch (type) {
+      case 'INCOME':
+        return 'Income';
+      case 'EXPENSE':
+        return 'Expense';
+      case 'TRANSFER_IN':
+      case 'TRANSFER_OUT':
+        return 'Transfer';
+      default:
+        return type;
+    }
   };
 
   return (
@@ -229,14 +239,14 @@ export function DirectoryTab() {
 
             <div>
               <Label>Bank Account</Label>
-              <Select value={filters.bankAccount} onValueChange={(value) => setFilters({...filters, bankAccount: value})}>
+              <Select value={filters.bankAccountId} onValueChange={(value) => setFilters({...filters, bankAccountId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="All accounts" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All accounts</SelectItem>
                   {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.account_name}>
+                    <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}
                     </SelectItem>
                   ))}
@@ -245,18 +255,17 @@ export function DirectoryTab() {
             </div>
 
             <div>
-              <Label>Ledger Type</Label>
-              <Select value={filters.ledgerType} onValueChange={(value) => setFilters({...filters, ledgerType: value})}>
+              <Label>Transaction Type</Label>
+              <Select value={filters.transactionType} onValueChange={(value) => setFilters({...filters, transactionType: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All types</SelectItem>
-                  <SelectItem value="Income">Income</SelectItem>
-                  <SelectItem value="Expense">Expense</SelectItem>
-                  <SelectItem value="Sales">Sales</SelectItem>
-                  <SelectItem value="Purchase">Purchase</SelectItem>
-                  <SelectItem value="Transfer">Transfer</SelectItem>
+                  <SelectItem value="INCOME">Income</SelectItem>
+                  <SelectItem value="EXPENSE">Expense</SelectItem>
+                  <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
+                  <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -268,7 +277,7 @@ export function DirectoryTab() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Transaction Directory</CardTitle>
-          <Button onClick={downloadCSV} variant="outline">
+          <Button onClick={downloadCSV} variant="outline" disabled={!transactions || transactions.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             Download CSV
           </Button>
@@ -288,53 +297,66 @@ export function DirectoryTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTransactions.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      Loading transactions...
+                    </TableCell>
+                  </TableRow>
+                ) : !transactions || transactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       No transactions found matching your filters
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">
-                        {format(transaction.date, "MMM dd, yyyy HH:mm")}
-                      </TableCell>
-                      <TableCell>
-                        <div className={cn(
-                          "flex items-center gap-2 font-medium",
-                          transaction.type === "Credit" ? "text-green-600" : "text-red-600"
-                        )}>
-                          {transaction.type === "Credit" ? (
-                            <TrendingUp className="h-4 w-4" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4" />
-                          )}
-                          {transaction.type}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium">
-                          {transaction.ledger}
-                        </span>
-                      </TableCell>
-                      <TableCell>{transaction.bankAccount}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={cn(
-                          "font-semibold",
-                          transaction.type === "Credit" ? "text-green-600" : "text-red-600"
-                        )}>
-                          {transaction.type === "Credit" ? "+" : "-"}₹{transaction.amount.toLocaleString()}
-                        </span>
-                      </TableCell>
-                      <TableCell>{transaction.description}</TableCell>
-                      <TableCell>
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                          {transaction.reference}
-                        </code>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  transactions.map((transaction) => {
+                    const isCredit = transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'TRANSFER_IN';
+                    return (
+                      <TableRow key={transaction.id}>
+                        <TableCell className="font-medium">
+                          {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}
+                          <br />
+                          <span className="text-xs text-gray-500">
+                            {format(new Date(transaction.created_at), "HH:mm")}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className={cn(
+                            "flex items-center gap-2 font-medium",
+                            isCredit ? "text-green-600" : "text-red-600"
+                          )}>
+                            {isCredit ? (
+                              <TrendingUp className="h-4 w-4" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4" />
+                            )}
+                            {getTransactionTypeDisplay(transaction.transaction_type)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="px-2 py-1 bg-gray-100 rounded-full text-xs font-medium">
+                            {getTransactionLedger(transaction.transaction_type)}
+                          </span>
+                        </TableCell>
+                        <TableCell>{transaction.bank_accounts?.account_name || 'Unknown'}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={cn(
+                            "font-semibold",
+                            isCredit ? "text-green-600" : "text-red-600"
+                          )}>
+                            {isCredit ? "+" : "-"}₹{parseFloat(transaction.amount).toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>{transaction.description || '-'}</TableCell>
+                        <TableCell>
+                          <code className="bg-gray-100 px-2 py-1 rounded text-xs">
+                            {transaction.reference_number || '-'}
+                          </code>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

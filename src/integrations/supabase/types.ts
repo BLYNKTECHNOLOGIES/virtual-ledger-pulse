@@ -81,6 +81,66 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_transactions: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          reference_number: string | null
+          related_account_name: string | null
+          related_transaction_id: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_number?: string | null
+          related_account_name?: string | null
+          related_transaction_id?: string | null
+          transaction_date: string
+          transaction_type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_number?: string | null
+          related_account_name?: string | null
+          related_transaction_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_related_transaction_id_fkey"
+            columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           assigned_operator: string | null

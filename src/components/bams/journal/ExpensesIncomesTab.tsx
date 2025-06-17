@@ -11,27 +11,19 @@ import { CalendarIcon, TrendingUp, TrendingDown, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-interface Transaction {
-  id: string;
-  type: "Income" | "Expense";
-  amount: number;
-  bankAccount: string;
-  category: string;
-  date: Date;
-}
 
 export function ExpensesIncomesTab() {
   const { toast } = useToast();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     type: "",
     amount: "",
-    bankAccount: "",
+    bankAccountId: "",
     category: "",
-    date: undefined as Date | undefined
+    date: undefined as Date | undefined,
+    description: ""
   });
 
   // Fetch bank accounts from Supabase
@@ -49,11 +41,69 @@ export function ExpensesIncomesTab() {
     },
   });
 
+  // Fetch transactions for summary
+  const { data: transactions } = useQuery({
+    queryKey: ['bank_transactions_summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .select('*')
+        .in('transaction_type', ['INCOME', 'EXPENSE'])
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create transaction mutation
+  const createTransactionMutation = useMutation({
+    mutationFn: async (transactionData: typeof formData) => {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: transactionData.bankAccountId,
+          transaction_type: transactionData.type,
+          amount: parseFloat(transactionData.amount),
+          category: transactionData.category,
+          description: transactionData.description,
+          transaction_date: transactionData.date,
+          reference_number: `${transactionData.type}-${Date.now()}`
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `${formData.type === 'INCOME' ? 'Income' : 'Expense'} entry added successfully`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      setFormData({
+        type: "",
+        amount: "",
+        bankAccountId: "",
+        category: "",
+        date: undefined,
+        description: ""
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add transaction",
+        variant: "destructive"
+      });
+    },
+  });
+
   const incomeCategories = ["Salary", "Interest", "Commission", "Profit", "Other Income"];
   const expenseCategories = ["Rent", "Utilities", "Office Supplies", "Marketing", "Travel", "Other Expense"];
 
   const handleAddEntry = () => {
-    if (!formData.type || !formData.amount || !formData.bankAccount || !formData.category || !formData.date) {
+    if (!formData.type || !formData.amount || !formData.bankAccountId || !formData.category || !formData.date) {
       toast({
         title: "Error",
         description: "Please fill in all fields",
@@ -62,37 +112,16 @@ export function ExpensesIncomesTab() {
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: formData.type as "Income" | "Expense",
-      amount: parseFloat(formData.amount),
-      bankAccount: formData.bankAccount,
-      category: formData.category,
-      date: formData.date
-    };
-
-    setTransactions([...transactions, newTransaction]);
-    setFormData({
-      type: "",
-      amount: "",
-      bankAccount: "",
-      category: "",
-      date: undefined
-    });
-
-    toast({
-      title: "Success",
-      description: `${formData.type} entry added successfully`,
-    });
+    createTransactionMutation.mutate(formData);
   };
 
   const totalIncomes = transactions
-    .filter(t => t.type === "Income")
-    .reduce((sum, t) => sum + t.amount, 0);
+    ?.filter(t => t.transaction_type === "INCOME")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
 
   const totalExpenses = transactions
-    .filter(t => t.type === "Expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+    ?.filter(t => t.transaction_type === "EXPENSE")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -113,8 +142,8 @@ export function ExpensesIncomesTab() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Income">Income</SelectItem>
-                  <SelectItem value="Expense">Expense</SelectItem>
+                  <SelectItem value="INCOME">Income</SelectItem>
+                  <SelectItem value="EXPENSE">Expense</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -132,16 +161,16 @@ export function ExpensesIncomesTab() {
 
             <div>
               <Label htmlFor="bankAccount">Bank Account</Label>
-              <Select value={formData.bankAccount} onValueChange={(value) => setFormData({...formData, bankAccount: value})}>
+              <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select bank account" />
                 </SelectTrigger>
                 <SelectContent>
                   {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.account_name}>
+                    <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}
                       <span className="text-sm text-gray-500 ml-2">
-                        (₹{account.balance.toLocaleString()})
+                        (₹{parseFloat(account.balance).toLocaleString()})
                       </span>
                     </SelectItem>
                   ))}
@@ -156,7 +185,7 @@ export function ExpensesIncomesTab() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {formData.type === "Income" 
+                  {formData.type === "INCOME" 
                     ? incomeCategories.map(cat => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))
@@ -194,9 +223,23 @@ export function ExpensesIncomesTab() {
               </Popover>
             </div>
 
+            <div>
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Input
+                id="description"
+                placeholder="Transaction description"
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+              />
+            </div>
+
             <div className="flex items-end">
-              <Button onClick={handleAddEntry} className="w-full">
-                Add Entry
+              <Button 
+                onClick={handleAddEntry} 
+                className="w-full"
+                disabled={createTransactionMutation.isPending}
+              >
+                {createTransactionMutation.isPending ? "Adding..." : "Add Entry"}
               </Button>
             </div>
           </div>
@@ -213,7 +256,7 @@ export function ExpensesIncomesTab() {
           <CardContent>
             <div className="text-2xl font-bold text-green-700">₹{totalIncomes.toLocaleString()}</div>
             <p className="text-xs text-green-600">
-              {transactions.filter(t => t.type === "Income").length} transactions
+              {transactions?.filter(t => t.transaction_type === "INCOME").length || 0} transactions
             </p>
           </CardContent>
         </Card>
@@ -226,7 +269,7 @@ export function ExpensesIncomesTab() {
           <CardContent>
             <div className="text-2xl font-bold text-red-700">₹{totalExpenses.toLocaleString()}</div>
             <p className="text-xs text-red-600">
-              {transactions.filter(t => t.type === "Expense").length} transactions
+              {transactions?.filter(t => t.transaction_type === "EXPENSE").length || 0} transactions
             </p>
           </CardContent>
         </Card>

@@ -11,24 +11,15 @@ import { CalendarIcon, ArrowRightLeft, Check } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-interface ContraEntry {
-  id: string;
-  fromAccount: string;
-  toAccount: string;
-  amount: number;
-  date: Date;
-  description: string;
-}
 
 export function ContraEntriesTab() {
   const { toast } = useToast();
-  const [transfers, setTransfers] = useState<ContraEntry[]>([]);
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    fromAccount: "",
-    toAccount: "",
+    fromAccountId: "",
+    toAccountId: "",
     amount: "",
     date: undefined as Date | undefined,
     description: ""
@@ -49,8 +40,103 @@ export function ContraEntriesTab() {
     },
   });
 
+  // Fetch recent transfers
+  const { data: transfers } = useQuery({
+    queryKey: ['bank_transfers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_transactions')
+        .select(`
+          *,
+          bank_accounts!bank_account_id(account_name, bank_name)
+        `)
+        .in('transaction_type', ['TRANSFER_IN', 'TRANSFER_OUT'])
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create transfer mutation
+  const createTransferMutation = useMutation({
+    mutationFn: async (transferData: typeof formData) => {
+      const fromAccount = bankAccounts?.find(acc => acc.id === transferData.fromAccountId);
+      const toAccount = bankAccounts?.find(acc => acc.id === transferData.toAccountId);
+
+      if (!fromAccount || !toAccount) {
+        throw new Error("Invalid account selection");
+      }
+
+      // Create transfer out transaction
+      const { data: transferOutData, error: transferOutError } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: transferData.fromAccountId,
+          transaction_type: 'TRANSFER_OUT',
+          amount: parseFloat(transferData.amount),
+          description: transferData.description || `Transfer to ${toAccount.account_name}`,
+          transaction_date: transferData.date,
+          reference_number: `TRF-OUT-${Date.now()}`,
+          related_account_name: toAccount.account_name
+        })
+        .select()
+        .single();
+
+      if (transferOutError) throw transferOutError;
+
+      // Create transfer in transaction
+      const { data: transferInData, error: transferInError } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: transferData.toAccountId,
+          transaction_type: 'TRANSFER_IN',
+          amount: parseFloat(transferData.amount),
+          description: transferData.description || `Transfer from ${fromAccount.account_name}`,
+          transaction_date: transferData.date,
+          reference_number: `TRF-IN-${Date.now()}`,
+          related_account_name: fromAccount.account_name,
+          related_transaction_id: transferOutData.id
+        })
+        .select()
+        .single();
+
+      if (transferInError) throw transferInError;
+
+      // Update the transfer out transaction with the related transaction ID
+      await supabase
+        .from('bank_transactions')
+        .update({ related_transaction_id: transferInData.id })
+        .eq('id', transferOutData.id);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Fund transfer completed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      setFormData({
+        fromAccountId: "",
+        toAccountId: "",
+        amount: "",
+        date: undefined,
+        description: ""
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete transfer",
+        variant: "destructive"
+      });
+    },
+  });
+
   const handleTransfer = () => {
-    if (!formData.fromAccount || !formData.toAccount || !formData.amount || !formData.date) {
+    if (!formData.fromAccountId || !formData.toAccountId || !formData.amount || !formData.date) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -59,7 +145,7 @@ export function ContraEntriesTab() {
       return;
     }
 
-    if (formData.fromAccount === formData.toAccount) {
+    if (formData.fromAccountId === formData.toAccountId) {
       toast({
         title: "Error",
         description: "From and To accounts must be different",
@@ -68,28 +154,7 @@ export function ContraEntriesTab() {
       return;
     }
 
-    const newTransfer: ContraEntry = {
-      id: Date.now().toString(),
-      fromAccount: formData.fromAccount,
-      toAccount: formData.toAccount,
-      amount: parseFloat(formData.amount),
-      date: formData.date,
-      description: formData.description
-    };
-
-    setTransfers([...transfers, newTransfer]);
-    setFormData({
-      fromAccount: "",
-      toAccount: "",
-      amount: "",
-      date: undefined,
-      description: ""
-    });
-
-    toast({
-      title: "Success",
-      description: "Fund transfer completed successfully",
-    });
+    createTransferMutation.mutate(formData);
   };
 
   return (
@@ -106,16 +171,16 @@ export function ContraEntriesTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="fromAccount">From Bank Account *</Label>
-              <Select value={formData.fromAccount} onValueChange={(value) => setFormData({...formData, fromAccount: value})}>
+              <Select value={formData.fromAccountId} onValueChange={(value) => setFormData({...formData, fromAccountId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select source account" />
                 </SelectTrigger>
                 <SelectContent>
                   {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.account_name}>
+                    <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}
                       <span className="text-sm text-gray-500 ml-2">
-                        (₹{account.balance.toLocaleString()})
+                        (₹{parseFloat(account.balance).toLocaleString()})
                       </span>
                     </SelectItem>
                   ))}
@@ -125,16 +190,16 @@ export function ContraEntriesTab() {
 
             <div>
               <Label htmlFor="toAccount">To Bank Account *</Label>
-              <Select value={formData.toAccount} onValueChange={(value) => setFormData({...formData, toAccount: value})}>
+              <Select value={formData.toAccountId} onValueChange={(value) => setFormData({...formData, toAccountId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select destination account" />
                 </SelectTrigger>
                 <SelectContent>
                   {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.account_name}>
+                    <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}
                       <span className="text-sm text-gray-500 ml-2">
-                        (₹{account.balance.toLocaleString()})
+                        (₹{parseFloat(account.balance).toLocaleString()})
                       </span>
                     </SelectItem>
                   ))}
@@ -190,9 +255,13 @@ export function ContraEntriesTab() {
             </div>
 
             <div className="md:col-span-2">
-              <Button onClick={handleTransfer} className="w-full">
+              <Button 
+                onClick={handleTransfer} 
+                className="w-full"
+                disabled={createTransferMutation.isPending}
+              >
                 <ArrowRightLeft className="mr-2 h-4 w-4" />
-                Transfer Funds
+                {createTransferMutation.isPending ? "Processing..." : "Transfer Funds"}
               </Button>
             </div>
           </div>
@@ -205,13 +274,15 @@ export function ContraEntriesTab() {
           <CardTitle>Recent Transfers</CardTitle>
         </CardHeader>
         <CardContent>
-          {transfers.length === 0 ? (
+          {!transfers || transfers.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No transfers recorded yet
             </div>
           ) : (
             <div className="space-y-4">
-              {transfers.map((transfer) => (
+              {transfers
+                .filter(transfer => transfer.transaction_type === 'TRANSFER_OUT')
+                .map((transfer) => (
                 <div
                   key={transfer.id}
                   className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
@@ -222,10 +293,10 @@ export function ContraEntriesTab() {
                     </div>
                     <div>
                       <div className="font-medium">
-                        {transfer.fromAccount} → {transfer.toAccount}
+                        {transfer.bank_accounts?.account_name} → {transfer.related_account_name}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {format(transfer.date, "MMM dd, yyyy")}
+                        {format(new Date(transfer.transaction_date), "MMM dd, yyyy")}
                       </div>
                       {transfer.description && (
                         <div className="text-sm text-gray-500">{transfer.description}</div>
@@ -233,7 +304,7 @@ export function ContraEntriesTab() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-lg">₹{transfer.amount.toLocaleString()}</div>
+                    <div className="font-semibold text-lg">₹{parseFloat(transfer.amount).toLocaleString()}</div>
                     <div className="flex items-center gap-1 text-green-600 text-sm">
                       <Check className="h-3 w-3" />
                       Completed

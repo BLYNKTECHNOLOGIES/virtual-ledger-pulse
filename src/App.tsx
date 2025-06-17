@@ -12,6 +12,7 @@ import Purchase from "./pages/Purchase";
 import BAMS from "./pages/BAMS";
 import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
+import Leads from "./pages/Leads";
 import UserManagement from "./pages/UserManagement";
 import HRMS from "./pages/HRMS";
 import Payroll from "./pages/Payroll";
@@ -37,6 +38,7 @@ const App = () => {
                 <Route path="/bams" element={<BAMS />} />
                 <Route path="/clients" element={<Clients />} />
                 <Route path="/clients/:clientId" element={<ClientDetail />} />
+                <Route path="/leads" element={<Leads />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/hrms" element={<HRMS />} />
                 <Route path="/payroll" element={<Payroll />} />

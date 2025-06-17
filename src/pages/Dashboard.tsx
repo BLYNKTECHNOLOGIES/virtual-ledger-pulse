@@ -1,7 +1,5 @@
-
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { QuickAccessCard } from "@/components/dashboard/QuickAccessCard";
-import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Banknote, User, Wallet, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -43,8 +41,14 @@ export default function Dashboard() {
         acc[warehouseName] = (acc[warehouseName] || 0) + value;
         return acc;
       }, {} as Record<string, number>) || {};
+
+      // Convert to array for chart
+      const warehouseChartData = Object.entries(warehouseBreakdown).map(([name, value]) => ({
+        name,
+        value
+      }));
       
-      return { totalValue, warehouseBreakdown };
+      return { totalValue, warehouseBreakdown, warehouseChartData };
     },
   });
 
@@ -125,7 +129,7 @@ export default function Dashboard() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome to Blynk ERP - Leading Virtual Asset Service Provider</p>
+        <p className="text-gray-600 mt-1">Welcome to Blynk Virtual Technologies - Leading Virtual Asset Service Provider</p>
       </div>
 
       {/* Metrics Grid */}
@@ -242,7 +246,7 @@ export default function Dashboard() {
                 <div key={entry.name} className="flex items-center gap-2 text-xs">
                   <div 
                     className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    style={{ backgroundColor: COLORS[index % COLORS.colors.length] }}
                   />
                   <span className="text-gray-600 truncate">{entry.name}</span>
                 </div>
@@ -255,7 +259,33 @@ export default function Dashboard() {
       {/* Charts and Quick Access */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <ExchangeChart />
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Warehouse Asset Breakdown</h3>
+                <span className="text-sm text-gray-500">Last synced 2 min ago</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={inventoryData?.warehouseChartData || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Value']} />
+                    <Bar dataKey="value" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
         </div>
         <div>
           <QuickAccessCard title="Quick Access" items={quickAccessItems} />

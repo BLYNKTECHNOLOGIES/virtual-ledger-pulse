@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +23,6 @@ export default function Sales() {
   const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
   const [showEnhancedOrderDialog, setShowEnhancedOrderDialog] = useState(false);
   const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
-  const [selectedOrderType, setSelectedOrderType] = useState<'repeat' | 'new' | null>(null);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -62,8 +62,7 @@ export default function Sales() {
     },
   });
 
-  const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
-    setSelectedOrderType(type);
+  const handleOrderTypeSelection = () => {
     setShowEnhancedOrderDialog(true);
   };
 
@@ -403,7 +402,6 @@ export default function Sales() {
       <EnhancedOrderCreationDialog 
         open={showEnhancedOrderDialog}
         onOpenChange={setShowEnhancedOrderDialog}
-        orderType={selectedOrderType}
         onSalesEntryOpen={handleSalesEntryOpen}
       />
 

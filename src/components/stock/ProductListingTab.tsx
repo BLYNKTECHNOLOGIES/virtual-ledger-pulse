@@ -1,24 +1,24 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Plus, Search, Package, DollarSign } from "lucide-react";
 import { AddProductDialog } from "./AddProductDialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { StockStatusBadge } from "./StockStatusBadge";
-import { useProductStockSummary } from "@/hooks/useWarehouseStock";
+import { useProductStockSummary, useSyncProductStock } from "@/hooks/useWarehouseStock";
 
 export function ProductListingTab() {
-  const [showAddProductDialog, setShowAddProductDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const queryClient = useQueryClient();
+  const { data: productStockSummaries } = useProductStockSummary();
+  const { syncStock } = useSyncProductStock();
 
-  // Fetch products
-  const { data: products, isLoading } = useQuery({
+  // Fetch products from database
+  const { data: products, isLoading, refetch } = useQuery({
     queryKey: ['products', searchTerm],
     queryFn: async () => {
       let query = supabase
@@ -36,218 +36,154 @@ export function ProductListingTab() {
     },
   });
 
-  const { data: productStockSummaries } = useProductStockSummary();
-
-  // Update product stock mutation to sync with warehouse movements
-  const updateProductStockMutation = useMutation({
-    mutationFn: async (productId: string) => {
-      // Calculate total stock from warehouse movements
-      const { data: movements, error } = await supabase
-        .from('warehouse_stock_movements')
-        .select('movement_type, quantity')
-        .eq('product_id', productId);
-
-      if (error) throw error;
-
-      let totalStock = 0;
-      movements?.forEach(movement => {
-        if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-          totalStock += movement.quantity;
-        } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-          totalStock -= movement.quantity;
-        }
-      });
-
-      // Update product current_stock_quantity to match warehouse movements
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ current_stock_quantity: totalStock })
-        .eq('id', productId);
-
-      if (updateError) throw updateError;
-      return totalStock;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
-    },
-  });
-
-  const deleteProductMutation = useMutation({
-    mutationFn: async (productId: string) => {
-      const { data, error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId);
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
-      toast.success("Product deleted successfully");
-    },
-    onError: (error) => {
-      toast.error("Failed to delete product");
-      console.error("Error deleting product:", error);
+  // Auto-sync product stock with warehouse totals
+  useEffect(() => {
+    if (productStockSummaries && productStockSummaries.length > 0) {
+      syncStock();
     }
-  });
+  }, [productStockSummaries]);
 
-  const getProductStock = (productId: string) => {
-    return productStockSummaries?.find(p => p.product_id === productId);
+  const getStockBadgeVariant = (stock: number) => {
+    if (stock === 0) return "destructive";
+    if (stock < 10) return "secondary";
+    return "default";
   };
 
-  const getActualStock = (product: any) => {
-    const stockSummary = getProductStock(product.id);
-    return stockSummary?.total_stock || 0;
+  const getTotalStock = (productId: string) => {
+    const productStock = productStockSummaries?.find(p => p.product_id === productId);
+    return productStock?.total_stock || 0;
   };
 
-  // Function to sync all product stocks
-  const syncAllStocks = async () => {
-    if (!products) return;
-    
-    toast.info("Syncing stock levels...");
-    
-    for (const product of products) {
-      await updateProductStockMutation.mutateAsync(product.id);
-    }
-    
-    toast.success("All stock levels synced successfully");
+  const handleProductAdded = () => {
+    refetch();
+    setShowAddDialog(false);
   };
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Product Listing</h2>
+          <p className="text-gray-600">Manage your product inventory and stock levels</p>
+        </div>
+        <Button onClick={() => setShowAddDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Product
+        </Button>
+      </div>
+
+      {/* Search Bar */}
       <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Product Inventory Management</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={syncAllStocks}>
-                Sync Stock Levels
-              </Button>
-              <Button onClick={() => setShowAddProductDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <Input
-                placeholder="Search products by name or code..."
+        <CardContent className="p-4">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input 
+                placeholder="Search products by name or code..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
               />
             </div>
-            <Button variant="outline">
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
           </div>
-
-          {isLoading ? (
-            <div className="text-center py-8">Loading products...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Code</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Unit</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Cost Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Selling Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse Distribution</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products?.map((product) => {
-                    const stockSummary = getProductStock(product.id);
-                    const actualStock = getActualStock(product);
-                    const isStockMismatched = product.current_stock_quantity !== actualStock;
-                    
-                    return (
-                      <tr key={product.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium">{product.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-sm">{product.code}</td>
-                        <td className="py-3 px-4">{product.unit_of_measurement}</td>
-                        <td className="py-3 px-4">₹{product.cost_price}</td>
-                        <td className="py-3 px-4">₹{product.selling_price}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={actualStock <= 0 ? "destructive" : actualStock <= 10 ? "secondary" : "default"}
-                              className={isStockMismatched ? "border-orange-500" : ""}
-                            >
-                              {actualStock} {product.unit_of_measurement}
-                            </Badge>
-                            {isStockMismatched && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => updateProductStockMutation.mutate(product.id)}
-                                className="text-orange-600 hover:text-orange-700"
-                              >
-                                Sync
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {stockSummary?.warehouse_stocks.length ? (
-                            <div className="flex flex-wrap gap-1">
-                              {stockSummary.warehouse_stocks.map((ws) => (
-                                <Badge key={ws.warehouse_id} variant="outline" className="text-xs">
-                                  {ws.warehouse_name}: {ws.quantity}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">No stock</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteProductMutation.mutate(product.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              {products?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No products found. Add your first product to get started.
-                </div>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      <AddProductDialog
-        open={showAddProductDialog}
-        onOpenChange={setShowAddProductDialog}
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {isLoading ? (
+          <div className="col-span-full text-center py-8">Loading products...</div>
+        ) : products?.length === 0 ? (
+          <div className="col-span-full text-center py-8 text-gray-500">
+            No products found. Add your first product to get started.
+          </div>
+        ) : (
+          products?.map((product) => {
+            const totalStock = getTotalStock(product.id);
+            
+            return (
+              <Card key={product.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg font-semibold text-gray-900">
+                        {product.name}
+                      </CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">Code: {product.code}</p>
+                    </div>
+                    <Package className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  {/* Stock Information */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-600">Current Stock:</span>
+                      <Badge variant={getStockBadgeVariant(totalStock)}>
+                        {totalStock} {product.unit_of_measurement}
+                      </Badge>
+                    </div>
+                    
+                    {/* Warehouse Breakdown */}
+                    <div className="mt-2">
+                      <StockStatusBadge 
+                        productId={product.id}
+                        showWarehouseBreakdown={true}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Price Information */}
+                  <div className="space-y-2 pt-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Cost Price:</span>
+                      <span className="text-sm font-medium">₹{product.cost_price}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Selling Price:</span>
+                      <span className="text-sm font-medium text-green-600">₹{product.selling_price}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Avg. Buying:</span>
+                      <span className="text-sm font-medium">₹{product.average_buying_price || 0}</span>
+                    </div>
+                  </div>
+
+                  {/* Statistics */}
+                  <div className="grid grid-cols-2 gap-4 pt-3 border-t">
+                    <div className="text-center">
+                      <p className="text-lg font-semibold text-blue-600">{product.total_purchases || 0}</p>
+                      <p className="text-xs text-gray-500">Total Purchases</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-semibold text-green-600">{product.total_sales || 0}</p>
+                      <p className="text-xs text-gray-500">Total Sales</p>
+                    </div>
+                  </div>
+
+                  {/* Stock Value */}
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="text-sm font-medium text-gray-600">Stock Value:</span>
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-semibold text-green-600">
+                        ₹{(totalStock * (product.average_buying_price || product.cost_price)).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      <AddProductDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog}
+        onProductAdded={handleProductAdded}
       />
     </div>
   );

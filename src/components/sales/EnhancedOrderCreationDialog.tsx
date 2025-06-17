@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Trash2, Upload } from "lucide-react";
+import { CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ interface EnhancedOrderCreationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingOrder?: any;
+  onSalesEntryOpen?: (data: any) => void;
 }
 
 interface OrderItem {
@@ -30,7 +32,7 @@ interface OrderItem {
   warehouse_id: string;
 }
 
-export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }: EnhancedOrderCreationDialogProps) {
+export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder, onSalesEntryOpen }: EnhancedOrderCreationDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -229,7 +231,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
       }
 
       if (editingOrder) {
-        // Update existing order logic (simplified for brevity)
+        // Update existing order logic
         const { error: orderError } = await supabase
           .from('sales_orders')
           .update({
@@ -244,67 +246,12 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
             quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
           })
           .eq('id', editingOrder.id);
-    
+
         if (orderError) throw orderError;
-    
-        // Delete existing order items
-        const { error: deleteError } = await supabase
-          .from('sales_order_items')
-          .delete()
-          .eq('sales_order_id', editingOrder.id);
-    
-        if (deleteError) throw deleteError;
-    
-        // Process each order item and update stock
-        for (const item of orderItems) {
-          // Add warehouse stock movement (OUT)
-          await supabase
-            .from('warehouse_stock_movements')
-            .insert({
-              product_id: item.product_id,
-              warehouse_id: item.warehouse_id,
-              movement_type: 'OUT',
-              quantity: item.quantity,
-              reference_type: 'SALES_ORDER',
-              reference_id: editingOrder.id,
-              reason: `Sale to ${formData.client_name}`,
-            });
-    
-          // Update product current stock quantity
-          const { data: currentProduct } = await supabase
-            .from('products')
-            .select('current_stock_quantity')
-            .eq('id', item.product_id)
-            .single();
-    
-          if (currentProduct) {
-            const newStock = Math.max(0, currentProduct.current_stock_quantity - item.quantity);
-            await supabase
-              .from('products')
-              .update({ 
-                current_stock_quantity: newStock 
-              })
-              .eq('id', item.product_id);
-          }
-    
-          // Add stock transaction record
-          await supabase
-            .from('stock_transactions')
-            .insert({
-              product_id: item.product_id,
-              transaction_type: 'SALE',
-              quantity: -item.quantity, // Negative for sales
-              unit_price: item.unit_price,
-              total_amount: item.total_price,
-              transaction_date: format(formData.order_date, 'yyyy-MM-dd'),
-              reference_number: orderNumber,
-              supplier_customer_name: formData.client_name,
-            });
-        }
-    
+
         toast({
           title: "Success",
-          description: "Sales order updated successfully and stock updated!",
+          description: "Sales order updated successfully!",
         });
       } else {
         // Create new sales order
@@ -328,6 +275,22 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
           .single();
 
         if (orderError) throw orderError;
+
+        // Insert sales order items
+        const salesOrderItemsData = orderItems.map(item => ({
+          sales_order_id: orderData.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          warehouse_id: item.warehouse_id,
+        }));
+
+        const { error: salesItemsError } = await supabase
+          .from('sales_order_items')
+          .insert(salesOrderItemsData);
+
+        if (salesItemsError) throw salesItemsError;
 
         // Process each order item and update stock
         for (const item of orderItems) {
@@ -401,6 +364,15 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
       }
 
       onOpenChange(false);
+      if (onSalesEntryOpen && !editingOrder) {
+        // Pass data to sales entry if callback provided
+        onSalesEntryOpen({
+          client_name: formData.client_name,
+          amount: totalAmount,
+          order_number: orderNumber,
+          platform: formData.platform,
+        });
+      }
       window.location.reload(); // Refresh to show updated data
     } catch (error) {
       console.error('Error saving sales order:', error);
@@ -413,8 +385,6 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
       setIsSubmitting(false);
     }
   };
-
-  // ... keep existing code (JSX return statement with form, but add warehouse selection and stock validation display)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -546,7 +516,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
           <div>
             <div className="flex justify-between items-center mb-4">
               <Label className="text-lg font-medium">Order Items</Label>
-              <Button type="button" onClick={() => setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }])} size="sm">
+              <Button type="button" onClick={addOrderItem} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Item
               </Button>
@@ -637,7 +607,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setOrderItems(orderItems.filter((_, i) => i !== index))}
+                        onClick={() => removeOrderItem(index)}
                         disabled={orderItems.length === 1}
                       >
                         <Trash2 className="h-4 w-4" />

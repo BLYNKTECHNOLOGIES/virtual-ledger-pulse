@@ -119,3 +119,28 @@ export function useProductStockSummary() {
     error
   };
 }
+
+// Hook to sync product total stock with warehouse totals
+export function useSyncProductStock() {
+  const { data: productSummaries } = useProductStockSummary();
+
+  const syncStock = async () => {
+    if (!productSummaries) return;
+
+    for (const product of productSummaries) {
+      // Update the product's current_stock_quantity to match warehouse totals
+      const { error } = await supabase
+        .from('products')
+        .update({ 
+          current_stock_quantity: product.total_stock 
+        })
+        .eq('id', product.product_id);
+
+      if (error) {
+        console.error('Error syncing product stock:', error);
+      }
+    }
+  };
+
+  return { syncStock, productSummaries };
+}

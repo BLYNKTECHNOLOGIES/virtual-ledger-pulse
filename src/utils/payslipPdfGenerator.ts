@@ -67,13 +67,13 @@ export const generatePayslipPDF = (data: PayslipData) => {
           position: absolute;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%) rotate(-45deg);
+          transform: translate(-50%, -50%) rotate(90deg);
           opacity: 0.1;
           z-index: 1;
           pointer-events: none;
         }
         .watermark img {
-          width: 200px;
+          width: 300px;
           height: 200px;
           object-fit: contain;
         }
@@ -90,8 +90,8 @@ export const generatePayslipPDF = (data: PayslipData) => {
           align-items: center;
         }
         .company-logo {
-          width: 80px;
-          height: 80px;
+          width: 100px;
+          height: 100px;
           margin-right: 20px;
           flex-shrink: 0;
         }
@@ -104,7 +104,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
           flex: 1;
         }
         .company-name {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: bold;
           margin: 0 0 4px 0;
           color: #1a365d;

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +17,11 @@ interface BankAccount {
   account_name: string;
   bank_name: string;
   account_number: string;
-  IFSC: string; // Updated to match database column name
+  IFSC: string;
   branch?: string;
   balance: number;
   status: "ACTIVE" | "INACTIVE";
+  bank_account_holder_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -39,7 +39,8 @@ export function BankAccountManagement() {
     ifsc_code: "",
     branch: "",
     balance: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE"
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+    bank_account_holder_name: ""
   });
 
   // Fetch bank accounts from database
@@ -65,10 +66,11 @@ export function BankAccountManagement() {
           account_name: accountData.account_name,
           bank_name: accountData.bank_name,
           account_number: accountData.account_number,
-          IFSC: accountData.ifsc_code, // Map form field to database column
+          IFSC: accountData.ifsc_code,
           branch: accountData.branch || null,
           balance: parseFloat(accountData.balance),
-          status: accountData.status
+          status: accountData.status,
+          bank_account_holder_name: accountData.bank_account_holder_name || null
         });
 
       if (error) throw error;
@@ -100,10 +102,11 @@ export function BankAccountManagement() {
           account_name: accountData.account_name,
           bank_name: accountData.bank_name,
           account_number: accountData.account_number,
-          IFSC: accountData.ifsc_code, // Map form field to database column
+          IFSC: accountData.ifsc_code,
           branch: accountData.branch || null,
           balance: parseFloat(accountData.balance),
           status: accountData.status,
+          bank_account_holder_name: accountData.bank_account_holder_name || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', accountData.id);
@@ -153,10 +156,11 @@ export function BankAccountManagement() {
       account_name: account.account_name,
       bank_name: account.bank_name,
       account_number: account.account_number,
-      ifsc_code: account.IFSC || "", // Map database column to form field
+      ifsc_code: account.IFSC || "",
       branch: account.branch || "",
       balance: account.balance.toString(),
-      status: account.status
+      status: account.status,
+      bank_account_holder_name: account.bank_account_holder_name || ""
     });
     setIsAddDialogOpen(true);
   };
@@ -169,7 +173,8 @@ export function BankAccountManagement() {
       ifsc_code: "",
       branch: "",
       balance: "",
-      status: "ACTIVE"
+      status: "ACTIVE",
+      bank_account_holder_name: ""
     });
     setEditingAccount(null);
   };
@@ -206,6 +211,14 @@ export function BankAccountManagement() {
                     value={formData.account_name}
                     onChange={(e) => setFormData(prev => ({ ...prev, account_name: e.target.value }))}
                     required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bank_account_holder_name">Account Holder Name</Label>
+                  <Input
+                    id="bank_account_holder_name"
+                    value={formData.bank_account_holder_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bank_account_holder_name: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -302,6 +315,7 @@ export function BankAccountManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Account Name</TableHead>
+                  <TableHead>Account Holder</TableHead>
                   <TableHead>Bank Name</TableHead>
                   <TableHead>Account Number</TableHead>
                   <TableHead>IFSC Code</TableHead>
@@ -315,6 +329,7 @@ export function BankAccountManagement() {
                 {bankAccounts?.map((account) => (
                   <TableRow key={account.id}>
                     <TableCell className="font-medium">{account.account_name}</TableCell>
+                    <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
                     <TableCell>{account.bank_name}</TableCell>
                     <TableCell>{account.account_number}</TableCell>
                     <TableCell>{account.IFSC}</TableCell>
@@ -346,7 +361,7 @@ export function BankAccountManagement() {
                 ))}
                 {bankAccounts?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       No bank accounts found. Add your first bank account to get started.
                     </TableCell>
                   </TableRow>

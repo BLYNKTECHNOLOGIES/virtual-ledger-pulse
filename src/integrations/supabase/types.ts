@@ -14,6 +14,7 @@ export type Database = {
           account_name: string
           account_number: string
           balance: number
+          bank_account_holder_name: string | null
           bank_name: string
           branch: string | null
           created_at: string
@@ -26,6 +27,7 @@ export type Database = {
           account_name: string
           account_number: string
           balance?: number
+          bank_account_holder_name?: string | null
           bank_name: string
           branch?: string | null
           created_at?: string
@@ -38,6 +40,7 @@ export type Database = {
           account_name?: string
           account_number?: string
           balance?: number
+          bank_account_holder_name?: string | null
           bank_name?: string
           branch?: string | null
           created_at?: string

@@ -199,7 +199,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       }
 
       if (editingOrder) {
-        // Update existing order logic (simplified for brevity)
+        // Update existing order
         const { error: orderError } = await supabase
           .from('purchase_orders')
           .update({
@@ -216,12 +216,21 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
         if (orderError) throw orderError;
 
         // Delete existing order items and stock movements
-        const { error: deleteError } = await supabase
+        const { error: deleteItemsError } = await supabase
           .from('purchase_order_items')
           .delete()
           .eq('purchase_order_id', editingOrder.id);
 
-        if (deleteError) throw deleteError;
+        if (deleteItemsError) throw deleteItemsError;
+
+        // Delete existing stock movements for this order
+        const { error: deleteMovementsError } = await supabase
+          .from('warehouse_stock_movements')
+          .delete()
+          .eq('reference_id', editingOrder.id)
+          .eq('reference_type', 'PURCHASE_ORDER');
+
+        if (deleteMovementsError) throw deleteMovementsError;
 
         // Insert updated order items
         const orderItemsData = orderItems.map(item => ({
@@ -238,6 +247,21 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           .insert(orderItemsData);
 
         if (itemsError) throw itemsError;
+
+        // Create new warehouse stock movements
+        for (const item of orderItems) {
+          await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: item.product_id,
+              warehouse_id: item.warehouse_id,
+              movement_type: 'IN',
+              quantity: item.quantity,
+              reference_type: 'PURCHASE_ORDER',
+              reference_id: editingOrder.id,
+              reason: `Purchase from ${formData.supplier_name}`,
+            });
+        }
 
         toast({
           title: "Success",
@@ -279,9 +303,9 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
 
         if (itemsError) throw itemsError;
 
-        // Add warehouse stock movements for each item
+        // Create warehouse stock movements for each item
         for (const item of orderItems) {
-          await supabase
+          const { error: movementError } = await supabase
             .from('warehouse_stock_movements')
             .insert({
               product_id: item.product_id,
@@ -293,21 +317,30 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
               reason: `Purchase from ${formData.supplier_name}`,
             });
 
-          // Update product total purchases using a separate update
+          if (movementError) {
+            console.error('Error creating stock movement:', movementError);
+            throw movementError;
+          }
+
+          // Update product total purchases
           const { data: currentProduct } = await supabase
             .from('products')
-            .select('total_purchases')
+            .select('total_purchases, current_stock_quantity')
             .eq('id', item.product_id)
             .single();
 
-          const newTotalPurchases = (currentProduct?.total_purchases || 0) + item.quantity;
+          if (currentProduct) {
+            const newTotalPurchases = (currentProduct.total_purchases || 0) + item.quantity;
+            const newStockQuantity = (currentProduct.current_stock_quantity || 0) + item.quantity;
 
-          await supabase
-            .from('products')
-            .update({ 
-              total_purchases: newTotalPurchases
-            })
-            .eq('id', item.product_id);
+            await supabase
+              .from('products')
+              .update({ 
+                total_purchases: newTotalPurchases,
+                current_stock_quantity: newStockQuantity
+              })
+              .eq('id', item.product_id);
+          }
         }
 
         // Update bank account balance if bank account is selected
@@ -330,7 +363,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
 
         toast({
           title: "Success",
-          description: "Purchase order created successfully and stock updated!",
+          description: "Purchase order created successfully and warehouse stock updated!",
         });
       }
 

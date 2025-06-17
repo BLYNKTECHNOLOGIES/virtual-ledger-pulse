@@ -2,15 +2,16 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Scale } from "lucide-react";
+import { Building2, Scale, Receipt } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
+import { TaxationComplianceTab } from "@/components/compliance/TaxationComplianceTab";
 
 export default function Compliance() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Tabs defaultValue="banking" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="banking" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Banking Compliance
@@ -18,6 +19,10 @@ export default function Compliance() {
           <TabsTrigger value="legal" className="flex items-center gap-2">
             <Scale className="h-4 w-4" />
             Legal Compliance
+          </TabsTrigger>
+          <TabsTrigger value="taxation" className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Taxation Compliance
           </TabsTrigger>
         </TabsList>
 
@@ -27,6 +32,10 @@ export default function Compliance() {
 
         <TabsContent value="legal">
           <LegalComplianceTab />
+        </TabsContent>
+
+        <TabsContent value="taxation">
+          <TaxationComplianceTab />
         </TabsContent>
       </Tabs>
     </div>

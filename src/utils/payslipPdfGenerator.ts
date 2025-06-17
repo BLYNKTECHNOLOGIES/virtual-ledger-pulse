@@ -67,7 +67,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
           position: absolute;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%) rotate(-90deg);
+          transform: translate(-50%, -50%);
           opacity: 0.08;
           z-index: 1;
           pointer-events: none;

@@ -4,8 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExpensesIncomesTab } from "./journal/ExpensesIncomesTab";
 import { ContraEntriesTab } from "./journal/ContraEntriesTab";
-import { DirectoryTab } from "./journal/DirectoryTab";
-import { BookOpen, TrendingUp, ArrowRightLeft, List } from "lucide-react";
+import { BookOpen, TrendingUp, ArrowRightLeft } from "lucide-react";
 
 export function BankJournalEntries() {
   return (
@@ -21,7 +20,7 @@ export function BankJournalEntries() {
       <Card>
         <CardContent className="p-6">
           <Tabs defaultValue="expenses-incomes" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="expenses-incomes" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 Expenses & Incomes
@@ -29,10 +28,6 @@ export function BankJournalEntries() {
               <TabsTrigger value="contra-entries" className="flex items-center gap-2">
                 <ArrowRightLeft className="h-4 w-4" />
                 Contra Entries
-              </TabsTrigger>
-              <TabsTrigger value="directory" className="flex items-center gap-2">
-                <List className="h-4 w-4" />
-                Directory of Transactions
               </TabsTrigger>
             </TabsList>
 
@@ -42,10 +37,6 @@ export function BankJournalEntries() {
 
             <TabsContent value="contra-entries">
               <ContraEntriesTab />
-            </TabsContent>
-
-            <TabsContent value="directory">
-              <DirectoryTab />
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -68,7 +68,8 @@ export function useWarehouseStock() {
         }
       });
 
-      return Array.from(stockMap.values());
+      // Filter out entries with zero or negative quantities
+      return Array.from(stockMap.values()).filter(stock => stock.quantity > 0);
     },
   });
 }
@@ -89,11 +90,15 @@ export function useProductStockSummary() {
     }
 
     acc[stock.product_id].total_stock += stock.quantity;
-    acc[stock.product_id].warehouse_stocks.push({
-      warehouse_id: stock.warehouse_id,
-      warehouse_name: stock.warehouse_name,
-      quantity: stock.quantity
-    });
+    
+    // Only add warehouse stocks with positive quantities
+    if (stock.quantity > 0) {
+      acc[stock.product_id].warehouse_stocks.push({
+        warehouse_id: stock.warehouse_id,
+        warehouse_name: stock.warehouse_name,
+        quantity: stock.quantity
+      });
+    }
 
     return acc;
   }, {} as Record<string, ProductStockSummary>);

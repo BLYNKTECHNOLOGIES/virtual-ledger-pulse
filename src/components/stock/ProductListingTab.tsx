@@ -38,6 +38,41 @@ export function ProductListingTab() {
 
   const { data: productStockSummaries } = useProductStockSummary();
 
+  // Update product stock mutation to sync with warehouse movements
+  const updateProductStockMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      // Calculate total stock from warehouse movements
+      const { data: movements, error } = await supabase
+        .from('warehouse_stock_movements')
+        .select('movement_type, quantity')
+        .eq('product_id', productId);
+
+      if (error) throw error;
+
+      let totalStock = 0;
+      movements?.forEach(movement => {
+        if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
+          totalStock += movement.quantity;
+        } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
+          totalStock -= movement.quantity;
+        }
+      });
+
+      // Update product current_stock_quantity to match warehouse movements
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ current_stock_quantity: totalStock })
+        .eq('id', productId);
+
+      if (updateError) throw updateError;
+      return totalStock;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
+    },
+  });
+
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
       const { data, error } = await supabase
@@ -62,16 +97,39 @@ export function ProductListingTab() {
     return productStockSummaries?.find(p => p.product_id === productId);
   };
 
+  const getActualStock = (product: any) => {
+    const stockSummary = getProductStock(product.id);
+    return stockSummary?.total_stock || 0;
+  };
+
+  // Function to sync all product stocks
+  const syncAllStocks = async () => {
+    if (!products) return;
+    
+    toast.info("Syncing stock levels...");
+    
+    for (const product of products) {
+      await updateProductStockMutation.mutateAsync(product.id);
+    }
+    
+    toast.success("All stock levels synced successfully");
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Product Inventory Management</CardTitle>
-            <Button onClick={() => setShowAddProductDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={syncAllStocks}>
+                Sync Stock Levels
+              </Button>
+              <Button onClick={() => setShowAddProductDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -101,7 +159,7 @@ export function ProductListingTab() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Unit</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Cost Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Selling Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Total Stock</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse Distribution</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
@@ -109,6 +167,8 @@ export function ProductListingTab() {
                 <tbody>
                   {products?.map((product) => {
                     const stockSummary = getProductStock(product.id);
+                    const actualStock = getActualStock(product);
+                    const isStockMismatched = product.current_stock_quantity !== actualStock;
                     
                     return (
                       <tr key={product.id} className="border-b hover:bg-gray-50">
@@ -123,7 +183,24 @@ export function ProductListingTab() {
                         <td className="py-3 px-4">₹{product.cost_price}</td>
                         <td className="py-3 px-4">₹{product.selling_price}</td>
                         <td className="py-3 px-4">
-                          <StockStatusBadge productId={product.id} />
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant={actualStock <= 0 ? "destructive" : actualStock <= 10 ? "secondary" : "default"}
+                              className={isStockMismatched ? "border-orange-500" : ""}
+                            >
+                              {actualStock} {product.unit_of_measurement}
+                            </Badge>
+                            {isStockMismatched && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => updateProductStockMutation.mutate(product.id)}
+                                className="text-orange-600 hover:text-orange-700"
+                              >
+                                Sync
+                              </Button>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-4">
                           {stockSummary?.warehouse_stocks.length ? (

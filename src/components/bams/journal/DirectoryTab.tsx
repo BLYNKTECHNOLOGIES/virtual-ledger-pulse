@@ -61,26 +61,6 @@ export function DirectoryTab() {
         `)
         .order('transaction_date', { ascending: false });
 
-      // Apply filters
-      if (filters.amountMin) {
-        bankQuery = bankQuery.gte('amount', filters.amountMin);
-      }
-      if (filters.amountMax) {
-        bankQuery = bankQuery.lte('amount', filters.amountMax);
-      }
-      if (filters.dateFrom) {
-        bankQuery = bankQuery.gte('transaction_date', format(filters.dateFrom, 'yyyy-MM-dd'));
-      }
-      if (filters.dateTo) {
-        bankQuery = bankQuery.lte('transaction_date', format(filters.dateTo, 'yyyy-MM-dd'));
-      }
-      if (filters.transactionType) {
-        bankQuery = bankQuery.eq('transaction_type', filters.transactionType);
-      }
-      if (filters.bankAccountId) {
-        bankQuery = bankQuery.eq('bank_account_id', filters.bankAccountId);
-      }
-
       const { data: bankData, error: bankError } = await bankQuery;
       if (bankError) throw bankError;
 
@@ -99,20 +79,6 @@ export function DirectoryTab() {
           sales_payment_methods(type, bank_accounts(account_name, bank_name, id))
         `)
         .order('order_date', { ascending: false });
-
-      // Apply date filters to sales
-      if (filters.dateFrom) {
-        salesQuery = salesQuery.gte('order_date', format(filters.dateFrom, 'yyyy-MM-dd'));
-      }
-      if (filters.dateTo) {
-        salesQuery = salesQuery.lte('order_date', format(filters.dateTo, 'yyyy-MM-dd'));
-      }
-      if (filters.amountMin) {
-        salesQuery = salesQuery.gte('amount', filters.amountMin);
-      }
-      if (filters.amountMax) {
-        salesQuery = salesQuery.lte('amount', filters.amountMax);
-      }
 
       const { data: salesData, error: salesError } = await salesQuery;
       if (salesError) throw salesError;
@@ -133,20 +99,6 @@ export function DirectoryTab() {
           bank_accounts(account_name, bank_name, id)
         `)
         .order('order_date', { ascending: false });
-
-      // Apply date filters to purchases
-      if (filters.dateFrom) {
-        purchaseQuery = purchaseQuery.gte('order_date', format(filters.dateFrom, 'yyyy-MM-dd'));
-      }
-      if (filters.dateTo) {
-        purchaseQuery = purchaseQuery.lte('order_date', format(filters.dateTo, 'yyyy-MM-dd'));
-      }
-      if (filters.amountMin) {
-        purchaseQuery = purchaseQuery.gte('total_amount', filters.amountMin);
-      }
-      if (filters.amountMax) {
-        purchaseQuery = purchaseQuery.lte('total_amount', filters.amountMax);
-      }
 
       const { data: purchaseData, error: purchaseError } = await purchaseQuery;
       if (purchaseError) throw purchaseError;
@@ -170,7 +122,7 @@ export function DirectoryTab() {
           display_amount: s.amount,
           display_date: s.order_date,
           display_type: 'SALES_ORDER',
-          display_description: `Sales Order - ${s.client_name}${s.description ? ': ' + s.description : ''}`,
+          display_description: `Stock Sold - ${s.client_name} - Order #${s.order_number}${s.description ? ': ' + s.description : ''}`,
           display_reference: s.order_number,
           display_account: s.sales_payment_methods?.bank_accounts?.account_name ? 
             s.sales_payment_methods.bank_accounts.account_name + ' - ' + s.sales_payment_methods.bank_accounts.bank_name : 
@@ -183,7 +135,7 @@ export function DirectoryTab() {
           display_amount: p.total_amount,
           display_date: p.order_date,
           display_type: 'PURCHASE_ORDER',
-          display_description: `Purchase Order - ${p.supplier_name}${p.description ? ': ' + p.description : ''}`,
+          display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
           display_reference: p.order_number,
           display_account: p.bank_accounts?.account_name ? 
             p.bank_accounts.account_name + ' - ' + p.bank_accounts.bank_name : 
@@ -192,15 +144,43 @@ export function DirectoryTab() {
         }))
       ];
 
-      // Apply additional filters
+      // Apply filters
       let filteredTransactions = combinedTransactions;
 
+      if (filters.amountMin !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => 
+          parseFloat(t.display_amount.toString()) >= filters.amountMin!
+        );
+      }
+
+      if (filters.amountMax !== undefined) {
+        filteredTransactions = filteredTransactions.filter(t => 
+          parseFloat(t.display_amount.toString()) <= filters.amountMax!
+        );
+      }
+
+      if (filters.dateFrom) {
+        filteredTransactions = filteredTransactions.filter(t => 
+          new Date(t.display_date) >= filters.dateFrom!
+        );
+      }
+
+      if (filters.dateTo) {
+        filteredTransactions = filteredTransactions.filter(t => 
+          new Date(t.display_date) <= filters.dateTo!
+        );
+      }
+
       if (filters.transactionType) {
-        filteredTransactions = filteredTransactions.filter(t => t.display_type === filters.transactionType);
+        filteredTransactions = filteredTransactions.filter(t => 
+          t.display_type === filters.transactionType
+        );
       }
 
       if (filters.bankAccountId) {
-        filteredTransactions = filteredTransactions.filter(t => t.bank_account_id === filters.bankAccountId);
+        filteredTransactions = filteredTransactions.filter(t => 
+          t.bank_account_id === filters.bankAccountId
+        );
       }
 
       // Sort by date
@@ -325,10 +305,17 @@ export function DirectoryTab() {
               Filters
             </CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFilters(!showFilters)}
+              >
                 {showFilters ? 'Hide Filters' : 'Show Filters'}
               </Button>
-              <Button variant="outline" onClick={downloadCSV} className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={downloadCSV} 
+                className="flex items-center gap-2"
+              >
                 <Download className="h-4 w-4" />
                 Download Data
               </Button>
@@ -346,13 +333,19 @@ export function DirectoryTab() {
                     type="number"
                     placeholder="Min"
                     value={filters.amountMin || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, amountMin: e.target.value ? Number(e.target.value) : undefined }))}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      amountMin: e.target.value ? Number(e.target.value) : undefined 
+                    }))}
                   />
                   <Input
                     type="number"
                     placeholder="Max"
                     value={filters.amountMax || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, amountMax: e.target.value ? Number(e.target.value) : undefined }))}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      amountMax: e.target.value ? Number(e.target.value) : undefined 
+                    }))}
                   />
                 </div>
               </div>
@@ -413,7 +406,13 @@ export function DirectoryTab() {
               {/* Transaction Type */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Transaction Type</label>
-                <Select value={filters.transactionType || ''} onValueChange={(value) => setFilters(prev => ({ ...prev, transactionType: value || undefined }))}>
+                <Select 
+                  value={filters.transactionType || ''} 
+                  onValueChange={(value) => setFilters(prev => ({ 
+                    ...prev, 
+                    transactionType: value || undefined 
+                  }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
@@ -432,7 +431,13 @@ export function DirectoryTab() {
               {/* Bank Account */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Bank Account</label>
-                <Select value={filters.bankAccountId || ''} onValueChange={(value) => setFilters(prev => ({ ...prev, bankAccountId: value || undefined }))}>
+                <Select 
+                  value={filters.bankAccountId || ''} 
+                  onValueChange={(value) => setFilters(prev => ({ 
+                    ...prev, 
+                    bankAccountId: value || undefined 
+                  }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All accounts" />
                   </SelectTrigger>
@@ -449,7 +454,11 @@ export function DirectoryTab() {
             </div>
 
             <div className="flex justify-end">
-              <Button variant="outline" onClick={clearFilters} className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={clearFilters} 
+                className="flex items-center gap-2"
+              >
                 <X className="h-4 w-4" />
                 Clear Filters
               </Button>

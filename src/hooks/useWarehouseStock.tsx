@@ -1,6 +1,6 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { validateProductStock, ValidationError } from "@/utils/validations";
 
 export interface WarehouseStockItem {
   product_id: string;
@@ -75,7 +75,15 @@ export function useWarehouseStock() {
         }
       });
 
-      const result = Array.from(stockMap.values()).filter(stock => stock.quantity >= 0);
+      // Filter out negative stock quantities and log warnings
+      const result = Array.from(stockMap.values()).filter(stock => {
+        if (stock.quantity < 0) {
+          console.warn(`Negative stock detected for ${stock.product_name} in warehouse ${stock.warehouse_name}: ${stock.quantity}`);
+          return false;
+        }
+        return stock.quantity >= 0;
+      });
+      
       console.log('Processed warehouse stock:', result);
       
       // Sync product stock quantities with calculated totals
@@ -158,4 +166,35 @@ export function useSyncProductStock() {
   };
 
   return { syncStock, productSummaries };
+}
+
+// New function to validate and create stock movement
+export async function createValidatedStockMovement(
+  productId: string,
+  warehouseId: string,
+  movementType: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT',
+  quantity: number,
+  referenceType?: string,
+  referenceId?: string,
+  reason?: string
+) {
+  // Validate stock for OUT movements
+  if (movementType === 'OUT' && quantity > 0) {
+    await validateProductStock(productId, warehouseId, quantity);
+  }
+
+  // Create the stock movement
+  const { error } = await supabase
+    .from('warehouse_stock_movements')
+    .insert({
+      product_id: productId,
+      warehouse_id: warehouseId,
+      movement_type: movementType,
+      quantity,
+      reference_type: referenceType,
+      reference_id: referenceId,
+      reason
+    });
+
+  if (error) throw error;
 }

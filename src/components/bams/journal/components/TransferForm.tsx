@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 
 interface TransferFormProps {
   bankAccounts: any[];
@@ -38,13 +39,25 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         throw new Error("Invalid account selection");
       }
 
+      const transferAmount = parseFloat(transferData.amount);
+
+      // Validate bank account balance before proceeding
+      try {
+        await validateBankAccountBalance(transferData.fromAccountId, transferAmount);
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          throw error;
+        }
+        throw new Error('Failed to validate bank account balance');
+      }
+
       // Create transfer out transaction
       const { data: transferOutData, error: transferOutError } = await supabase
         .from('bank_transactions')
         .insert({
           bank_account_id: transferData.fromAccountId,
           transaction_type: 'TRANSFER_OUT',
-          amount: parseFloat(transferData.amount),
+          amount: transferAmount,
           description: transferData.description || `Transfer to ${toAccount.account_name}`,
           transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
           reference_number: `TRF-OUT-${Date.now()}`,
@@ -61,7 +74,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         .insert({
           bank_account_id: transferData.toAccountId,
           transaction_type: 'TRANSFER_IN',
-          amount: parseFloat(transferData.amount),
+          amount: transferAmount,
           description: transferData.description || `Transfer from ${fromAccount.account_name}`,
           transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
           reference_number: `TRF-IN-${Date.now()}`,
@@ -96,9 +109,10 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
       });
     },
     onError: (error: any) => {
+      const message = error instanceof ValidationError ? error.message : (error.message || "Failed to complete transfer");
       toast({
         title: "Error",
-        description: error.message || "Failed to complete transfer",
+        description: message,
         variant: "destructive"
       });
     },
@@ -118,6 +132,16 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
       toast({
         title: "Error",
         description: "From and To accounts must be different",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amount = parseFloat(formData.amount);
+    if (amount <= 0) {
+      toast({
+        title: "Error",
+        description: "Transfer amount must be greater than 0",
         variant: "destructive"
       });
       return;

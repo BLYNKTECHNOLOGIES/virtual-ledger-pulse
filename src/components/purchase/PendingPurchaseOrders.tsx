@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/sales/FileUpload";
+import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 
 interface PaymentMethodOption {
   id: string;
@@ -80,7 +80,7 @@ export function PendingPurchaseOrders() {
     staleTime: 300000, // 5 minutes
   });
 
-  // Optimized mutations with better error handling
+  // Optimized mutations with better error handling and validation
   const completeOrderMutation = useMutation({
     mutationFn: async ({ orderId, paymentMethodId, proofUrls }: { orderId: string; paymentMethodId: string; proofUrls: string[] }) => {
       const selectedMethod = paymentMethods?.find(pm => pm.id === paymentMethodId);
@@ -94,8 +94,20 @@ export function PendingPurchaseOrders() {
         ? order.net_payable_amount 
         : order.total_amount;
 
+      // Validate bank account balance before proceeding
+      if (selectedMethod.bank_accounts?.id) {
+        try {
+          await validateBankAccountBalance(selectedMethod.bank_accounts.id, amountToDeduct);
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            throw error;
+          }
+          throw new Error('Failed to validate bank account balance');
+        }
+      }
+
       let bankBalanceData = null;
-      // Check if bank account has sufficient balance
+      // Get current balance for transaction recording
       if (selectedMethod.bank_accounts?.id) {
         const { data: fetchedBankData, error: fetchError } = await supabase
           .from('bank_accounts')
@@ -105,10 +117,6 @@ export function PendingPurchaseOrders() {
         
         if (fetchError) throw fetchError;
         bankBalanceData = fetchedBankData;
-
-        if (bankBalanceData.balance < amountToDeduct) {
-          throw new Error(`Insufficient bank balance. Available: ₹${bankBalanceData.balance.toFixed(2)}, Required: ₹${amountToDeduct.toFixed(2)}`);
-        }
       }
 
       // Update order status
@@ -216,9 +224,10 @@ export function PendingPurchaseOrders() {
       closeDialog();
     },
     onError: (error: Error) => {
+      const message = error instanceof ValidationError ? error.message : `Failed to complete order: ${error.message}`;
       toast({
         title: "Error",
-        description: `Failed to complete order: ${error.message}`,
+        description: message,
         variant: "destructive",
       });
     },

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,11 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Target, MessageSquare, TrendingUp } from "lucide-react";
 import { PerformanceReviewDialog } from "./PerformanceReviewDialog";
+import { FeedbackSubmissionDialog } from "./FeedbackSubmissionDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export function PerformanceTab() {
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false);
 
   const { data: performanceReviews, isLoading } = useQuery({
     queryKey: ['performance_reviews'],
@@ -154,7 +155,9 @@ export function PerformanceTab() {
               <div className="text-center py-8">
                 <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">No feedback submissions</p>
-                <Button className="mt-4">Submit Feedback</Button>
+                <Button className="mt-4" onClick={() => setShowFeedbackDialog(true)}>
+                  Submit Feedback
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -182,6 +185,11 @@ export function PerformanceTab() {
       <PerformanceReviewDialog 
         open={showReviewDialog} 
         onOpenChange={setShowReviewDialog}
+      />
+
+      <FeedbackSubmissionDialog 
+        open={showFeedbackDialog} 
+        onOpenChange={setShowFeedbackDialog}
       />
     </div>
   );

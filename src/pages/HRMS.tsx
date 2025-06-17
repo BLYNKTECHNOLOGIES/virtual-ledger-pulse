@@ -13,11 +13,6 @@ import { LeavesTab } from "@/components/hrms/LeavesTab";
 export default function HRMS() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Human Resource Management System</h1>
-        <p className="text-gray-600 mt-2">Comprehensive HR management for Blynk Virtual Technologies</p>
-      </div>
-
       <Tabs defaultValue="recruitment" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="recruitment" className="flex items-center gap-2">

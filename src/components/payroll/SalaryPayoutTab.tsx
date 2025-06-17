@@ -1,17 +1,36 @@
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, DollarSign, Download, CreditCard } from "lucide-react";
+import { PayslipGenerationDialog } from "./PayslipGenerationDialog";
 
 export function SalaryPayoutTab() {
-  const [payslips] = useState([
-    { id: 1, employee: "Ravi Sharma", month: "June 2025", gross: 75000, net: 67500, status: "Issued" },
-    { id: 2, employee: "Priya Singh", month: "June 2025", gross: 85000, net: 76500, status: "Pending" },
-    { id: 3, employee: "Amit Kumar", month: "May 2025", gross: 65000, net: 58500, status: "Issued" },
-  ]);
+  const [showPayslipDialog, setShowPayslipDialog] = useState(false);
+
+  // Fetch payslips from database
+  const { data: payslips } = useQuery({
+    queryKey: ['payslips'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payslips')
+        .select(`
+          *,
+          employees!employee_id(name, employee_id)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Get recent payslips (last 10)
+  const recentPayslips = payslips?.slice(0, 10) || [];
 
   return (
     <div className="space-y-6">
@@ -31,7 +50,7 @@ export function SalaryPayoutTab() {
                   <FileText className="h-5 w-5" />
                   Employee Payslips
                 </CardTitle>
-                <Button>
+                <Button onClick={() => setShowPayslipDialog(true)}>
                   <FileText className="h-4 w-4 mr-2" />
                   Generate Payslips
                 </Button>
@@ -39,24 +58,35 @@ export function SalaryPayoutTab() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {payslips.map((payslip) => (
-                  <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{payslip.employee}</h3>
-                      <p className="text-sm text-gray-600">{payslip.month}</p>
-                      <p className="text-sm text-gray-500">Gross: ₹{payslip.gross.toLocaleString()} | Net: ₹{payslip.net.toLocaleString()}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={payslip.status === "Issued" ? "default" : "secondary"}>
-                        {payslip.status}
-                      </Badge>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
-                    </div>
+                {recentPayslips.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No payslips generated yet
                   </div>
-                ))}
+                ) : (
+                  recentPayslips.map((payslip) => (
+                    <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{payslip.employees?.name}</h3>
+                        <p className="text-sm text-gray-600">{payslip.month_year}</p>
+                        <p className="text-sm text-gray-500">
+                          Gross: ₹{payslip.total_earnings?.toLocaleString()} | Net: ₹{payslip.net_salary?.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Employee ID: {payslip.employees?.employee_id}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={payslip.status === "GENERATED" ? "default" : "secondary"}>
+                          {payslip.status}
+                        </Badge>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -128,6 +158,11 @@ export function SalaryPayoutTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PayslipGenerationDialog 
+        open={showPayslipDialog} 
+        onOpenChange={setShowPayslipDialog} 
+      />
     </div>
   );
 }

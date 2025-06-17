@@ -94,20 +94,20 @@ export function PendingPurchaseOrders() {
         ? order.net_payable_amount 
         : order.total_amount;
 
-      let accountData = null;
+      let bankBalanceData = null;
       // Check if bank account has sufficient balance
       if (selectedMethod.bank_accounts?.id) {
-        const { data: fetchedAccountData, error: fetchError } = await supabase
+        const { data: fetchedBankData, error: fetchError } = await supabase
           .from('bank_accounts')
           .select('balance')
           .eq('id', selectedMethod.bank_accounts.id)
           .single();
         
         if (fetchError) throw fetchError;
-        accountData = fetchedAccountData;
+        bankBalanceData = fetchedBankData;
 
-        if (accountData.balance < amountToDeduct) {
-          throw new Error(`Insufficient bank balance. Available: ₹${accountData.balance.toFixed(2)}, Required: ₹${amountToDeduct.toFixed(2)}`);
+        if (bankBalanceData.balance < amountToDeduct) {
+          throw new Error(`Insufficient bank balance. Available: ₹${bankBalanceData.balance.toFixed(2)}, Required: ₹${amountToDeduct.toFixed(2)}`);
         }
       }
 
@@ -170,8 +170,8 @@ export function PendingPurchaseOrders() {
 
       if (updateMethodError) throw updateMethodError;
 
-      if (selectedMethod.bank_accounts?.id && accountData) {
-        const newBalance = accountData.balance - amountToDeduct;
+      if (selectedMethod.bank_accounts?.id && bankBalanceData) {
+        const newBalance = bankBalanceData.balance - amountToDeduct;
 
         const { error: balanceError } = await supabase
           .from('bank_accounts')

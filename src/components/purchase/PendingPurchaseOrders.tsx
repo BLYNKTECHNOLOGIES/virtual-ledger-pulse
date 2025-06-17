@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,6 +106,27 @@ export function PendingPurchaseOrders() {
       
       if (updateError) throw updateError;
 
+      // Update payment method current usage
+      const { data: currentMethod, error: fetchMethodError } = await supabase
+        .from('purchase_payment_methods')
+        .select('current_usage')
+        .eq('id', paymentMethodId)
+        .single();
+
+      if (fetchMethodError) throw fetchMethodError;
+
+      const newUsage = (currentMethod.current_usage || 0) + amountToDeduct;
+
+      const { error: updateMethodError } = await supabase
+        .from('purchase_payment_methods')
+        .update({ 
+          current_usage: newUsage,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', paymentMethodId);
+
+      if (updateMethodError) throw updateMethodError;
+
       if (selectedMethod.bank_accounts?.id) {
         const { data: accountData, error: fetchError } = await supabase
           .from('bank_accounts')
@@ -145,13 +167,14 @@ export function PendingPurchaseOrders() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Purchase order completed successfully and bank balance adjusted.",
+        description: "Purchase order completed successfully, bank balance adjusted, and payment method usage updated.",
       });
       // Optimistic updates
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
       closeDialog();
     },
     onError: (error: Error) => {

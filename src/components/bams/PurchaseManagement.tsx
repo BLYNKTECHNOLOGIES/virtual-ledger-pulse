@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +47,7 @@ export function PurchaseManagement() {
     bankAccountName: ""
   });
 
-  // Fetch purchase methods from Supabase
+  // Fetch purchase methods from Supabase with real-time updates
   useEffect(() => {
     const fetchPurchaseMethods = async () => {
       const { data, error } = await supabase
@@ -80,6 +79,21 @@ export function PurchaseManagement() {
     };
 
     fetchPurchaseMethods();
+
+    // Set up real-time subscription for purchase payment methods
+    const subscription = supabase
+      .channel('purchase_payment_methods_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'purchase_payment_methods' }, 
+        () => {
+          fetchPurchaseMethods();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, [toast]);
 
   // Fetch bank accounts from Supabase

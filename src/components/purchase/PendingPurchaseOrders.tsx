@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,10 +103,22 @@ export function PendingPurchaseOrders() {
 
       // Adjust bank account balance if bank account is available
       if (selectedMethod.bank_accounts?.id) {
+        // First get current balance
+        const { data: accountData, error: fetchError } = await supabase
+          .from('bank_accounts')
+          .select('balance')
+          .eq('id', selectedMethod.bank_accounts.id)
+          .single();
+        
+        if (fetchError) throw fetchError;
+
+        const newBalance = accountData.balance - amountToDeduct;
+
+        // Update balance
         const { error: balanceError } = await supabase
           .from('bank_accounts')
           .update({ 
-            balance: supabase.raw(`balance - ${amountToDeduct}`),
+            balance: newBalance,
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedMethod.bank_accounts.id);

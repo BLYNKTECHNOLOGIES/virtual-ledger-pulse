@@ -39,7 +39,7 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch warehouse stock data for chart
+  // Fetch warehouse stock data for chart - stock levels not valuation
   const { data: warehouseStockData } = useQuery({
     queryKey: ['dashboard_warehouse_stock'],
     queryFn: async () => {
@@ -186,7 +186,7 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Charts and Quick Access */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Daily Sales & Purchase Chart */}
         <Card>
@@ -250,12 +250,11 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <div>
-          <QuickAccessCard title="Quick Access" items={quickAccessItems} />
-        </div>
+        {/* Quick Access - Moved to third column */}
+        <QuickAccessCard title="Quick Access" items={quickAccessItems} />
       </div>
 
-      {/* Warehouse Stock Chart */}
+      {/* Warehouse Stock Chart - Above Quick Access section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

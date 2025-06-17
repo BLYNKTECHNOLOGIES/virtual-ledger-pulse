@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +38,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     contact_number: '',
     order_date: new Date(),
     description: '',
-    warehouse_id: '',
     bank_account_id: '',
     purchase_payment_method_id: '',
   });
@@ -56,7 +54,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
         contact_number: editingOrder.contact_number || '',
         order_date: editingOrder.order_date ? new Date(editingOrder.order_date) : new Date(),
         description: editingOrder.description || '',
-        warehouse_id: editingOrder.warehouse_id || '',
         bank_account_id: editingOrder.bank_account_id || '',
         purchase_payment_method_id: editingOrder.purchase_payment_method_id || '',
       });
@@ -79,7 +76,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
         contact_number: '',
         order_date: new Date(),
         description: '',
-        warehouse_id: '',
         bank_account_id: '',
         purchase_payment_method_id: '',
       });
@@ -202,13 +198,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
         return;
       }
 
-      // Get warehouse name for the selected warehouse
-      const { data: selectedWarehouse } = await supabase
-        .from('warehouses')
-        .select('name')
-        .eq('id', formData.warehouse_id)
-        .single();
-
       if (editingOrder) {
         // Update existing order logic (simplified for brevity)
         const { error: orderError } = await supabase
@@ -218,7 +207,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             contact_number: formData.contact_number,
             order_date: format(formData.order_date, 'yyyy-MM-dd'),
             description: formData.description,
-            warehouse_name: selectedWarehouse?.name || '',
             bank_account_id: formData.bank_account_id || null,
             purchase_payment_method_id: formData.purchase_payment_method_id || null,
             total_amount: totalAmount,
@@ -265,7 +253,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             contact_number: formData.contact_number,
             order_date: format(formData.order_date, 'yyyy-MM-dd'),
             description: formData.description,
-            warehouse_name: selectedWarehouse?.name || '',
             bank_account_id: formData.bank_account_id || null,
             purchase_payment_method_id: formData.purchase_payment_method_id || null,
             total_amount: totalAmount,
@@ -306,30 +293,21 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
               reason: `Purchase from ${formData.supplier_name}`,
             });
 
-          // Update product current stock quantity by summing all warehouse stocks
-          const { data: allWarehouseStocks } = await supabase
-            .from('warehouse_stock_movements')
-            .select('quantity, movement_type')
-            .eq('product_id', item.product_id);
+          // Update product total purchases using a separate update
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('total_purchases')
+            .eq('id', item.product_id)
+            .single();
 
-          if (allWarehouseStocks) {
-            const totalStock = allWarehouseStocks.reduce((total, movement) => {
-              if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-                return total + movement.quantity;
-              } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-                return total - movement.quantity;
-              }
-              return total;
-            }, 0);
+          const newTotalPurchases = (currentProduct?.total_purchases || 0) + item.quantity;
 
-            await supabase
-              .from('products')
-              .update({ 
-                current_stock_quantity: Math.max(0, totalStock),
-                total_purchases: supabase.raw('COALESCE(total_purchases, 0) + ?', [item.quantity])
-              })
-              .eq('id', item.product_id);
-          }
+          await supabase
+            .from('products')
+            .update({ 
+              total_purchases: newTotalPurchases
+            })
+            .eq('id', item.product_id);
         }
 
         // Update bank account balance if bank account is selected
@@ -428,17 +406,6 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             </div>
 
             <div>
-              <WarehouseSelector
-                value={formData.warehouse_id}
-                onValueChange={(value) => setFormData({ ...formData, warehouse_id: value })}
-                label="Default Warehouse *"
-                placeholder="Select default warehouse"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <Label htmlFor="bank_account">Bank Account</Label>
               <Select value={formData.bank_account_id} onValueChange={(value) => setFormData({ ...formData, bank_account_id: value })}>
                 <SelectTrigger>
@@ -453,7 +420,9 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="payment_method">Payment Method</Label>
               <Select value={formData.purchase_payment_method_id} onValueChange={(value) => setFormData({ ...formData, purchase_payment_method_id: value })}>
@@ -469,15 +438,15 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
           </div>
 
           {/* Order Items */}

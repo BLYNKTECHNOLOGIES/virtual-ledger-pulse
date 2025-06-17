@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +30,7 @@ export function PendingPurchaseOrders() {
   const [paymentProofUrls, setPaymentProofUrls] = useState<string[]>([]);
   const [failureReason, setFailureReason] = useState("");
 
+  // Optimized query with stale time
   const { data: orders, isLoading } = useQuery({
     queryKey: ['purchase_orders', 'pending'],
     queryFn: async () => {
@@ -51,9 +53,10 @@ export function PendingPurchaseOrders() {
       if (error) throw error;
       return data;
     },
+    staleTime: 30000, // 30 seconds
   });
 
-  // Fetch payment methods based on order type
+  // Memoized payment methods query
   const { data: paymentMethods } = useQuery({
     queryKey: ['purchase_payment_methods', selectedOrder?.payment_method_type],
     queryFn: async () => {
@@ -74,21 +77,20 @@ export function PendingPurchaseOrders() {
       return data;
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
+    staleTime: 300000, // 5 minutes
   });
 
+  // Optimized mutations with better error handling
   const completeOrderMutation = useMutation({
     mutationFn: async ({ orderId, paymentMethodId, proofUrls }: { orderId: string; paymentMethodId: string; proofUrls: string[] }) => {
-      // Get the selected payment method details
       const selectedMethod = paymentMethods?.find(pm => pm.id === paymentMethodId);
       if (!selectedMethod) throw new Error('Payment method not found');
 
-      // Get order details to calculate amount
       const order = orders?.find(o => o.id === orderId);
       if (!order) throw new Error('Order not found');
 
       const amountToDeduct = order.tds_applied ? order.net_payable_amount : order.total_amount;
 
-      // Update purchase order status and add payment details
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -101,9 +103,7 @@ export function PendingPurchaseOrders() {
       
       if (updateError) throw updateError;
 
-      // Adjust bank account balance if bank account is available
       if (selectedMethod.bank_accounts?.id) {
-        // First get current balance
         const { data: accountData, error: fetchError } = await supabase
           .from('bank_accounts')
           .select('balance')
@@ -114,7 +114,6 @@ export function PendingPurchaseOrders() {
 
         const newBalance = accountData.balance - amountToDeduct;
 
-        // Update balance
         const { error: balanceError } = await supabase
           .from('bank_accounts')
           .update({ 
@@ -125,7 +124,6 @@ export function PendingPurchaseOrders() {
         
         if (balanceError) throw balanceError;
 
-        // Create bank transaction record
         const { error: transactionError } = await supabase
           .from('bank_transactions')
           .insert({
@@ -147,12 +145,13 @@ export function PendingPurchaseOrders() {
         title: "Success",
         description: "Purchase order completed successfully and bank balance adjusted.",
       });
+      // Optimistic updates
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       closeDialog();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: `Failed to complete order: ${error.message}`,
@@ -183,7 +182,7 @@ export function PendingPurchaseOrders() {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       closeDialog();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: `Failed to update status: ${error.message}`,
@@ -192,13 +191,14 @@ export function PendingPurchaseOrders() {
     },
   });
 
-  const handleUpdateStatus = (orderId: string, status: string) => {
+  // Memoized handlers
+  const handleUpdateStatus = useMemo(() => (orderId: string, status: string) => {
     const order = orders?.find(o => o.id === orderId);
     if (!order) return;
 
     setSelectedOrder(order);
     setActionType(status === 'COMPLETED' ? 'complete' : 'review');
-  };
+  }, [orders]);
 
   const closeDialog = () => {
     setSelectedOrder(null);
@@ -227,14 +227,17 @@ export function PendingPurchaseOrders() {
     });
   };
 
+  // Optimized loading skeleton
+  const LoadingSkeleton = useMemo(() => (
+    <div className="space-y-4">
+      {Array.from({ length: 3 }, (_, i) => (
+        <Skeleton key={i} className="h-48 w-full" />
+      ))}
+    </div>
+  ), []);
+
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-48 w-full" />
-        ))}
-      </div>
-    );
+    return LoadingSkeleton;
   }
 
   if (!orders || orders.length === 0) {

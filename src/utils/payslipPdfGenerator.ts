@@ -54,11 +54,32 @@ export const generatePayslipPDF = (data: PayslipData) => {
           padding: 20px;
           font-size: 12px;
           line-height: 1.3;
+          position: relative;
         }
         .payslip-container {
           max-width: 800px;
           margin: 0 auto;
           border: 2px solid #000;
+          position: relative;
+          background-color: white;
+        }
+        .watermark {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) rotate(-45deg);
+          opacity: 0.1;
+          z-index: 1;
+          pointer-events: none;
+        }
+        .watermark img {
+          width: 200px;
+          height: 200px;
+          object-fit: contain;
+        }
+        .content {
+          position: relative;
+          z-index: 2;
         }
         .header {
           background-color: #f8f9fa;
@@ -69,9 +90,9 @@ export const generatePayslipPDF = (data: PayslipData) => {
           align-items: center;
         }
         .company-logo {
-          width: 60px;
-          height: 60px;
-          margin-right: 15px;
+          width: 80px;
+          height: 80px;
+          margin-right: 20px;
           flex-shrink: 0;
         }
         .company-logo img {
@@ -93,10 +114,17 @@ export const generatePayslipPDF = (data: PayslipData) => {
           margin: 2px 0;
           font-size: 11px;
         }
+        .company-details {
+          color: #666;
+          margin: 2px 0;
+          font-size: 10px;
+          font-weight: 600;
+        }
         .payslip-title {
           color: #666;
-          margin: 4px 0 0 0;
+          margin: 8px 0 0 0;
           font-weight: 600;
+          font-size: 13px;
         }
         .employee-details {
           display: flex;
@@ -195,148 +223,154 @@ export const generatePayslipPDF = (data: PayslipData) => {
     </head>
     <body>
       <div class="payslip-container">
-        <div class="header">
-          <div class="company-logo">
-            <img src="/lovable-uploads/4d521e68-5de3-4e29-b2b8-154367dad127.png" alt="Company Logo" />
-          </div>
-          <div class="company-info">
-            <div class="company-name">BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED</div>
-            <div class="company-address">Technology Solutions & Digital Innovation</div>
-            <div class="company-address">Mumbai, Maharashtra, India</div>
-            <div class="payslip-title">Pay Slip for ${monthYear}</div>
-          </div>
+        <div class="watermark">
+          <img src="/lovable-uploads/db260f9d-5303-4e6e-8f98-481f5f41698b.png" alt="Watermark" />
         </div>
+        <div class="content">
+          <div class="header">
+            <div class="company-logo">
+              <img src="/lovable-uploads/db260f9d-5303-4e6e-8f98-481f5f41698b.png" alt="Company Logo" />
+            </div>
+            <div class="company-info">
+              <div class="company-name">BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED</div>
+              <div class="company-address">First Floor Balwant Arcade, Plot No. 15, Zone 2</div>
+              <div class="company-address">Maharana Pratap Nagar, 462011, Bhopal, Madhya Pradesh</div>
+              <div class="company-details">CIN No. U62099MP2025PTC074915 | GST No. 23AANCB2572J1ZK</div>
+              <div class="payslip-title">Pay Slip for ${monthYear}</div>
+            </div>
+          </div>
 
-        <div class="employee-details">
-          <div class="employee-left">
-            <div class="detail-row">
-              <span class="detail-label">Employee ID</span>
-              <span class="detail-value">: ${employee.employee_id}</span>
+          <div class="employee-details">
+            <div class="employee-left">
+              <div class="detail-row">
+                <span class="detail-label">Employee ID</span>
+                <span class="detail-value">: ${employee.employee_id}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Employee Name</span>
+                <span class="detail-value">: ${employee.name}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Designation</span>
+                <span class="detail-value">: ${employee.designation}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Department</span>
+                <span class="detail-value">: ${employee.department}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Date of Joining</span>
+                <span class="detail-value">: ${new Date(employee.date_of_joining).toLocaleDateString()}</span>
+              </div>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">Employee Name</span>
-              <span class="detail-value">: ${employee.name}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Designation</span>
-              <span class="detail-value">: ${employee.designation}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Department</span>
-              <span class="detail-value">: ${employee.department}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Date of Joining</span>
-              <span class="detail-value">: ${new Date(employee.date_of_joining).toLocaleDateString()}</span>
+            <div class="employee-right">
+              <div class="detail-row">
+                <span class="detail-label">UAN</span>
+                <span class="detail-value">: -</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">PF No.</span>
+                <span class="detail-value">: -</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">ESI No.</span>
+                <span class="detail-value">: -</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Bank</span>
+                <span class="detail-value">: -</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Account No.</span>
+                <span class="detail-value">: -</span>
+              </div>
             </div>
           </div>
-          <div class="employee-right">
-            <div class="detail-row">
-              <span class="detail-label">UAN</span>
-              <span class="detail-value">: -</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">PF No.</span>
-              <span class="detail-value">: -</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">ESI No.</span>
-              <span class="detail-value">: -</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Bank</span>
-              <span class="detail-value">: -</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Account No.</span>
-              <span class="detail-value">: -</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="attendance-section">
-          <div class="attendance-grid">
-            <div class="attendance-item">
-              <div class="attendance-label">Gross Wages</div>
-              <div class="attendance-value currency">₹${payslip.gross_wages.toLocaleString()}</div>
+          <div class="attendance-section">
+            <div class="attendance-grid">
+              <div class="attendance-item">
+                <div class="attendance-label">Gross Wages</div>
+                <div class="attendance-value currency">₹${payslip.gross_wages.toLocaleString()}</div>
+              </div>
+              <div class="attendance-item">
+                <div class="attendance-label">Total Working Days</div>
+                <div class="attendance-value">${payslip.total_working_days}</div>
+              </div>
+              <div class="attendance-item">
+                <div class="attendance-label">Leaves</div>
+                <div class="attendance-value">${payslip.leaves_taken}</div>
+              </div>
+              <div class="attendance-item">
+                <div class="attendance-label">LOP Days</div>
+                <div class="attendance-value">${payslip.lop_days}</div>
+              </div>
             </div>
-            <div class="attendance-item">
-              <div class="attendance-label">Total Working Days</div>
-              <div class="attendance-value">${payslip.total_working_days}</div>
-            </div>
-            <div class="attendance-item">
-              <div class="attendance-label">Leaves</div>
-              <div class="attendance-value">${payslip.leaves_taken}</div>
-            </div>
-            <div class="attendance-item">
-              <div class="attendance-label">LOP Days</div>
-              <div class="attendance-value">${payslip.lop_days}</div>
+            <div style="text-align: center; padding-top: 10px; border-top: 1px solid #ddd;">
+              <strong>Paid Days: ${payslip.paid_days}</strong>
             </div>
           </div>
-          <div style="text-align: center; padding-top: 10px; border-top: 1px solid #ddd;">
-            <strong>Paid Days: ${payslip.paid_days}</strong>
-          </div>
-        </div>
 
-        <div class="earnings-deductions">
-          <div class="earnings">
-            <div class="section-header">Earnings</div>
-            <div class="amount-row">
-              <span>Basic</span>
-              <span class="currency">₹${payslip.basic_salary.toLocaleString()}</span>
+          <div class="earnings-deductions">
+            <div class="earnings">
+              <div class="section-header">Earnings</div>
+              <div class="amount-row">
+                <span>Basic</span>
+                <span class="currency">₹${payslip.basic_salary.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>HRA</span>
+                <span class="currency">₹${payslip.hra.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>Conveyance Allowance</span>
+                <span class="currency">₹${payslip.conveyance_allowance.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>Medical Allowance</span>
+                <span class="currency">₹${payslip.medical_allowance.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>Other Allowances</span>
+                <span class="currency">₹${payslip.other_allowances.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>Total Earnings</span>
+                <span class="currency">₹${payslip.total_earnings.toLocaleString()}</span>
+              </div>
             </div>
-            <div class="amount-row">
-              <span>HRA</span>
-              <span class="currency">₹${payslip.hra.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>Conveyance Allowance</span>
-              <span class="currency">₹${payslip.conveyance_allowance.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>Medical Allowance</span>
-              <span class="currency">₹${payslip.medical_allowance.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>Other Allowances</span>
-              <span class="currency">₹${payslip.other_allowances.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>Total Earnings</span>
-              <span class="currency">₹${payslip.total_earnings.toLocaleString()}</span>
+            <div class="deductions">
+              <div class="section-header">Deductions</div>
+              <div class="amount-row">
+                <span>EPF</span>
+                <span class="currency">₹${payslip.epf.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>ESI</span>
+                <span class="currency">₹${payslip.esi.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span>Professional Tax</span>
+                <span class="currency">₹${payslip.professional_tax.toLocaleString()}</span>
+              </div>
+              <div class="amount-row">
+                <span></span>
+                <span></span>
+              </div>
+              <div class="amount-row">
+                <span></span>
+                <span></span>
+              </div>
+              <div class="amount-row">
+                <span>Total Deductions</span>
+                <span class="currency">₹${payslip.total_deductions.toLocaleString()}</span>
+              </div>
             </div>
           </div>
-          <div class="deductions">
-            <div class="section-header">Deductions</div>
-            <div class="amount-row">
-              <span>EPF</span>
-              <span class="currency">₹${payslip.epf.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>ESI</span>
-              <span class="currency">₹${payslip.esi.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span>Professional Tax</span>
-              <span class="currency">₹${payslip.professional_tax.toLocaleString()}</span>
-            </div>
-            <div class="amount-row">
-              <span></span>
-              <span></span>
-            </div>
-            <div class="amount-row">
-              <span></span>
-              <span></span>
-            </div>
-            <div class="amount-row">
-              <span>Total Deductions</span>
-              <span class="currency">₹${payslip.total_deductions.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="net-salary">
-          <strong>Net Salary: <span class="currency">₹${payslip.net_salary.toLocaleString()}</span></strong>
+          <div class="net-salary">
+            <strong>Net Salary: <span class="currency">₹${payslip.net_salary.toLocaleString()}</span></strong>
+          </div>
         </div>
       </div>
 

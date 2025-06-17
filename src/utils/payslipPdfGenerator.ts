@@ -67,14 +67,14 @@ export const generatePayslipPDF = (data: PayslipData) => {
           position: absolute;
           top: 50%;
           left: 50%;
-          transform: translate(-50%, -50%) rotate(90deg);
-          opacity: 0.1;
+          transform: translate(-50%, -50%) rotate(-90deg);
+          opacity: 0.08;
           z-index: 1;
           pointer-events: none;
         }
         .watermark img {
-          width: 300px;
-          height: 200px;
+          width: 600px;
+          height: 400px;
           object-fit: contain;
         }
         .content {
@@ -90,8 +90,8 @@ export const generatePayslipPDF = (data: PayslipData) => {
           align-items: center;
         }
         .company-logo {
-          width: 100px;
-          height: 100px;
+          width: 120px;
+          height: 120px;
           margin-right: 20px;
           flex-shrink: 0;
         }
@@ -210,7 +210,23 @@ export const generatePayslipPDF = (data: PayslipData) => {
           background-color: #e3f2fd;
           font-size: 16px;
           font-weight: bold;
-          border-bottom: 2px solid #000;
+          border-bottom: 1px solid #000;
+        }
+        .signature-section {
+          padding: 30px 15px 15px 15px;
+          text-align: right;
+        }
+        .signature-line {
+          border-bottom: 1px solid #000;
+          width: 200px;
+          margin-left: auto;
+          margin-bottom: 5px;
+          height: 40px;
+        }
+        .signature-label {
+          font-size: 11px;
+          color: #666;
+          text-align: center;
         }
         .currency {
           font-family: 'Arial', sans-serif;
@@ -370,6 +386,11 @@ export const generatePayslipPDF = (data: PayslipData) => {
 
           <div class="net-salary">
             <strong>Net Salary: <span class="currency">₹${payslip.net_salary.toLocaleString()}</span></strong>
+          </div>
+
+          <div class="signature-section">
+            <div class="signature-line"></div>
+            <div class="signature-label">Authorised Signatory</div>
           </div>
         </div>
       </div>

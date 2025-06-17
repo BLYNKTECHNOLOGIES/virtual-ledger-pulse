@@ -141,11 +141,14 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               <div>
                 <Label>Quantity *</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                  type="text"
+                  value={item.quantity === 0 ? '' : item.quantity.toString()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      updateItem(index, 'quantity', value === '' ? 0 : parseFloat(value) || 0);
+                    }
+                  }}
                   placeholder="0.00"
                 />
               </div>
@@ -153,11 +156,14 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               <div>
                 <Label>Unit Price *</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={item.unit_price}
-                  onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                  type="text"
+                  value={item.unit_price === 0 ? '' : item.unit_price.toString()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                      updateItem(index, 'unit_price', value === '' ? 0 : parseFloat(value) || 0);
+                    }
+                  }}
                   placeholder="0.00"
                 />
               </div>

@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +88,10 @@ export function PendingPurchaseOrders() {
       const order = orders?.find(o => o.id === orderId);
       if (!order) throw new Error('Order not found');
 
-      const amountToDeduct = order.tds_applied ? order.net_payable_amount : order.total_amount;
+      // Use net_payable_amount when TDS is applied, otherwise use total_amount
+      const amountToDeduct = order.tds_applied && order.net_payable_amount 
+        ? order.net_payable_amount 
+        : order.total_amount;
 
       const { error: updateError } = await supabase
         .from('purchase_orders')
@@ -130,7 +132,7 @@ export function PendingPurchaseOrders() {
             bank_account_id: selectedMethod.bank_accounts.id,
             transaction_type: 'EXPENSE',
             amount: amountToDeduct,
-            description: `Purchase Order Payment - ${order.order_number}`,
+            description: `Purchase Order Payment - ${order.order_number}${order.tds_applied ? ' (After TDS)' : ''}`,
             transaction_date: new Date().toISOString().split('T')[0],
             reference_number: order.order_number,
             category: 'Purchase',
@@ -149,6 +151,7 @@ export function PendingPurchaseOrders() {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
       closeDialog();
     },
     onError: (error: Error) => {
@@ -278,10 +281,20 @@ export function PendingPurchaseOrders() {
               <h4 className="font-medium text-blue-800">Order Details</h4>
               <p className="text-sm text-blue-600">Supplier: {selectedOrder?.supplier_name}</p>
               <p className="text-sm text-blue-600">
-                Amount to Pay: ₹{selectedOrder?.tds_applied ? selectedOrder?.net_payable_amount?.toFixed(2) : selectedOrder?.total_amount?.toFixed(2)}
+                Total Amount: ₹{selectedOrder?.total_amount?.toFixed(2)}
               </p>
               {selectedOrder?.tds_applied && (
-                <p className="text-sm text-blue-600">TDS Amount: ₹{selectedOrder?.tds_amount?.toFixed(2)}</p>
+                <>
+                  <p className="text-sm text-blue-600">TDS Amount: ₹{selectedOrder?.tds_amount?.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-blue-800">
+                    Amount to Pay (After TDS): ₹{selectedOrder?.net_payable_amount?.toFixed(2)}
+                  </p>
+                </>
+              )}
+              {!selectedOrder?.tds_applied && (
+                <p className="text-sm font-medium text-blue-800">
+                  Amount to Pay: ₹{selectedOrder?.total_amount?.toFixed(2)}
+                </p>
               )}
             </div>
 

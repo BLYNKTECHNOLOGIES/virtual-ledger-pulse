@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid } from "lucide-react";
-import { ProductListingTab } from "@/components/stock/ProductListingTab";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
@@ -17,15 +16,11 @@ export default function StockManagement() {
         <p className="text-gray-600 mt-2">Comprehensive inventory and stock control</p>
       </div>
 
-      <Tabs defaultValue="products" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="products" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Table View
-          </TabsTrigger>
-          <TabsTrigger value="cards" className="flex items-center gap-2">
+      <Tabs defaultValue="quickview" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="quickview" className="flex items-center gap-2">
             <Grid className="h-4 w-4" />
-            Card View
+            Quick View
           </TabsTrigger>
           <TabsTrigger value="transactions" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
@@ -45,11 +40,7 @@ export default function StockManagement() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products">
-          <ProductListingTab />
-        </TabsContent>
-
-        <TabsContent value="cards">
+        <TabsContent value="quickview">
           <ProductCardListingTab />
         </TabsContent>
 

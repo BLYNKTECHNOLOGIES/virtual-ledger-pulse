@@ -65,31 +65,38 @@ export const generatePayslipPDF = (data: PayslipData) => {
           padding: 15px;
           border-bottom: 2px solid #000;
           text-align: left;
+          display: flex;
+          align-items: center;
         }
         .company-logo {
-          width: 40px;
-          height: 40px;
-          background-color: #000;
-          display: inline-block;
+          width: 60px;
+          height: 60px;
           margin-right: 15px;
-          vertical-align: top;
+          flex-shrink: 0;
+        }
+        .company-logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         }
         .company-info {
-          display: inline-block;
-          vertical-align: top;
+          flex: 1;
         }
         .company-name {
           font-size: 18px;
           font-weight: bold;
-          margin: 0;
+          margin: 0 0 4px 0;
+          color: #1a365d;
         }
         .company-address {
           color: #666;
           margin: 2px 0;
+          font-size: 11px;
         }
         .payslip-title {
           color: #666;
-          margin: 2px 0;
+          margin: 4px 0 0 0;
+          font-weight: 600;
         }
         .employee-details {
           display: flex;
@@ -99,18 +106,23 @@ export const generatePayslipPDF = (data: PayslipData) => {
         .employee-left, .employee-right {
           flex: 1;
         }
+        .employee-left {
+          padding-right: 30px;
+        }
         .detail-row {
           display: flex;
-          justify-content: space-between;
           margin-bottom: 8px;
           padding: 2px 0;
         }
         .detail-label {
-          font-weight: normal;
+          font-weight: 600;
           color: #333;
+          width: 140px;
+          flex-shrink: 0;
         }
         .detail-value {
           font-weight: normal;
+          flex: 1;
         }
         .attendance-section {
           padding: 15px;
@@ -184,10 +196,13 @@ export const generatePayslipPDF = (data: PayslipData) => {
     <body>
       <div class="payslip-container">
         <div class="header">
-          <div class="company-logo"></div>
+          <div class="company-logo">
+            <img src="/lovable-uploads/4d521e68-5de3-4e29-b2b8-154367dad127.png" alt="Company Logo" />
+          </div>
           <div class="company-info">
-            <div class="company-name">Company Name</div>
-            <div class="company-address">Company Address</div>
+            <div class="company-name">BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED</div>
+            <div class="company-address">Technology Solutions & Digital Innovation</div>
+            <div class="company-address">Mumbai, Maharashtra, India</div>
             <div class="payslip-title">Pay Slip for ${monthYear}</div>
           </div>
         </div>

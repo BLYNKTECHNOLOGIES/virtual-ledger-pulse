@@ -80,8 +80,8 @@ export function CompletedPurchaseOrders() {
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="default">
-                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id}` : 
-                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number}` : '-'}
+                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id || '-'}` : 
+                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number || '-'}` : '-'}
                       </Badge>
                     </TableCell>
                     <TableCell>{order.assigned_to || '-'}</TableCell>

@@ -1023,51 +1023,81 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          assigned_to: string | null
           bank_account_id: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
           contact_number: string | null
           created_at: string
           created_by: string | null
           description: string | null
+          failure_proof_url: string | null
+          failure_reason: string | null
           id: string
+          ifsc_code: string | null
           order_date: string
           order_number: string
+          payment_method_type: string | null
+          payment_method_used: string | null
+          payment_proof_url: string | null
           purchase_payment_method_id: string | null
           status: string
           supplier_name: string
           total_amount: number
           updated_at: string
+          upi_id: string | null
           warehouse_name: string | null
         }
         Insert: {
+          assigned_to?: string | null
           bank_account_id?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          failure_proof_url?: string | null
+          failure_reason?: string | null
           id?: string
+          ifsc_code?: string | null
           order_date: string
           order_number: string
+          payment_method_type?: string | null
+          payment_method_used?: string | null
+          payment_proof_url?: string | null
           purchase_payment_method_id?: string | null
           status?: string
           supplier_name: string
           total_amount: number
           updated_at?: string
+          upi_id?: string | null
           warehouse_name?: string | null
         }
         Update: {
+          assigned_to?: string | null
           bank_account_id?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          failure_proof_url?: string | null
+          failure_reason?: string | null
           id?: string
+          ifsc_code?: string | null
           order_date?: string
           order_number?: string
+          payment_method_type?: string | null
+          payment_method_used?: string | null
+          payment_proof_url?: string | null
           purchase_payment_method_id?: string | null
           status?: string
           supplier_name?: string
           total_amount?: number
           updated_at?: string
+          upi_id?: string | null
           warehouse_name?: string | null
         }
         Relationships: [

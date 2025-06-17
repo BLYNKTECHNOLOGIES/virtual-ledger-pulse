@@ -156,8 +156,8 @@ export function ReviewNeededOrders() {
                     <TableCell>₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="destructive">
-                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id}` : 
-                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number}` : '-'}
+                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id || '-'}` : 
+                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number || '-'}` : '-'}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">{order.failure_reason || '-'}</TableCell>

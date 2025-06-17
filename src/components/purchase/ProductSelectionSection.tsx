@@ -1,213 +1,208 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2 } from "lucide-react";
-
-interface Product {
-  id: string;
-  name: string;
-  cost_price: number;
-  code: string;
-  unit_of_measurement: string;
-}
-
-interface Warehouse {
-  id: string;
-  name: string;
-  location: string;
-}
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Trash2 } from "lucide-react";
 
 interface ProductItem {
   id: string;
   product_id: string;
   quantity: number;
   unit_price: number;
-  total_price: number;
-  warehouse_id?: string;
+  warehouse_id: string;
 }
 
 interface ProductSelectionSectionProps {
-  products: Product[];
-  warehouses: Warehouse[];
   items: ProductItem[];
   onItemsChange: (items: ProductItem[]) => void;
 }
 
-export function ProductSelectionSection({ products, warehouses, items, onItemsChange }: ProductSelectionSectionProps) {
-  const addItem = () => {
+export function ProductSelectionSection({ items, onItemsChange }: ProductSelectionSectionProps) {
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch warehouses
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const addNewItem = () => {
+    // Only allow one item
+    if (items.length > 0) return;
+    
     const newItem: ProductItem = {
-      id: `temp-${Date.now()}`,
-      product_id: "",
+      id: Date.now().toString(),
+      product_id: '',
       quantity: 0,
       unit_price: 0,
-      total_price: 0,
-      warehouse_id: ""
+      warehouse_id: ''
     };
-    onItemsChange([...items, newItem]);
+    onItemsChange([newItem]);
   };
 
-  const removeItem = (index: number) => {
-    if (items.length > 1) {
-      const newItems = items.filter((_, i) => i !== index);
-      onItemsChange(newItems);
-    }
+  const updateItem = (id: string, field: keyof ProductItem, value: any) => {
+    const updatedItems = items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        
+        // Auto-fill unit price when product is selected
+        if (field === 'product_id' && value) {
+          const selectedProduct = products?.find(p => p.id === value);
+          if (selectedProduct) {
+            updatedItem.unit_price = selectedProduct.cost_price;
+          }
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    });
+    onItemsChange(updatedItems);
   };
 
-  const updateItem = (index: number, field: keyof ProductItem, value: any) => {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    
-    // Recalculate total price when quantity or unit price changes
-    if (field === 'quantity' || field === 'unit_price') {
-      newItems[index].total_price = newItems[index].quantity * newItems[index].unit_price;
-    }
-    
-    onItemsChange(newItems);
+  const removeItem = (id: string) => {
+    onItemsChange(items.filter(item => item.id !== id));
   };
 
-  const getProductById = (productId: string) => {
-    return products.find(p => p.id === productId);
+  const getTotalAmount = () => {
+    return items.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
   };
-
-  // Add initial item if none exist
-  if (items.length === 0) {
-    const initialItem: ProductItem = {
-      id: `temp-${Date.now()}`,
-      product_id: "",
-      quantity: 0,
-      unit_price: 0,
-      total_price: 0,
-      warehouse_id: ""
-    };
-    onItemsChange([initialItem]);
-  }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Product Items</CardTitle>
-          <Button type="button" onClick={addItem} variant="outline" size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Item
+    <div className="space-y-4 border rounded-lg p-4">
+      <div className="flex justify-between items-center">
+        <Label className="text-lg font-semibold">Product Item</Label>
+        {items.length === 0 && (
+          <Button type="button" onClick={addNewItem} variant="outline" size="sm">
+            Add Product
           </Button>
+        )}
+      </div>
+
+      {items.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          Click "Add Product" to select a product for this purchase order
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {items.map((item, index) => {
-          const selectedProduct = getProductById(item.product_id);
-          
-          return (
-            <div key={item.id} className="border rounded-lg p-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div>
-                  <Label>Product *</Label>
-                  <Select 
-                    value={item.product_id} 
-                    onValueChange={(value) => {
-                      updateItem(index, 'product_id', value);
-                      const product = getProductById(value);
-                      if (product) {
-                        updateItem(index, 'unit_price', product.cost_price);
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      )}
 
-                <div>
-                  <Label>Warehouse</Label>
-                  <Select 
-                    value={item.warehouse_id || ""} 
-                    onValueChange={(value) => updateItem(index, 'warehouse_id', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select warehouse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {warehouses.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Quantity *</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.quantity || ""}
-                    onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                    placeholder="Enter quantity"
-                  />
-                </div>
-
-                <div>
-                  <Label>Unit Price *</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unit_price || ""}
-                    onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                    placeholder="Enter price"
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    variant="destructive"
-                    size="sm"
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {selectedProduct && (
-                <div className="text-sm text-gray-600">
-                  <p>Product Code: {selectedProduct.code}</p>
-                  <p>Unit: {selectedProduct.unit_of_measurement}</p>
-                </div>
-              )}
-
-              <div className="flex justify-between items-center pt-2 border-t">
-                <span className="text-sm text-gray-600">Item Total:</span>
-                <span className="font-medium">₹{item.total_price.toFixed(2)}</span>
-              </div>
+      {items.map((item) => {
+        const selectedProduct = products?.find(p => p.id === item.product_id);
+        
+        return (
+          <div key={item.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
+            <div>
+              <Label>Product</Label>
+              <Select onValueChange={(value) => updateItem(item.id, 'product_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          );
-        })}
 
-        <div className="flex justify-end pt-4 border-t">
-          <div className="text-right">
-            <span className="text-lg font-bold">
-              Grand Total: ₹{items.reduce((sum, item) => sum + item.total_price, 0).toFixed(2)}
-            </span>
+            <div>
+              <Label>Warehouse</Label>
+              <Select onValueChange={(value) => updateItem(item.id, 'warehouse_id', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses?.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Unit Price</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={item.unit_price}
+                onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+
+            <div>
+              <Label>Quantity</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={item.quantity}
+                onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+              />
+            </div>
+
+            <div>
+              <Label>Total</Label>
+              <Input
+                value={(item.quantity * item.unit_price).toFixed(2)}
+                readOnly
+                className="bg-gray-50"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => removeItem(item.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {selectedProduct && (
+              <div className="md:col-span-6 text-sm text-gray-600">
+                Current Stock: {selectedProduct.current_stock_quantity} {selectedProduct.unit_of_measurement}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {items.length > 0 && (
+        <div className="flex justify-end">
+          <div className="text-lg font-semibold">
+            Total Amount: ₹{getTotalAmount().toFixed(2)}
           </div>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 }

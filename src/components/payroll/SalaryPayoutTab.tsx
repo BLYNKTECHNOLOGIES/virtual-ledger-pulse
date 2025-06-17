@@ -1,10 +1,10 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, DollarSign, Download, CreditCard } from "lucide-react";
-import { PayslipGenerationDialog } from "./PayslipGenerationDialog";
 
 export function SalaryPayoutTab() {
   const [payslips] = useState([
@@ -12,8 +12,6 @@ export function SalaryPayoutTab() {
     { id: 2, employee: "Priya Singh", month: "June 2025", gross: 85000, net: 76500, status: "Pending" },
     { id: 3, employee: "Amit Kumar", month: "May 2025", gross: 65000, net: 58500, status: "Issued" },
   ]);
-
-  const [showPayslipDialog, setShowPayslipDialog] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -33,7 +31,7 @@ export function SalaryPayoutTab() {
                   <FileText className="h-5 w-5" />
                   Employee Payslips
                 </CardTitle>
-                <Button onClick={() => setShowPayslipDialog(true)}>
+                <Button>
                   <FileText className="h-4 w-4 mr-2" />
                   Generate Payslips
                 </Button>
@@ -130,11 +128,6 @@ export function SalaryPayoutTab() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <PayslipGenerationDialog 
-        open={showPayslipDialog} 
-        onOpenChange={setShowPayslipDialog}
-      />
     </div>
   );
 }

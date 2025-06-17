@@ -1,3 +1,4 @@
+
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { QuickAccessCard } from "@/components/dashboard/QuickAccessCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -246,7 +247,7 @@ export default function Dashboard() {
                 <div key={entry.name} className="flex items-center gap-2 text-xs">
                   <div 
                     className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.colors.length] }}
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
                   <span className="text-gray-600 truncate">{entry.name}</span>
                 </div>

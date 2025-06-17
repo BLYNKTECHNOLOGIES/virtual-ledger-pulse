@@ -4,12 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, ArrowRightLeft, Check } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ContraEntry {
   id: string;
@@ -29,6 +32,21 @@ export function ContraEntriesTab() {
     amount: "",
     date: undefined as Date | undefined,
     description: ""
+  });
+
+  // Fetch bank accounts from Supabase
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      
+      if (error) throw error;
+      return data;
+    },
   });
 
   const handleTransfer = () => {
@@ -88,22 +106,40 @@ export function ContraEntriesTab() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="fromAccount">From Bank Account *</Label>
-              <Input
-                id="fromAccount"
-                placeholder="Select source account"
-                value={formData.fromAccount}
-                onChange={(e) => setFormData({...formData, fromAccount: e.target.value})}
-              />
+              <Select value={formData.fromAccount} onValueChange={(value) => setFormData({...formData, fromAccount: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.account_name}>
+                      {account.account_name} - {account.bank_name}
+                      <span className="text-sm text-gray-500 ml-2">
+                        (₹{account.balance.toLocaleString()})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
               <Label htmlFor="toAccount">To Bank Account *</Label>
-              <Input
-                id="toAccount"
-                placeholder="Select destination account"
-                value={formData.toAccount}
-                onChange={(e) => setFormData({...formData, toAccount: e.target.value})}
-              />
+              <Select value={formData.toAccount} onValueChange={(value) => setFormData({...formData, toAccount: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select destination account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.account_name}>
+                      {account.account_name} - {account.bank_name}
+                      <span className="text-sm text-gray-500 ml-2">
+                        (₹{account.balance.toLocaleString()})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -132,13 +168,12 @@ export function ContraEntriesTab() {
                     {formData.date ? format(formData.date, "PPP") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.date}
                     onSelect={(date) => setFormData({...formData, date})}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>

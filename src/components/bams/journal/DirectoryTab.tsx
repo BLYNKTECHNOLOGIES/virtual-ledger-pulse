@@ -11,6 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Download, Search, Filter, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TransactionRecord {
   id: string;
@@ -65,6 +67,21 @@ export function DirectoryTab() {
     bankAccount: "",
     ledgerType: "",
     searchTerm: ""
+  });
+
+  // Fetch bank accounts from Supabase
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      
+      if (error) throw error;
+      return data;
+    },
   });
 
   const filteredTransactions = transactions.filter(transaction => {
@@ -151,13 +168,12 @@ export function DirectoryTab() {
                     {filters.dateFrom ? format(filters.dateFrom, "MMM dd") : "From date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={filters.dateFrom}
                     onSelect={(date) => setFilters({...filters, dateFrom: date})}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -178,13 +194,12 @@ export function DirectoryTab() {
                     {filters.dateTo ? format(filters.dateTo, "MMM dd") : "To date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={filters.dateTo}
                     onSelect={(date) => setFilters({...filters, dateTo: date})}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -220,8 +235,11 @@ export function DirectoryTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All accounts</SelectItem>
-                  <SelectItem value="HDFC Current Account">HDFC Current Account</SelectItem>
-                  <SelectItem value="ICICI Savings Account">ICICI Savings Account</SelectItem>
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.account_name}>
+                      {account.account_name} - {account.bank_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

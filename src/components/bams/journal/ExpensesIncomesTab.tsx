@@ -11,6 +11,8 @@ import { CalendarIcon, TrendingUp, TrendingDown, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Transaction {
   id: string;
@@ -30,6 +32,21 @@ export function ExpensesIncomesTab() {
     bankAccount: "",
     category: "",
     date: undefined as Date | undefined
+  });
+
+  // Fetch bank accounts from Supabase
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      
+      if (error) throw error;
+      return data;
+    },
   });
 
   const incomeCategories = ["Salary", "Interest", "Commission", "Profit", "Other Income"];
@@ -115,12 +132,21 @@ export function ExpensesIncomesTab() {
 
             <div>
               <Label htmlFor="bankAccount">Bank Account</Label>
-              <Input
-                id="bankAccount"
-                placeholder="Select bank account"
-                value={formData.bankAccount}
-                onChange={(e) => setFormData({...formData, bankAccount: e.target.value})}
-              />
+              <Select value={formData.bankAccount} onValueChange={(value) => setFormData({...formData, bankAccount: value})}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select bank account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.account_name}>
+                      {account.account_name} - {account.bank_name}
+                      <span className="text-sm text-gray-500 ml-2">
+                        (₹{account.balance.toLocaleString()})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -157,13 +183,12 @@ export function ExpensesIncomesTab() {
                     {formData.date ? format(formData.date, "PPP") : "Pick a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={formData.date}
                     onSelect={(date) => setFormData({...formData, date})}
                     initialFocus
-                    className="pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>

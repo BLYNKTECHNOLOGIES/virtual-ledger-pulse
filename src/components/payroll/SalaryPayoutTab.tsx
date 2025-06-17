@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, DollarSign, Download, CreditCard } from "lucide-react";
 import { PayslipGenerationDialog } from "./PayslipGenerationDialog";
+import { generatePayslipPDF, PayslipData } from "@/utils/payslipPdfGenerator";
 
 export function SalaryPayoutTab() {
   const [showPayslipDialog, setShowPayslipDialog] = useState(false);
@@ -20,7 +21,7 @@ export function SalaryPayoutTab() {
         .from('payslips')
         .select(`
           *,
-          employees!employee_id(name, employee_id)
+          employees!employee_id(name, employee_id, designation, department, date_of_joining)
         `)
         .order('created_at', { ascending: false });
       
@@ -31,6 +32,40 @@ export function SalaryPayoutTab() {
 
   // Get recent payslips (last 10)
   const recentPayslips = payslips?.slice(0, 10) || [];
+
+  const handleDownloadPayslip = (payslip: any) => {
+    const payslipData: PayslipData = {
+      employee: {
+        id: payslip.employee_id,
+        name: payslip.employees.name,
+        employee_id: payslip.employees.employee_id,
+        designation: payslip.employees.designation,
+        department: payslip.employees.department,
+        date_of_joining: payslip.employees.date_of_joining,
+      },
+      payslip: {
+        month_year: payslip.month_year,
+        basic_salary: payslip.basic_salary,
+        hra: payslip.hra,
+        conveyance_allowance: payslip.conveyance_allowance,
+        medical_allowance: payslip.medical_allowance,
+        other_allowances: payslip.other_allowances,
+        total_earnings: payslip.total_earnings,
+        epf: payslip.epf,
+        esi: payslip.esi,
+        professional_tax: payslip.professional_tax,
+        total_deductions: payslip.total_deductions,
+        net_salary: payslip.net_salary,
+        total_working_days: payslip.total_working_days,
+        leaves_taken: payslip.leaves_taken,
+        lop_days: payslip.lop_days,
+        paid_days: payslip.paid_days,
+        gross_wages: payslip.gross_wages,
+      },
+    };
+
+    generatePayslipPDF(payslipData);
+  };
 
   return (
     <div className="space-y-6">
@@ -79,7 +114,11 @@ export function SalaryPayoutTab() {
                         <Badge variant={payslip.status === "GENERATED" ? "default" : "secondary"}>
                           {payslip.status}
                         </Badge>
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadPayslip(payslip)}
+                        >
                           <Download className="h-4 w-4 mr-1" />
                           Download
                         </Button>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -285,7 +286,12 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           .select()
           .single();
 
-        if (orderError) throw orderError;
+        if (orderError) {
+          console.error('Error creating purchase order:', orderError);
+          throw orderError;
+        }
+
+        console.log('Created purchase order:', orderData);
 
         // Insert order items
         const orderItemsData = orderItems.map(item => ({
@@ -301,10 +307,17 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           .from('purchase_order_items')
           .insert(orderItemsData);
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('Error creating order items:', itemsError);
+          throw itemsError;
+        }
+
+        console.log('Created order items successfully');
 
         // Create warehouse stock movements for each item
         for (const item of orderItems) {
+          console.log('Creating warehouse stock movement for item:', item);
+          
           const { error: movementError } = await supabase
             .from('warehouse_stock_movements')
             .insert({
@@ -322,7 +335,9 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             throw movementError;
           }
 
-          // Update product total purchases
+          console.log('Created warehouse stock movement successfully');
+
+          // Update product total purchases and current stock
           const { data: currentProduct } = await supabase
             .from('products')
             .select('total_purchases, current_stock_quantity')
@@ -333,13 +348,20 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             const newTotalPurchases = (currentProduct.total_purchases || 0) + item.quantity;
             const newStockQuantity = (currentProduct.current_stock_quantity || 0) + item.quantity;
 
-            await supabase
+            const { error: updateError } = await supabase
               .from('products')
               .update({ 
                 total_purchases: newTotalPurchases,
                 current_stock_quantity: newStockQuantity
               })
               .eq('id', item.product_id);
+
+            if (updateError) {
+              console.error('Error updating product stock:', updateError);
+              throw updateError;
+            }
+
+            console.log('Updated product stock successfully');
           }
         }
 
@@ -352,12 +374,17 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             .single();
 
           if (bankAccount) {
-            await supabase
+            const { error: balanceError } = await supabase
               .from('bank_accounts')
               .update({ 
                 balance: Math.max(0, bankAccount.balance - totalAmount)
               })
               .eq('id', formData.bank_account_id);
+
+            if (balanceError) {
+              console.error('Error updating bank balance:', balanceError);
+              // Don't throw here as the order is already created
+            }
           }
         }
 
@@ -373,7 +400,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       console.error('Error saving purchase order:', error);
       toast({
         title: "Error",
-        description: "Failed to save purchase order. Please try again.",
+        description: `Failed to save purchase order: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {

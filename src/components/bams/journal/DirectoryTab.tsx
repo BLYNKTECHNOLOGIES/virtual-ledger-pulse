@@ -7,17 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, CalendarIcon, Filter, X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, X } from "lucide-react";
 
 interface DirectoryFilters {
   amountMin?: number;
   amountMax?: number;
-  dateFrom?: Date;
-  dateTo?: Date;
+  dateFrom?: string;
+  dateTo?: string;
   transactionType?: string;
   bankAccountId?: string;
 }
@@ -161,13 +158,13 @@ export function DirectoryTab() {
 
       if (filters.dateFrom) {
         filteredTransactions = filteredTransactions.filter(t => 
-          new Date(t.display_date) >= filters.dateFrom!
+          new Date(t.display_date) >= new Date(filters.dateFrom!)
         );
       }
 
       if (filters.dateTo) {
         filteredTransactions = filteredTransactions.filter(t => 
-          new Date(t.display_date) <= filters.dateTo!
+          new Date(t.display_date) <= new Date(filters.dateTo!)
         );
       }
 
@@ -350,57 +347,29 @@ export function DirectoryTab() {
                 </div>
               </div>
 
-              {/* Date Range */}
+              {/* Date Range - Using simple date inputs instead of Popover/Calendar */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date From</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !filters.dateFrom && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateFrom ? format(filters.dateFrom, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateFrom}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateFrom: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  value={filters.dateFrom || ''}
+                  onChange={(e) => setFilters(prev => ({ 
+                    ...prev, 
+                    dateFrom: e.target.value || undefined 
+                  }))}
+                />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date To</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !filters.dateTo && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {filters.dateTo ? format(filters.dateTo, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={filters.dateTo}
-                      onSelect={(date) => setFilters(prev => ({ ...prev, dateTo: date }))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  value={filters.dateTo || ''}
+                  onChange={(e) => setFilters(prev => ({ 
+                    ...prev, 
+                    dateTo: e.target.value || undefined 
+                  }))}
+                />
               </div>
 
               {/* Transaction Type */}

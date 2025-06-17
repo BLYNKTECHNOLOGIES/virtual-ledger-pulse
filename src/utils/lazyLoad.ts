@@ -1,11 +1,11 @@
 
-import { lazy } from 'react';
+import { lazy, createElement } from 'react';
 
 // Utility function for lazy loading with error boundary
 export const lazyLoad = (importFunc: () => Promise<any>) => {
   return lazy(() => 
     importFunc().catch(() => ({
-      default: () => <div>Error loading component</div>
+      default: () => createElement('div', null, 'Error loading component')
     }))
   );
 };

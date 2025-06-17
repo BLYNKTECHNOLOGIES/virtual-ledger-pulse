@@ -35,21 +35,37 @@ export default function Dashboard() {
         return sum + (product.current_stock_quantity * buyingPrice);
       }, 0) || 0;
 
-      // Group by warehouse
-      const warehouseBreakdown = products?.reduce((acc, product) => {
-        const warehouseName = product.warehouses?.name || 'Main Warehouse';
-        const value = product.current_stock_quantity * (product.average_buying_price || product.cost_price);
-        acc[warehouseName] = (acc[warehouseName] || 0) + value;
-        return acc;
-      }, {} as Record<string, number>) || {};
+      return { totalValue };
+    },
+  });
 
-      // Convert to array for chart
-      const warehouseChartData = Object.entries(warehouseBreakdown).map(([name, value]) => ({
-        name,
-        value
-      }));
-      
-      return { totalValue, warehouseBreakdown, warehouseChartData };
+  // Fetch warehouse stock data for chart
+  const { data: warehouseStockData } = useQuery({
+    queryKey: ['dashboard_warehouse_stock'],
+    queryFn: async () => {
+      const { data: warehouses } = await supabase
+        .from('warehouses')
+        .select('id, name')
+        .eq('is_active', true);
+
+      if (!warehouses) return [];
+
+      const warehouseStockPromises = warehouses.map(async (warehouse) => {
+        const { data: products } = await supabase
+          .from('products')
+          .select('current_stock_quantity')
+          .eq('warehouse_id', warehouse.id);
+
+        const totalStock = products?.reduce((sum, product) => sum + product.current_stock_quantity, 0) || 0;
+        
+        return {
+          name: warehouse.name,
+          stock: totalStock
+        };
+      });
+
+      const warehouseStock = await Promise.all(warehouseStockPromises);
+      return warehouseStock;
     },
   });
 
@@ -126,13 +142,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Welcome to Blynk Virtual Technologies - Leading Virtual Asset Service Provider</p>
-      </div>
-
+    <div className="space-y-6 p-6">
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div onClick={() => navigate('/stock')} className="cursor-pointer">
@@ -176,24 +186,8 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Asset Breakdown Section */}
+      {/* Charts and Quick Access */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">Asset Breakdown by Warehouse</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {Object.entries(inventoryData?.warehouseBreakdown || {}).map(([warehouse, value]) => (
-                <div key={warehouse} className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">{warehouse}</span>
-                  <span className="font-medium">₹{value.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Daily Sales & Purchase Chart */}
         <Card>
           <CardHeader>
@@ -255,42 +249,41 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Charts and Quick Access */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Warehouse Asset Breakdown</h3>
-                <span className="text-sm text-gray-500">Last synced 2 min ago</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={inventoryData?.warehouseChartData || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fontSize: 12 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                    />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Value']} />
-                    <Bar dataKey="value" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
         <div>
           <QuickAccessCard title="Quick Access" items={quickAccessItems} />
         </div>
+      </div>
+
+      {/* Warehouse Stock Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Warehouse Stock Breakdown</h3>
+              <span className="text-sm text-gray-500">Current Stock Levels</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={warehouseStockData || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="name" 
+                    tick={{ fontSize: 12 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} units`, 'Stock']} />
+                  <Bar dataKey="stock" fill="#ec4899" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

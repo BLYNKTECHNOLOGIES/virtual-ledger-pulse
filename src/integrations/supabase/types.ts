@@ -48,6 +48,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_communications: {
+        Row: {
+          bank_name: string
+          communication_date: string
+          contact_person: string
+          created_at: string
+          id: string
+          mode: string
+          notes: string | null
+        }
+        Insert: {
+          bank_name: string
+          communication_date?: string
+          contact_person: string
+          created_at?: string
+          id?: string
+          mode: string
+          notes?: string | null
+        }
+        Update: {
+          bank_name?: string
+          communication_date?: string
+          contact_person?: string
+          created_at?: string
+          id?: string
+          mode?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           assigned_operator: string | null
@@ -441,6 +471,42 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          contact_number: string | null
+          created_at: string
+          description: string | null
+          estimated_order_value: number | null
+          id: string
+          name: string
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_number?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_order_value?: number | null
+          id?: string
+          name: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_number?: string | null
+          created_at?: string
+          description?: string | null
+          estimated_order_value?: number | null
+          id?: string
+          name?: string
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ledger_accounts: {
         Row: {
           account_code: string | null
@@ -473,6 +539,91 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      lien_cases: {
+        Row: {
+          acknowledgment_number: string | null
+          amount: number
+          bank_account_id: string | null
+          city: string | null
+          created_at: string
+          date_imposed: string
+          id: string
+          lawyer: string | null
+          lien_number: string
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          acknowledgment_number?: string | null
+          amount: number
+          bank_account_id?: string | null
+          city?: string | null
+          created_at?: string
+          date_imposed: string
+          id?: string
+          lawyer?: string | null
+          lien_number: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          acknowledgment_number?: string | null
+          amount?: number
+          bank_account_id?: string | null
+          city?: string | null
+          created_at?: string
+          date_imposed?: string
+          id?: string
+          lawyer?: string | null
+          lien_number?: string
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lien_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lien_updates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          lien_case_id: string
+          update_text: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lien_case_id: string
+          update_text: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lien_case_id?: string
+          update_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lien_updates_lien_case_id_fkey"
+            columns: ["lien_case_id"]
+            isOneToOne: false
+            referencedRelation: "lien_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offer_documents: {
         Row: {

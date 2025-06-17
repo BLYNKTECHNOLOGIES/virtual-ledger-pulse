@@ -4,63 +4,43 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, Phone, Mail, UserPlus } from "lucide-react";
-
-// Mock data for leads
-const mockLeads = [
-  {
-    id: 1,
-    name: "Rahul Sharma",
-    email: "rahul.sharma@example.com",
-    phone: "+91 9876543210",
-    company: "Tech Solutions Pvt Ltd",
-    status: "Hot",
-    source: "Website",
-    value: 250000,
-    createdDate: "2025-06-15"
-  },
-  {
-    id: 2,
-    name: "Priya Patel",
-    email: "priya.patel@example.com",
-    phone: "+91 9876543211",
-    company: "Digital Marketing Co",
-    status: "Warm",
-    source: "Referral",
-    value: 150000,
-    createdDate: "2025-06-14"
-  },
-  {
-    id: 3,
-    name: "Amit Kumar",
-    email: "amit.kumar@example.com",
-    phone: "+91 9876543212",
-    company: "Trading House",
-    status: "Cold",
-    source: "Social Media",
-    value: 100000,
-    createdDate: "2025-06-13"
-  }
-];
+import { Search, Edit, Trash2, Phone, Mail } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All Leads");
 
-  const filteredLeads = mockLeads.filter(lead =>
+  const { data: leads, refetch } = useQuery({
+    queryKey: ['leads'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filteredLeads = leads?.filter(lead =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    lead.company.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    (lead.contact_number && lead.contact_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  ) || [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "Hot":
-        return <Badge className="bg-red-100 text-red-800">Hot</Badge>;
-      case "Warm":
-        return <Badge className="bg-yellow-100 text-yellow-800">Warm</Badge>;
-      case "Cold":
-        return <Badge className="bg-blue-100 text-blue-800">Cold</Badge>;
+      case "NEW":
+        return <Badge className="bg-green-100 text-green-800">New</Badge>;
+      case "CONTACTED":
+        return <Badge className="bg-blue-100 text-blue-800">Contacted</Badge>;
+      case "QUALIFIED":
+        return <Badge className="bg-yellow-100 text-yellow-800">Qualified</Badge>;
+      case "CONVERTED":
+        return <Badge className="bg-purple-100 text-purple-800">Converted</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -68,16 +48,11 @@ export default function Leads() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Leads Management</h1>
-        <p className="text-gray-600 mt-1">Manage and track your sales leads</p>
-      </div>
-
       {/* Header Controls */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Leads</CardTitle>
+            <CardTitle>Leads Management</CardTitle>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">
                 Today
@@ -89,18 +64,9 @@ export default function Leads() {
                 This Month
               </Button>
               <Button variant="outline" size="sm">
-                Last Month
-              </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                {filterStatus}
-              </Button>
-              <Button variant="outline" size="sm">
                 🔄 Refresh
               </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <UserPlus className="h-4 w-4 mr-2" />
-                New Lead
-              </Button>
+              <AddLeadDialog />
             </div>
           </div>
         </CardHeader>
@@ -129,20 +95,24 @@ export default function Leads() {
                 </div>
                 
                 <div className="space-y-1">
-                  <p className="text-sm text-gray-600">{lead.company}</p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <Mail className="h-3 w-3" />
-                    {lead.email}
-                  </p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    {lead.phone}
-                  </p>
+                  {lead.contact_number && (
+                    <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {lead.contact_number}
+                    </p>
+                  )}
                   <p className="text-sm font-medium text-green-600">
-                    Est. Value: ₹{lead.value.toLocaleString()}
+                    Est. Value: ₹{lead.estimated_order_value?.toLocaleString() || '0'}
                   </p>
-                  <p className="text-xs text-gray-500">Source: {lead.source}</p>
-                  <p className="text-xs text-gray-500">Created: {lead.createdDate}</p>
+                  {lead.source && (
+                    <p className="text-xs text-gray-500">Source: {lead.source}</p>
+                  )}
+                  {lead.description && (
+                    <p className="text-xs text-gray-600">{lead.description}</p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    Created: {new Date(lead.created_at).toLocaleDateString()}
+                  </p>
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t">

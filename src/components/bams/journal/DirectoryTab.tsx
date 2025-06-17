@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +30,7 @@ export function DirectoryTab() {
 
       if (bankError) throw bankError;
 
-      // Sales orders
+      // Sales orders with payment method bank account details
       const { data: salesData, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
@@ -43,26 +42,38 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
-          sales_payment_methods(type, bank_accounts(account_name, bank_name, id))
+          sales_payment_methods(
+            type, 
+            bank_account_id,
+            bank_accounts(account_name, bank_name, id)
+          )
         `)
         .order('order_date', { ascending: false });
 
       if (salesError) throw salesError;
 
-      // Purchase orders
+      // Purchase orders with bank account details
       const { data: purchaseData, error: purchaseError } = await supabase
         .from('purchase_orders')
         .select(`
           id,
           total_amount,
+          net_payable_amount,
+          tds_applied,
           order_date,
           order_number,
           supplier_name,
           description,
           status,
           created_at,
-          purchase_payment_methods(type, bank_account_name),
-          bank_accounts(account_name, bank_name, id)
+          payment_method_used,
+          bank_account_id,
+          bank_accounts(account_name, bank_name, id),
+          purchase_payment_methods(
+            type, 
+            bank_account_name,
+            bank_accounts(account_name, bank_name, id)
+          )
         `)
         .order('order_date', { ascending: false });
 
@@ -91,21 +102,23 @@ export function DirectoryTab() {
           display_reference: s.order_number,
           display_account: s.sales_payment_methods?.bank_accounts?.account_name ? 
             s.sales_payment_methods.bank_accounts.account_name + ' - ' + s.sales_payment_methods.bank_accounts.bank_name : 
-            s.sales_payment_methods?.type || '',
+            s.sales_payment_methods?.type || 'No Bank Account',
           bank_account_id: s.sales_payment_methods?.bank_accounts?.id
         })),
         ...(purchaseData || []).map(p => ({
           ...p,
           source: 'PURCHASE',
-          display_amount: p.total_amount,
+          display_amount: p.tds_applied ? p.net_payable_amount : p.total_amount,
           display_date: p.order_date,
           display_type: 'PURCHASE_ORDER',
           display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
           display_reference: p.order_number,
           display_account: p.bank_accounts?.account_name ? 
             p.bank_accounts.account_name + ' - ' + p.bank_accounts.bank_name : 
-            p.purchase_payment_methods?.bank_account_name || '',
-          bank_account_id: p.bank_accounts?.id
+            p.purchase_payment_methods?.bank_accounts?.account_name ?
+            p.purchase_payment_methods.bank_accounts.account_name + ' - ' + p.purchase_payment_methods.bank_accounts.bank_name :
+            p.purchase_payment_methods?.bank_account_name || 'No Bank Account',
+          bank_account_id: p.bank_accounts?.id || p.purchase_payment_methods?.bank_accounts?.id
         }))
       ];
 

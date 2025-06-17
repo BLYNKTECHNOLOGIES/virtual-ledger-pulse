@@ -45,7 +45,8 @@ export function PendingPurchaseOrders() {
             unit_price,
             total_price,
             products (name, code)
-          )
+          ),
+          bank_accounts!bank_account_id(account_name, bank_name, id)
         `)
         .eq('status', 'PENDING')
         .order('created_at', { ascending: false });
@@ -89,6 +90,7 @@ export function PendingPurchaseOrders() {
       const order = orders?.find(o => o.id === orderId);
       if (!order) throw new Error('Order not found');
 
+      // Use net payable amount if TDS is applied, otherwise use total amount
       const amountToDeduct = order.tds_applied ? order.net_payable_amount : order.total_amount;
 
       const { error: updateError } = await supabase
@@ -103,11 +105,12 @@ export function PendingPurchaseOrders() {
       
       if (updateError) throw updateError;
 
-      if (selectedMethod.bank_accounts?.id) {
+      // Only deduct from bank if bank account is specified
+      if (order.bank_account_id) {
         const { data: accountData, error: fetchError } = await supabase
           .from('bank_accounts')
           .select('balance')
-          .eq('id', selectedMethod.bank_accounts.id)
+          .eq('id', order.bank_account_id)
           .single();
         
         if (fetchError) throw fetchError;
@@ -120,14 +123,14 @@ export function PendingPurchaseOrders() {
             balance: newBalance,
             updated_at: new Date().toISOString()
           })
-          .eq('id', selectedMethod.bank_accounts.id);
+          .eq('id', order.bank_account_id);
         
         if (balanceError) throw balanceError;
 
         const { error: transactionError } = await supabase
           .from('bank_transactions')
           .insert({
-            bank_account_id: selectedMethod.bank_accounts.id,
+            bank_account_id: order.bank_account_id,
             transaction_type: 'EXPENSE',
             amount: amountToDeduct,
             description: `Purchase Order Payment - ${order.order_number}`,
@@ -138,17 +141,38 @@ export function PendingPurchaseOrders() {
           });
 
         if (transactionError) throw transactionError;
+
+        // Update payment method usage
+        const { data: paymentMethodsData, error: pmError } = await supabase
+          .from('purchase_payment_methods')
+          .select('*')
+          .eq('bank_account_id', order.bank_account_id)
+          .eq('is_active', true);
+
+        if (!pmError && paymentMethodsData && paymentMethodsData.length > 0) {
+          const paymentMethod = paymentMethodsData[0];
+          const { error: updateError } = await supabase
+            .from('purchase_payment_methods')
+            .update({ 
+              current_usage: paymentMethod.current_usage + amountToDeduct,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', paymentMethod.id);
+
+          if (updateError) console.error('Error updating payment method usage:', updateError);
+        }
       }
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Purchase order completed successfully and bank balance adjusted.",
+        description: "Purchase order completed successfully and payment processed.",
       });
       // Optimistic updates
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
       closeDialog();
     },
     onError: (error: Error) => {
@@ -278,10 +302,15 @@ export function PendingPurchaseOrders() {
               <h4 className="font-medium text-blue-800">Order Details</h4>
               <p className="text-sm text-blue-600">Supplier: {selectedOrder?.supplier_name}</p>
               <p className="text-sm text-blue-600">
-                Amount to Pay: ₹{selectedOrder?.tds_applied ? selectedOrder?.net_payable_amount?.toFixed(2) : selectedOrder?.total_amount?.toFixed(2)}
+                Amount Paid: ₹{selectedOrder?.tds_applied ? selectedOrder?.net_payable_amount?.toFixed(2) : selectedOrder?.total_amount?.toFixed(2)}
               </p>
               {selectedOrder?.tds_applied && (
-                <p className="text-sm text-blue-600">TDS Amount: ₹{selectedOrder?.tds_amount?.toFixed(2)}</p>
+                <p className="text-sm text-blue-600">TDS Deducted: ₹{selectedOrder?.tds_amount?.toFixed(2)}</p>
+              )}
+              {selectedOrder?.bank_accounts && (
+                <p className="text-sm text-blue-600">
+                  Bank Account: {selectedOrder.bank_accounts.account_name} - {selectedOrder.bank_accounts.bank_name}
+                </p>
               )}
             </div>
 

@@ -12,7 +12,7 @@ export default function BAMS() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-center">
+        <div className="flex items-center">
           <div className="flex items-center gap-3">
             <CreditCard className="h-8 w-8 text-blue-600" />
             <h1 className="text-4xl font-bold text-gray-900">BAMS</h1>

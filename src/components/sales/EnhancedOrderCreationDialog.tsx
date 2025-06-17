@@ -48,6 +48,23 @@ export function EnhancedOrderCreationDialog({
     platform: ""
   });
 
+  // Create lead mutation
+  const createLeadMutation = useMutation({
+    mutationFn: async (leadData: any) => {
+      const { data, error } = await supabase
+        .from('leads')
+        .insert([leadData])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+
   // Fetch clients for repeat orders
   const { data: clients } = useQuery({
     queryKey: ['clients'],
@@ -252,11 +269,35 @@ export function EnhancedOrderCreationDialog({
     setSelectedPaymentMethod(method);
   };
 
-  const handleOrderCancellation = () => {
-    toast({
-      title: "Order Cancelled",
-      description: "Order has been moved to leads for future follow-up",
-    });
+  const convertToLead = async () => {
+    try {
+      const leadData = {
+        name: selectedClient?.name || newClientData.name,
+        contact_number: selectedClient?.phone || newClientData.phone,
+        estimated_order_value: orderAmount,
+        source: selectedClient?.platform || newClientData.platform || "Sales Order Cancellation",
+        description: `Order cancelled during payment process. Original amount: ₹${orderAmount.toLocaleString()}. ${cosmosAlert ? 'COSMOS alert was triggered.' : 'Payment method assignment failed.'}`,
+        status: "NEW"
+      };
+
+      await createLeadMutation.mutateAsync(leadData);
+      
+      toast({
+        title: "Order Converted to Lead",
+        description: `Order has been cancelled and automatically converted to a lead for future follow-up.`,
+      });
+    } catch (error) {
+      console.error('Error converting to lead:', error);
+      toast({
+        title: "Error",
+        description: "Failed to convert order to lead. Please create lead manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOrderCancellation = async () => {
+    await convertToLead();
     onOpenChange(false);
     resetDialog();
   };

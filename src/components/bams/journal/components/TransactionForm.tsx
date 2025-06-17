@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus } from "lucide-react";
+import { CalendarIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 
 interface TransactionFormProps {
   bankAccounts: any[];
@@ -22,64 +24,90 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
-    type: "",
-    amount: "",
     bankAccountId: "",
+    transactionType: "",
+    amount: "",
     category: "",
+    description: "",
     date: undefined as Date | undefined,
-    description: ""
+    referenceNumber: ""
   });
 
   const createTransactionMutation = useMutation({
     mutationFn: async (transactionData: typeof formData) => {
-      const { error } = await supabase
+      const amount = parseFloat(transactionData.amount);
+
+      // Validate bank account balance for expense transactions
+      if (transactionData.transactionType === 'EXPENSE') {
+        try {
+          await validateBankAccountBalance(transactionData.bankAccountId, amount);
+        } catch (error) {
+          if (error instanceof ValidationError) {
+            throw error;
+          }
+          throw new Error('Failed to validate bank account balance');
+        }
+      }
+
+      const { data, error } = await supabase
         .from('bank_transactions')
         .insert({
           bank_account_id: transactionData.bankAccountId,
-          transaction_type: transactionData.type,
-          amount: parseFloat(transactionData.amount),
-          category: transactionData.category,
-          description: transactionData.description,
+          transaction_type: transactionData.transactionType,
+          amount: amount,
+          category: transactionData.category || null,
+          description: transactionData.description || null,
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
-          reference_number: `${transactionData.type}-${Date.now()}`
-        });
+          reference_number: transactionData.referenceNumber || null
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: `${formData.type === 'INCOME' ? 'Income' : 'Expense'} entry added successfully`,
+        description: "Transaction recorded successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['bank_transactions_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       setFormData({
-        type: "",
-        amount: "",
         bankAccountId: "",
+        transactionType: "",
+        amount: "",
         category: "",
+        description: "",
         date: undefined,
-        description: ""
+        referenceNumber: ""
       });
     },
     onError: (error: any) => {
+      const message = error instanceof ValidationError ? error.message : (error.message || "Failed to record transaction");
       toast({
         title: "Error",
-        description: error.message || "Failed to add transaction",
+        description: message,
         variant: "destructive"
       });
     },
   });
 
-  const incomeCategories = ["Salary", "Interest", "Commission", "Profit", "Other Income"];
-  const expenseCategories = ["Rent", "Utilities", "Office Supplies", "Marketing", "Travel", "Other Expense"];
-
-  const handleAddEntry = () => {
-    if (!formData.type || !formData.amount || !formData.bankAccountId || !formData.category || !formData.date) {
+  const handleSubmit = () => {
+    if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date) {
       toast({
         title: "Error",
-        description: "Please fill in all fields",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const amount = parseFloat(formData.amount);
+    if (amount <= 0) {
+      toast({
+        title: "Error",
+        description: "Amount must be greater than 0",
         variant: "destructive"
       });
       return;
@@ -92,38 +120,18 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
-          Add Income/Expense Entry
+          {formData.transactionType === 'INCOME' ? (
+            <TrendingUp className="h-5 w-5 text-green-600" />
+          ) : (
+            <TrendingDown className="h-5 w-5 text-red-600" />
+          )}
+          Record Transaction
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="type">Transaction Type</Label>
-            <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value, category: ""})}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="INCOME">Income</SelectItem>
-                <SelectItem value="EXPENSE">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="amount">Amount (₹)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) => setFormData({...formData, amount: e.target.value})}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="bankAccount">Bank Account</Label>
+            <Label htmlFor="bankAccount">Bank Account *</Label>
             <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select bank account" />
@@ -142,26 +150,41 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
           <div>
-            <Label htmlFor="category">Category</Label>
-            <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+            <Label htmlFor="transactionType">Transaction Type *</Label>
+            <Select value={formData.transactionType} onValueChange={(value) => setFormData({...formData, transactionType: value})}>
               <SelectTrigger>
-                <SelectValue placeholder="Select category" />
+                <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                {formData.type === "INCOME" 
-                  ? incomeCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))
-                  : expenseCategories.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))
-                }
+                <SelectItem value="INCOME">Income</SelectItem>
+                <SelectItem value="EXPENSE">Expense</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label>Date</Label>
+            <Label htmlFor="amount">Amount (₹) *</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData({...formData, amount: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Input
+              id="category"
+              placeholder="e.g., Office Supplies, Consultant Fee"
+              value={formData.category}
+              onChange={(e) => setFormData({...formData, category: e.target.value})}
+            />
+          </div>
+
+          <div>
+            <Label>Transaction Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -187,22 +210,32 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
           <div>
-            <Label htmlFor="description">Description (Optional)</Label>
+            <Label htmlFor="referenceNumber">Reference Number</Label>
             <Input
+              id="referenceNumber"
+              placeholder="e.g., CHQ001, TXN123"
+              value={formData.referenceNumber}
+              onChange={(e) => setFormData({...formData, referenceNumber: e.target.value})}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
               id="description"
-              placeholder="Transaction description"
+              placeholder="Transaction details..."
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
           </div>
 
-          <div className="flex items-end">
+          <div className="md:col-span-2">
             <Button 
-              onClick={handleAddEntry} 
+              onClick={handleSubmit} 
               className="w-full"
               disabled={createTransactionMutation.isPending}
             >
-              {createTransactionMutation.isPending ? "Adding..." : "Add Entry"}
+              {createTransactionMutation.isPending ? "Recording..." : "Record Transaction"}
             </Button>
           </div>
         </div>

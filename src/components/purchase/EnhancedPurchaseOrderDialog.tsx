@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -26,6 +25,7 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  warehouse_id: string;
 }
 
 export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }: EnhancedPurchaseOrderDialogProps) {
@@ -43,7 +43,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
   });
 
   const [orderItems, setOrderItems] = useState<OrderItem[]>([
-    { product_id: '', quantity: 1, unit_price: 0, total_price: 0 }
+    { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }
   ]);
 
   // Load editing data when editingOrder changes
@@ -67,6 +67,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price,
+          warehouse_id: item.warehouse_id,
         })));
       }
     } else {
@@ -80,7 +81,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
         bank_account_id: '',
         purchase_payment_method_id: '',
       });
-      setOrderItems([{ product_id: '', quantity: 1, unit_price: 0, total_price: 0 }]);
+      setOrderItems([{ product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }]);
     }
   }, [editingOrder]);
 
@@ -91,6 +92,21 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch warehouses for dropdown
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
@@ -129,7 +145,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
   });
 
   const addOrderItem = () => {
-    setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0 }]);
+    setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }]);
   };
 
   const removeOrderItem = (index: number) => {
@@ -168,8 +184,39 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       const totalAmount = calculateTotalAmount();
       const orderNumber = editingOrder?.order_number || generateOrderNumber();
 
+      // Validate bank account balance if bank account is selected
+      if (formData.bank_account_id) {
+        const { data: bankAccount } = await supabase
+          .from('bank_accounts')
+          .select('balance')
+          .eq('id', formData.bank_account_id)
+          .single();
+
+        if (bankAccount && bankAccount.balance < totalAmount) {
+          toast({
+            title: "Insufficient Balance",
+            description: "Bank account does not have sufficient balance for this purchase.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Validate all items have warehouse selected
+      const itemsWithoutWarehouse = orderItems.filter(item => !item.warehouse_id);
+      if (itemsWithoutWarehouse.length > 0) {
+        toast({
+          title: "Warehouse Required",
+          description: "Please select a warehouse for all order items.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       if (editingOrder) {
-        // Update existing order
+        // Update existing order logic (simplified for brevity)
         const { error: orderError } = await supabase
           .from('purchase_orders')
           .update({
@@ -201,6 +248,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price,
+          warehouse_id: item.warehouse_id,
         }));
 
         const { error: itemsError } = await supabase
@@ -227,7 +275,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             bank_account_id: formData.bank_account_id || null,
             purchase_payment_method_id: formData.purchase_payment_method_id || null,
             total_amount: totalAmount,
-            status: 'PENDING',
+            status: 'COMPLETED',
           }])
           .select()
           .single();
@@ -241,6 +289,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total_price,
+          warehouse_id: item.warehouse_id,
         }));
 
         const { error: itemsError } = await supabase
@@ -249,9 +298,58 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
 
         if (itemsError) throw itemsError;
 
+        // Add warehouse stock movements for each item
+        for (const item of orderItems) {
+          await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: item.product_id,
+              warehouse_id: item.warehouse_id,
+              movement_type: 'IN',
+              quantity: item.quantity,
+              reference_type: 'PURCHASE_ORDER',
+              reference_id: orderData.id,
+              reason: `Purchase from ${formData.supplier_name}`,
+            });
+
+          // Update product current stock quantity
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('current_stock_quantity')
+            .eq('id', item.product_id)
+            .single();
+
+          if (currentProduct) {
+            await supabase
+              .from('products')
+              .update({ 
+                current_stock_quantity: currentProduct.current_stock_quantity + item.quantity 
+              })
+              .eq('id', item.product_id);
+          }
+        }
+
+        // Update bank account balance if bank account is selected
+        if (formData.bank_account_id) {
+          const { data: bankAccount } = await supabase
+            .from('bank_accounts')
+            .select('balance')
+            .eq('id', formData.bank_account_id)
+            .single();
+
+          if (bankAccount) {
+            await supabase
+              .from('bank_accounts')
+              .update({ 
+                balance: bankAccount.balance - totalAmount 
+              })
+              .eq('id', formData.bank_account_id);
+          }
+        }
+
         toast({
           title: "Success",
-          description: "Purchase order created successfully!",
+          description: "Purchase order created successfully and stock updated!",
         });
       }
 

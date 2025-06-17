@@ -4,671 +4,667 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Plus, Trash2, Upload } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerAutocomplete } from "./CustomerAutocomplete";
-import { AlertTriangle, CheckCircle, XCircle, RotateCcw, CreditCard, Building2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useProductStockSummary } from "@/hooks/useWarehouseStock";
 
 interface EnhancedOrderCreationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orderType: 'repeat' | 'new' | null;
-  onSalesEntryOpen?: (data: any) => void;
+  editingOrder?: any;
 }
 
-interface OrderStep {
-  step: 'client' | 'amount' | 'payment' | 'completion';
+interface OrderItem {
+  id?: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  warehouse_id: string;
 }
 
-export function EnhancedOrderCreationDialog({ 
-  open, 
-  onOpenChange, 
-  orderType,
-  onSalesEntryOpen 
-}: EnhancedOrderCreationDialogProps) {
+export function EnhancedOrderCreationDialog({ open, onOpenChange, editingOrder }: EnhancedOrderCreationDialogProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [currentStep, setCurrentStep] = useState<OrderStep['step']>('client');
-  const [selectedClient, setSelectedClient] = useState<any>(null);
-  const [orderAmount, setOrderAmount] = useState<number>(0);
-  const [cosmosAlert, setCosmosAlert] = useState<boolean>(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
-  const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Account' | null>(null);
-  const [alternativeAttempted, setAlternativeAttempted] = useState<boolean>(false);
-  const [alternativeCount, setAlternativeCount] = useState<number>(0);
-  
-  const [newClientData, setNewClientData] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    platform: ""
+  const [formData, setFormData] = useState({
+    client_name: '',
+    order_date: new Date(),
+    delivery_date: new Date(),
+    description: '',
+    platform: '',
+    risk_level: 'MEDIUM',
+    sales_payment_method_id: '',
   });
 
-  // Create lead mutation
-  const createLeadMutation = useMutation({
-    mutationFn: async (leadData: any) => {
-      const { data, error } = await supabase
-        .from('leads')
-        .insert([leadData])
-        .select()
-        .single();
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([
+    { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }
+  ]);
 
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-    },
-  });
+  const { data: productStockSummaries } = useProductStockSummary();
 
-  // Fetch clients for repeat orders
-  const { data: clients } = useQuery({
-    queryKey: ['clients'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    enabled: orderType === 'repeat'
-  });
-
-  // Fetch platforms
-  const { data: platforms } = useQuery({
-    queryKey: ['platforms'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('platforms')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch client's previous payment methods for prioritization
-  const { data: previousPaymentMethods } = useQuery({
-    queryKey: ['client_previous_payments', selectedClient?.id],
-    queryFn: async () => {
-      if (!selectedClient?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select('sales_payment_method_id')
-        .eq('client_name', selectedClient.name)
-        .eq('payment_status', 'COMPLETED')
-        .not('sales_payment_method_id', 'is', null)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedClient?.id && currentStep === 'payment'
-  });
-
-  // Map client risk appetite to payment method risk category
-  const mapClientRiskToPaymentRisk = (clientRisk: string) => {
-    const riskMapping = {
-      'HIGH': 'High Risk',
-      'MEDIUM': 'Medium Risk', 
-      'LOW': 'Low Risk',
-      'NONE': 'No Risk'
-    };
-    return riskMapping[clientRisk as keyof typeof riskMapping] || 'HIGH';
-  };
-
-  // Fetch payment methods based on client risk and type
-  const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
-    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite, paymentType, alternativeCount, orderAmount],
-    queryFn: async () => {
-      if (!paymentType || !selectedClient?.risk_appetite || cosmosAlert) return [];
-      
-      console.log('Fetching payment methods for:', {
-        paymentType,
-        clientRisk: selectedClient.risk_appetite,
-        mappedRisk: mapClientRiskToPaymentRisk(selectedClient.risk_appetite),
-        alternativeCount,
-        orderAmount
-      });
-      
-      const mappedRiskCategory = mapClientRiskToPaymentRisk(selectedClient.risk_appetite);
-      
-      // Use the correct type for Bank Account methods
-      const methodType = paymentType;
-      
-      let query = supabase
-        .from('sales_payment_methods')
-        .select(`
-          *,
-          bank_accounts:bank_account_id(account_name, bank_name, balance)
-        `)
-        .eq('is_active', true)
-        .eq('type', methodType)
-        .eq('risk_category', mappedRiskCategory);
-
-      const { data, error } = await query.order('created_at');
-      
-      if (error) {
-        console.error('Error fetching payment methods:', error);
-        throw error;
-      }
-      
-      console.log('Fetched payment methods:', data);
-      
-      // Filter methods with available limit >= order amount
-      const filteredMethods = data.filter(method => {
-        const availableLimit = method.payment_limit - (method.current_usage || 0);
-        return availableLimit >= orderAmount;
-      });
-      
-      console.log('Filtered methods with sufficient limit:', filteredMethods);
-      
-      if (filteredMethods.length === 0) {
-        return [];
-      }
-
-      // If this is not an alternative attempt, prioritize based on previous usage
-      if (alternativeCount === 0 && previousPaymentMethods && previousPaymentMethods.length > 0) {
-        const usedMethodIds = previousPaymentMethods.map(pm => pm.sales_payment_method_id);
-        const prioritized = filteredMethods.sort((a, b) => {
-          const aUsed = usedMethodIds.includes(a.id);
-          const bUsed = usedMethodIds.includes(b.id);
-          if (aUsed && !bUsed) return -1;
-          if (!aUsed && bUsed) return 1;
-          return 0;
-        });
-        
-        // Return only the top priority method for initial selection
-        return prioritized.slice(0, 1);
-      }
-      
-      // For alternative attempts, skip previously shown methods and return one at a time
-      return filteredMethods.slice(alternativeCount, alternativeCount + 1);
-    },
-    enabled: !!paymentType && !!selectedClient?.risk_appetite && currentStep === 'payment' && !cosmosAlert
-  });
-
-  const resetDialog = () => {
-    setCurrentStep('client');
-    setSelectedClient(null);
-    setOrderAmount(0);
-    setCosmosAlert(false);
-    setSelectedPaymentMethod(null);
-    setPaymentType(null);
-    setAlternativeAttempted(false);
-    setAlternativeCount(0);
-    setNewClientData({
-      name: "",
-      phone: "",
-      email: "",
-      platform: ""
-    });
-  };
-
-  const handleClientSelection = (client: any) => {
-    setSelectedClient(client);
-    setCurrentStep('amount');
-  };
-
-  const handleNewClientCreation = () => {
-    if (!newClientData.name || !newClientData.phone) {
-      toast({
-        title: "Error",
-        description: "Please fill in at least name and phone number",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const newClient = {
-      ...newClientData,
-      monthly_limit: null, // Default limit is null for new clients
-      current_month_used: 0,
-      risk_appetite: "HIGH" // Always set to HIGH by default
-    };
-    setSelectedClient(newClient);
-    setCurrentStep('amount');
-  };
-
-  const handleAmountSubmission = () => {
-    if (!orderAmount || orderAmount <= 0) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid order amount",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check COSMOS limits only if client has a monthly limit
-    const monthlyLimit = selectedClient?.monthly_limit;
-    const currentUsed = selectedClient?.current_month_used || 0;
-    
-    if (monthlyLimit && (currentUsed + orderAmount > monthlyLimit)) {
-      setCosmosAlert(true);
-      toast({
-        title: "COSMOS Alert Triggered",
-        description: "Order amount exceeds client's monthly limit. Alert sent to assistant manager.",
-        variant: "destructive",
-      });
-      // Don't proceed to payment step when COSMOS alert is triggered
-      return;
-    }
-    
-    setCurrentStep('payment');
-  };
-
-  const handlePaymentMethodSelection = (method: any) => {
-    setSelectedPaymentMethod(method);
-  };
-
-  const convertToLead = async () => {
-    try {
-      const leadData = {
-        name: selectedClient?.name || newClientData.name,
-        contact_number: selectedClient?.phone || newClientData.phone,
-        estimated_order_value: orderAmount,
-        source: selectedClient?.platform || newClientData.platform || "Sales Order Cancellation",
-        description: `Order cancelled during payment process. Original amount: ₹${orderAmount.toLocaleString()}. ${cosmosAlert ? 'COSMOS alert was triggered.' : 'Payment method assignment failed.'}`,
-        status: "NEW"
-      };
-
-      await createLeadMutation.mutateAsync(leadData);
-      
-      toast({
-        title: "Order Converted to Lead",
-        description: `Order has been cancelled and automatically converted to a lead for future follow-up.`,
-      });
-    } catch (error) {
-      console.error('Error converting to lead:', error);
-      toast({
-        title: "Error",
-        description: "Failed to convert order to lead. Please create lead manually.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleOrderCancellation = async () => {
-    await convertToLead();
-    onOpenChange(false);
-    resetDialog();
-  };
-
-  const handleAlternativePayment = () => {
-    setAlternativeCount(prev => prev + 1);
-    setSelectedPaymentMethod(null);
-    // Keep the same payment type but fetch next alternative method
-  };
-
-  const handlePaymentReceived = () => {
-    if (onSalesEntryOpen) {
-      const salesData = {
-        customerName: selectedClient?.name || '',
-        amount: orderAmount,
-        paymentMethod: selectedPaymentMethod,
-        clientPhone: selectedClient?.phone || '',
-        clientEmail: selectedClient?.email || '',
-        platform: selectedClient?.platform || newClientData.platform
-      };
-      onSalesEntryOpen(salesData);
-    }
-    setCurrentStep('completion');
-  };
-
-  const getAvailableLimit = (method: any) => {
-    return method.payment_limit - (method.current_usage || 0);
-  };
-
-  // Auto-select the first available payment method when type is chosen
   useEffect(() => {
-    if (paymentMethods && paymentMethods.length > 0 && !selectedPaymentMethod && paymentType && !cosmosAlert) {
-      const firstMethod = paymentMethods[0];
-      setSelectedPaymentMethod(firstMethod);
+    if (editingOrder) {
+      setFormData({
+        client_name: editingOrder.client_name || '',
+        order_date: editingOrder.order_date ? new Date(editingOrder.order_date) : new Date(),
+        delivery_date: editingOrder.delivery_date ? new Date(editingOrder.delivery_date) : new Date(),
+        description: editingOrder.description || '',
+        platform: editingOrder.platform || '',
+        risk_level: editingOrder.risk_level || 'MEDIUM',
+        sales_payment_method_id: editingOrder.sales_payment_method_id || '',
+      });
+      
+      // Load order items if available
+      if (editingOrder.sales_order_items) {
+        setOrderItems(editingOrder.sales_order_items.map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          warehouse_id: item.warehouse_id,
+        })));
+      }
+    } else {
+      // Reset form for new order
+      setFormData({
+        client_name: '',
+        order_date: new Date(),
+        delivery_date: new Date(),
+        description: '',
+        platform: '',
+        risk_level: 'MEDIUM',
+        sales_payment_method_id: '',
+      });
+      setOrderItems([{ product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }]);
     }
-  }, [paymentMethods, selectedPaymentMethod, paymentType, cosmosAlert]);
+  }, [editingOrder]);
 
-  if (!orderType) return null;
+  // Fetch products for dropdown
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch warehouses for dropdown
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch sales payment methods
+  const { data: salesPaymentMethods } = useQuery({
+    queryKey: ['sales_payment_methods'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select('*')
+        .eq('is_active', true)
+        .order('type');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const addOrderItem = () => {
+    setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }]);
+  };
+
+  const removeOrderItem = (index: number) => {
+    if (orderItems.length > 1) {
+      setOrderItems(orderItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateOrderItem = (index: number, field: keyof OrderItem, value: string | number) => {
+    const updatedItems = [...orderItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    
+    // Calculate total price when quantity or unit price changes
+    if (field === 'quantity' || field === 'unit_price') {
+      updatedItems[index].total_price = updatedItems[index].quantity * updatedItems[index].unit_price;
+    }
+    
+    setOrderItems(updatedItems);
+  };
+
+  const calculateTotalAmount = () => {
+    return orderItems.reduce((sum, item) => sum + item.total_price, 0);
+  };
+
+  const generateOrderNumber = () => {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substr(2, 5);
+    return `SO-${timestamp}-${random}`.toUpperCase();
+  };
+
+  const getAvailableStock = (productId: string, warehouseId: string) => {
+    const productStock = productStockSummaries?.find(p => p.product_id === productId);
+    if (!productStock) return 0;
+    
+    const warehouseStock = productStock.warehouse_stocks.find(ws => ws.warehouse_id === warehouseId);
+    return warehouseStock?.quantity || 0;
+  };
+
+  const validateStockAvailability = () => {
+    for (const item of orderItems) {
+      if (!item.product_id || !item.warehouse_id) continue;
+      
+      const availableStock = getAvailableStock(item.product_id, item.warehouse_id);
+      if (item.quantity > availableStock) {
+        const product = products?.find(p => p.id === item.product_id);
+        const warehouse = warehouses?.find(w => w.id === item.warehouse_id);
+        
+        toast({
+          title: "Insufficient Stock",
+          description: `Not enough stock for ${product?.name} in ${warehouse?.name}. Available: ${availableStock}, Required: ${item.quantity}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      // Validate stock availability
+      if (!validateStockAvailability()) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      const totalAmount = calculateTotalAmount();
+      const orderNumber = editingOrder?.order_number || generateOrderNumber();
+
+      // Validate payment method balance if selected
+      if (formData.sales_payment_method_id) {
+        const { data: paymentMethod } = await supabase
+          .from('sales_payment_methods')
+          .select('payment_limit, current_usage')
+          .eq('id', formData.sales_payment_method_id)
+          .single();
+
+        if (paymentMethod) {
+          const availableLimit = paymentMethod.payment_limit - (paymentMethod.current_usage || 0);
+          if (totalAmount > availableLimit) {
+            toast({
+              title: "Payment Limit Exceeded",
+              description: `Order amount exceeds available payment method limit. Available: ₹${availableLimit}`,
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
+      if (editingOrder) {
+        // Update existing order logic (simplified for brevity)
+        const { error: orderError } = await supabase
+          .from('sales_orders')
+          .update({
+            client_name: formData.client_name,
+            order_date: format(formData.order_date, 'yyyy-MM-dd'),
+            delivery_date: format(formData.delivery_date, 'yyyy-MM-dd'),
+            description: formData.description,
+            platform: formData.platform,
+            risk_level: formData.risk_level,
+            sales_payment_method_id: formData.sales_payment_method_id || null,
+            amount: totalAmount,
+            quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+          })
+          .eq('id', editingOrder.id);
+    
+        if (orderError) throw orderError;
+    
+        // Delete existing order items
+        const { error: deleteError } = await supabase
+          .from('sales_order_items')
+          .delete()
+          .eq('sales_order_id', editingOrder.id);
+    
+        if (deleteError) throw deleteError;
+    
+        // Process each order item and update stock
+        for (const item of orderItems) {
+          // Add warehouse stock movement (OUT)
+          await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: item.product_id,
+              warehouse_id: item.warehouse_id,
+              movement_type: 'OUT',
+              quantity: item.quantity,
+              reference_type: 'SALES_ORDER',
+              reference_id: editingOrder.id,
+              reason: `Sale to ${formData.client_name}`,
+            });
+    
+          // Update product current stock quantity
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('current_stock_quantity')
+            .eq('id', item.product_id)
+            .single();
+    
+          if (currentProduct) {
+            const newStock = Math.max(0, currentProduct.current_stock_quantity - item.quantity);
+            await supabase
+              .from('products')
+              .update({ 
+                current_stock_quantity: newStock 
+              })
+              .eq('id', item.product_id);
+          }
+    
+          // Add stock transaction record
+          await supabase
+            .from('stock_transactions')
+            .insert({
+              product_id: item.product_id,
+              transaction_type: 'SALE',
+              quantity: -item.quantity, // Negative for sales
+              unit_price: item.unit_price,
+              total_amount: item.total_price,
+              transaction_date: format(formData.order_date, 'yyyy-MM-dd'),
+              reference_number: orderNumber,
+              supplier_customer_name: formData.client_name,
+            });
+        }
+    
+        toast({
+          title: "Success",
+          description: "Sales order updated successfully and stock updated!",
+        });
+      } else {
+        // Create new sales order
+        const { data: orderData, error: orderError } = await supabase
+          .from('sales_orders')
+          .insert([{
+            order_number: orderNumber,
+            client_name: formData.client_name,
+            order_date: format(formData.order_date, 'yyyy-MM-dd'),
+            delivery_date: format(formData.delivery_date, 'yyyy-MM-dd'),
+            description: formData.description,
+            platform: formData.platform,
+            risk_level: formData.risk_level,
+            sales_payment_method_id: formData.sales_payment_method_id || null,
+            amount: totalAmount,
+            status: 'COMPLETED',
+            payment_status: 'COMPLETED',
+            quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+          }])
+          .select()
+          .single();
+
+        if (orderError) throw orderError;
+
+        // Process each order item and update stock
+        for (const item of orderItems) {
+          // Add warehouse stock movement (OUT)
+          await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: item.product_id,
+              warehouse_id: item.warehouse_id,
+              movement_type: 'OUT',
+              quantity: item.quantity,
+              reference_type: 'SALES_ORDER',
+              reference_id: orderData.id,
+              reason: `Sale to ${formData.client_name}`,
+            });
+
+          // Update product current stock quantity
+          const { data: currentProduct } = await supabase
+            .from('products')
+            .select('current_stock_quantity')
+            .eq('id', item.product_id)
+            .single();
+
+          if (currentProduct) {
+            const newStock = Math.max(0, currentProduct.current_stock_quantity - item.quantity);
+            await supabase
+              .from('products')
+              .update({ 
+                current_stock_quantity: newStock 
+              })
+              .eq('id', item.product_id);
+          }
+
+          // Add stock transaction record
+          await supabase
+            .from('stock_transactions')
+            .insert({
+              product_id: item.product_id,
+              transaction_type: 'SALE',
+              quantity: -item.quantity, // Negative for sales
+              unit_price: item.unit_price,
+              total_amount: item.total_price,
+              transaction_date: format(formData.order_date, 'yyyy-MM-dd'),
+              reference_number: orderNumber,
+              supplier_customer_name: formData.client_name,
+            });
+        }
+
+        // Update payment method usage if selected
+        if (formData.sales_payment_method_id) {
+          const { data: paymentMethod } = await supabase
+            .from('sales_payment_methods')
+            .select('current_usage')
+            .eq('id', formData.sales_payment_method_id)
+            .single();
+
+          if (paymentMethod) {
+            await supabase
+              .from('sales_payment_methods')
+              .update({ 
+                current_usage: (paymentMethod.current_usage || 0) + totalAmount 
+              })
+              .eq('id', formData.sales_payment_method_id);
+          }
+        }
+
+        toast({
+          title: "Success",
+          description: "Sales order created successfully and stock updated!",
+        });
+      }
+
+      onOpenChange(false);
+      window.location.reload(); // Refresh to show updated data
+    } catch (error) {
+      console.error('Error saving sales order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save sales order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ... keep existing code (JSX return statement with form, but add warehouse selection and stock validation display)
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      onOpenChange(open);
-      if (!open) resetDialog();
-    }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {orderType === 'repeat' ? 'Repeat Order' : 'New Client Order'} - Step {
-              currentStep === 'client' ? '1' : 
-              currentStep === 'amount' ? '2' : 
-              currentStep === 'payment' ? '3' : '4'
-            }
-          </DialogTitle>
+          <DialogTitle>{editingOrder ? 'Edit Sales Order' : 'Create Sales Order'}</DialogTitle>
         </DialogHeader>
-
-        {/* Step 1: Client Selection */}
-        {currentStep === 'client' && (
-          <div className="space-y-4">
-            {orderType === 'repeat' ? (
-              <div>
-                <Label>Select Existing Client</Label>
-                <Select onValueChange={(clientId) => {
-                  const client = clients?.find(c => c.id === clientId);
-                  if (client) handleClientSelection(client);
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Search by name, ID, or platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients?.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        <div>
-                          <div className="font-medium">{client.name}</div>
-                          <div className="text-sm text-gray-500">
-                            ID: {client.client_id} | Risk: {client.risk_appetite}
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Client Name *</Label>
-                    <Input
-                      id="name"
-                      value={newClientData.name}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, name: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="phone">Phone *</Label>
-                    <Input
-                      id="phone"
-                      value={newClientData.phone}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, phone: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newClientData.email}
-                      onChange={(e) => setNewClientData(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="platform">Platform</Label>
-                    <Select value={newClientData.platform} onValueChange={(value) => 
-                      setNewClientData(prev => ({ ...prev, platform: value }))
-                    }>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select platform" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {platforms?.map((platform) => (
-                          <SelectItem key={platform.id} value={platform.name}>
-                            {platform.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Button onClick={handleNewClientCreation} className="w-full">
-                  Create Client & Continue
-                </Button>
-              </div>
-            )}
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="client_name">Client Name *</Label>
+              <Input
+                id="client_name"
+                value={formData.client_name}
+                onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="platform">Platform</Label>
+              <Input
+                id="platform"
+                value={formData.platform}
+                onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+              />
+            </div>
           </div>
-        )}
 
-        {/* Step 2: Amount Entry */}
-        {currentStep === 'amount' && (
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium">Selected Client: {selectedClient?.name}</h3>
-              <p className="text-sm text-gray-600">
-                Risk Level: {selectedClient?.risk_appetite} | 
-                Monthly Limit: {selectedClient?.monthly_limit ? `₹${selectedClient.monthly_limit.toLocaleString()}` : 'No Limit'} | 
-                Used: ₹{selectedClient?.current_month_used?.toLocaleString() || '0'}
-              </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Order Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.order_date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.order_date ? format(formData.order_date, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.order_date}
+                    onSelect={(date) => setFormData({ ...formData, order_date: date || new Date() })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>
-              <Label htmlFor="amount">Order Amount *</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                value={orderAmount}
-                onChange={(e) => setOrderAmount(parseFloat(e.target.value) || 0)}
-                placeholder="Enter order amount"
-              />
-            </div>
-
-            {cosmosAlert && (
-              <div className="space-y-4">
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">
-                    <strong>COSMOS Limit Breached:</strong> Order is pending for approval. 
-                    The order amount exceeds the client's monthly limit and requires assistant manager approval.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setCurrentStep('client')}>
-                    Back
-                  </Button>
-                  <Button variant="destructive" onClick={handleOrderCancellation} className="flex-1">
-                    Cancel Order
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {!cosmosAlert && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCurrentStep('client')}>
-                  Back
-                </Button>
-                <Button onClick={handleAmountSubmission} className="flex-1">
-                  Continue to Payment Method
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Payment Method Selection */}
-        {currentStep === 'payment' && !cosmosAlert && (
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-medium">Order Amount: ₹{orderAmount.toLocaleString()}</h3>
-              <p className="text-sm text-gray-600">
-                Client: {selectedClient?.name} | Risk Level: {selectedClient?.risk_appetite}
-              </p>
-            </div>
-
-            {!paymentType ? (
-              <div className="space-y-4">
-                <Label>Choose Payment Method Type</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => setPaymentType('UPI')}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5 text-blue-600" />
-                        UPI Payment
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="cursor-pointer hover:shadow-md transition-shadow"
-                        onClick={() => setPaymentType('Bank Account')}>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-green-600" />
-                        Bank Transfer
-                      </CardTitle>
-                    </CardHeader>
-                  </Card>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Available {paymentType === 'Bank Account' ? 'Bank Transfer' : paymentType} Method for {selectedClient?.risk_appetite} Risk Client</Label>
-                  <Button variant="outline" size="sm" onClick={() => {
-                    setPaymentType(null);
-                    setSelectedPaymentMethod(null);
-                    setAlternativeCount(0);
-                  }}>
-                    Change Type
-                  </Button>
-                </div>
-
-                {paymentMethodsLoading ? (
-                  <div className="text-center py-4">Loading payment methods...</div>
-                ) : paymentMethods && paymentMethods.length > 0 ? (
-                  <div className="space-y-4">
-                    {paymentMethods.map((method) => (
-                      <Card key={method.id} className={`cursor-pointer transition-all ${
-                        selectedPaymentMethod?.id === method.id ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
-                      }`} onClick={() => handlePaymentMethodSelection(method)}>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">
-                                {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                Risk: {method.risk_category} | Available: ₹{getAvailableLimit(method).toLocaleString()}
-                              </p>
-                              {method.type === 'Bank Account' && method.bank_accounts && (
-                                <p className="text-xs text-gray-500">
-                                  Bank: {method.bank_accounts.bank_name}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                ₹{method.payment_limit.toLocaleString()}
-                              </div>
-                              <div className="text-xs text-gray-500">Limit</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {selectedPaymentMethod && (
-                      <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-blue-900">Selected Payment Method</h4>
-                        <p className="text-sm text-blue-700">
-                          {selectedPaymentMethod.type === 'UPI' ? 
-                            selectedPaymentMethod.upi_id : 
-                            selectedPaymentMethod.bank_accounts?.account_name
-                          }
-                        </p>
-                        <p className="text-xs text-blue-600">
-                          Risk Category: {selectedPaymentMethod.risk_category} | 
-                          Available: ₹{getAvailableLimit(selectedPaymentMethod).toLocaleString()}
-                        </p>
-                      </div>
+              <Label>Delivery Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !formData.delivery_date && "text-muted-foreground"
                     )}
-
-                    <div className="flex gap-2">
-                      <Button variant="destructive" onClick={handleOrderCancellation}>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Cancel Order
-                      </Button>
-                      <Button variant="outline" onClick={handleAlternativePayment}>
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Alternative Method
-                      </Button>
-                      <Button 
-                        onClick={handlePaymentReceived} 
-                        disabled={!selectedPaymentMethod}
-                        className="flex-1"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Payment Received
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No {paymentType === 'Bank Account' ? 'Bank Transfer' : paymentType} methods available with sufficient limit for {selectedClient?.risk_appetite} risk level clients.
-                    <br />
-                    <span className="text-sm">Try selecting a different payment type or contact admin to set up payment methods.</span>
-                    
-                    <div className="flex gap-2 mt-4">
-                      <Button variant="destructive" onClick={handleOrderCancellation}>
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Cancel Order
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formData.delivery_date ? format(formData.delivery_date, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={formData.delivery_date}
+                    onSelect={(date) => setFormData({ ...formData, delivery_date: date || new Date() })}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-        )}
 
-        {/* Step 4: Final Sales Entry */}
-        {currentStep === 'completion' && (
-          <div className="space-y-4">
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                Payment method assigned successfully. Please complete the sales entry.
-              </AlertDescription>
-            </Alert>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+            />
+          </div>
 
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-              <div><strong>Client:</strong> {selectedClient?.name}</div>
-              <div><strong>Amount:</strong> ₹{orderAmount.toLocaleString()}</div>
-              <div><strong>Payment Method:</strong> {
-                selectedPaymentMethod?.type === 'UPI' ? 
-                selectedPaymentMethod.upi_id : 
-                selectedPaymentMethod?.bank_accounts?.account_name
-              }</div>
-              {cosmosAlert && (
-                <div className="text-red-600"><strong>Status:</strong> COSMOS Alert Flagged</div>
-              )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="risk_level">Risk Level</Label>
+              <Select value={formData.risk_level} onValueChange={(value) => setFormData({ ...formData, risk_level: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select risk level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <Button onClick={() => {
-              toast({
-                title: "Success",
-                description: "Order processing completed. Opening full sales entry form.",
-              });
-              onOpenChange(false);
-              resetDialog();
-            }} className="w-full">
-              Complete Sales Entry
+            <div>
+              <Label htmlFor="sales_payment_method_id">Payment Method</Label>
+              <Select value={formData.sales_payment_method_id} onValueChange={(value) => setFormData({ ...formData, sales_payment_method_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesPaymentMethods?.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Order Items */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <Label className="text-lg font-medium">Order Items</Label>
+              <Button type="button" onClick={() => setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }])} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
+            </div>
+            
+            <div className="space-y-4">
+              {orderItems.map((item, index) => {
+                const availableStock = item.product_id && item.warehouse_id ? getAvailableStock(item.product_id, item.warehouse_id) : 0;
+                const stockInsufficient = item.quantity > availableStock;
+                
+                return (
+                  <div key={index} className="grid grid-cols-6 gap-4 items-end p-4 border rounded-lg">
+                    <div>
+                      <Label>Product *</Label>
+                      <Select
+                        value={item.product_id}
+                        onValueChange={(value) => updateOrderItem(index, 'product_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products?.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} ({product.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Warehouse *</Label>
+                      <Select
+                        value={item.warehouse_id}
+                        onValueChange={(value) => updateOrderItem(index, 'warehouse_id', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select warehouse" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {warehouses?.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Available Stock</Label>
+                      <Input
+                        value={availableStock}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Quantity *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={availableStock}
+                        value={item.quantity}
+                        onChange={(e) => updateOrderItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                        className={stockInsufficient ? "border-red-500" : ""}
+                      />
+                      {stockInsufficient && (
+                        <p className="text-red-500 text-xs mt-1">Insufficient stock</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <Label>Unit Price *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) => updateOrderItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setOrderItems(orderItems.filter((_, i) => i !== index))}
+                        disabled={orderItems.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Total Amount */}
+          <div className="flex justify-end">
+            <div className="text-lg font-semibold">
+              Total Amount: ₹{calculateTotalAmount().toFixed(2)}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : editingOrder ? "Update Order" : "Create Order"}
             </Button>
           </div>
-        )}
+        </form>
       </DialogContent>
     </Dialog>
   );

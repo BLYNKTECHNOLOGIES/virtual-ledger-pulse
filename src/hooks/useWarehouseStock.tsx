@@ -29,6 +29,8 @@ export function useWarehouseStock() {
   return useQuery({
     queryKey: ['warehouse_stock_summary'],
     queryFn: async () => {
+      console.log('Fetching warehouse stock movements...');
+      
       const { data: movements, error } = await supabase
         .from('warehouse_stock_movements')
         .select(`
@@ -40,7 +42,12 @@ export function useWarehouseStock() {
           warehouses(name)
         `);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching warehouse movements:', error);
+        throw error;
+      }
+
+      console.log('Raw movements data:', movements);
 
       // Aggregate stock by warehouse and product
       const stockMap = new Map<string, WarehouseStockItem>();
@@ -68,14 +75,17 @@ export function useWarehouseStock() {
         }
       });
 
-      // Filter out entries with zero or negative quantities
-      return Array.from(stockMap.values()).filter(stock => stock.quantity > 0);
+      const result = Array.from(stockMap.values()).filter(stock => stock.quantity >= 0);
+      console.log('Processed warehouse stock:', result);
+      
+      return result;
     },
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 }
 
 export function useProductStockSummary() {
-  const { data: warehouseStock, ...rest } = useWarehouseStock();
+  const { data: warehouseStock, isLoading, error } = useWarehouseStock();
 
   const productSummaries = warehouseStock?.reduce((acc, stock) => {
     if (!acc[stock.product_id]) {
@@ -91,20 +101,21 @@ export function useProductStockSummary() {
 
     acc[stock.product_id].total_stock += stock.quantity;
     
-    // Only add warehouse stocks with positive quantities
-    if (stock.quantity > 0) {
-      acc[stock.product_id].warehouse_stocks.push({
-        warehouse_id: stock.warehouse_id,
-        warehouse_name: stock.warehouse_name,
-        quantity: stock.quantity
-      });
-    }
+    // Add warehouse stocks (including zero quantities for tracking)
+    acc[stock.product_id].warehouse_stocks.push({
+      warehouse_id: stock.warehouse_id,
+      warehouse_name: stock.warehouse_name,
+      quantity: stock.quantity
+    });
 
     return acc;
   }, {} as Record<string, ProductStockSummary>);
 
+  console.log('Product summaries:', productSummaries);
+
   return {
     data: productSummaries ? Object.values(productSummaries) : undefined,
-    ...rest
+    isLoading,
+    error
   };
 }

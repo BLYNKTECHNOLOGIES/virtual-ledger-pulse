@@ -21,8 +21,8 @@ export function StockStatusBadge({
 
   const productStock = productSummaries?.find(p => p.product_id === productId);
   
-  if (!productStock || productStock.total_stock <= 0) {
-    return <Badge variant="destructive" className={className}>Out of Stock</Badge>;
+  if (!productStock) {
+    return <Badge variant="destructive" className={className}>No Stock Data</Badge>;
   }
 
   const { total_stock, warehouse_stocks, unit_of_measurement } = productStock;
@@ -33,7 +33,7 @@ export function StockStatusBadge({
     return "default";
   };
 
-  if (showWarehouseBreakdown && warehouse_stocks.length > 1) {
+  if (showWarehouseBreakdown && warehouse_stocks.length > 0) {
     return (
       <div className="space-y-1">
         <Badge variant={getBadgeVariant(total_stock)} className={className}>
@@ -41,11 +41,11 @@ export function StockStatusBadge({
         </Badge>
         <div className="flex flex-wrap gap-1">
           {warehouse_stocks
-            .filter(ws => ws.quantity > 0)
+            .filter(ws => ws.quantity >= 0) // Show all warehouses, including zero stock
             .map((ws) => (
               <Badge 
                 key={ws.warehouse_id} 
-                variant="outline" 
+                variant={ws.quantity > 0 ? "outline" : "destructive"} 
                 className="text-xs"
               >
                 {ws.warehouse_name}: {ws.quantity}

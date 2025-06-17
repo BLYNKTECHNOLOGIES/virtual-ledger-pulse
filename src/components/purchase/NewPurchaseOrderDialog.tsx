@@ -1,0 +1,324 @@
+
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface NewPurchaseOrderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [formData, setFormData] = useState({
+    order_number: "",
+    supplier_name: "",
+    contact_number: "",
+    description: "",
+    payment_method_type: "", // "UPI" or "BANK_TRANSFER"
+    upi_id: "",
+    bank_account_number: "",
+    bank_account_name: "",
+    ifsc_code: "",
+    assigned_to: "",
+    total_amount: 0,
+    order_date: new Date().toISOString().split('T')[0],
+  });
+
+  // Fetch clients for supplier dropdown
+  const { data: clients } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch employees for assignment
+  const { data: employees } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name, employee_id')
+        .eq('status', 'ACTIVE')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createPurchaseOrderMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .insert({
+          order_number: orderData.order_number,
+          supplier_name: orderData.supplier_name,
+          contact_number: orderData.contact_number,
+          description: orderData.description,
+          payment_method_type: orderData.payment_method_type,
+          upi_id: orderData.upi_id,
+          bank_account_number: orderData.bank_account_number,
+          bank_account_name: orderData.bank_account_name,
+          ifsc_code: orderData.ifsc_code,
+          assigned_to: orderData.assigned_to,
+          total_amount: orderData.total_amount,
+          order_date: orderData.order_date,
+          created_by: user?.id,
+          status: 'PENDING'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Purchase Order Created",
+        description: "Purchase order has been created and is pending payment.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+      resetForm();
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create purchase order: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetForm = () => {
+    setFormData({
+      order_number: "",
+      supplier_name: "",
+      contact_number: "",
+      description: "",
+      payment_method_type: "",
+      upi_id: "",
+      bank_account_number: "",
+      bank_account_name: "",
+      ifsc_code: "",
+      assigned_to: "",
+      total_amount: 0,
+      order_date: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  // Auto-fill contact number when supplier is selected from clients
+  const handleSupplierChange = (supplierName: string) => {
+    setFormData(prev => ({ ...prev, supplier_name: supplierName }));
+    
+    const selectedClient = clients?.find(client => client.name === supplierName);
+    if (selectedClient) {
+      setFormData(prev => ({ 
+        ...prev, 
+        contact_number: selectedClient.phone || "" 
+      }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    createPurchaseOrderMutation.mutate(formData);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Purchase Order</DialogTitle>
+        </DialogHeader>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="order_number">Purchase Order Number *</Label>
+              <Input
+                id="order_number"
+                value={formData.order_number}
+                onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="order_date">Order Date *</Label>
+              <Input
+                id="order_date"
+                type="date"
+                value={formData.order_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, order_date: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="supplier_name">Supplier Name *</Label>
+              <Select onValueChange={handleSupplierChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select or type supplier name" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map((client) => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                className="mt-2"
+                placeholder="Or enter new supplier name"
+                value={formData.supplier_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, supplier_name: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="contact_number">Contact Number</Label>
+              <Input
+                id="contact_number"
+                value={formData.contact_number}
+                onChange={(e) => setFormData(prev => ({ ...prev, contact_number: e.target.value }))}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="total_amount">Total Amount *</Label>
+              <Input
+                id="total_amount"
+                type="number"
+                step="0.01"
+                value={formData.total_amount}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="assigned_to">Assigned To</Label>
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.name}>
+                      {employee.name} ({employee.employee_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Enter order description..."
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+            />
+          </div>
+
+          {/* Payment Method Section */}
+          <div className="space-y-4 border rounded-lg p-4">
+            <Label className="text-lg font-semibold">Payment Method Details</Label>
+            
+            <div>
+              <Label htmlFor="payment_method_type">Payment Method Type *</Label>
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, payment_method_type: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.payment_method_type === "UPI" && (
+              <div>
+                <Label htmlFor="upi_id">UPI ID *</Label>
+                <Input
+                  id="upi_id"
+                  value={formData.upi_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, upi_id: e.target.value }))}
+                  placeholder="Enter UPI ID"
+                  required
+                />
+              </div>
+            )}
+
+            {formData.payment_method_type === "BANK_TRANSFER" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="bank_account_number">Bank Account Number *</Label>
+                  <Input
+                    id="bank_account_number"
+                    value={formData.bank_account_number}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bank_account_number: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="bank_account_name">Account Holder Name *</Label>
+                  <Input
+                    id="bank_account_name"
+                    value={formData.bank_account_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bank_account_name: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="ifsc_code">IFSC Code *</Label>
+                  <Input
+                    id="ifsc_code"
+                    value={formData.ifsc_code}
+                    onChange={(e) => setFormData(prev => ({ ...prev, ifsc_code: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createPurchaseOrderMutation.isPending}>
+              {createPurchaseOrderMutation.isPending ? "Creating..." : "Create Purchase Order"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

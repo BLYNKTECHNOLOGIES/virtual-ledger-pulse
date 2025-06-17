@@ -1,48 +1,19 @@
 
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, X } from "lucide-react";
-
-interface DirectoryFilters {
-  amountMin?: number;
-  amountMax?: number;
-  dateFrom?: string;
-  dateTo?: string;
-  transactionType?: string;
-  bankAccountId?: string;
-}
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download } from "lucide-react";
 
 export function DirectoryTab() {
-  const [filters, setFilters] = useState<DirectoryFilters>({});
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Fetch bank accounts for filter dropdown
-  const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts_for_filter'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('id, account_name, bank_name')
-        .eq('status', 'ACTIVE');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Fetch all transactions (bank, sales, purchases)
   const { data: allTransactions, isLoading } = useQuery({
-    queryKey: ['all_transactions', filters],
+    queryKey: ['all_transactions'],
     queryFn: async () => {
       // Bank transactions
-      let bankQuery = supabase
+      const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
           id,
@@ -58,11 +29,10 @@ export function DirectoryTab() {
         `)
         .order('transaction_date', { ascending: false });
 
-      const { data: bankData, error: bankError } = await bankQuery;
       if (bankError) throw bankError;
 
       // Sales orders
-      let salesQuery = supabase
+      const { data: salesData, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
           id,
@@ -77,11 +47,10 @@ export function DirectoryTab() {
         `)
         .order('order_date', { ascending: false });
 
-      const { data: salesData, error: salesError } = await salesQuery;
       if (salesError) throw salesError;
 
       // Purchase orders
-      let purchaseQuery = supabase
+      const { data: purchaseData, error: purchaseError } = await supabase
         .from('purchase_orders')
         .select(`
           id,
@@ -97,7 +66,6 @@ export function DirectoryTab() {
         `)
         .order('order_date', { ascending: false });
 
-      const { data: purchaseData, error: purchaseError } = await purchaseQuery;
       if (purchaseError) throw purchaseError;
 
       // Combine and format all transactions
@@ -141,47 +109,8 @@ export function DirectoryTab() {
         }))
       ];
 
-      // Apply filters
-      let filteredTransactions = combinedTransactions;
-
-      if (filters.amountMin !== undefined) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          parseFloat(t.display_amount.toString()) >= filters.amountMin!
-        );
-      }
-
-      if (filters.amountMax !== undefined) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          parseFloat(t.display_amount.toString()) <= filters.amountMax!
-        );
-      }
-
-      if (filters.dateFrom) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          new Date(t.display_date) >= new Date(filters.dateFrom!)
-        );
-      }
-
-      if (filters.dateTo) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          new Date(t.display_date) <= new Date(filters.dateTo!)
-        );
-      }
-
-      if (filters.transactionType) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          t.display_type === filters.transactionType
-        );
-      }
-
-      if (filters.bankAccountId) {
-        filteredTransactions = filteredTransactions.filter(t => 
-          t.bank_account_id === filters.bankAccountId
-        );
-      }
-
       // Sort by date
-      return filteredTransactions.sort((a, b) => 
+      return combinedTransactions.sort((a, b) => 
         new Date(b.display_date).getTime() - new Date(a.display_date).getTime()
       );
     },
@@ -233,10 +162,6 @@ export function DirectoryTab() {
       default:
         return 'outline';
     }
-  };
-
-  const clearFilters = () => {
-    setFilters({});
   };
 
   const downloadCSV = () => {
@@ -293,157 +218,24 @@ export function DirectoryTab() {
 
   return (
     <div className="space-y-6">
-      {/* Filter Controls */}
+      {/* Transactions List */}
       <Card className="shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-blue-600" />
-              Filters
+              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
+              All Transactions Directory
+              <Badge variant="secondary">{allTransactions?.length || 0} entries</Badge>
             </CardTitle>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                {showFilters ? 'Hide Filters' : 'Show Filters'}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={downloadCSV} 
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Download Data
-              </Button>
-            </div>
+            <Button 
+              variant="outline" 
+              onClick={downloadCSV} 
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download Data
+            </Button>
           </div>
-        </CardHeader>
-        {showFilters && (
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Amount Range */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Amount Range</label>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.amountMin || ''}
-                    onChange={(e) => setFilters(prev => ({ 
-                      ...prev, 
-                      amountMin: e.target.value ? Number(e.target.value) : undefined 
-                    }))}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.amountMax || ''}
-                    onChange={(e) => setFilters(prev => ({ 
-                      ...prev, 
-                      amountMax: e.target.value ? Number(e.target.value) : undefined 
-                    }))}
-                  />
-                </div>
-              </div>
-
-              {/* Date Range - Using simple date inputs instead of Popover/Calendar */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date From</label>
-                <Input
-                  type="date"
-                  value={filters.dateFrom || ''}
-                  onChange={(e) => setFilters(prev => ({ 
-                    ...prev, 
-                    dateFrom: e.target.value || undefined 
-                  }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date To</label>
-                <Input
-                  type="date"
-                  value={filters.dateTo || ''}
-                  onChange={(e) => setFilters(prev => ({ 
-                    ...prev, 
-                    dateTo: e.target.value || undefined 
-                  }))}
-                />
-              </div>
-
-              {/* Transaction Type */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Transaction Type</label>
-                <Select 
-                  value={filters.transactionType || ''} 
-                  onValueChange={(value) => setFilters(prev => ({ 
-                    ...prev, 
-                    transactionType: value || undefined 
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All types</SelectItem>
-                    <SelectItem value="INCOME">Income</SelectItem>
-                    <SelectItem value="EXPENSE">Expense</SelectItem>
-                    <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
-                    <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
-                    <SelectItem value="SALES_ORDER">Sales Order</SelectItem>
-                    <SelectItem value="PURCHASE_ORDER">Purchase Order</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Bank Account */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Bank Account</label>
-                <Select 
-                  value={filters.bankAccountId || ''} 
-                  onValueChange={(value) => setFilters(prev => ({ 
-                    ...prev, 
-                    bankAccountId: value || undefined 
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All accounts" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">All accounts</SelectItem>
-                    {bankAccounts?.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} - {account.bank_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                onClick={clearFilters} 
-                className="flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Clear Filters
-              </Button>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Transactions List */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-            All Transactions Directory
-            <Badge variant="secondary">{allTransactions?.length || 0} entries</Badge>
-          </CardTitle>
         </CardHeader>
         <CardContent>
           {!allTransactions || allTransactions.length === 0 ? (

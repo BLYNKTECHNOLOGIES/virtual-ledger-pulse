@@ -183,7 +183,6 @@ export function ProductListingTab() {
       <AddProductDialog 
         open={showAddDialog} 
         onOpenChange={setShowAddDialog}
-        onProductAdded={handleProductAdded}
       />
     </div>
   );

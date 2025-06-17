@@ -78,8 +78,8 @@ export function ProductListingTab() {
         }
       });
 
-      // Attach calculated stock to products
-      const productsWithStock = productsData?.map(product => {
+      // Attach calculated stock to products and sync with database
+      const productsWithStock = await Promise.all(productsData?.map(async (product) => {
         const productStocks = stockMap.get(product.id);
         let totalStock = 0;
         const warehouseStocks: Array<{warehouse_id: string, warehouse_name: string, quantity: number}> = [];
@@ -96,16 +96,24 @@ export function ProductListingTab() {
           });
         }
 
+        // Update the product's current_stock_quantity to match calculated total
+        await supabase
+          .from('products')
+          .update({ current_stock_quantity: totalStock })
+          .eq('id', product.id);
+
         return {
           ...product,
           calculated_stock: totalStock,
+          current_stock_quantity: totalStock, // Ensure consistency
           warehouse_stocks: warehouseStocks
         };
-      });
+      }) || []);
 
       console.log('Products with calculated stock:', productsWithStock);
-      return productsWithStock || [];
+      return productsWithStock;
     },
+    refetchInterval: 30000, // Refetch every 30 seconds to keep stock updated
   });
 
   const handleEdit = (product: any) => {

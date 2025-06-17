@@ -78,6 +78,21 @@ export function useWarehouseStock() {
       const result = Array.from(stockMap.values()).filter(stock => stock.quantity >= 0);
       console.log('Processed warehouse stock:', result);
       
+      // Sync product stock quantities with calculated totals
+      const productTotals = new Map<string, number>();
+      result.forEach(stock => {
+        const current = productTotals.get(stock.product_id) || 0;
+        productTotals.set(stock.product_id, current + stock.quantity);
+      });
+
+      // Update product table with correct stock quantities
+      for (const [productId, totalStock] of productTotals) {
+        await supabase
+          .from('products')
+          .update({ current_stock_quantity: totalStock })
+          .eq('id', productId);
+      }
+      
       return result;
     },
     refetchInterval: 30000, // Refetch every 30 seconds for real-time updates

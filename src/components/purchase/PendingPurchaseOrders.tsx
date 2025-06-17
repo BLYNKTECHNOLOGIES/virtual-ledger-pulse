@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +93,21 @@ export function PendingPurchaseOrders() {
         ? order.net_payable_amount 
         : order.total_amount;
 
+      // Check if bank account has sufficient balance
+      if (selectedMethod.bank_accounts?.id) {
+        const { data: accountData, error: fetchError } = await supabase
+          .from('bank_accounts')
+          .select('balance')
+          .eq('id', selectedMethod.bank_accounts.id)
+          .single();
+        
+        if (fetchError) throw fetchError;
+
+        if (accountData.balance < amountToDeduct) {
+          throw new Error(`Insufficient bank balance. Available: ₹${accountData.balance.toFixed(2)}, Required: ₹${amountToDeduct.toFixed(2)}`);
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -128,14 +142,6 @@ export function PendingPurchaseOrders() {
       if (updateMethodError) throw updateMethodError;
 
       if (selectedMethod.bank_accounts?.id) {
-        const { data: accountData, error: fetchError } = await supabase
-          .from('bank_accounts')
-          .select('balance')
-          .eq('id', selectedMethod.bank_accounts.id)
-          .single();
-        
-        if (fetchError) throw fetchError;
-
         const newBalance = accountData.balance - amountToDeduct;
 
         const { error: balanceError } = await supabase

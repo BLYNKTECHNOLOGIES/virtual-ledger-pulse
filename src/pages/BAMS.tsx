@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BankAccountManagement } from "@/components/bams/BankAccountManagement";
 import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManagement";
 import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
-import { CreditCard, Building, ShoppingBag } from "lucide-react";
+import { BankJournalEntries } from "@/components/bams/BankJournalEntries";
+import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
@@ -21,18 +22,22 @@ export default function BAMS() {
       <Card>
         <CardContent className="p-6">
           <Tabs defaultValue="bank-accounts" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="bank-accounts" className="flex items-center gap-2">
                 <Building className="h-4 w-4" />
-                Bank Accounts (Sales)
+                Bank Accounts
               </TabsTrigger>
               <TabsTrigger value="payment-methods" className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Payment Methods (Sales)
+                Payment Methods
               </TabsTrigger>
               <TabsTrigger value="purchases" className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4" />
                 Purchase Management
+              </TabsTrigger>
+              <TabsTrigger value="journal-entries" className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Bank Journal Entries
               </TabsTrigger>
             </TabsList>
 
@@ -46,6 +51,10 @@ export default function BAMS() {
 
             <TabsContent value="purchases">
               <PurchaseManagement />
+            </TabsContent>
+
+            <TabsContent value="journal-entries">
+              <BankJournalEntries />
             </TabsContent>
           </Tabs>
         </CardContent>

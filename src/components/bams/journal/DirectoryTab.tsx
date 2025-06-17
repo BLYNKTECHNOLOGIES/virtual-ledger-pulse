@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +48,7 @@ export function DirectoryTab() {
 
       if (salesError) throw salesError;
 
-      // Purchase orders
+      // Purchase orders with bank account details
       const { data: purchaseData, error: purchaseError } = await supabase
         .from('purchase_orders')
         .select(`
@@ -61,8 +60,7 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
-          purchase_payment_methods(type, bank_account_name),
-          bank_accounts(account_name, bank_name, id)
+          bank_accounts!bank_account_id(account_name, bank_name, id)
         `)
         .order('order_date', { ascending: false });
 
@@ -91,7 +89,7 @@ export function DirectoryTab() {
           display_reference: s.order_number,
           display_account: s.sales_payment_methods?.bank_accounts?.account_name ? 
             s.sales_payment_methods.bank_accounts.account_name + ' - ' + s.sales_payment_methods.bank_accounts.bank_name : 
-            s.sales_payment_methods?.type || '',
+            s.sales_payment_methods?.type || 'Not Specified',
           bank_account_id: s.sales_payment_methods?.bank_accounts?.id
         })),
         ...(purchaseData || []).map(p => ({
@@ -102,9 +100,9 @@ export function DirectoryTab() {
           display_type: 'PURCHASE_ORDER',
           display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
           display_reference: p.order_number,
-          display_account: p.bank_accounts?.account_name ? 
-            p.bank_accounts.account_name + ' - ' + p.bank_accounts.bank_name : 
-            p.purchase_payment_methods?.bank_account_name || '',
+          display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
+            `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
+            'Bank Account Not Specified',
           bank_account_id: p.bank_accounts?.id
         }))
       ];
@@ -174,7 +172,7 @@ export function DirectoryTab() {
       'Amount',
       'Description',
       'Reference',
-      'Account',
+      'Bank Account',
       'Created At'
     ];
 
@@ -270,6 +268,11 @@ export function DirectoryTab() {
                       {transaction.display_reference && (
                         <div className="text-xs text-gray-400">
                           Ref: {transaction.display_reference}
+                        </div>
+                      )}
+                      {transaction.source === 'PURCHASE' && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          Payment from: {transaction.display_account}
                         </div>
                       )}
                     </div>

@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,21 +94,24 @@ export function PendingPurchaseOrders() {
         ? order.net_payable_amount 
         : order.total_amount;
 
+      let accountData = null;
       // Check if bank account has sufficient balance
       if (selectedMethod.bank_accounts?.id) {
-        const { data: accountData, error: fetchError } = await supabase
+        const { data: fetchedAccountData, error: fetchError } = await supabase
           .from('bank_accounts')
           .select('balance')
           .eq('id', selectedMethod.bank_accounts.id)
           .single();
         
         if (fetchError) throw fetchError;
+        accountData = fetchedAccountData;
 
         if (accountData.balance < amountToDeduct) {
           throw new Error(`Insufficient bank balance. Available: ₹${accountData.balance.toFixed(2)}, Required: ₹${amountToDeduct.toFixed(2)}`);
         }
       }
 
+      // Update order status
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -119,6 +123,31 @@ export function PendingPurchaseOrders() {
         .eq('id', orderId);
       
       if (updateError) throw updateError;
+
+      // Add stock to warehouse for each order item
+      const { data: orderItems, error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .select('*')
+        .eq('purchase_order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Create warehouse stock movements for each item
+      for (const item of orderItems || []) {
+        const { error: movementError } = await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            product_id: item.product_id,
+            warehouse_id: item.warehouse_id,
+            movement_type: 'IN',
+            quantity: item.quantity,
+            reference_type: 'PURCHASE_ORDER',
+            reference_id: orderId,
+            reason: `Purchase Order - ${order.order_number}`
+          });
+
+        if (movementError) throw movementError;
+      }
 
       // Update payment method current usage
       const { data: currentMethod, error: fetchMethodError } = await supabase
@@ -141,7 +170,7 @@ export function PendingPurchaseOrders() {
 
       if (updateMethodError) throw updateMethodError;
 
-      if (selectedMethod.bank_accounts?.id) {
+      if (selectedMethod.bank_accounts?.id && accountData) {
         const newBalance = accountData.balance - amountToDeduct;
 
         const { error: balanceError } = await supabase
@@ -173,7 +202,7 @@ export function PendingPurchaseOrders() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Purchase order completed successfully, bank balance adjusted, and payment method usage updated.",
+        description: "Purchase order completed successfully, stock added to warehouse, bank balance adjusted, and payment method usage updated.",
       });
       // Optimistic updates
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -181,6 +210,9 @@ export function PendingPurchaseOrders() {
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock'] });
+      queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock_cards'] });
       closeDialog();
     },
     onError: (error: Error) => {

@@ -152,6 +152,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               <Input
                 type="number"
                 step="0.01"
+                min="0"
                 value={item.unit_price}
                 onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
               />
@@ -161,7 +162,8 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               <Label>Quantity</Label>
               <Input
                 type="number"
-                step="0.01"
+                step="0.001"
+                min="0.001"
                 value={item.quantity}
                 onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
               />
@@ -189,7 +191,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
 
             {selectedProduct && (
               <div className="md:col-span-6 text-sm text-gray-600">
-                Current Stock: {selectedProduct.current_stock_quantity} {selectedProduct.unit_of_measurement}
+                Current Stock: {parseFloat(selectedProduct.current_stock_quantity.toString()).toLocaleString()} {selectedProduct.unit_of_measurement}
               </div>
             )}
           </div>

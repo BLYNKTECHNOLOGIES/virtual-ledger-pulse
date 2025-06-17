@@ -151,7 +151,12 @@ export function StockTransactionsTab() {
                       <td className="py-3 px-4">
                         {getTransactionBadge(entry.transaction_type)}
                       </td>
-                      <td className="py-3 px-4">{entry.quantity} {entry.products?.unit_of_measurement}</td>
+                      <td className="py-3 px-4">
+                        {parseFloat(entry.quantity.toString()).toLocaleString('en-IN', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 3
+                        })} {entry.products?.unit_of_measurement}
+                      </td>
                       <td className="py-3 px-4">₹{entry.unit_price || 0}</td>
                       <td className="py-3 px-4">₹{entry.total_amount || 0}</td>
                       <td className="py-3 px-4">{entry.supplier_name || '-'}</td>

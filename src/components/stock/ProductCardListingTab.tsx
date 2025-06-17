@@ -181,7 +181,10 @@ export function ProductCardListingTab() {
                       </div>
                       <div className="mt-3">
                         <span className="text-3xl font-bold text-slate-800">
-                          {(product.calculated_stock || 0).toLocaleString()}
+                          {parseFloat((product.calculated_stock || 0).toString()).toLocaleString('en-IN', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 3
+                          })}
                         </span>
                         <span className="text-slate-500 ml-2">{product.unit_of_measurement}</span>
                       </div>
@@ -198,7 +201,12 @@ export function ProductCardListingTab() {
                           {product.warehouse_stocks.slice(0, 3).map((ws: any, index: number) => (
                             <div key={index} className="flex justify-between items-center">
                               <span className="text-slate-600 text-sm truncate">{ws.warehouse_name}</span>
-                              <span className="font-semibold text-slate-800">{ws.quantity.toLocaleString()}</span>
+                              <span className="font-semibold text-slate-800">
+                                {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 3
+                                })}
+                              </span>
                             </div>
                           ))}
                           {product.warehouse_stocks.length > 3 && (

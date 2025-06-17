@@ -203,14 +203,20 @@ export function ProductListingTab() {
                     <td className="py-3 px-4">₹{product.cost_price}</td>
                     <td className="py-3 px-4">₹{product.selling_price}</td>
                     <td className="py-3 px-4 font-semibold">
-                      {product.calculated_stock || 0} {product.unit_of_measurement}
+                      {parseFloat((product.calculated_stock || 0).toString()).toLocaleString('en-IN', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 3
+                      })} {product.unit_of_measurement}
                     </td>
                     <td className="py-3 px-4">
                       {product.warehouse_stocks && product.warehouse_stocks.length > 0 ? (
                         <div className="space-y-1">
                           {product.warehouse_stocks.map((ws: any, index: number) => (
                             <div key={index} className="text-xs">
-                              <span className="font-medium">{ws.warehouse_name}:</span> {ws.quantity}
+                              <span className="font-medium">{ws.warehouse_name}:</span> {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 3
+                              })}
                             </div>
                           ))}
                         </div>

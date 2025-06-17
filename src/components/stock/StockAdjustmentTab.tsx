@@ -185,6 +185,15 @@ export function StockAdjustmentTab() {
       return;
     }
 
+    if (formData.quantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Quantity must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createAdjustmentMutation.mutate({
       ...formData,
       quantity: Math.abs(formData.quantity),
@@ -309,7 +318,7 @@ export function StockAdjustmentTab() {
                   <SelectContent>
                     {products?.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.code}) - Stock: {product.current_stock_quantity}
+                        {product.name} ({product.code}) - Stock: {parseFloat(product.current_stock_quantity.toString()).toLocaleString()} {product.unit_of_measurement}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -374,9 +383,10 @@ export function StockAdjustmentTab() {
                 <Input
                   id="quantity"
                   type="number"
-                  min="1"
+                  step="0.001"
+                  min="0.001"
                   value={formData.quantity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
                   required
                 />
               </div>

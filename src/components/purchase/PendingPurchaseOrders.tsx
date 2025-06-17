@@ -31,6 +31,10 @@ interface PurchaseOrder {
   net_payable_amount?: number;
   payment_method_type: string;
   bank_account_id?: string;
+  status: string;
+  order_date: string;
+  assigned_to?: string;
+  contact_number?: string;
   bank_accounts?: {
     account_name: string;
     bank_name: string;
@@ -85,8 +89,7 @@ export function PendingPurchaseOrders() {
         .select(`
           id,
           type,
-          bank_account_name,
-          bank_accounts!inner(id, account_name, account_number)
+          bank_account_name
         `)
         .eq('is_active', true)
         .eq('type', selectedOrder.payment_method_type === 'UPI' ? 'UPI' : 'Bank Transfer');
@@ -342,7 +345,7 @@ export function PendingPurchaseOrders() {
                     <SelectItem key={method.id} value={method.id}>
                       {method.type === 'UPI' 
                         ? `UPI - ${method.bank_account_name}` 
-                        : `Bank Transfer - ${method.bank_accounts?.account_name} (${method.bank_accounts?.account_number})`
+                        : `Bank Transfer - ${method.bank_account_name}`
                       }
                     </SelectItem>
                   ))}

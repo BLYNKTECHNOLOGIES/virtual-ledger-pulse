@@ -9,7 +9,7 @@ interface TransferHistoryProps {
 
 export function TransferHistory({ transfers }: TransferHistoryProps) {
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>Recent Transfers</CardTitle>
       </CardHeader>
@@ -25,7 +25,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
               .map((transfer) => (
               <div
                 key={transfer.id}
-                className="flex items-center justify-between p-4 border rounded-lg bg-gray-50"
+                className="flex items-center justify-between p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-4">
                   <div className="p-2 bg-blue-100 rounded-full">

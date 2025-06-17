@@ -21,10 +21,27 @@ interface PaymentMethodOption {
   bank_account_id?: string;
 }
 
+interface PurchaseOrder {
+  id: string;
+  order_number: string;
+  supplier_name: string;
+  total_amount: number;
+  tds_applied: boolean;
+  tds_amount?: number;
+  net_payable_amount?: number;
+  payment_method_type: string;
+  bank_account_id?: string;
+  bank_accounts?: {
+    account_name: string;
+    bank_name: string;
+    id: string;
+  };
+}
+
 export function PendingPurchaseOrders() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [actionType, setActionType] = useState<'complete' | 'review' | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
   const [paymentProofUrls, setPaymentProofUrls] = useState<string[]>([]);
@@ -52,7 +69,7 @@ export function PendingPurchaseOrders() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as PurchaseOrder[];
     },
     staleTime: 30000, // 30 seconds
   });
@@ -75,7 +92,7 @@ export function PendingPurchaseOrders() {
         .eq('type', selectedOrder.payment_method_type === 'UPI' ? 'UPI' : 'Bank Transfer');
       
       if (error) throw error;
-      return data;
+      return data as PaymentMethodOption[];
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
     staleTime: 300000, // 5 minutes
@@ -106,7 +123,7 @@ export function PendingPurchaseOrders() {
       if (updateError) throw updateError;
 
       // Only deduct from bank if bank account is specified
-      if (order.bank_account_id) {
+      if (order.bank_account_id && amountToDeduct) {
         const { data: accountData, error: fetchError } = await supabase
           .from('bank_accounts')
           .select('balance')

@@ -43,7 +43,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     order_date: new Date().toISOString().split('T')[0],
     tds_applied: false,
     pan_number: "",
-    bank_account_id: "",
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
@@ -82,28 +81,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     },
   });
 
-  // Fetch bank accounts for payment
-  const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE')
-        .order('account_name');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const amountToDeduct = orderData.tds_applied ? netPayableAmount : totalAmount;
-      
-      // Create purchase order
+      // Create purchase order without bank_account_id
       const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
@@ -125,8 +107,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           tax_amount: tdsAmount,
           order_date: orderData.order_date,
           created_by: user?.id,
-          status: 'PENDING',
-          bank_account_id: orderData.bank_account_id
+          status: 'PENDING'
         })
         .select()
         .single();
@@ -171,76 +152,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         if (tdsError) throw tdsError;
       }
 
-      // Update bank account balance and reduce payment limit
-      if (orderData.bank_account_id) {
-        const { data: accountData, error: fetchError } = await supabase
-          .from('bank_accounts')
-          .select('balance')
-          .eq('id', orderData.bank_account_id)
-          .single();
-        
-        if (fetchError) throw fetchError;
-
-        const newBalance = accountData.balance - amountToDeduct;
-
-        const { error: balanceError } = await supabase
-          .from('bank_accounts')
-          .update({ 
-            balance: newBalance,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', orderData.bank_account_id);
-        
-        if (balanceError) throw balanceError;
-
-        // Create bank transaction
-        const { error: transactionError } = await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: orderData.bank_account_id,
-            transaction_type: 'EXPENSE',
-            amount: amountToDeduct,
-            description: `Purchase Order Payment - ${orderData.order_number}`,
-            transaction_date: orderData.order_date,
-            reference_number: orderData.order_number,
-            category: 'Purchase',
-            related_account_name: orderData.supplier_name
-          });
-
-        if (transactionError) throw transactionError;
-
-        // Update payment method usage if applicable
-        const { data: paymentMethods, error: pmError } = await supabase
-          .from('purchase_payment_methods')
-          .select('*')
-          .eq('bank_account_id', orderData.bank_account_id)
-          .eq('is_active', true);
-
-        if (!pmError && paymentMethods && paymentMethods.length > 0) {
-          const paymentMethod = paymentMethods[0];
-          const { error: updateError } = await supabase
-            .from('purchase_payment_methods')
-            .update({ 
-              current_usage: paymentMethod.current_usage + amountToDeduct,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', paymentMethod.id);
-
-          if (updateError) console.error('Error updating payment method usage:', updateError);
-        }
-      }
-
       return purchaseOrder;
     },
     onSuccess: () => {
       toast({
         title: "Purchase Order Created",
-        description: "Purchase order has been created and bank balance updated.",
+        description: "Purchase order has been created successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
       resetForm();
       onOpenChange(false);
     },
@@ -268,7 +188,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       order_date: new Date().toISOString().split('T')[0],
       tds_applied: false,
       pan_number: "",
-      bank_account_id: "",
     });
     setProductItems([]);
   };
@@ -312,15 +231,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       toast({
         title: "Error",
         description: "PAN number is mandatory when TDS is applied.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.bank_account_id) {
-      toast({
-        title: "Error",
-        description: "Please select a bank account for payment.",
         variant: "destructive",
       });
       return;
@@ -401,22 +311,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                   {employees?.map((employee) => (
                     <SelectItem key={employee.id} value={employee.name}>
                       {employee.name} ({employee.employee_id})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="bank_account">Payment Bank Account *</Label>
-              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select bank account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.account_name} - {account.bank_name} (₹{account.balance?.toFixed(2)})
                     </SelectItem>
                   ))}
                 </SelectContent>

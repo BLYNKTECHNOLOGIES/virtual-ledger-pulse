@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,14 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  editingProduct?: any;
+  onProductSaved?: () => void;
 }
 
-export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) {
+export function AddProductDialog({ open, onOpenChange, editingProduct, onProductSaved }: AddProductDialogProps) {
   const [formData, setFormData] = useState({
     name: "",
     code: "",
@@ -24,28 +26,20 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
     current_stock_quantity: "0"
   });
 
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const addProductMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
-        .from('products')
-        .insert([{
-          ...data,
-          cost_price: parseFloat(data.cost_price),
-          selling_price: parseFloat(data.selling_price),
-          current_stock_quantity: parseInt(data.current_stock_quantity)
-        }]);
-      
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast({
-        title: "Success",
-        description: "Product added successfully",
+  useEffect(() => {
+    if (editingProduct) {
+      setFormData({
+        name: editingProduct.name || "",
+        code: editingProduct.code || "",
+        unit_of_measurement: editingProduct.unit_of_measurement || "",
+        cost_price: editingProduct.cost_price?.toString() || "",
+        selling_price: editingProduct.selling_price?.toString() || "",
+        current_stock_quantity: editingProduct.current_stock_quantity?.toString() || "0"
       });
-      onOpenChange(false);
+    } else {
       setFormData({
         name: "",
         code: "",
@@ -54,11 +48,47 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
         selling_price: "",
         current_stock_quantity: "0"
       });
+    }
+  }, [editingProduct, open]);
+
+  const saveProductMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const productData = {
+        ...data,
+        cost_price: parseFloat(data.cost_price),
+        selling_price: parseFloat(data.selling_price),
+        current_stock_quantity: parseInt(data.current_stock_quantity)
+      };
+
+      if (editingProduct) {
+        const { error } = await supabase
+          .from('products')
+          .update(productData)
+          .eq('id', editingProduct.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('products')
+          .insert([productData]);
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock'] });
+      toast({
+        title: "Success",
+        description: editingProduct ? "Product updated successfully" : "Product added successfully",
+      });
+      onOpenChange(false);
+      onProductSaved?.();
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to add product",
+        description: editingProduct ? "Failed to update product" : "Failed to add product",
         variant: "destructive",
       });
     },
@@ -66,14 +96,14 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addProductMutation.mutate(formData);
+    saveProductMutation.mutate(formData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Product</DialogTitle>
+          <DialogTitle>{editingProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -141,8 +171,11 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={addProductMutation.isPending}>
-              {addProductMutation.isPending ? "Adding..." : "Add Product"}
+            <Button type="submit" disabled={saveProductMutation.isPending}>
+              {saveProductMutation.isPending ? 
+                (editingProduct ? "Updating..." : "Adding...") : 
+                (editingProduct ? "Update Product" : "Add Product")
+              }
             </Button>
           </div>
         </form>

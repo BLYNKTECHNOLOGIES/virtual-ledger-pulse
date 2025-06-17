@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,10 +8,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProductSelectionSection } from "./ProductSelectionSection";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface ProductItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  warehouse_id: string;
 }
 
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
@@ -24,15 +32,19 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     supplier_name: "",
     contact_number: "",
     description: "",
-    payment_method_type: "", // "UPI" or "BANK_TRANSFER"
+    payment_method_type: "",
     upi_id: "",
     bank_account_number: "",
     bank_account_name: "",
     ifsc_code: "",
     assigned_to: "",
-    total_amount: 0,
     order_date: new Date().toISOString().split('T')[0],
   });
+
+  const [productItems, setProductItems] = useState<ProductItem[]>([]);
+
+  // Calculate total amount from product items
+  const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
 
   // Fetch clients for supplier dropdown
   const { data: clients } = useQuery({
@@ -67,7 +79,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const { data, error } = await supabase
+      // Create purchase order
+      const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
           order_number: orderData.order_number,
@@ -80,7 +93,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           bank_account_name: orderData.bank_account_name,
           ifsc_code: orderData.ifsc_code,
           assigned_to: orderData.assigned_to,
-          total_amount: orderData.total_amount,
+          total_amount: totalAmount,
           order_date: orderData.order_date,
           created_by: user?.id,
           status: 'PENDING'
@@ -88,13 +101,32 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (orderError) throw orderError;
+
+      // Create purchase order items
+      if (productItems.length > 0) {
+        const orderItems = productItems.map(item => ({
+          purchase_order_id: purchaseOrder.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.quantity * item.unit_price,
+          warehouse_id: item.warehouse_id
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(orderItems);
+
+        if (itemsError) throw itemsError;
+      }
+
+      return purchaseOrder;
     },
     onSuccess: () => {
       toast({
         title: "Purchase Order Created",
-        description: "Purchase order has been created and is pending payment.",
+        description: "Purchase order has been created with product items.",
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
@@ -122,9 +154,9 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       bank_account_name: "",
       ifsc_code: "",
       assigned_to: "",
-      total_amount: 0,
       order_date: new Date().toISOString().split('T')[0],
     });
+    setProductItems([]);
   };
 
   // Auto-fill contact number when supplier is selected from clients
@@ -142,12 +174,20 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (productItems.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one product item.",
+        variant: "destructive",
+      });
+      return;
+    }
     createPurchaseOrderMutation.mutate(formData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Purchase Order</DialogTitle>
         </DialogHeader>
@@ -207,18 +247,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
 
             <div>
-              <Label htmlFor="total_amount">Total Amount *</Label>
-              <Input
-                id="total_amount"
-                type="number"
-                step="0.01"
-                value={formData.total_amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
-                required
-              />
-            </div>
-
-            <div>
               <Label htmlFor="assigned_to">Assigned To</Label>
               <Select onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
                 <SelectTrigger>
@@ -233,6 +261,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                 </SelectContent>
               </Select>
             </div>
+
+            <div>
+              <Label>Total Amount (Auto-calculated)</Label>
+              <Input
+                value={`₹${totalAmount.toFixed(2)}`}
+                readOnly
+                className="bg-gray-50 font-semibold"
+              />
+            </div>
           </div>
 
           <div>
@@ -245,6 +282,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
               rows={3}
             />
           </div>
+
+          <ProductSelectionSection 
+            items={productItems}
+            onItemsChange={setProductItems}
+          />
 
           {/* Payment Method Section */}
           <div className="space-y-4 border rounded-lg p-4">

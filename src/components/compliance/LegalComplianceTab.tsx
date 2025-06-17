@@ -1,17 +1,20 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Upload, Scale, Calendar, MessageSquare } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileText, Upload, Scale, Calendar, MessageSquare, Download, Eye, AlertTriangle } from "lucide-react";
+import { DocumentUploadDialog } from "./DocumentUploadDialog";
 
 export function LegalComplianceTab() {
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [documents] = useState([
-    { id: 1, name: "Company Registration Certificate", category: "Certifications", status: "Active", expiry: "N/A" },
+    { id: 1, name: "Company Registration Certificate", category: "Certifications", status: "Active", expiry: null },
     { id: 2, name: "GST Registration", category: "Licenses", status: "Active", expiry: "2026-03-31" },
     { id: 3, name: "Service Agreement - ABC Corp", category: "Contracts", status: "Active", expiry: "2025-12-31" },
     { id: 4, name: "Office Lease Agreement", category: "Agreements", status: "Expired", expiry: "2025-05-31" },
+    { id: 5, name: "Professional Tax License", category: "Licenses", status: "Active", expiry: "2025-09-15" },
   ]);
 
   const [legalActions] = useState([
@@ -19,8 +22,50 @@ export function LegalComplianceTab() {
     { id: 2, title: "IP Infringement Case", status: "Resolved", court: "Supreme Court", nextDate: "N/A" },
   ]);
 
+  // Check for documents expiring within 90 days
+  const getExpiringDocuments = () => {
+    const today = new Date();
+    const ninetyDaysFromNow = new Date(today.getTime() + (90 * 24 * 60 * 60 * 1000));
+    
+    return documents.filter(doc => {
+      if (!doc.expiry) return false;
+      const expiryDate = new Date(doc.expiry);
+      return expiryDate <= ninetyDaysFromNow && expiryDate >= today;
+    });
+  };
+
+  const expiringDocuments = getExpiringDocuments();
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "No expiry";
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "Active": return "default";
+      case "Expired": return "destructive";
+      default: return "secondary";
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Expiry Alerts */}
+      {expiringDocuments.length > 0 && (
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            <strong>Documents Expiring Soon:</strong> {expiringDocuments.length} document(s) will expire within 90 days.
+            {expiringDocuments.map(doc => (
+              <div key={doc.id} className="mt-1">
+                • {doc.name} expires on {formatDate(doc.expiry)}
+              </div>
+            ))}
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Tabs defaultValue="documents" className="space-y-4">
         <TabsList>
           <TabsTrigger value="documents">Document Management</TabsTrigger>
@@ -37,7 +82,7 @@ export function LegalComplianceTab() {
                   <FileText className="h-5 w-5" />
                   Legal Document Management
                 </CardTitle>
-                <Button>
+                <Button onClick={() => setShowUploadDialog(true)}>
                   <Upload className="h-4 w-4 mr-2" />
                   Upload Document
                 </Button>
@@ -50,13 +95,22 @@ export function LegalComplianceTab() {
                     <div>
                       <h3 className="font-semibold">{doc.name}</h3>
                       <p className="text-sm text-gray-600">{doc.category}</p>
-                      <p className="text-sm text-gray-500">Expires: {doc.expiry}</p>
+                      <p className="text-sm text-gray-500">
+                        Expires: {formatDate(doc.expiry)}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={doc.status === "Active" ? "default" : "destructive"}>
+                      <Badge variant={getStatusColor(doc.status)}>
                         {doc.status}
                       </Badge>
-                      <Button variant="outline" size="sm">View</Button>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-1" />
+                        Download
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -75,21 +129,35 @@ export function LegalComplianceTab() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-yellow-50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-yellow-600" />
-                    <span className="font-semibold text-yellow-800">Expiring Soon</span>
+                {expiringDocuments.map((doc) => (
+                  <div key={doc.id} className="p-4 border rounded-lg bg-yellow-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-yellow-600" />
+                      <span className="font-semibold text-yellow-800">Expiring Soon</span>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      {doc.name} expires on {formatDate(doc.expiry)}
+                    </p>
+                    <Button size="sm" className="mt-2" variant="outline">
+                      Renew Document
+                    </Button>
                   </div>
-                  <p className="text-sm text-yellow-700">Service Agreement - ABC Corp expires on Dec 31, 2025</p>
-                </div>
-                <div className="p-4 border rounded-lg bg-red-50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-red-600" />
-                    <span className="font-semibold text-red-800">Expired</span>
+                ))}
+                
+                {documents.filter(doc => doc.status === "Expired").map((doc) => (
+                  <div key={doc.id} className="p-4 border rounded-lg bg-red-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-red-600" />
+                      <span className="font-semibold text-red-800">Expired</span>
+                    </div>
+                    <p className="text-sm text-red-700">
+                      {doc.name} expired on {formatDate(doc.expiry)}
+                    </p>
+                    <Button size="sm" className="mt-2" variant="destructive">
+                      Renew Now
+                    </Button>
                   </div>
-                  <p className="text-sm text-red-700">Office Lease Agreement expired on May 31, 2025</p>
-                  <Button size="sm" className="mt-2" variant="destructive">Renew Now</Button>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -156,6 +224,11 @@ export function LegalComplianceTab() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DocumentUploadDialog 
+        open={showUploadDialog} 
+        onOpenChange={setShowUploadDialog} 
+      />
     </div>
   );
 }

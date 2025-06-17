@@ -114,43 +114,27 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed"
 
   return (
-    <Sidebar className="bg-gradient-to-b from-blue-50 to-blue-100 border-blue-200">
-      <SidebarHeader className="p-4 border-b border-blue-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {!isCollapsed && (
-              <>
-                <img 
-                  src="/lovable-uploads/4205ce8e-c85a-484a-8110-c3a24054deab.png" 
-                  alt="Blynk Virtual Technologies" 
-                  className="h-8 w-auto"
-                />
-                <div>
-                  <h2 className="text-xs font-semibold text-blue-900">BLYNK VIRTUAL TECHNOLOGIES</h2>
-                  <p className="text-xs text-blue-700">PRIVATE LIMITED</p>
-                  <p className="text-xs text-blue-600 mt-1">Leading Virtual Asset Service Provider</p>
-                </div>
-              </>
-            )}
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleSidebar}
-            className="text-blue-700 hover:bg-blue-200"
-          >
-            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </Button>
+    <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 border-slate-700">
+      <SidebarHeader className="p-4 border-b border-slate-700">
+        <div className="flex items-center gap-3">
+          {!isCollapsed && (
+            <div>
+              <h2 className="text-lg font-bold text-white">BLYNK VIRTUAL</h2>
+              <h3 className="text-sm font-medium text-slate-300">TECHNOLOGIES</h3>
+              <p className="text-xs text-slate-400 mt-1">PRIVATE LIMITED</p>
+            </div>
+          )}
         </div>
       </SidebarHeader>
-      <SidebarContent className="bg-gradient-to-b from-blue-50 to-blue-100">
+      
+      <SidebarContent className="bg-gradient-to-b from-slate-900 to-slate-800">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-blue-700 font-medium">Application</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-slate-400 font-medium">Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="hover:bg-blue-200/50 data-[active=true]:bg-blue-300 text-blue-800 hover:text-blue-900">
+                  <SidebarMenuButton asChild className="hover:bg-slate-700/50 data-[active=true]:bg-slate-600 text-slate-200 hover:text-white transition-colors">
                     <a href={item.url} className="flex items-center gap-3">
                       <item.icon className={`h-5 w-5 ${item.color}`} />
                       {!isCollapsed && <span className="font-medium">{item.title}</span>}
@@ -162,12 +146,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t border-blue-200">
-        {!isCollapsed && (
-          <div className="text-xs text-blue-600">
-            © 2025 BLYNK Virtual Technologies Pvt. Ltd.
-          </div>
-        )}
+      
+      <SidebarFooter className="p-4 border-t border-slate-700">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <div className="text-xs text-slate-400">
+              © 2025 BLYNK Virtual Technologies
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleSidebar}
+            className="text-slate-300 hover:bg-slate-700 hover:text-white ml-auto"
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

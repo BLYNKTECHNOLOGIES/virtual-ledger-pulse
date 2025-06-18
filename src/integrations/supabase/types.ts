@@ -2295,7 +2295,7 @@ export type Database = {
         Returns: string
       }
       get_user_permissions: {
-        Args: { username: string }
+        Args: { user_uuid: string } | { username: string }
         Returns: {
           permission: Database["public"]["Enums"]["app_permission"]
         }[]
@@ -2319,10 +2319,15 @@ export type Database = {
         Returns: boolean
       }
       user_has_permission: {
-        Args: {
-          username: string
-          check_permission: Database["public"]["Enums"]["app_permission"]
-        }
+        Args:
+          | {
+              user_uuid: string
+              check_permission: Database["public"]["Enums"]["app_permission"]
+            }
+          | {
+              username: string
+              check_permission: Database["public"]["Enums"]["app_permission"]
+            }
         Returns: boolean
       }
       validate_user_credentials: {
@@ -2354,6 +2359,22 @@ export type Database = {
         | "view_accounting"
         | "manage_users"
         | "manage_roles"
+        | "manage_sales"
+        | "manage_purchase"
+        | "manage_stock"
+        | "view_stock"
+        | "manage_inventory"
+        | "view_inventory"
+        | "manage_clients"
+        | "manage_leads"
+        | "manage_hrms"
+        | "manage_payroll"
+        | "manage_accounting"
+        | "manage_banking"
+        | "view_banking"
+        | "manage_compliance"
+        | "admin_access"
+        | "super_admin_access"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2484,6 +2505,22 @@ export const Constants = {
         "view_accounting",
         "manage_users",
         "manage_roles",
+        "manage_sales",
+        "manage_purchase",
+        "manage_stock",
+        "view_stock",
+        "manage_inventory",
+        "view_inventory",
+        "manage_clients",
+        "manage_leads",
+        "manage_hrms",
+        "manage_payroll",
+        "manage_accounting",
+        "manage_banking",
+        "view_banking",
+        "manage_compliance",
+        "admin_access",
+        "super_admin_access",
       ],
     },
   },

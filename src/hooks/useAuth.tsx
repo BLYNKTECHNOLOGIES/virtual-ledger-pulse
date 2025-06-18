@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       // Load permissions for the user
-      refreshUserPermissions(parsedUser.username);
+      refreshUserPermissions(parsedUser.id);
     }
     
     // Load all users
@@ -90,13 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshUserPermissions = async (username?: string) => {
-    const targetUsername = username || user?.username;
-    if (!targetUsername) return;
+  const refreshUserPermissions = async (userId?: string) => {
+    const targetUserId = userId || user?.id;
+    if (!targetUserId) return;
 
     try {
       const { data, error } = await supabase
-        .rpc('get_user_permissions', { username: targetUsername });
+        .rpc('get_user_permissions', { user_uuid: targetUserId });
 
       if (error) {
         console.error('Error fetching permissions:', error);
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
         
         // Load user permissions from Supabase
-        await refreshUserPermissions(foundUser.username);
+        await refreshUserPermissions(foundUser.id);
 
         // Update last login
         await supabase

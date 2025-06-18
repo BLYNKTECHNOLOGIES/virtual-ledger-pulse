@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +51,7 @@ export default function Sales() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data || [];
     },
   });
 
@@ -73,9 +74,9 @@ export default function Sales() {
       order.order_number,
       order.client_name,
       order.platform || '',
-      order.amount,
+      order.total_amount,
       order.quantity || 1,
-      order.price_per_unit || order.amount,
+      order.price_per_unit || order.total_amount,
       order.payment_status,
       format(new Date(order.order_date), 'MMM dd, yyyy'),
       format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
@@ -284,7 +285,6 @@ export default function Sales() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Files</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
@@ -303,35 +303,11 @@ export default function Sales() {
                         </div>
                       </td>
                       <td className="py-3 px-4">{order.platform}</td>
-                      <td className="py-3 px-4 font-medium">₹{order.amount}</td>
+                      <td className="py-3 px-4 font-medium">₹{order.total_amount}</td>
                       <td className="py-3 px-4">{order.quantity || 1}</td>
-                      <td className="py-3 px-4">₹{order.price_per_unit || order.amount}</td>
+                      <td className="py-3 px-4">₹{order.price_per_unit || order.total_amount}</td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                      <td className="py-3 px-4">
-                        {order.attachment_urls && order.attachment_urls.length > 0 ? (
-                          <div className="flex gap-1">
-                            {order.attachment_urls.slice(0, 2).map((url, index) => (
-                              <Button
-                                key={index}
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0"
-                                onClick={() => window.open(url, '_blank')}
-                              >
-                                <FileText className="h-3 w-3" />
-                              </Button>
-                            ))}
-                            {order.attachment_urls.length > 2 && (
-                              <span className="text-xs text-gray-500">
-                                +{order.attachment_urls.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
                       <td className="py-3 px-4">
                         <div className="flex gap-1">
                           <Button variant="ghost" size="sm">

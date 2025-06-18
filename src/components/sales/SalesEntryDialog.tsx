@@ -1,84 +1,44 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { CustomerAutocomplete } from "./CustomerAutocomplete";
-import { FileUpload } from "./FileUpload";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SalesEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  preFilledData?: any;
 }
 
-interface SalesEntryForm {
-  customerName: string;
-  orderNumber: string;
-  productId: string;
-  quantity: number;
-  sellingPrice: number;
-  bankAccountId: string;
-  orderDate: string;
-  description: string;
-  riskLevel: string;
-  attachmentUrls: string[];
-  warehouseId: string;
-}
-
-export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEntryDialogProps) {
+export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [formData, setFormData] = useState<SalesEntryForm>({
-    customerName: "",
-    orderNumber: "",
-    productId: "",
-    quantity: 0,
-    sellingPrice: 0,
-    bankAccountId: "",
-    orderDate: new Date().toISOString().split('T')[0],
-    description: "",
-    riskLevel: "",
-    attachmentUrls: [],
-    warehouseId: ""
+  const [formData, setFormData] = useState({
+    order_number: '',
+    client_name: '',
+    client_phone: '',
+    platform: '',
+    product_id: '',
+    warehouse_id: '',
+    quantity: 1,
+    price_per_unit: 0,
+    total_amount: 0,
+    payment_status: 'COMPLETED',
+    order_date: new Date().toISOString().split('T')[0],
+    description: ''
   });
 
-  // Pre-fill form data when dialog opens with data from order creation
-  useEffect(() => {
-    if (preFilledData && open) {
-      setFormData(prev => ({
-        ...prev,
-        customerName: preFilledData.customerName || "",
-        // Auto-calculate quantity when amount and price are known
-        quantity: preFilledData.amount && prev.sellingPrice ? 
-          Math.floor(preFilledData.amount / prev.sellingPrice) : 0,
-      }));
-    }
-  }, [preFilledData, open]);
-
-  // Auto-calculate quantity when price changes
-  useEffect(() => {
-    if (preFilledData?.amount && formData.sellingPrice > 0) {
-      const calculatedQuantity = Math.floor(preFilledData.amount / formData.sellingPrice);
-      setFormData(prev => ({ ...prev, quantity: calculatedQuantity }));
-    }
-  }, [formData.sellingPrice, preFilledData?.amount]);
-
-  // Fetch products from stock management
+  // Fetch products
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .gt('current_stock_quantity', 0);
-      
+      const { data, error } = await supabase.from('products').select('*');
       if (error) throw error;
       return data;
     },
@@ -88,360 +48,240 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('is_active', true);
-      
+      const { data, error } = await supabase.from('warehouses').select('*');
       if (error) throw error;
       return data;
     },
   });
 
-  // Fetch active bank accounts from BAMS
-  const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Auto-fill bank account based on payment method from order creation
-  useEffect(() => {
-    if (preFilledData?.paymentMethod && bankAccounts) {
-      const matchingBank = bankAccounts.find(bank => 
-        bank.account_name === preFilledData.paymentMethod.bank_accounts?.account_name
-      );
-      if (matchingBank) {
-        setFormData(prev => ({ ...prev, bankAccountId: matchingBank.id }));
-      }
-    }
-  }, [preFilledData?.paymentMethod, bankAccounts]);
-
-  const selectedProduct = products?.find(p => p.id === formData.productId);
-  const totalAmount = preFilledData?.amount || (formData.quantity * formData.sellingPrice);
-
-  const createSalesMutation = useMutation({
-    mutationFn: async (salesData: SalesEntryForm) => {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // 1. Check if customer exists or create new one
-      let clientExists = true;
-      const { data: existingClient, error: clientCheckError } = await supabase
-        .from('clients')
-        .select('*')
-        .ilike('name', salesData.customerName)
-        .single();
-
-      if (clientCheckError && clientCheckError.code === 'PGRST116') {
-        // Client doesn't exist, create new one
-        clientExists = false;
-        const { error: newClientError } = await supabase
-          .from('clients')
-          .insert({
-            client_id: `CLI${Date.now()}`,
-            name: salesData.customerName,
-            date_of_onboarding: salesData.orderDate,
-            risk_appetite: salesData.riskLevel,
-            client_type: 'RETAIL',
-            first_order_value: totalAmount,
-            current_month_used: totalAmount
-          });
-
-        if (newClientError) throw newClientError;
-      }
-
-      // 2. Create sales order
-      const { data: salesOrder, error: salesError } = await supabase
+  const createSalesOrderMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { data: result, error } = await supabase
         .from('sales_orders')
-        .insert({
-          order_number: salesData.orderNumber,
-          client_name: salesData.customerName,
-          amount: totalAmount,
-          order_date: salesData.orderDate,
-          payment_status: 'COMPLETED',
-          status: 'DELIVERED',
-          description: salesData.description,
-          attachment_urls: salesData.attachmentUrls,
-          risk_level: salesData.riskLevel,
-          created_by: user?.id
-        })
+        .insert([{
+          order_number: data.order_number,
+          client_name: data.client_name,
+          client_phone: data.client_phone,
+          platform: data.platform,
+          product_id: data.product_id,
+          warehouse_id: data.warehouse_id,
+          quantity: data.quantity,
+          price_per_unit: data.price_per_unit,
+          total_amount: data.total_amount,
+          payment_status: data.payment_status,
+          order_date: data.order_date,
+          description: data.description
+        }])
         .select()
         .single();
-
-      if (salesError) throw salesError;
-
-      // 3. Create stock out transaction
-      const { error: stockError } = await supabase
-        .from('stock_transactions')
-        .insert({
-          product_id: salesData.productId,
-          transaction_type: 'OUT',
-          quantity: salesData.quantity,
-          unit_price: salesData.sellingPrice,
-          total_amount: totalAmount,
-          reference_number: salesData.orderNumber,
-          supplier_customer_name: salesData.customerName,
-          transaction_date: salesData.orderDate,
-          reason: 'Sales'
-        });
-
-      if (stockError) throw stockError;
-
-      // 4. Update product stock quantity
-      if (selectedProduct) {
-        const newStockQuantity = selectedProduct.current_stock_quantity - salesData.quantity;
-        const { error: updateError } = await supabase
-          .from('products')
-          .update({ current_stock_quantity: newStockQuantity })
-          .eq('id', salesData.productId);
-
-        if (updateError) throw updateError;
-      }
-
-      return salesOrder;
+      
+      if (error) throw error;
+      return result;
     },
     onSuccess: () => {
-      toast({
-        title: "Sales Entry Created",
-        description: "Sales order has been successfully created with all details and attachments.",
-      });
+      toast({ title: "Success", description: "Sales order created successfully" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      setFormData({
+        order_number: '',
+        client_name: '',
+        client_phone: '',
+        platform: '',
+        product_id: '',
+        warehouse_id: '',
+        quantity: 1,
+        price_per_unit: 0,
+        total_amount: 0,
+        payment_status: 'COMPLETED',
+        order_date: new Date().toISOString().split('T')[0],
+        description: ''
+      });
       onOpenChange(false);
-      resetForm();
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to create sales entry: ${error.message}`,
-        variant: "destructive",
-      });
-    },
+      console.error('Error creating sales order:', error);
+      toast({ title: "Error", description: "Failed to create sales order", variant: "destructive" });
+    }
   });
-
-  const resetForm = () => {
-    setFormData({
-      customerName: "",
-      orderNumber: "",
-      productId: "",
-      quantity: 0,
-      sellingPrice: 0,
-      bankAccountId: "",
-      orderDate: new Date().toISOString().split('T')[0],
-      description: "",
-      riskLevel: "",
-      attachmentUrls: [],
-      warehouseId: ""
-    });
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!selectedProduct) {
-      toast({
-        title: "Error",
-        description: "Please select a product",
-        variant: "destructive",
-      });
-      return;
-    }
+    createSalesOrderMutation.mutate(formData);
+  };
 
-    if (formData.quantity > selectedProduct.current_stock_quantity) {
-      toast({
-        title: "Error",
-        description: `Insufficient stock. Available: ${selectedProduct.current_stock_quantity}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    createSalesMutation.mutate(formData);
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-calculate total amount when quantity or price changes
+      if (field === 'quantity' || field === 'price_per_unit') {
+        updated.total_amount = updated.quantity * updated.price_per_unit;
+      }
+      
+      return updated;
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Sales Entry</DialogTitle>
+          <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="customerName">Customer Name *</Label>
-                <Input
-                  id="customerName"
-                  value={formData.customerName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
-                  required
-                  readOnly={!!preFilledData?.customerName}
-                  className={preFilledData?.customerName ? "bg-gray-100" : ""}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="orderNumber">Order Number *</Label>
-                <Input
-                  id="orderNumber"
-                  value={formData.orderNumber}
-                  onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
-                  required
-                />
-              </div>
 
-              <div>
-                <Label htmlFor="warehouse">Warehouse *</Label>
-                <Select value={formData.warehouseId} onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, warehouseId: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {warehouses?.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name} - {warehouse.location}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="product">Product *</Label>
-                <Select value={formData.productId} onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, productId: value }));
-                  const product = products?.find(p => p.id === value);
-                  if (product) {
-                    setFormData(prev => ({ ...prev, sellingPrice: product.selling_price }));
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {product.code} (Stock: {product.current_stock_quantity})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sellingPrice">Price per Unit *</Label>
-                  <Input
-                    id="sellingPrice"
-                    type="number"
-                    step="0.01"
-                    value={formData.sellingPrice}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sellingPrice: parseFloat(e.target.value) || 0 }))}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="quantity">Quantity *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    max={selectedProduct?.current_stock_quantity || 0}
-                    value={formData.quantity}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
-                    required
-                    readOnly={!!preFilledData?.amount}
-                    className={preFilledData?.amount ? "bg-gray-100" : ""}
-                  />
-                  {selectedProduct && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      Available: {selectedProduct.current_stock_quantity} {selectedProduct.unit_of_measurement}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="totalAmount">Total Amount</Label>
-                <Input
-                  id="totalAmount"
-                  value={`₹${totalAmount.toFixed(2)}`}
-                  readOnly
-                  className="bg-gray-100"
-                />
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Order Number *</Label>
+              <Input
+                value={formData.order_number}
+                onChange={(e) => handleInputChange('order_number', e.target.value)}
+                required
+              />
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bankAccount">Bank Account *</Label>
-                <Select value={formData.bankAccountId} onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, bankAccountId: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccounts?.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.bank_name} - {account.account_number}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>Customer Name *</Label>
+              <Input
+                value={formData.client_name}
+                onChange={(e) => handleInputChange('client_name', e.target.value)}
+                required
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="orderDate">Order Date *</Label>
-                <Input
-                  id="orderDate"
-                  type="date"
-                  value={formData.orderDate}
-                  onChange={(e) => setFormData(prev => ({ ...prev, orderDate: e.target.value }))}
-                  required
-                />
-              </div>
+            <div>
+              <Label>Customer Phone</Label>
+              <Input
+                value={formData.client_phone}
+                onChange={(e) => handleInputChange('client_phone', e.target.value)}
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Enter sales description or notes..."
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  rows={4}
-                />
-              </div>
+            <div>
+              <Label>Platform</Label>
+              <Input
+                value={formData.platform}
+                onChange={(e) => handleInputChange('platform', e.target.value)}
+              />
+            </div>
 
-              <FileUpload
-                onFilesUploaded={(urls) => setFormData(prev => ({ ...prev, attachmentUrls: urls }))}
-                existingFiles={formData.attachmentUrls}
+            <div>
+              <Label>Product</Label>
+              <Select
+                value={formData.product_id}
+                onValueChange={(value) => handleInputChange('product_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} - {product.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Warehouse</Label>
+              <Select
+                value={formData.warehouse_id}
+                onValueChange={(value) => handleInputChange('warehouse_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select warehouse" />
+                </SelectTrigger>
+                <SelectContent>
+                  {warehouses?.map((warehouse) => (
+                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                      {warehouse.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Quantity *</Label>
+              <Input
+                type="number"
+                value={formData.quantity}
+                onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
+                required
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div>
+              <Label>Price Per Unit *</Label>
+              <Input
+                type="number"
+                value={formData.price_per_unit}
+                onChange={(e) => handleInputChange('price_per_unit', parseFloat(e.target.value) || 0)}
+                required
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div>
+              <Label>Total Amount</Label>
+              <Input
+                type="number"
+                value={formData.total_amount}
+                disabled
+                className="bg-gray-100"
+              />
+            </div>
+
+            <div>
+              <Label>Payment Status</Label>
+              <Select
+                value={formData.payment_status}
+                onValueChange={(value) => handleInputChange('payment_status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PARTIAL">Partial</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Order Date</Label>
+              <Input
+                type="date"
+                value={formData.order_date}
+                onChange={(e) => handleInputChange('order_date', e.target.value)}
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div>
+            <Label>Description</Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createSalesMutation.isPending}>
-              {createSalesMutation.isPending ? "Creating..." : "Create Sales Entry"}
+            <Button 
+              type="submit" 
+              disabled={createSalesOrderMutation.isPending}
+            >
+              {createSalesOrderMutation.isPending ? "Creating..." : "Create Order"}
             </Button>
           </div>
         </form>

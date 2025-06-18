@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, Settings } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, Settings, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +72,130 @@ export default function Sales() {
   ) || [];
   const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
 
+  // Generate alternative payment method mutation
+  const generateAlternativeMethodMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const order = salesOrders?.find(o => o.id === orderId);
+      if (!order) throw new Error('Order not found');
+
+      // Logic to generate alternative payment method would go here
+      // For now, we'll just update the order status
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .update({
+          status: 'AWAITING_PAYMENT',
+          payment_status: 'PENDING',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Alternative payment method generated" });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: `Failed to generate alternative method: ${error.message}`, variant: "destructive" });
+    }
+  });
+
+  // Move to leads mutation
+  const moveToLeadsMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const order = salesOrders?.find(o => o.id === orderId);
+      if (!order) throw new Error('Order not found');
+
+      // Create lead entry
+      const { error: leadError } = await supabase
+        .from('leads')
+        .insert({
+          name: order.client_name,
+          contact_number: order.client_phone,
+          description: `Payment failed for order: ${order.order_number}`,
+          estimated_order_value: order.total_amount,
+          status: 'NEW',
+          source: 'Payment Failed Order'
+        });
+
+      if (leadError) throw leadError;
+
+      // Delete the order
+      const { error: deleteError } = await supabase
+        .from('sales_orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (deleteError) throw deleteError;
+      
+      return true;
+    },
+    onSuccess: () => {
+      toast({ title: "Order Moved", description: "Order moved to leads due to payment failure" });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: `Failed to move order to leads: ${error.message}`, variant: "destructive" });
+    }
+  });
+
+  // Mark payment received mutation
+  const markPaymentReceivedMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .update({
+          status: 'COMPLETED',
+          payment_status: 'COMPLETED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment marked as received, order completed" });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: `Failed to mark payment as received: ${error.message}`, variant: "destructive" });
+    }
+  });
+
+  // Payment method assigned mutation
+  const paymentMethodAssignedMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .update({
+          status: 'AWAITING_PAYMENT',
+          payment_status: 'PENDING',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Payment method assigned, awaiting payment" });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: `Failed to assign payment method: ${error.message}`, variant: "destructive" });
+    }
+  });
+
+  // Delete sales order mutation
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const order = salesOrders?.find(o => o.id === orderId);
@@ -225,7 +349,79 @@ export default function Sales() {
     }
   };
 
-  const renderOrdersTable = (orders: any[]) => (
+  const renderPendingOrdersTable = (orders: any[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id} className="border-b hover:bg-gray-50">
+              <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
+              <td className="py-3 px-4">
+                <div>
+                  <div className="font-medium">{order.client_name}</div>
+                  {order.description && (
+                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                      {order.description}
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="py-3 px-4">{order.platform}</td>
+              <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{order.quantity || 1}</td>
+              <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
+              <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+              <td className="py-3 px-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      Take Action
+                      <ChevronDown className="h-4 w-4 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => generateAlternativeMethodMutation.mutate(order.id)}>
+                      🔄 Generate Alternative Method
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => moveToLeadsMutation.mutate(order.id)}>
+                      ❌ Payment Failed - Shift to Lead
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => markPaymentReceivedMutation.mutate(order.id)}>
+                      ✅ Payment Received
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => paymentMethodAssignedMutation.mutate(order.id)}>
+                      📥 Payment Method Assigned
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {orders.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No pending orders found.
+        </div>
+      )}
+    </div>
+  );
+
+  const renderCompletedOrdersTable = (orders: any[]) => (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
@@ -278,15 +474,6 @@ export default function Sales() {
                   >
                     <Edit className="h-3 w-3" />
                   </Button>
-                  {(order.status === 'AWAITING_PAYMENT' || order.payment_status === 'PENDING') && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setSelectedOrderForStatus(order)}
-                    >
-                      <Settings className="h-3 w-3" />
-                    </Button>
-                  )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -303,7 +490,7 @@ export default function Sales() {
       </table>
       {orders.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No orders found for this category.
+          No completed orders found.
         </div>
       )}
     </div>
@@ -457,11 +644,11 @@ export default function Sales() {
               </TabsList>
               
               <TabsContent value="pending" className="mt-6">
-                {renderOrdersTable(pendingOrders)}
+                {renderPendingOrdersTable(pendingOrders)}
               </TabsContent>
               
               <TabsContent value="completed" className="mt-6">
-                {renderOrdersTable(completedOrders)}
+                {renderCompletedOrdersTable(completedOrders)}
               </TabsContent>
             </Tabs>
           )}

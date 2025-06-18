@@ -40,20 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for stored authentication on app load
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      // Load permissions for the user
-      refreshUserPermissions(parsedUser.id);
-    }
-    
-    // Load all users
-    refreshUsers();
-  }, []);
-
   const refreshUsers = async () => {
     try {
       console.log('Fetching users from database...');
@@ -81,12 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Transform the data to match the expected User interface
       const transformedUsers = usersData?.map(userData => ({
         id: userData.id,
-        username: userData.username,
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        phone: userData.phone,
-        status: userData.status,
+        username: userData.username || '',
+        email: userData.email || '',
+        first_name: userData.first_name || undefined,
+        last_name: userData.last_name || undefined,
+        phone: userData.phone || undefined,
+        status: userData.status || 'ACTIVE',
         created_at: new Date(userData.created_at).toLocaleDateString('en-GB'),
       })) || [];
 
@@ -99,6 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Check for stored authentication on app load
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      // Load permissions for the user
+      refreshUserPermissions(parsedUser.id);
+    }
+    
+    // Load all users
+    refreshUsers();
+  }, []);
 
   const refreshUserPermissions = async (userId?: string) => {
     const targetUserId = userId || user?.id;

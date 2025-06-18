@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { OptimizedTabs, OptimizedTabsContent, OptimizedTabsList, OptimizedTabsTrigger } from "@/components/ui/optimized-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +37,7 @@ export default function UserManagement() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Fetch pending registrations with optimized query
-  const { data: pendingRegistrations, refetch: refetchPendingRegistrations } = useQuery({
+  const { data: pendingRegistrations, refetch: refetchPendingRegistrations, isLoading: pendingLoading } = useQuery({
     queryKey: ['pending_registrations'],
     queryFn: async () => {
       console.log('Fetching pending registrations...');
@@ -52,7 +51,7 @@ export default function UserManagement() {
         throw error;
       }
       
-      console.log('Pending registrations:', data);
+      console.log('Pending registrations fetched:', data);
       return data as PendingRegistration[];
     },
   });
@@ -60,7 +59,7 @@ export default function UserManagement() {
   useEffect(() => {
     console.log('UserManagement mounted, refreshing users...');
     refreshUsers();
-  }, []);
+  }, [refreshUsers]);
 
   const handleDeleteUser = useCallback(async (id: string, username: string) => {
     if (confirm(`Are you sure you want to delete user "${username}"?`)) {
@@ -146,7 +145,7 @@ export default function UserManagement() {
     [pendingRegistrations]
   );
 
-  if (loading) {
+  if (loading || pendingLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -164,7 +163,7 @@ export default function UserManagement() {
       <OptimizedTabs defaultValue="users" className="space-y-6">
         <OptimizedTabsList>
           <OptimizedTabsTrigger value="users">
-            Users ({users.length})
+            Users ({users?.length || 0})
           </OptimizedTabsTrigger>
           <OptimizedTabsTrigger value="approvals" className="relative">
             Approvals
@@ -179,7 +178,7 @@ export default function UserManagement() {
 
         <OptimizedTabsContent value="users" className="space-y-6" keepMounted>
           <UsersTab
-            users={users}
+            users={users || []}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             onAddUser={() => setShowAddDialog(true)}

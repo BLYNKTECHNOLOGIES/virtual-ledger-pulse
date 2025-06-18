@@ -827,10 +827,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               <div>
                 <Label>Payment Received In</Label>
                 <Input 
-                  value={selectedPaymentMethod?.type === 'UPI' 
-                    ? selectedPaymentMethod.upi_id 
-                    : selectedPaymentMethod?.bank_accounts?.account_name || 'N/A'
-                  }
+                  value={selectedPaymentMethod?.bank_accounts?.account_name || 'N/A'}
                   disabled
                   className="bg-gray-100"
                 />

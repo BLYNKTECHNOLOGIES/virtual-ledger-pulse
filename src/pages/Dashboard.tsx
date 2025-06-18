@@ -1,288 +1,235 @@
 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { QuickAccessCard } from "@/components/dashboard/QuickAccessCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Banknote, User, Wallet, TrendingUp } from "lucide-react";
+import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
-const quickAccessItems = [
-  { title: "Add New Client", status: "2 Pending Approvals", link: "/clients/new" },
-  { title: "Home", link: "/" },
-  { title: "Bank Statement", status: "Reconcile", link: "/banking" },
-  { title: "Payroll", status: "Processing", link: "/payroll" },
-  { title: "Compliance Tasks", count: 3, link: "/compliance" },
-  { title: "Analytics Dashboard", link: "/analytics" },
-];
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+import { format } from "date-fns";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const [selectedPeriod, setSelectedPeriod] = useState("7d");
 
-  // Fetch inventory valuation (warehouse assets)
-  const { data: inventoryData } = useQuery({
-    queryKey: ['dashboard_inventory'],
+  // Fetch dashboard metrics
+  const { data: metrics } = useQuery({
+    queryKey: ['dashboard_metrics'],
     queryFn: async () => {
-      const { data: products } = await supabase
-        .from('products')
-        .select('*, warehouses(name)');
-      
-      const totalValue = products?.reduce((sum, product) => {
-        const buyingPrice = product.average_buying_price || product.cost_price;
-        return sum + (product.current_stock_quantity * buyingPrice);
-      }, 0) || 0;
+      // Get total sales orders count and revenue
+      const { data: salesData } = await supabase
+        .from('sales_orders')
+        .select('total_amount, created_at');
 
-      return { totalValue };
-    },
-  });
+      // Get total purchase orders count and spending
+      const { data: purchaseData } = await supabase
+        .from('purchase_orders')
+        .select('total_amount, created_at');
 
-  // Fetch warehouse stock data for chart - stock levels not valuation
-  const { data: warehouseStockData } = useQuery({
-    queryKey: ['dashboard_warehouse_stock'],
-    queryFn: async () => {
-      const { data: warehouses } = await supabase
-        .from('warehouses')
-        .select('id, name')
-        .eq('is_active', true);
-
-      if (!warehouses) return [];
-
-      const warehouseStockPromises = warehouses.map(async (warehouse) => {
-        const { data: products } = await supabase
-          .from('products')
-          .select('current_stock_quantity')
-          .eq('warehouse_id', warehouse.id);
-
-        const totalStock = products?.reduce((sum, product) => sum + product.current_stock_quantity, 0) || 0;
-        
-        return {
-          name: warehouse.name,
-          stock: totalStock
-        };
-      });
-
-      const warehouseStock = await Promise.all(warehouseStockPromises);
-      return warehouseStock;
-    },
-  });
-
-  // Fetch total clients
-  const { data: clientsData } = useQuery({
-    queryKey: ['dashboard_clients'],
-    queryFn: async () => {
-      const { data: clients } = await supabase
+      // Get total clients count
+      const { data: clientsData } = await supabase
         .from('clients')
         .select('id');
-      
-      return { totalClients: clients?.length || 0 };
+
+      // Get total products count
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id');
+
+      const totalSales = salesData?.length || 0;
+      const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const totalPurchases = purchaseData?.length || 0;
+      const totalSpending = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const totalClients = clientsData?.length || 0;
+      const totalProducts = productsData?.length || 0;
+
+      return {
+        totalSales,
+        totalRevenue,
+        totalPurchases,
+        totalSpending,
+        totalClients,
+        totalProducts
+      };
     },
   });
 
-  // Fetch total bank balance with breakdown
-  const { data: bankData } = useQuery({
-    queryKey: ['dashboard_bank_balance'],
+  // Fetch recent transactions for activity feed
+  const { data: recentActivity } = useQuery({
+    queryKey: ['recent_activity'],
     queryFn: async () => {
-      const { data: accounts } = await supabase
-        .from('bank_accounts')
-        .select('account_name, bank_name, balance');
-      
-      const totalBalance = accounts?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
-      const bankBreakdown = accounts?.map(account => ({
-        name: `${account.bank_name} - ${account.account_name}`,
-        value: Number(account.balance)
-      })) || [];
-      
-      return { totalBalance, bankBreakdown };
-    },
-  });
+      // Get recent sales orders
+      const { data: salesOrders } = await supabase
+        .from('sales_orders')
+        .select('id, order_number, client_name, total_amount, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-  // Fetch daily sales and purchase data
-  const { data: dailyData } = useQuery({
-    queryKey: ['dashboard_daily_data'],
-    queryFn: async () => {
-      const today = new Date();
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
-      }).reverse();
+      // Get recent purchase orders
+      const { data: purchaseOrders } = await supabase
+        .from('purchase_orders')
+        .select('id, order_number, supplier_name, total_amount, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      const salesPromises = last7Days.map(async (date) => {
-        const { data } = await supabase
-          .from('sales_orders')
-          .select('amount')
-          .eq('order_date', date);
-        return data?.reduce((sum, order) => sum + Number(order.amount), 0) || 0;
-      });
+      // Combine and sort by date
+      const allActivity = [
+        ...(salesOrders || []).map(order => ({
+          id: order.id,
+          type: 'sale',
+          title: `Sale to ${order.client_name}`,
+          amount: order.total_amount,
+          reference: order.order_number,
+          timestamp: order.created_at
+        })),
+        ...(purchaseOrders || []).map(order => ({
+          id: order.id,
+          type: 'purchase',
+          title: `Purchase from ${order.supplier_name}`,
+          amount: order.total_amount,
+          reference: order.order_number,
+          timestamp: order.created_at
+        }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+       .slice(0, 10);
 
-      const purchasePromises = last7Days.map(async (date) => {
-        const { data } = await supabase
-          .from('purchase_orders')
-          .select('total_amount')
-          .eq('order_date', date);
-        return data?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      });
-
-      const salesData = await Promise.all(salesPromises);
-      const purchaseData = await Promise.all(purchasePromises);
-
-      const chartData = last7Days.map((date, index) => ({
-        date: new Date(date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-        sales: salesData[index],
-        purchases: purchaseData[index]
-      }));
-
-      const todayTurnover = salesData[salesData.length - 1] + purchaseData[purchaseData.length - 1];
-
-      return { chartData, todayTurnover };
+      return allActivity;
     },
   });
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Metrics Grid */}
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with your business.</p>
+        </div>
+        <div className="flex gap-2">
+          {["24h", "7d", "30d", "90d"].map((period) => (
+            <Button
+              key={period}
+              variant={selectedPeriod === period ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedPeriod(period)}
+            >
+              {period}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div onClick={() => navigate('/stock')} className="cursor-pointer">
-          <MetricCard
-            title="Total Assets Value"
-            value={`₹${inventoryData?.totalValue?.toLocaleString() || '0'}`}
-            change="Inventory Valuation"
-            changeType="neutral"
-            icon={Banknote}
-          />
-        </div>
-        
-        <div onClick={() => navigate('/clients')} className="cursor-pointer">
-          <MetricCard
-            title="Total Clients"
-            value={clientsData?.totalClients?.toString() || '0'}
-            change="Active Clients"
-            changeType="positive"
-            subtitle="Registered users"
-            icon={User}
-          />
-        </div>
-        
-        <div onClick={() => navigate('/bams')} className="cursor-pointer">
-          <MetricCard
-            title="Total Cash Available"
-            value={`₹${bankData?.totalBalance?.toLocaleString() || '0'}`}
-            change="All Bank Accounts"
-            changeType="neutral"
-            icon={Wallet}
-          />
-        </div>
-        
         <MetricCard
-          title="Today's Turnover"
-          value={`₹${dailyData?.todayTurnover?.toLocaleString() || '0'}`}
-          change="Sales + Purchases"
-          changeType="positive"
-          subtitle="Combined daily volume"
-          icon={TrendingUp}
+          title="Total Revenue"
+          value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
+          change="+12.5%"
+          trend="up"
+          icon={<DollarSign className="h-6 w-6" />}
+        />
+        <MetricCard
+          title="Sales Orders"
+          value={metrics?.totalSales?.toString() || "0"}
+          change="+8.2%"
+          trend="up"
+          icon={<TrendingUp className="h-6 w-6" />}
+        />
+        <MetricCard
+          title="Active Clients"
+          value={metrics?.totalClients?.toString() || "0"}
+          change="+3.1%"
+          trend="up"
+          icon={<Users className="h-6 w-6" />}
+        />
+        <MetricCard
+          title="Products"
+          value={metrics?.totalProducts?.toString() || "0"}
+          change="+1.2%"
+          trend="up"
+          icon={<Package className="h-6 w-6" />}
         />
       </div>
 
-      {/* Charts */}
+      {/* Charts and Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Daily Sales & Purchase Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-              Sales & Purchases - Daily View
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={dailyData?.chartData || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, '']} />
-                <Bar dataKey="sales" fill="#10B981" />
-                <Bar dataKey="purchases" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        {/* Chart */}
+        <div className="lg:col-span-2">
+          <ExchangeChart />
+        </div>
 
-        {/* Cash Distribution Pie Chart */}
+        {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-              Cash Distribution - By Bank
-            </CardTitle>
+            <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={bankData?.bankBreakdown || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  dataKey="value"
-                >
-                  {bankData?.bankBreakdown?.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, 'Balance']} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-4 space-y-1">
-              {bankData?.bankBreakdown?.map((entry, index) => (
-                <div key={entry.name} className="flex items-center gap-2 text-xs">
-                  <div 
-                    className="w-2 h-2 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <span className="text-gray-600 truncate">{entry.name}</span>
+          <CardContent className="space-y-4">
+            {recentActivity?.map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between border-b pb-3 last:border-0">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-full ${
+                    activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                  }`}>
+                    {activity.type === 'sale' ? (
+                      <ArrowUpIcon className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <ArrowDownIcon className="h-4 w-4 text-blue-600" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{activity.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+                <div className="text-right">
+                  <p className={`font-semibold text-sm ${
+                    activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
+                  }`}>
+                    {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-500">{activity.reference}</p>
+                </div>
+              </div>
+            ))}
+            {(!recentActivity || recentActivity.length === 0) && (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                No recent activity
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Quick Access - Moved to third column */}
-        <QuickAccessCard title="Quick Access" items={quickAccessItems} />
       </div>
 
-      {/* Warehouse Stock Chart - Above Quick Access section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Warehouse Stock Breakdown</h3>
-              <span className="text-sm text-gray-500">Current Stock Levels</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={warehouseStockData || []} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => [`${Number(value).toLocaleString()} units`, 'Stock']} />
-                  <Bar dataKey="stock" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <QuickAccessCard
+          title="New Sale"
+          description="Create a new sales order"
+          href="/sales"
+          icon="plus"
+        />
+        <QuickAccessCard
+          title="Add Product"
+          description="Add new product to inventory"
+          href="/stock"
+          icon="package"
+        />
+        <QuickAccessCard
+          title="New Client"
+          description="Register a new client"
+          href="/clients"
+          icon="users"
+        />
+        <QuickAccessCard
+          title="Purchase Order"
+          description="Create new purchase order"
+          href="/purchase"
+          icon="shopping-cart"
+        />
       </div>
     </div>
   );

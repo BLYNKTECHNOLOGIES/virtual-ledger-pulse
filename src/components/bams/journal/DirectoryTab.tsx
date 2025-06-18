@@ -30,12 +30,12 @@ export function DirectoryTab() {
 
       if (bankError) throw bankError;
 
-      // Sales orders
+      // Sales orders - using correct column names from new table structure
       const { data: salesData, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
           id,
-          amount,
+          total_amount,
           order_date,
           order_number,
           client_name,
@@ -82,7 +82,7 @@ export function DirectoryTab() {
         ...(salesData || []).map(s => ({
           ...s,
           source: 'SALES',
-          display_amount: s.amount,
+          display_amount: s.total_amount,
           display_date: s.order_date,
           display_type: 'SALES_ORDER',
           display_description: `Stock Sold - ${s.client_name} - Order #${s.order_number}${s.description ? ': ' + s.description : ''}`,

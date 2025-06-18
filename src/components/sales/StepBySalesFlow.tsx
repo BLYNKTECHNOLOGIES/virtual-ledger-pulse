@@ -17,7 +17,7 @@ interface StepBySalesFlowProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form';
+type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice';
 
 export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>('order-type');
@@ -35,6 +35,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>([]);
+  const [usedPaymentMethods, setUsedPaymentMethods] = useState<string[]>([]);
   const [finalOrderData, setFinalOrderData] = useState({
     order_number: '',
     platform: '',
@@ -88,12 +89,13 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     
     setAvailablePaymentMethods(data || []);
     
-    // Auto-select the first available payment method
+    // Find next available payment method that hasn't been used
     if (data && data.length > 0) {
       const availableMethod = data.find(method => 
-        method.current_usage < method.payment_limit
+        method.current_usage < method.payment_limit && 
+        !usedPaymentMethods.includes(method.id)
       );
-      setSelectedPaymentMethod(availableMethod || data[0]);
+      setSelectedPaymentMethod(availableMethod || null);
     }
   };
 
@@ -101,7 +103,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     if (paymentType && (selectedClient || orderType === 'new')) {
       fetchPaymentMethods();
     }
-  }, [paymentType, selectedClient, orderType]);
+  }, [paymentType, selectedClient, orderType, usedPaymentMethods]);
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -147,6 +149,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     setPaymentType(null);
     setSelectedPaymentMethod(null);
     setAvailablePaymentMethods([]);
+    setUsedPaymentMethods([]);
     setFinalOrderData({ order_number: '', platform: '', quantity: 1, description: '', credits_applied: 0 });
   };
 
@@ -183,16 +186,38 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handleAlternativePaymentMethod = () => {
-    // Keep the same payment type but show alternative methods
-    if (availablePaymentMethods.length > 1) {
-      const currentIndex = availablePaymentMethods.findIndex(method => method.id === selectedPaymentMethod?.id);
-      const nextIndex = (currentIndex + 1) % availablePaymentMethods.length;
-      setSelectedPaymentMethod(availablePaymentMethods[nextIndex]);
-    } else {
-      // If no alternatives in the same type, go back to payment type selection
-      setCurrentStep('payment-type-selection');
-      setPaymentType(null);
-      setSelectedPaymentMethod(null);
+    setCurrentStep('alternative-method-choice');
+  };
+
+  const handleChangePaymentMethodType = () => {
+    // Go back to step 3 to change payment type
+    setPaymentType(null);
+    setSelectedPaymentMethod(null);
+    setUsedPaymentMethods([]);
+    setCurrentStep('payment-type-selection');
+  };
+
+  const handleKeepSamePaymentType = () => {
+    // Mark current method as used and find next available
+    if (selectedPaymentMethod) {
+      const newUsedMethods = [...usedPaymentMethods, selectedPaymentMethod.id];
+      setUsedPaymentMethods(newUsedMethods);
+      
+      // Find next available method of same type
+      const nextMethod = availablePaymentMethods.find(method => 
+        method.current_usage < method.payment_limit && 
+        !newUsedMethods.includes(method.id) &&
+        method.type === (paymentType === 'UPI' ? 'UPI' : 'Bank Account')
+      );
+      
+      if (nextMethod) {
+        setSelectedPaymentMethod(nextMethod);
+        setCurrentStep('payment-method-display');
+      } else {
+        // No more methods available
+        setSelectedPaymentMethod(null);
+        setCurrentStep('payment-method-display');
+      }
     }
   };
 
@@ -514,8 +539,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             ) : (
               <div className="p-4 bg-red-50 rounded-lg">
                 <p className="text-sm text-red-800">
-                  No payment methods available for {paymentType} with {selectedClient?.risk_appetite || newClientData.risk_appetite} risk level.
-                  Please contact administrator to add payment methods.
+                  {availablePaymentMethods.length === 0 
+                    ? `No payment methods available for ${paymentType} with ${selectedClient?.risk_appetite || newClientData.risk_appetite} risk level. Please contact administrator to add payment methods.`
+                    : "All available payment methods have been provided. No available methods left. Contact your admin."
+                  }
                 </p>
               </div>
             )}
@@ -527,6 +554,36 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             >
               Continue
             </Button>
+          </div>
+        );
+
+      case 'alternative-method-choice':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Change Payment Method</h3>
+            
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-800 mb-4">
+                Would you like to change the payment method type (UPI/Bank Transfer) or keep the same type but get an alternative method?
+              </p>
+              
+              <div className="space-y-3">
+                <Button 
+                  onClick={handleChangePaymentMethodType}
+                  className="w-full"
+                  variant="outline"
+                >
+                  Change Payment Method Type
+                </Button>
+                
+                <Button 
+                  onClick={handleKeepSamePaymentType}
+                  className="w-full"
+                >
+                  Keep Same Type - Get Alternative Method
+                </Button>
+              </div>
+            </div>
           </div>
         );
 
@@ -557,10 +614,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 🟡 Alternative Payment Method
               </Button>
               <p className="text-xs text-gray-600 px-2">
-                {availablePaymentMethods.length > 1 
-                  ? "Switches to next available payment method of the same type."
-                  : "Re-prompts the payment type selection for alternate method."
-                }
+                Allows you to change payment method type or get an alternative method of the same type.
               </p>
 
               <Button 

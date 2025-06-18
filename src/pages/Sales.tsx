@@ -9,8 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, Settings, ChevronDown } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
-import { OrderStatusDialog } from "@/components/sales/OrderStatusDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
@@ -32,10 +30,7 @@ export default function Sales() {
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
-  const [selectedOrderForStatus, setSelectedOrderForStatus] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
-  const [alternativeMethodDialog, setAlternativeMethodDialog] = useState<any>(null);
-  const [stepFlowMode, setStepFlowMode] = useState<'normal' | 'alternative-same-type' | 'alternative-change-type'>('normal');
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -69,204 +64,9 @@ export default function Sales() {
   });
 
   // Filter orders based on active tab
-  const pendingOrders = salesOrders?.filter(order => 
-    order.payment_status === 'PENDING' || order.status === 'AWAITING_PAYMENT'
-  ) || [];
+  const pendingOrders = salesOrders?.filter(order => order.payment_status === 'PENDING') || [];
   const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
 
-  // Enhanced generate alternative payment method mutation
-  const generateAlternativeMethodMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const order = salesOrders?.find(o => o.id === orderId);
-      if (!order) throw new Error('Order not found');
-
-      // Get the current payment method to determine the type and risk category
-      const { data: currentPaymentMethod } = await supabase
-        .from('sales_payment_methods')
-        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-        .eq('id', order.sales_payment_method_id)
-        .single();
-
-      if (!currentPaymentMethod) throw new Error('Current payment method not found');
-
-      // Find alternative payment methods of the same type and risk category
-      const { data: allAlternativeMethods } = await supabase
-        .from('sales_payment_methods')
-        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-        .eq('is_active', true)
-        .eq('type', currentPaymentMethod.type)
-        .eq('risk_category', currentPaymentMethod.risk_category)
-        .neq('id', currentPaymentMethod.id);
-
-      // Filter methods that have available capacity
-      const availableSameMethods = (allAlternativeMethods || []).filter(method => 
-        (method.current_usage || 0) < method.payment_limit
-      );
-
-      // Check if there are methods of different types available
-      const { data: differentTypeMethods } = await supabase
-        .from('sales_payment_methods')
-        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-        .eq('is_active', true)
-        .eq('risk_category', currentPaymentMethod.risk_category)
-        .neq('type', currentPaymentMethod.type);
-
-      const availableDifferentTypes = (differentTypeMethods || []).filter(method => 
-        (method.current_usage || 0) < method.payment_limit
-      );
-
-      // Show dialog asking if they want to change payment method type
-      setAlternativeMethodDialog({
-        order,
-        currentPaymentMethod,
-        availableSameType: availableSameMethods,
-        availableDifferentTypes: availableDifferentTypes
-      });
-      
-      return null;
-    },
-    onError: (error) => {
-      toast({ 
-        title: "Error", 
-        description: error.message, 
-        variant: "destructive" 
-      });
-    }
-  });
-
-  const handleAlternativeMethodChoice = (choice: 'same-type' | 'change-type') => {
-    if (!alternativeMethodDialog) return;
-
-    const { availableSameType, availableDifferentTypes } = alternativeMethodDialog;
-
-    if (choice === 'same-type') {
-      if (availableSameType && availableSameType.length > 0) {
-        // Set mode and show step flow directly to step 4
-        setStepFlowMode('alternative-same-type');
-        setShowStepByStepFlow(true);
-      } else {
-        toast({
-          title: "No Alternative Methods",
-          description: "No available methods of this type. Please contact admin.",
-          variant: "destructive"
-        });
-      }
-    } else {
-      if (availableDifferentTypes && availableDifferentTypes.length > 0) {
-        // Set mode and show step flow to step 3
-        setStepFlowMode('alternative-change-type');
-        setShowStepByStepFlow(true);
-      } else {
-        toast({
-          title: "No Alternative Methods",
-          description: "No alternative payment method types available. Please contact admin.",
-          variant: "destructive"
-        });
-      }
-    }
-    
-    setAlternativeMethodDialog(null);
-  };
-
-  const handleStepFlowClose = () => {
-    setShowStepByStepFlow(false);
-    setStepFlowMode('normal');
-    setAlternativeMethodDialog(null);
-  };
-
-  // Move to leads mutation
-  const moveToLeadsMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const order = salesOrders?.find(o => o.id === orderId);
-      if (!order) throw new Error('Order not found');
-
-      // Create lead entry
-      const { error: leadError } = await supabase
-        .from('leads')
-        .insert({
-          name: order.client_name,
-          contact_number: order.client_phone,
-          description: `Payment failed for order: ${order.order_number}`,
-          estimated_order_value: order.total_amount,
-          status: 'NEW',
-          source: 'Payment Failed Order'
-        });
-
-      if (leadError) throw leadError;
-
-      // Delete the order
-      const { error: deleteError } = await supabase
-        .from('sales_orders')
-        .delete()
-        .eq('id', orderId);
-
-      if (deleteError) throw deleteError;
-      
-      return true;
-    },
-    onSuccess: () => {
-      toast({ title: "Order Moved", description: "Order moved to leads due to payment failure" });
-      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: `Failed to move order to leads: ${error.message}`, variant: "destructive" });
-    }
-  });
-
-  // Mark payment received mutation
-  const markPaymentReceivedMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .update({
-          status: 'COMPLETED',
-          payment_status: 'COMPLETED',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Payment marked as received, order completed" });
-      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: `Failed to mark payment as received: ${error.message}`, variant: "destructive" });
-    }
-  });
-
-  // Payment method assigned mutation
-  const paymentMethodAssignedMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .update({
-          status: 'AWAITING_PAYMENT',
-          payment_status: 'PENDING',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Payment method assigned, awaiting payment" });
-      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: `Failed to assign payment method: ${error.message}`, variant: "destructive" });
-    }
-  });
-
-  // Delete sales order mutation
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const order = salesOrders?.find(o => o.id === orderId);
@@ -420,79 +220,7 @@ export default function Sales() {
     }
   };
 
-  const renderPendingOrdersTable = (orders: any[]) => (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b">
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id} className="border-b hover:bg-gray-50">
-              <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
-              <td className="py-3 px-4">
-                <div>
-                  <div className="font-medium">{order.client_name}</div>
-                  {order.description && (
-                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                      {order.description}
-                    </div>
-                  )}
-                </div>
-              </td>
-              <td className="py-3 px-4">{order.platform}</td>
-              <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
-              <td className="py-3 px-4">{order.quantity || 1}</td>
-              <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
-              <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
-              <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-              <td className="py-3 px-4">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      Take Action
-                      <ChevronDown className="h-4 w-4 ml-1" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => generateAlternativeMethodMutation.mutate(order.id)}>
-                      🔄 Generate Alternative Method
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => moveToLeadsMutation.mutate(order.id)}>
-                      ❌ Payment Failed - Shift to Lead
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => markPaymentReceivedMutation.mutate(order.id)}>
-                      ✅ Payment Received
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => paymentMethodAssignedMutation.mutate(order.id)}>
-                      📥 Payment Method Assigned
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {orders.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No pending orders found.
-        </div>
-      )}
-    </div>
-  );
-
-  const renderCompletedOrdersTable = (orders: any[]) => (
+  const renderOrdersTable = (orders: any[]) => (
     <div className="overflow-x-auto">
       <table className="w-full">
         <thead>
@@ -561,7 +289,7 @@ export default function Sales() {
       </table>
       {orders.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No completed orders found.
+          No orders found for this category.
         </div>
       )}
     </div>
@@ -579,10 +307,7 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => {
-            setStepFlowMode('normal');
-            setShowStepByStepFlow(true);
-          }}>
+          <Button onClick={() => setShowStepByStepFlow(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -718,91 +443,21 @@ export default function Sales() {
               </TabsList>
               
               <TabsContent value="pending" className="mt-6">
-                {renderPendingOrdersTable(pendingOrders)}
+                {renderOrdersTable(pendingOrders)}
               </TabsContent>
               
               <TabsContent value="completed" className="mt-6">
-                {renderCompletedOrdersTable(completedOrders)}
+                {renderOrdersTable(completedOrders)}
               </TabsContent>
             </Tabs>
           )}
         </CardContent>
       </Card>
 
-      {/* Alternative Payment Method Choice Dialog */}
-      <Dialog open={!!alternativeMethodDialog} onOpenChange={(open) => !open && setAlternativeMethodDialog(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Change Payment Method Type?</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {alternativeMethodDialog?.availableSameType?.length > 0 ? (
-              <>
-                <p className="text-sm text-gray-600">
-                  Do you want to change the payment method type or keep the same type and get an alternative method?
-                </p>
-                <div className="flex gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => handleAlternativeMethodChoice('same-type')}
-                    className="flex-1"
-                  >
-                    No (Keep Same Type)
-                  </Button>
-                  <Button 
-                    onClick={() => handleAlternativeMethodChoice('change-type')}
-                    className="flex-1"
-                  >
-                    Yes (Change Payment Method Type)
-                  </Button>
-                </div>
-              </>
-            ) : alternativeMethodDialog?.availableDifferentTypes?.length > 0 ? (
-              <>
-                <p className="text-sm text-gray-600">
-                  No alternative methods available for the current payment type. Would you like to change the payment method type?
-                </p>
-                <div className="flex gap-3">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setAlternativeMethodDialog(null)}
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={() => handleAlternativeMethodChoice('change-type')}
-                    className="flex-1"
-                  >
-                    Yes (Change Payment Method Type)
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600">
-                  All possible payment methods have been provided. No available methods left. Contact your admin.
-                </p>
-                <div className="flex justify-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setAlternativeMethodDialog(null)}
-                  >
-                    OK
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Step-by-Step Sales Flow */}
       <StepBySalesFlow 
         open={showStepByStepFlow}
-        onOpenChange={handleStepFlowClose}
-        mode={stepFlowMode}
-        alternativeOrderData={alternativeMethodDialog}
+        onOpenChange={setShowStepByStepFlow}
       />
 
       {/* Details Dialog */}
@@ -817,13 +472,6 @@ export default function Sales() {
         open={!!selectedOrderForEdit}
         onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
         order={selectedOrderForEdit}
-      />
-
-      {/* Status Change Dialog */}
-      <OrderStatusDialog
-        open={!!selectedOrderForStatus}
-        onOpenChange={(open) => !open && setSelectedOrderForStatus(null)}
-        order={selectedOrderForStatus}
       />
     </div>
   );

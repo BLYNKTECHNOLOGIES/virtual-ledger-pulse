@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ import { FileUpload } from "./FileUpload";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { WarehouseSelector } from "@/components/stock/WarehouseSelector";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -90,7 +90,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     },
   });
 
-  const createPendingSalesOrderMutation = useMutation({
+  const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -98,8 +98,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         .from('sales_orders')
         .insert([{
           ...orderData,
-          payment_status: 'PENDING',
-          status: 'AWAITING_PAYMENT',
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
           created_by: user?.id,
         }])
@@ -107,14 +105,78 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         .single();
 
       if (error) throw error;
+
+      // Create warehouse stock movement for sales (OUT movement)
+      if (orderData.product_id && orderData.warehouse_id) {
+        await supabase
+          .from('warehouse_stock_movements')
+          .insert({
+            warehouse_id: orderData.warehouse_id,
+            product_id: orderData.product_id,
+            movement_type: 'OUT',
+            quantity: orderData.quantity,
+            reason: 'Sales Order',
+            reference_id: data.id,
+            reference_type: 'sales_order',
+            created_by: user?.id
+          });
+      }
+
+      // Update payment method usage if provided
+      if (orderData.sales_payment_method_id) {
+        const { data: paymentMethod } = await supabase
+          .from('sales_payment_methods')
+          .select('current_usage')
+          .eq('id', orderData.sales_payment_method_id)
+          .single();
+          
+        if (paymentMethod) {
+          await supabase
+            .from('sales_payment_methods')
+            .update({ 
+              current_usage: paymentMethod.current_usage + orderData.amount 
+            })
+            .eq('id', orderData.sales_payment_method_id);
+        }
+
+        // Update bank account balance if payment is completed
+        if (orderData.payment_status === 'COMPLETED') {
+          const { data: paymentMethodWithBank } = await supabase
+            .from('sales_payment_methods')
+            .select('bank_account_id')
+            .eq('id', orderData.sales_payment_method_id)
+            .single();
+
+          if (paymentMethodWithBank?.bank_account_id) {
+            const { data: bankAccount } = await supabase
+              .from('bank_accounts')
+              .select('balance')
+              .eq('id', paymentMethodWithBank.bank_account_id)
+              .single();
+              
+            if (bankAccount) {
+              await supabase
+                .from('bank_accounts')
+                .update({ 
+                  balance: bankAccount.balance + orderData.amount 
+                })
+                .eq('id', paymentMethodWithBank.bank_account_id);
+            }
+          }
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
       toast({
-        title: "Order Created",
-        description: "Sales order created and moved to pending status.",
+        title: "Sales Order Created",
+        description: "Sales order has been successfully created.",
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       resetForm();
       onOpenChange(false);
     },
@@ -149,24 +211,37 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     setShowPaymentMethodAlert(false);
   };
 
-  const handlePaymentMethodAssigned = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.warehouse_id && formData.product_id) {
+      toast({
+        title: "Error",
+        description: "Please select a warehouse for the product",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if no payment methods are available
     if (!salesPaymentMethods || salesPaymentMethods.length === 0) {
       setShowPaymentMethodAlert(true);
       return;
     }
 
-    createPendingSalesOrderMutation.mutate(formData);
+    createSalesOrderMutation.mutate(formData);
   };
 
-  const handlePaymentMethodAlertOk = () => {
-    // Cancel order - move to leads
-    toast({
-      title: "Order Cancelled",
-      description: "Order has been cancelled and moved to leads for follow-up.",
-    });
-    setShowPaymentMethodAlert(false);
-    resetForm();
-    onOpenChange(false);
+  const getAvailableLimit = (methodId: string) => {
+    const method = salesPaymentMethods?.find(m => m.id === methodId);
+    if (!method) return 0;
+    return method.payment_limit - method.current_usage;
+  };
+
+  const getUsagePercentage = (methodId: string) => {
+    const method = salesPaymentMethods?.find(m => m.id === methodId);
+    if (!method || method.payment_limit === 0) return 0;
+    return Math.min((method.current_usage / method.payment_limit) * 100, 100);
   };
 
   // Calculate price per unit when amount or quantity changes
@@ -184,6 +259,11 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       quantity,
       price_per_unit: quantity > 0 ? prev.amount / quantity : 0
     }));
+  };
+
+  const handlePaymentMethodAlertOk = () => {
+    setShowPaymentMethodAlert(false);
+    onOpenChange(false);
   };
 
   return (
@@ -208,7 +288,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         )}
 
         {!showPaymentMethodAlert && (
-          <form className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
@@ -336,6 +416,53 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                 </div>
 
                 <div>
+                  <Label htmlFor="payment_status">Payment Status</Label>
+                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, payment_status: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="PARTIAL">Partial</SelectItem>
+                      <SelectItem value="COMPLETED">Completed</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="sales_payment_method_id">Payment Method</Label>
+                  {salesPaymentMethods && salesPaymentMethods.length > 0 ? (
+                    <Select onValueChange={(value) => setFormData(prev => ({ ...prev, sales_payment_method_id: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {salesPaymentMethods.map((method) => (
+                          <SelectItem key={method.id} value={method.id}>
+                            <div className="flex flex-col">
+                              <span>
+                                {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {method.risk_category}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        All possible payment methods are shown above. No available methods left. Contact your admin.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+
+                <div>
                   <Label htmlFor="credits_applied">Credits Applied</Label>
                   <Input
                     id="credits_applied"
@@ -376,15 +503,12 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
               />
             </div>
 
-            <div className="flex justify-center pt-4 border-t">
-              <Button 
-                type="button" 
-                onClick={handlePaymentMethodAssigned}
-                disabled={createPendingSalesOrderMutation.isPending}
-                size="lg"
-                className="w-full max-w-md"
-              >
-                {createPendingSalesOrderMutation.isPending ? "Processing..." : "Payment Method Assigned"}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createSalesOrderMutation.isPending}>
+                {createSalesOrderMutation.isPending ? "Creating..." : "Create Sales Order"}
               </Button>
             </div>
           </form>

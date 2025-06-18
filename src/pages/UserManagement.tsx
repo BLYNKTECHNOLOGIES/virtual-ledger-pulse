@@ -1,15 +1,13 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, Settings, Clock, Check, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { AssignRoleDialog } from "@/components/users/AssignRoleDialog";
 import { RoleManagement } from "@/components/roles/RoleManagement";
+import { UsersTab } from "@/components/user-management/UsersTab";
+import { ApprovalsTab } from "@/components/user-management/ApprovalsTab";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,46 +53,6 @@ export default function UserManagement() {
 
   useEffect(() => {
     refreshUsers();
-  }, []);
-
-  // Memoize filtered users to prevent unnecessary recalculations
-  const filteredUsers = useMemo(() => {
-    if (!debouncedSearchTerm) return users;
-    
-    const searchLower = debouncedSearchTerm.toLowerCase();
-    return users.filter(user =>
-      user.username.toLowerCase().includes(searchLower) ||
-      user.email.toLowerCase().includes(searchLower) ||
-      (user.first_name && user.first_name.toLowerCase().includes(searchLower)) ||
-      (user.last_name && user.last_name.toLowerCase().includes(searchLower))
-    );
-  }, [users, debouncedSearchTerm]);
-
-  // Memoize status badge component
-  const getStatusBadge = useCallback((status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case "INACTIVE":
-        return <Badge variant="secondary">Inactive</Badge>;
-      case "SUSPENDED":
-        return <Badge className="bg-red-100 text-red-800">Suspended</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  }, []);
-
-  const getRegistrationStatusBadge = useCallback((status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case "APPROVED":
-        return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-      case "REJECTED":
-        return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
   }, []);
 
   const handleDeleteUser = useCallback(async (id: string, username: string) => {
@@ -199,178 +157,23 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
-          {/* Users Header Controls */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Users ({filteredUsers.length})</CardTitle>
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() => setShowAddDialog(true)}
-                  >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    New User
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2 mb-4">
-                <Search className="h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Users Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredUsers.map((user) => (
-              <Card key={user.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-gray-900 truncate">{user.username}</h3>
-                      {getStatusBadge(user.status)}
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                      {(user.first_name || user.last_name) && (
-                        <p className="text-sm text-gray-600 truncate">
-                          {[user.first_name, user.last_name].filter(Boolean).join(' ')}
-                        </p>
-                      )}
-                      {user.phone && (
-                        <p className="text-xs text-gray-500">📞 {user.phone}</p>
-                      )}
-                      <p className="text-xs text-gray-500">📅 Created: {user.created_at}</p>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <div className="flex gap-1">
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-8 px-2"
-                          onClick={() => handleManageRoles(user.id)}
-                        >
-                          <Settings className="h-3 w-3 mr-1" />
-                          Roles
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-8 px-2 text-red-600 hover:text-red-700"
-                          onClick={() => handleDeleteUser(user.id, user.username)}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {filteredUsers.length === 0 && (
-            <Card>
-              <CardContent className="py-8">
-                <div className="text-center text-gray-500">
-                  No users found matching your search criteria.
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <UsersTab
+            users={users}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onAddUser={() => setShowAddDialog(true)}
+            onEditUser={(userId) => console.log('Edit user:', userId)}
+            onDeleteUser={handleDeleteUser}
+            onManageRoles={handleManageRoles}
+          />
         </TabsContent>
 
         <TabsContent value="approvals" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Registration Approvals ({pendingRegistrations?.length || 0})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!pendingRegistrations || pendingRegistrations.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No pending registration requests.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingRegistrations.map((registration) => (
-                    <Card key={registration.id} className="border-l-4 border-l-blue-500">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold">{registration.username}</h3>
-                              {getRegistrationStatusBadge(registration.status)}
-                            </div>
-                            <p className="text-sm text-gray-600">{registration.email}</p>
-                            {(registration.first_name || registration.last_name) && (
-                              <p className="text-sm text-gray-600">
-                                {[registration.first_name, registration.last_name].filter(Boolean).join(' ')}
-                              </p>
-                            )}
-                            {registration.phone && (
-                              <p className="text-sm text-gray-600">📞 {registration.phone}</p>
-                            )}
-                            <p className="text-xs text-gray-500">
-                              Submitted: {new Date(registration.submitted_at).toLocaleDateString()}
-                            </p>
-                            {registration.rejection_reason && (
-                              <p className="text-sm text-red-600">
-                                Reason: {registration.rejection_reason}
-                              </p>
-                            )}
-                          </div>
-                          
-                          {registration.status === 'PENDING' && (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleApproveRegistration(registration.id)}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  const reason = prompt("Reason for rejection (optional):");
-                                  handleRejectRegistration(registration.id, reason || undefined);
-                                }}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ApprovalsTab
+            registrations={pendingRegistrations || []}
+            onApprove={handleApproveRegistration}
+            onReject={handleRejectRegistration}
+          />
         </TabsContent>
 
         <TabsContent value="roles">

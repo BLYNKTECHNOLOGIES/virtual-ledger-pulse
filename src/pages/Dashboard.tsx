@@ -1,12 +1,10 @@
-
 import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package } from "lucide-react";
-import { MetricCard } from "@/components/dashboard/MetricCard";
+import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
 import { QuickAccessCard } from "@/components/dashboard/QuickAccessCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
+import { DashboardMetrics } from "@/components/dashboard/DashboardMetrics";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -111,39 +109,6 @@ export default function Dashboard() {
     )), [selectedPeriod]
   );
 
-  // Memoized activity renderer
-  const activityItems = useMemo(() => 
-    recentActivity?.map((activity) => (
-      <div key={activity.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-full ${
-            activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
-          }`}>
-            {activity.type === 'sale' ? (
-              <ArrowUpIcon className="h-4 w-4 text-green-600" />
-            ) : (
-              <ArrowDownIcon className="h-4 w-4 text-blue-600" />
-            )}
-          </div>
-          <div>
-            <p className="font-medium text-sm">{activity.title}</p>
-            <p className="text-xs text-gray-500">
-              {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className={`font-semibold text-sm ${
-            activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
-          }`}>
-            {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
-          </p>
-          <p className="text-xs text-gray-500">{activity.reference}</p>
-        </div>
-      </div>
-    )) || [], [recentActivity]
-  );
-
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -158,36 +123,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total Revenue"
-          value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
-          change="+12.5%"
-          trend="up"
-          icon={DollarSign}
-        />
-        <MetricCard
-          title="Sales Orders"
-          value={metrics?.totalSales?.toString() || "0"}
-          change="+8.2%"
-          trend="up"
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Active Clients"
-          value={metrics?.totalClients?.toString() || "0"}
-          change="+3.1%"
-          trend="up"
-          icon={Users}
-        />
-        <MetricCard
-          title="Products"
-          value={metrics?.totalProducts?.toString() || "0"}
-          change="+1.2%"
-          trend="up"
-          icon={Package}
-        />
-      </div>
+      <DashboardMetrics metrics={metrics} />
 
       {/* Charts and Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -197,18 +133,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activityItems.length > 0 ? activityItems : (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                No recent activity
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <RecentActivity activities={recentActivity} />
       </div>
 
       {/* Quick Actions */}

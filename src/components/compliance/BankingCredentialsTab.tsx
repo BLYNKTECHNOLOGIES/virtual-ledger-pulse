@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,10 +102,12 @@ export function BankingCredentialsTab() {
       
       const credentials: BankingCredential[] = (data ?? []).map((item) => ({
         ...item,
-        security_questions: (item.security_questions ?? []).map((q: any) => ({
-          question: q.question,
-          answer: q.answer,
-        })),
+        security_questions: Array.isArray(item.security_questions)
+          ? (item.security_questions as any[]).map((q) => ({
+              question: q.question,
+              answer: q.answer,
+            }))
+          : [],
       }));
       
       return credentials;

@@ -78,11 +78,37 @@ export default function Sales() {
       const order = salesOrders?.find(o => o.id === orderId);
       if (!order) throw new Error('Order not found');
 
-      // Logic to generate alternative payment method would go here
-      // For now, we'll just update the order status
+      // Get the current payment method to determine the type and risk category
+      const { data: currentPaymentMethod } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+        .eq('id', order.sales_payment_method_id)
+        .single();
+
+      if (!currentPaymentMethod) throw new Error('Current payment method not found');
+
+      // Find alternative payment methods of the same type and risk category
+      const { data: alternativeMethods } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+        .eq('is_active', true)
+        .eq('type', currentPaymentMethod.type)
+        .eq('risk_category', currentPaymentMethod.risk_category)
+        .neq('id', currentPaymentMethod.id)
+        .lt('current_usage', supabase.raw('payment_limit'));
+
+      if (!alternativeMethods || alternativeMethods.length === 0) {
+        throw new Error('No alternative payment methods available');
+      }
+
+      // Select the first available alternative method
+      const alternativeMethod = alternativeMethods[0];
+
+      // Update the order with the new payment method
       const { data, error } = await supabase
         .from('sales_orders')
         .update({
+          sales_payment_method_id: alternativeMethod.id,
           status: 'AWAITING_PAYMENT',
           payment_status: 'PENDING',
           updated_at: new Date().toISOString()
@@ -92,14 +118,39 @@ export default function Sales() {
         .single();
 
       if (error) throw error;
-      return data;
+      
+      return { order: data, paymentMethod: alternativeMethod };
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Alternative payment method generated" });
+    onSuccess: (data) => {
+      const { paymentMethod } = data;
+      
+      // Show the alternative payment method details to the operator
+      let methodDetails = '';
+      if (paymentMethod.type === 'UPI') {
+        methodDetails = `UPI ID: ${paymentMethod.upi_id}`;
+      } else {
+        methodDetails = `
+Account Holder: ${paymentMethod.bank_accounts?.bank_account_holder_name}
+Account Number: ${paymentMethod.bank_accounts?.account_number}
+IFSC: ${paymentMethod.bank_accounts?.IFSC}
+Bank: ${paymentMethod.bank_accounts?.bank_name}
+        `.trim();
+      }
+
+      toast({ 
+        title: "Alternative Payment Method Generated", 
+        description: `New ${paymentMethod.type} method assigned:\n${methodDetails}`,
+        duration: 10000
+      });
+      
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
     },
     onError: (error) => {
-      toast({ title: "Error", description: `Failed to generate alternative method: ${error.message}`, variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: `Failed to generate alternative method: ${error.message}`, 
+        variant: "destructive" 
+      });
     }
   });
 

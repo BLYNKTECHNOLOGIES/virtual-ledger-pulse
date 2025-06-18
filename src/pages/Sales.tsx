@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,21 +13,15 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { OrderTypeSelectionDialog } from "@/components/sales/OrderTypeSelectionDialog";
-import { EnhancedOrderCreationDialog } from "@/components/sales/EnhancedOrderCreationDialog";
-import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
+import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 
 export default function Sales() {
-  const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
-  const [showEnhancedOrderDialog, setShowEnhancedOrderDialog] = useState(false);
-  const [showSalesEntryDialog, setShowSalesEntryDialog] = useState(false);
+  const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
-  const [salesEntryData, setSalesEntryData] = useState<any>(null);
-  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -60,23 +53,6 @@ export default function Sales() {
       return data;
     },
   });
-
-  const handleOrderTypeSelection = () => {
-    setShowEnhancedOrderDialog(true);
-  };
-
-  const handleSalesEntryOpen = (data: any) => {
-    // Add live timestamp to sales entry data
-    const dataWithTimestamp = {
-      ...data,
-      timestamp: new Date().toISOString(),
-      orderDate: new Date().toISOString().split('T')[0],
-      orderTime: new Date().toLocaleTimeString()
-    };
-    setSalesEntryData(dataWithTimestamp);
-    setShowSalesEntryDialog(true);
-    setShowEnhancedOrderDialog(false);
-  };
 
   const handleExportCSV = () => {
     if (!salesOrders || salesOrders.length === 0) return;
@@ -143,11 +119,6 @@ export default function Sales() {
     setShowFilterDialog(false);
   };
 
-  const handleEditOrder = (order: any) => {
-    setEditingOrder(order);
-    setShowSalesEntryDialog(true);
-  };
-
   const handleDeleteOrder = async (orderId: string) => {
     if (confirm('Are you sure you want to delete this order?')) {
       const { error } = await supabase
@@ -176,7 +147,7 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => setShowOrderTypeDialog(true)}>
+          <Button onClick={() => setShowStepByStepFlow(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -366,7 +337,7 @@ export default function Sales() {
                           <Button variant="ghost" size="sm">
                             View Details
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
+                          <Button variant="ghost" size="sm">
                             <Edit className="h-3 w-3" />
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => handleDeleteOrder(order.id)}>
@@ -388,25 +359,10 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Order Type Selection Dialog */}
-      <OrderTypeSelectionDialog 
-        open={showOrderTypeDialog}
-        onOpenChange={setShowOrderTypeDialog}
-        onOrderTypeSelected={handleOrderTypeSelection}
-      />
-
-      {/* Enhanced Order Creation Dialog */}
-      <EnhancedOrderCreationDialog 
-        open={showEnhancedOrderDialog}
-        onOpenChange={setShowEnhancedOrderDialog}
-        onSalesEntryOpen={handleSalesEntryOpen}
-      />
-
-      {/* Sales Entry Dialog with pre-filled data */}
-      <SalesEntryDialog 
-        open={showSalesEntryDialog} 
-        onOpenChange={setShowSalesEntryDialog}
-        preFilledData={editingOrder || salesEntryData}
+      {/* Step-by-Step Sales Flow */}
+      <StepBySalesFlow 
+        open={showStepByStepFlow}
+        onOpenChange={setShowStepByStepFlow}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,7 +31,7 @@ interface PayslipRecord {
   paid_days: number;
   gross_wages: number;
   created_at: string;
-  payment_status?: string;
+  payment_status: string;
   employees?: {
     name: string;
     employee_id: string;

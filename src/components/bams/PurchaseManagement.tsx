@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, Wallet } from "lucide-react";
+import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, Wallet, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,6 +22,7 @@ interface PurchaseMethod {
   lastReset: string;
   isActive: boolean;
   bankAccountName?: string;
+  safeFunds: boolean;
 }
 
 interface BankAccount {
@@ -44,7 +45,8 @@ export function PurchaseManagement() {
     name: "",
     paymentLimit: "",
     frequency: "24 hours" as "24 hours" | "Daily",
-    bankAccountName: ""
+    bankAccountName: "",
+    safeFunds: false
   });
 
   // Fetch purchase methods from Supabase with real-time updates
@@ -72,7 +74,8 @@ export function PurchaseManagement() {
           currentUsage: method.current_usage || 0,
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
-          bankAccountName: method.bank_account_name
+          bankAccountName: method.bank_account_name,
+          safeFunds: method.safe_funds || false
         })) || [];
         setPurchaseMethods(formattedMethods);
       }
@@ -130,7 +133,8 @@ export function PurchaseManagement() {
             type: formData.type,
             payment_limit: parseFloat(formData.paymentLimit),
             frequency: formData.frequency,
-            bank_account_name: formData.bankAccountName || null
+            bank_account_name: formData.bankAccountName || null,
+            safe_funds: formData.safeFunds
           })
           .eq('id', editingMethod.id);
 
@@ -149,7 +153,8 @@ export function PurchaseManagement() {
             frequency: formData.frequency,
             bank_account_name: formData.bankAccountName || null,
             current_usage: 0,
-            is_active: true
+            is_active: true,
+            safe_funds: formData.safeFunds
           });
 
         if (error) throw error;
@@ -176,7 +181,8 @@ export function PurchaseManagement() {
           currentUsage: method.current_usage || 0,
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
-          bankAccountName: method.bank_account_name
+          bankAccountName: method.bank_account_name,
+          safeFunds: method.safe_funds || false
         }));
         setPurchaseMethods(formattedMethods);
       }
@@ -200,7 +206,8 @@ export function PurchaseManagement() {
       name: method.name,
       paymentLimit: method.paymentLimit.toString(),
       frequency: method.frequency,
-      bankAccountName: method.bankAccountName || ""
+      bankAccountName: method.bankAccountName || "",
+      safeFunds: method.safeFunds
     });
     setIsAddDialogOpen(true);
   };
@@ -237,7 +244,8 @@ export function PurchaseManagement() {
       name: "",
       paymentLimit: "",
       frequency: "24 hours",
-      bankAccountName: ""
+      bankAccountName: "",
+      safeFunds: false
     });
     setEditingMethod(null);
   };
@@ -274,6 +282,12 @@ export function PurchaseManagement() {
     return bankAccounts
       .filter(account => uniqueAccountNames.has(account.account_name))
       .reduce((sum, account) => sum + account.balance, 0);
+  };
+
+  const getTotalAvailableSafeFunds = () => {
+    return purchaseMethods
+      .filter(m => m.safeFunds && m.isActive)
+      .reduce((sum, m) => sum + getAvailableLimit(m), 0);
   };
 
   return (
@@ -359,6 +373,17 @@ export function PurchaseManagement() {
                 </Select>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="safeFunds"
+                  checked={formData.safeFunds}
+                  onCheckedChange={(checked) => 
+                    setFormData(prev => ({ ...prev, safeFunds: !!checked }))
+                  }
+                />
+                <Label htmlFor="safeFunds">Safe Funds</Label>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
@@ -373,7 +398,24 @@ export function PurchaseManagement() {
       </div>
 
       {/* Available Limits Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-600" />
+              Available Safe Funds
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ₹{getTotalAvailableSafeFunds().toLocaleString()}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {purchaseMethods.filter(m => m.safeFunds && m.isActive).length} safe fund methods
+            </p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -458,6 +500,7 @@ export function PurchaseManagement() {
                 <TableHead>Available</TableHead>
                 <TableHead>Usage</TableHead>
                 <TableHead>Frequency</TableHead>
+                <TableHead>Safe Funds</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -501,6 +544,13 @@ export function PurchaseManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{method.frequency}</TableCell>
+                    <TableCell>
+                      {method.safeFunds ? (
+                        <Badge className="bg-green-100 text-green-800">Safe</Badge>
+                      ) : (
+                        <Badge variant="outline">Regular</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={method.isActive ? "default" : "secondary"}>
                         {method.isActive ? "Active" : "Inactive"}

@@ -1477,6 +1477,7 @@ export type Database = {
           is_active: boolean
           last_reset: string | null
           payment_limit: number
+          safe_funds: boolean
           type: string
           updated_at: string
         }
@@ -1490,6 +1491,7 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
+          safe_funds?: boolean
           type?: string
           updated_at?: string
         }
@@ -1503,6 +1505,7 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
+          safe_funds?: boolean
           type?: string
           updated_at?: string
         }

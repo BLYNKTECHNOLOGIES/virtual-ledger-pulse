@@ -22,6 +22,7 @@ interface PaymentMethod {
   bank_account_name: string;
   type: string;
   payment_limit: number;
+  safe_funds: boolean;
 }
 
 export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogProps) {
@@ -46,14 +47,15 @@ export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogPr
     }
   }, [payer]);
 
-  // Fetch available payment methods
+  // Fetch available payment methods filtered by payer type
   const { data: paymentMethods } = useQuery({
-    queryKey: ['purchase_payment_methods'],
+    queryKey: ['purchase_payment_methods', formData.payer_type],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
-        .select('id, bank_account_name, type, payment_limit')
+        .select('id, bank_account_name, type, payment_limit, safe_funds')
         .eq('is_active', true)
+        .eq('type', formData.payer_type)
         .order('bank_account_name');
 
       if (error) throw error;
@@ -132,6 +134,14 @@ export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogPr
     }));
   };
 
+  // Reset payment methods when payer type changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      payment_method_ids: []
+    }));
+  }, [formData.payer_type]);
+
   const selectedMethods = paymentMethods?.filter(method => 
     formData.payment_method_ids.includes(method.id)
   ) || [];
@@ -202,7 +212,7 @@ export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogPr
           </div>
 
           <div>
-            <Label>Available Payment Methods</Label>
+            <Label>Available Payment Methods ({formData.payer_type})</Label>
             <div className="space-y-3">
               {/* Selected Methods */}
               {selectedMethods.length > 0 && (
@@ -212,6 +222,7 @@ export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogPr
                     {selectedMethods.map((method) => (
                       <Badge key={method.id} variant="default" className="flex items-center gap-1">
                         {method.bank_account_name} ({method.type})
+                        {method.safe_funds && <span className="text-xs bg-blue-100 text-blue-800 px-1 rounded">Safe</span>}
                         <X 
                           className="h-3 w-3 cursor-pointer" 
                           onClick={() => removePaymentMethod(method.id)}
@@ -234,6 +245,7 @@ export function EditPayerDialog({ open, onOpenChange, payer }: EditPayerDialogPr
                       {availableMethods.map((method) => (
                         <SelectItem key={method.id} value={method.id}>
                           {method.bank_account_name} ({method.type}) - Limit: ₹{method.payment_limit.toLocaleString()}
+                          {method.safe_funds && " - Safe Funds"}
                         </SelectItem>
                       ))}
                     </SelectContent>

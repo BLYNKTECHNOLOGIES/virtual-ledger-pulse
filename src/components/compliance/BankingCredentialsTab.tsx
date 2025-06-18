@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, Plus, Edit, Trash2, Key, Copy, Minus } from "lucide-react";
+import { Eye, EyeOff, Plus, Edit, Trash2, Key, Copy, Minus, Filter, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +57,7 @@ export function BankingCredentialsTab() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCredential, setEditingCredential] = useState<BankingCredential | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
+  const [selectedBankFilter, setSelectedBankFilter] = useState<string>("");
   const [formData, setFormData] = useState({
     bank_account_id: '',
     credential_type: '',
@@ -90,14 +90,23 @@ export function BankingCredentialsTab() {
     },
   });
 
+  // Get unique bank names for filter
+  const uniqueBankNames = Array.from(new Set(bankAccounts?.map(account => account.bank_name) || []));
+
   // Fetch banking credentials with bank account details
   const { data: credentials, isLoading } = useQuery({
-    queryKey: ['banking_credentials'],
+    queryKey: ['banking_credentials', selectedBankFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('banking_credentials')
         .select('*, bank_accounts(*)')
         .order('created_at', { ascending: false });
+
+      if (selectedBankFilter) {
+        query = query.eq('bank_accounts.bank_name', selectedBankFilter);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       
       const credentials: BankingCredential[] = (data ?? []).map((item) => ({
@@ -458,73 +467,100 @@ export function BankingCredentialsTab() {
           <h3 className="text-lg font-semibold">Banking Credentials</h3>
           <p className="text-sm text-gray-600">Securely store banking login credentials and passwords</p>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { resetForm(); setEditingCredential(null); }}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Credential
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCredential ? 'Edit Banking Credential' : 'Add Banking Credential'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Select Bank Account</Label>
-                <Select value={formData.bank_account_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccounts?.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} ({account.bank_name} – {account.account_number})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label>Credential Type</Label>
-                <Select value={formData.credential_type} onValueChange={(value) => setFormData(prev => ({ ...prev, credential_type: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select credential type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CREDENTIAL_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            <Select value={selectedBankFilter} onValueChange={setSelectedBankFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by bank" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">All Banks</SelectItem>
+                {uniqueBankNames.map((bankName) => (
+                  <SelectItem key={bankName} value={bankName}>
+                    {bankName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedBankFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedBankFilter("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { resetForm(); setEditingCredential(null); }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Credential
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingCredential ? 'Edit Banking Credential' : 'Add Banking Credential'}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <Label>Select Bank Account</Label>
+                  <Select value={formData.bank_account_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select bank account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts?.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.account_name} ({account.bank_name} – {account.account_number})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label>Credential Type</Label>
+                  <Select value={formData.credential_type} onValueChange={(value) => setFormData(prev => ({ ...prev, credential_type: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select credential type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CREDENTIAL_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {formData.credential_type && renderFormFields()}
-              
-              <div>
-                <Label>Notes (Optional)</Label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Additional notes"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {editingCredential ? 'Update' : 'Add'} Credential
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                {formData.credential_type && renderFormFields()}
+                
+                <div>
+                  <Label>Notes (Optional)</Label>
+                  <Textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    placeholder="Additional notes"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {editingCredential ? 'Update' : 'Add'} Credential
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {isLoading ? (

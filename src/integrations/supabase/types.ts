@@ -141,6 +141,68 @@ export type Database = {
           },
         ]
       }
+      banking_credentials: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          credential_name: string | null
+          credential_type: string
+          credential_value: string | null
+          customer_id: string | null
+          id: string
+          login_id: string | null
+          notes: string | null
+          password: string | null
+          profile_password: string | null
+          security_questions: Json | null
+          transaction_password: string | null
+          updated_at: string
+          upi_pin: string | null
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          credential_name?: string | null
+          credential_type: string
+          credential_value?: string | null
+          customer_id?: string | null
+          id?: string
+          login_id?: string | null
+          notes?: string | null
+          password?: string | null
+          profile_password?: string | null
+          security_questions?: Json | null
+          transaction_password?: string | null
+          updated_at?: string
+          upi_pin?: string | null
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          credential_name?: string | null
+          credential_type?: string
+          credential_value?: string | null
+          customer_id?: string | null
+          id?: string
+          login_id?: string | null
+          notes?: string | null
+          password?: string | null
+          profile_password?: string | null
+          security_questions?: Json | null
+          transaction_password?: string | null
+          updated_at?: string
+          upi_pin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "banking_credentials_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           assigned_operator: string | null

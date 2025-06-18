@@ -8,51 +8,103 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, EyeOff, Plus, Edit, Trash2, Key } from "lucide-react";
+import { Eye, EyeOff, Plus, Edit, Trash2, Key, Copy, Minus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface BankAccount {
+  id: string;
+  account_name: string;
+  bank_name: string;
+  account_number: string;
+}
+
+interface SecurityQuestion {
+  question: string;
+  answer: string;
+}
+
 interface BankingCredential {
   id: string;
-  bank_name: string;
-  account_name: string;
+  bank_account_id: string;
   credential_type: string;
-  username: string;
-  password: string;
-  security_question?: string;
-  security_answer?: string;
+  credential_name?: string;
+  customer_id?: string;
+  login_id?: string;
+  password?: string;
+  transaction_password?: string;
+  profile_password?: string;
+  upi_pin?: string;
+  credential_value?: string;
+  security_questions?: SecurityQuestion[];
   notes?: string;
   created_at: string;
   updated_at: string;
+  bank_accounts?: BankAccount;
 }
+
+const CREDENTIAL_TYPES = [
+  'Customer ID',
+  'Net Banking',
+  'Transaction Password',
+  'Profile Password',
+  'Security Question',
+  'UPI PIN',
+  'Other'
+];
 
 export function BankingCredentialsTab() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingCredential, setEditingCredential] = useState<BankingCredential | null>(null);
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
   const [formData, setFormData] = useState({
-    bank_name: '',
-    account_name: '',
+    bank_account_id: '',
     credential_type: '',
-    username: '',
+    credential_name: '',
+    customer_id: '',
+    login_id: '',
     password: '',
-    security_question: '',
-    security_answer: '',
+    transaction_password: '',
+    profile_password: '',
+    upi_pin: '',
+    credential_value: '',
+    security_questions: [{ question: '', answer: '' }] as SecurityQuestion[],
     notes: ''
   });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch banking credentials
+  // Fetch bank accounts for dropdown
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts_dropdown'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('id, account_name, bank_name, account_number')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      if (error) throw error;
+      return data as BankAccount[];
+    },
+  });
+
+  // Fetch banking credentials with bank account details
   const { data: credentials, isLoading } = useQuery({
     queryKey: ['banking_credentials'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('banking_credentials')
-        .select('*')
-        .order('bank_name');
+        .select(`
+          *,
+          bank_accounts:bank_account_id (
+            account_name,
+            bank_name,
+            account_number
+          )
+        `)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data as BankingCredential[];
     },
@@ -118,36 +170,62 @@ export function BankingCredentialsTab() {
 
   const resetForm = () => {
     setFormData({
-      bank_name: '',
-      account_name: '',
+      bank_account_id: '',
       credential_type: '',
-      username: '',
+      credential_name: '',
+      customer_id: '',
+      login_id: '',
       password: '',
-      security_question: '',
-      security_answer: '',
+      transaction_password: '',
+      profile_password: '',
+      upi_pin: '',
+      credential_value: '',
+      security_questions: [{ question: '', answer: '' }],
       notes: ''
     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const submitData = {
+      bank_account_id: formData.bank_account_id,
+      credential_type: formData.credential_type,
+      credential_name: formData.credential_name || null,
+      customer_id: formData.customer_id || null,
+      login_id: formData.login_id || null,
+      password: formData.password || null,
+      transaction_password: formData.transaction_password || null,
+      profile_password: formData.profile_password || null,
+      upi_pin: formData.upi_pin || null,
+      credential_value: formData.credential_value || null,
+      security_questions: formData.security_questions.filter(q => q.question && q.answer),
+      notes: formData.notes || null
+    };
+
     if (editingCredential) {
-      updateCredentialMutation.mutate({ id: editingCredential.id, ...formData });
+      updateCredentialMutation.mutate({ id: editingCredential.id, ...submitData });
     } else {
-      addCredentialMutation.mutate(formData);
+      addCredentialMutation.mutate(submitData);
     }
   };
 
   const handleEdit = (credential: BankingCredential) => {
     setEditingCredential(credential);
     setFormData({
-      bank_name: credential.bank_name,
-      account_name: credential.account_name,
+      bank_account_id: credential.bank_account_id,
       credential_type: credential.credential_type,
-      username: credential.username,
-      password: credential.password,
-      security_question: credential.security_question || '',
-      security_answer: credential.security_answer || '',
+      credential_name: credential.credential_name || '',
+      customer_id: credential.customer_id || '',
+      login_id: credential.login_id || '',
+      password: credential.password || '',
+      transaction_password: credential.transaction_password || '',
+      profile_password: credential.profile_password || '',
+      upi_pin: credential.upi_pin || '',
+      credential_value: credential.credential_value || '',
+      security_questions: credential.security_questions && credential.security_questions.length > 0 
+        ? credential.security_questions 
+        : [{ question: '', answer: '' }],
       notes: credential.notes || ''
     });
     setShowAddDialog(true);
@@ -171,6 +249,204 @@ export function BankingCredentialsTab() {
     toast({ title: "Copied", description: `${label} copied to clipboard` });
   };
 
+  const addSecurityQuestion = () => {
+    setFormData(prev => ({
+      ...prev,
+      security_questions: [...prev.security_questions, { question: '', answer: '' }]
+    }));
+  };
+
+  const removeSecurityQuestion = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      security_questions: prev.security_questions.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateSecurityQuestion = (index: number, field: 'question' | 'answer', value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      security_questions: prev.security_questions.map((q, i) => 
+        i === index ? { ...q, [field]: value } : q
+      )
+    }));
+  };
+
+  const renderFormFields = () => {
+    switch (formData.credential_type) {
+      case 'Customer ID':
+        return (
+          <div>
+            <Label>Customer ID</Label>
+            <Input
+              value={formData.customer_id}
+              onChange={(e) => setFormData(prev => ({ ...prev, customer_id: e.target.value }))}
+              placeholder="Enter customer ID"
+              required
+            />
+          </div>
+        );
+
+      case 'Net Banking':
+        return (
+          <>
+            <div>
+              <Label>Net Banking Login ID</Label>
+              <Input
+                value={formData.login_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, login_id: e.target.value }))}
+                placeholder="Enter login ID"
+                required
+              />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Enter password"
+                required
+              />
+            </div>
+          </>
+        );
+
+      case 'Transaction Password':
+        return (
+          <div>
+            <Label>Transaction Password</Label>
+            <Input
+              type="password"
+              value={formData.transaction_password}
+              onChange={(e) => setFormData(prev => ({ ...prev, transaction_password: e.target.value }))}
+              placeholder="Enter transaction password"
+              required
+            />
+          </div>
+        );
+
+      case 'Profile Password':
+        return (
+          <div>
+            <Label>Profile Password</Label>
+            <Input
+              type="password"
+              value={formData.profile_password}
+              onChange={(e) => setFormData(prev => ({ ...prev, profile_password: e.target.value }))}
+              placeholder="Enter profile password"
+              required
+            />
+          </div>
+        );
+
+      case 'Security Question':
+        return (
+          <div className="space-y-4">
+            {formData.security_questions.map((sq, index) => (
+              <div key={index} className="border p-3 rounded-lg space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label>Security Question {index + 1}</Label>
+                  {formData.security_questions.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeSecurityQuestion(index)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+                <Input
+                  value={sq.question}
+                  onChange={(e) => updateSecurityQuestion(index, 'question', e.target.value)}
+                  placeholder="Enter security question"
+                  required
+                />
+                <Input
+                  value={sq.answer}
+                  onChange={(e) => updateSecurityQuestion(index, 'answer', e.target.value)}
+                  placeholder="Enter answer"
+                  required
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addSecurityQuestion}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Another Question
+            </Button>
+          </div>
+        );
+
+      case 'UPI PIN':
+        return (
+          <div>
+            <Label>UPI PIN</Label>
+            <Input
+              type="password"
+              value={formData.upi_pin}
+              onChange={(e) => setFormData(prev => ({ ...prev, upi_pin: e.target.value }))}
+              placeholder="Enter UPI PIN"
+              required
+            />
+          </div>
+        );
+
+      case 'Other':
+        return (
+          <>
+            <div>
+              <Label>Name of Credential</Label>
+              <Input
+                value={formData.credential_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, credential_name: e.target.value }))}
+                placeholder="e.g., Token, Google Authenticator"
+                required
+              />
+            </div>
+            <div>
+              <Label>Credential Value</Label>
+              <Input
+                type="password"
+                value={formData.credential_value}
+                onChange={(e) => setFormData(prev => ({ ...prev, credential_value: e.target.value }))}
+                placeholder="Enter credential value"
+                required
+              />
+            </div>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const getCredentialDisplayValue = (credential: BankingCredential) => {
+    switch (credential.credential_type) {
+      case 'Customer ID':
+        return credential.customer_id;
+      case 'Net Banking':
+        return credential.login_id;
+      case 'Transaction Password':
+        return credential.transaction_password;
+      case 'Profile Password':
+        return credential.profile_password;
+      case 'UPI PIN':
+        return credential.upi_pin;
+      case 'Other':
+        return credential.credential_value;
+      default:
+        return '';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -185,7 +461,7 @@ export function BankingCredentialsTab() {
               Add Credential
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingCredential ? 'Edit Banking Credential' : 'Add Banking Credential'}
@@ -193,23 +469,19 @@ export function BankingCredentialsTab() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label>Bank Name</Label>
-                <Input
-                  value={formData.bank_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bank_name: e.target.value }))}
-                  placeholder="Enter bank name"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label>Account Name</Label>
-                <Input
-                  value={formData.account_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, account_name: e.target.value }))}
-                  placeholder="Enter account name"
-                  required
-                />
+                <Label>Select Bank Account</Label>
+                <Select value={formData.bank_account_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts?.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} ({account.bank_name} – {account.account_number})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>
@@ -219,54 +491,14 @@ export function BankingCredentialsTab() {
                     <SelectValue placeholder="Select credential type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Internet Banking">Internet Banking</SelectItem>
-                    <SelectItem value="Mobile Banking">Mobile Banking</SelectItem>
-                    <SelectItem value="UPI PIN">UPI PIN</SelectItem>
-                    <SelectItem value="Debit Card PIN">Debit Card PIN</SelectItem>
-                    <SelectItem value="ATM PIN">ATM PIN</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
+                    {CREDENTIAL_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              
-              <div>
-                <Label>Username/ID</Label>
-                <Input
-                  value={formData.username}
-                  onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="Enter username or ID"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label>Password/PIN</Label>
-                <Input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Enter password or PIN"
-                  required
-                />
-              </div>
-              
-              <div>
-                <Label>Security Question (Optional)</Label>
-                <Input
-                  value={formData.security_question}
-                  onChange={(e) => setFormData(prev => ({ ...prev, security_question: e.target.value }))}
-                  placeholder="Enter security question"
-                />
-              </div>
-              
-              <div>
-                <Label>Security Answer (Optional)</Label>
-                <Input
-                  value={formData.security_answer}
-                  onChange={(e) => setFormData(prev => ({ ...prev, security_answer: e.target.value }))}
-                  placeholder="Enter security answer"
-                />
-              </div>
+
+              {formData.credential_type && renderFormFields()}
               
               <div>
                 <Label>Notes (Optional)</Label>
@@ -301,71 +533,50 @@ export function BankingCredentialsTab() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Key className="h-5 w-5 text-blue-600" />
-                    {credential.bank_name}
+                    {credential.bank_accounts?.account_name}
                   </CardTitle>
                   <Badge variant="secondary">{credential.credential_type}</Badge>
                 </div>
+                <p className="text-sm text-gray-600">
+                  {credential.bank_accounts?.bank_name} – {credential.bank_accounts?.account_number}
+                </p>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <Label className="text-xs text-gray-500">Account Name</Label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{credential.account_name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(credential.account_name, 'Account name')}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-xs text-gray-500">Username/ID</Label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{credential.username}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => copyToClipboard(credential.username, 'Username')}
-                    >
-                      Copy
-                    </Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-xs text-gray-500">Password/PIN</Label>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-mono">
-                      {showPasswords[credential.id] ? credential.password : '••••••••'}
-                    </span>
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => togglePasswordVisibility(credential.id)}
-                      >
-                        {showPasswords[credential.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => copyToClipboard(credential.password, 'Password')}
-                      >
-                        Copy
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                {credential.security_question && (
+                {credential.credential_type === 'Security Question' ? (
                   <div>
-                    <Label className="text-xs text-gray-500">Security Q&A</Label>
-                    <div className="text-sm">
-                      <div className="font-medium">{credential.security_question}</div>
-                      <div className="text-gray-600">{credential.security_answer}</div>
+                    <Label className="text-xs text-gray-500">Security Questions</Label>
+                    {credential.security_questions?.map((sq, index) => (
+                      <div key={index} className="text-sm space-y-1 border-b pb-2 mb-2 last:border-b-0">
+                        <div className="font-medium">{sq.question}</div>
+                        <div className="text-gray-600">{sq.answer}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <Label className="text-xs text-gray-500">
+                      {credential.credential_type === 'Other' ? credential.credential_name : credential.credential_type}
+                    </Label>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-mono">
+                        {showPasswords[credential.id] ? getCredentialDisplayValue(credential) : '••••••••'}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => togglePasswordVisibility(credential.id)}
+                        >
+                          {showPasswords[credential.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(getCredentialDisplayValue(credential) || '', credential.credential_type)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )}

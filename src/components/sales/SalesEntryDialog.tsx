@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { FileUpload } from "./FileUpload";
 
 interface SalesEntryDialogProps {
@@ -22,14 +22,13 @@ interface SalesEntryForm {
   orderNumber: string;
   productId: string;
   quantity: number;
-  price: number;
-  warehouseId: string;
+  sellingPrice: number;
+  bankAccountId: string;
   orderDate: string;
   description: string;
+  riskLevel: string;
   attachmentUrls: string[];
-  platform: string;
-  paymentReceivedInBank: string;
-  salesAmount: number;
+  warehouseId: string;
 }
 
 export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEntryDialogProps) {
@@ -41,37 +40,44 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
     orderNumber: "",
     productId: "",
     quantity: 0,
-    price: 0,
-    warehouseId: "",
+    sellingPrice: 0,
+    bankAccountId: "",
     orderDate: new Date().toISOString().split('T')[0],
     description: "",
+    riskLevel: "",
     attachmentUrls: [],
-    platform: "",
-    paymentReceivedInBank: "",
-    salesAmount: 0
+    warehouseId: ""
   });
 
-  // Pre-fill form data when dialog opens
+  // Pre-fill form data when dialog opens with data from order creation
   useEffect(() => {
     if (preFilledData && open) {
       setFormData(prev => ({
         ...prev,
-        platform: preFilledData.platform || "",
-        paymentReceivedInBank: preFilledData.paymentMethod?.bank_accounts?.bank_name || "",
-        salesAmount: preFilledData.amount || 0,
+        customerName: preFilledData.customerName || "",
+        // Auto-calculate quantity when amount and price are known
+        quantity: preFilledData.amount && prev.sellingPrice ? 
+          Math.floor(preFilledData.amount / prev.sellingPrice) : 0,
       }));
     }
   }, [preFilledData, open]);
 
-  // Fetch products with stock quantities
+  // Auto-calculate quantity when price changes
+  useEffect(() => {
+    if (preFilledData?.amount && formData.sellingPrice > 0) {
+      const calculatedQuantity = Math.floor(preFilledData.amount / formData.sellingPrice);
+      setFormData(prev => ({ ...prev, quantity: calculatedQuantity }));
+    }
+  }, [formData.sellingPrice, preFilledData?.amount]);
+
+  // Fetch products from stock management
   const { data: products } = useQuery({
-    queryKey: ['products_with_stock'],
+    queryKey: ['products'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .gt('current_stock_quantity', 0)
-        .order('name');
+        .gt('current_stock_quantity', 0);
       
       if (error) throw error;
       return data;
@@ -85,22 +91,74 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
       const { data, error } = await supabase
         .from('warehouses')
         .select('*')
-        .eq('is_active', true)
-        .order('name');
+        .eq('is_active', true);
       
       if (error) throw error;
       return data;
     },
   });
 
+  // Fetch active bank accounts from BAMS
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Auto-fill bank account based on payment method from order creation
+  useEffect(() => {
+    if (preFilledData?.paymentMethod && bankAccounts) {
+      const matchingBank = bankAccounts.find(bank => 
+        bank.account_name === preFilledData.paymentMethod.bank_accounts?.account_name
+      );
+      if (matchingBank) {
+        setFormData(prev => ({ ...prev, bankAccountId: matchingBank.id }));
+      }
+    }
+  }, [preFilledData?.paymentMethod, bankAccounts]);
+
   const selectedProduct = products?.find(p => p.id === formData.productId);
-  const totalAmount = formData.quantity * formData.price;
+  const totalAmount = preFilledData?.amount || (formData.quantity * formData.sellingPrice);
 
   const createSalesMutation = useMutation({
     mutationFn: async (salesData: SalesEntryForm) => {
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Create sales order
+      // 1. Check if customer exists or create new one
+      let clientExists = true;
+      const { data: existingClient, error: clientCheckError } = await supabase
+        .from('clients')
+        .select('*')
+        .ilike('name', salesData.customerName)
+        .single();
+
+      if (clientCheckError && clientCheckError.code === 'PGRST116') {
+        // Client doesn't exist, create new one
+        clientExists = false;
+        const { error: newClientError } = await supabase
+          .from('clients')
+          .insert({
+            client_id: `CLI${Date.now()}`,
+            name: salesData.customerName,
+            date_of_onboarding: salesData.orderDate,
+            risk_appetite: salesData.riskLevel,
+            client_type: 'RETAIL',
+            first_order_value: totalAmount,
+            current_month_used: totalAmount
+          });
+
+        if (newClientError) throw newClientError;
+      }
+
+      // 2. Create sales order
       const { data: salesOrder, error: salesError } = await supabase
         .from('sales_orders')
         .insert({
@@ -112,7 +170,7 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
           status: 'DELIVERED',
           description: salesData.description,
           attachment_urls: salesData.attachmentUrls,
-          platform: salesData.platform,
+          risk_level: salesData.riskLevel,
           created_by: user?.id
         })
         .select()
@@ -120,14 +178,14 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
 
       if (salesError) throw salesError;
 
-      // Create stock out transaction
+      // 3. Create stock out transaction
       const { error: stockError } = await supabase
         .from('stock_transactions')
         .insert({
           product_id: salesData.productId,
           transaction_type: 'OUT',
           quantity: salesData.quantity,
-          unit_price: salesData.price,
+          unit_price: salesData.sellingPrice,
           total_amount: totalAmount,
           reference_number: salesData.orderNumber,
           supplier_customer_name: salesData.customerName,
@@ -137,7 +195,7 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
 
       if (stockError) throw stockError;
 
-      // Update product stock quantity
+      // 4. Update product stock quantity
       if (selectedProduct) {
         const newStockQuantity = selectedProduct.current_stock_quantity - salesData.quantity;
         const { error: updateError } = await supabase
@@ -153,11 +211,12 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
     onSuccess: () => {
       toast({
         title: "Sales Entry Created",
-        description: "Sales order has been successfully created.",
+        description: "Sales order has been successfully created with all details and attachments.",
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       onOpenChange(false);
       resetForm();
     },
@@ -176,14 +235,13 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
       orderNumber: "",
       productId: "",
       quantity: 0,
-      price: 0,
-      warehouseId: "",
+      sellingPrice: 0,
+      bankAccountId: "",
       orderDate: new Date().toISOString().split('T')[0],
       description: "",
+      riskLevel: "",
       attachmentUrls: [],
-      platform: "",
-      paymentReceivedInBank: "",
-      salesAmount: 0
+      warehouseId: ""
     });
   };
 
@@ -215,7 +273,7 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Sales Entry Form</DialogTitle>
+          <DialogTitle>New Sales Entry</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -229,6 +287,8 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
                   value={formData.customerName}
                   onChange={(e) => setFormData(prev => ({ ...prev, customerName: e.target.value }))}
                   required
+                  readOnly={!!preFilledData?.customerName}
+                  className={preFilledData?.customerName ? "bg-gray-100" : ""}
                 />
               </div>
               
@@ -243,53 +303,7 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
               </div>
 
               <div>
-                <Label htmlFor="platform">Platform *</Label>
-                <Input
-                  id="platform"
-                  value={formData.platform}
-                  onChange={(e) => setFormData(prev => ({ ...prev, platform: e.target.value }))}
-                  required
-                  readOnly={!!preFilledData?.platform}
-                  className={preFilledData?.platform ? "bg-gray-100" : ""}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="paymentReceivedInBank">Payment Received in Bank *</Label>
-                <Input
-                  id="paymentReceivedInBank"
-                  value={formData.paymentReceivedInBank}
-                  onChange={(e) => setFormData(prev => ({ ...prev, paymentReceivedInBank: e.target.value }))}
-                  required
-                  readOnly={!!preFilledData?.paymentMethod}
-                  className={preFilledData?.paymentMethod ? "bg-gray-100" : ""}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="stockName">Stock Name *</Label>
-                <Select value={formData.productId} onValueChange={(value) => {
-                  setFormData(prev => ({ ...prev, productId: value }));
-                  const product = products?.find(p => p.id === value);
-                  if (product) {
-                    setFormData(prev => ({ ...prev, price: product.selling_price }));
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stock/product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {product.code} (Available: {product.current_stock_quantity} {product.unit_of_measurement})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="warehouse">Select Warehouse *</Label>
+                <Label htmlFor="warehouse">Warehouse *</Label>
                 <Select value={formData.warehouseId} onValueChange={(value) => 
                   setFormData(prev => ({ ...prev, warehouseId: value }))
                 }>
@@ -305,49 +319,54 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {/* Right Column */}
-            <div className="space-y-4">
               <div>
-                <Label htmlFor="salesAmount">Amount of Sales *</Label>
-                <Input
-                  id="salesAmount"
-                  type="number"
-                  step="0.01"
-                  value={formData.salesAmount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, salesAmount: parseFloat(e.target.value) || 0 }))}
-                  required
-                  readOnly={!!preFilledData?.amount}
-                  className={preFilledData?.amount ? "bg-gray-100" : ""}
-                />
+                <Label htmlFor="product">Product *</Label>
+                <Select value={formData.productId} onValueChange={(value) => {
+                  setFormData(prev => ({ ...prev, productId: value }));
+                  const product = products?.find(p => p.id === value);
+                  if (product) {
+                    setFormData(prev => ({ ...prev, sellingPrice: product.selling_price }));
+                  }
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - {product.code} (Stock: {product.current_stock_quantity})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="price">Price (Can be decimal) *</Label>
+                  <Label htmlFor="sellingPrice">Price per Unit *</Label>
                   <Input
-                    id="price"
+                    id="sellingPrice"
                     type="number"
                     step="0.01"
-                    min="0"
-                    value={formData.price}
-                    onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                    value={formData.sellingPrice}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sellingPrice: parseFloat(e.target.value) || 0 }))}
                     required
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="quantity">Quantity (Can be decimal) *</Label>
+                  <Label htmlFor="quantity">Quantity *</Label>
                   <Input
                     id="quantity"
                     type="number"
-                    step="0.01"
-                    min="0.01"
+                    min="1"
                     max={selectedProduct?.current_stock_quantity || 0}
                     value={formData.quantity}
-                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
                     required
+                    readOnly={!!preFilledData?.amount}
+                    className={preFilledData?.amount ? "bg-gray-100" : ""}
                   />
                   {selectedProduct && (
                     <p className="text-sm text-gray-500 mt-1">
@@ -366,6 +385,27 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
                   className="bg-gray-100"
                 />
               </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="bankAccount">Bank Account *</Label>
+                <Select value={formData.bankAccountId} onValueChange={(value) => 
+                  setFormData(prev => ({ ...prev, bankAccountId: value }))
+                }>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts?.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.bank_name} - {account.account_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               <div>
                 <Label htmlFor="orderDate">Order Date *</Label>
@@ -379,10 +419,10 @@ export function SalesEntryDialog({ open, onOpenChange, preFilledData }: SalesEnt
               </div>
 
               <div>
-                <Label htmlFor="description">Order Description (Optional)</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  placeholder="Enter order description or notes..."
+                  placeholder="Enter sales description or notes..."
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   rows={4}

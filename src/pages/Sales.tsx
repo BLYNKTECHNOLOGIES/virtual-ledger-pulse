@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +34,8 @@ export default function Sales() {
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
   const [selectedOrderForStatus, setSelectedOrderForStatus] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
+  const [alternativeMethodDialog, setAlternativeMethodDialog] = useState<any>(null);
+  const [stepFlowMode, setStepFlowMode] = useState<'normal' | 'alternative-same-type' | 'alternative-change-type'>('normal');
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -73,7 +74,7 @@ export default function Sales() {
   ) || [];
   const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
 
-  // Generate alternative payment method mutation
+  // Enhanced generate alternative payment method mutation
   const generateAlternativeMethodMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const order = salesOrders?.find(o => o.id === orderId);
@@ -89,7 +90,6 @@ export default function Sales() {
       if (!currentPaymentMethod) throw new Error('Current payment method not found');
 
       // Find alternative payment methods of the same type and risk category
-      // First get all methods that match the criteria
       const { data: allAlternativeMethods } = await supabase
         .from('sales_payment_methods')
         .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
@@ -99,70 +99,99 @@ export default function Sales() {
         .neq('id', currentPaymentMethod.id);
 
       if (!allAlternativeMethods || allAlternativeMethods.length === 0) {
-        throw new Error('No alternative payment methods available');
+        // Check if there are methods of different types available
+        const { data: differentTypeMethods } = await supabase
+          .from('sales_payment_methods')
+          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+          .eq('is_active', true)
+          .eq('risk_category', currentPaymentMethod.risk_category)
+          .neq('type', currentPaymentMethod.type);
+
+        if (!differentTypeMethods || differentTypeMethods.length === 0) {
+          throw new Error('No alternative payment methods available for this risk category. Contact your admin.');
+        }
+        
+        // Show dialog asking if they want to change payment method type
+        setAlternativeMethodDialog({
+          order,
+          currentPaymentMethod,
+          differentTypeMethods: differentTypeMethods.filter(method => 
+            (method.current_usage || 0) < method.payment_limit
+          )
+        });
+        return null;
       }
 
-      // Filter methods that have available capacity (current_usage < payment_limit)
-      const alternativeMethods = allAlternativeMethods.filter(method => 
+      // Filter methods that have available capacity
+      const availableMethods = allAlternativeMethods.filter(method => 
         (method.current_usage || 0) < method.payment_limit
       );
 
-      if (alternativeMethods.length === 0) {
-        throw new Error('No alternative payment methods available with sufficient capacity');
+      if (availableMethods.length === 0) {
+        // Check if there are methods of different types available
+        const { data: differentTypeMethods } = await supabase
+          .from('sales_payment_methods')
+          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+          .eq('is_active', true)
+          .eq('risk_category', currentPaymentMethod.risk_category)
+          .neq('type', currentPaymentMethod.type);
+
+        const availableDifferentTypes = differentTypeMethods?.filter(method => 
+          (method.current_usage || 0) < method.payment_limit
+        ) || [];
+
+        if (availableDifferentTypes.length === 0) {
+          throw new Error('All possible payment methods have been provided. No available methods left. Contact your admin.');
+        }
+
+        // Show dialog asking if they want to change payment method type
+        setAlternativeMethodDialog({
+          order,
+          currentPaymentMethod,
+          differentTypeMethods: availableDifferentTypes
+        });
+        return null;
       }
 
-      // Select the first available alternative method
-      const alternativeMethod = alternativeMethods[0];
-
-      // Update the order with the new payment method
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .update({
-          sales_payment_method_id: alternativeMethod.id,
-          status: 'AWAITING_PAYMENT',
-          payment_status: 'PENDING',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      return { order: data, paymentMethod: alternativeMethod };
-    },
-    onSuccess: (data) => {
-      const { paymentMethod } = data;
-      
-      // Show the alternative payment method details to the operator
-      let methodDetails = '';
-      if (paymentMethod.type === 'UPI') {
-        methodDetails = `UPI ID: ${paymentMethod.upi_id}`;
-      } else {
-        methodDetails = `
-Account Holder: ${paymentMethod.bank_accounts?.bank_account_holder_name}
-Account Number: ${paymentMethod.bank_accounts?.account_number}
-IFSC: ${paymentMethod.bank_accounts?.IFSC}
-Bank: ${paymentMethod.bank_accounts?.bank_name}
-        `.trim();
-      }
-
-      toast({ 
-        title: "Alternative Payment Method Generated", 
-        description: `New ${paymentMethod.type} method assigned:\n${methodDetails}`,
-        duration: 10000
+      // Show dialog asking if they want to change payment method type or keep same type
+      setAlternativeMethodDialog({
+        order,
+        currentPaymentMethod,
+        availableSameType: availableMethods,
+        differentTypeMethods: []
       });
-      
-      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      return null;
     },
     onError: (error) => {
       toast({ 
         title: "Error", 
-        description: `Failed to generate alternative method: ${error.message}`, 
+        description: error.message, 
         variant: "destructive" 
       });
     }
   });
+
+  const handleAlternativeMethodChoice = (choice: 'same-type' | 'change-type') => {
+    if (!alternativeMethodDialog) return;
+
+    if (choice === 'same-type') {
+      // Open step-by-step flow in alternative mode (goes to step 4 directly)
+      setStepFlowMode('alternative-same-type');
+      setShowStepByStepFlow(true);
+    } else {
+      // Open step-by-step flow to change payment method type (goes to step 3)
+      setStepFlowMode('alternative-change-type');
+      setShowStepByStepFlow(true);
+    }
+    
+    setAlternativeMethodDialog(null);
+  };
+
+  const handleStepFlowClose = () => {
+    setShowStepByStepFlow(false);
+    setStepFlowMode('normal');
+    setAlternativeMethodDialog(null);
+  };
 
   // Move to leads mutation
   const moveToLeadsMutation = useMutation({
@@ -569,7 +598,10 @@ Bank: ${paymentMethod.bank_accounts?.bank_name}
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => setShowStepByStepFlow(true)}>
+          <Button onClick={() => {
+            setStepFlowMode('normal');
+            setShowStepByStepFlow(true);
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -716,10 +748,66 @@ Bank: ${paymentMethod.bank_accounts?.bank_name}
         </CardContent>
       </Card>
 
+      {/* Alternative Payment Method Choice Dialog */}
+      <Dialog open={!!alternativeMethodDialog} onOpenChange={(open) => !open && setAlternativeMethodDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Payment Method Type?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {alternativeMethodDialog?.availableSameType?.length > 0 ? (
+              <>
+                <p className="text-sm text-gray-600">
+                  Do you want to change the payment method type or keep the same type and get an alternative method?
+                </p>
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleAlternativeMethodChoice('same-type')}
+                    className="flex-1"
+                  >
+                    Keep Same Type
+                  </Button>
+                  <Button 
+                    onClick={() => handleAlternativeMethodChoice('change-type')}
+                    className="flex-1"
+                  >
+                    Change Payment Method Type
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">
+                  No alternative methods available for the current payment type. Would you like to change the payment method type?
+                </p>
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAlternativeMethodDialog(null)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => handleAlternativeMethodChoice('change-type')}
+                    className="flex-1"
+                  >
+                    Change Payment Method Type
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Step-by-Step Sales Flow */}
       <StepBySalesFlow 
         open={showStepByStepFlow}
-        onOpenChange={setShowStepByStepFlow}
+        onOpenChange={handleStepFlowClose}
+        mode={stepFlowMode}
+        alternativeOrderData={alternativeMethodDialog}
       />
 
       {/* Details Dialog */}

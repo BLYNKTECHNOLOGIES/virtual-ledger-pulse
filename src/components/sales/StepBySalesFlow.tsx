@@ -15,11 +15,13 @@ import { supabase } from "@/integrations/supabase/client";
 interface StepBySalesFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: 'normal' | 'alternative-same-type' | 'alternative-change-type';
+  alternativeOrderData?: any;
 }
 
 type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice';
 
-export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
+export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternativeOrderData }: StepBySalesFlowProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -48,6 +50,33 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     warehouseId: '',
     price: 0
   });
+
+  // Initialize alternative mode data when opening
+  useEffect(() => {
+    if (open && mode !== 'normal' && alternativeOrderData) {
+      const { order, currentPaymentMethod } = alternativeOrderData;
+      
+      // Set up the order data
+      setOrderAmount(order.total_amount);
+      setSelectedClient({
+        name: order.client_name,
+        phone: order.client_phone,
+        platform: order.platform,
+        risk_appetite: order.risk_level || 'HIGH'
+      });
+      
+      if (mode === 'alternative-same-type') {
+        // Set payment type from current method
+        setPaymentType(currentPaymentMethod.type === 'UPI' ? 'UPI' : 'Bank Transfer');
+        setCurrentStep('payment-method-display');
+      } else if (mode === 'alternative-change-type') {
+        setCurrentStep('payment-type-selection');
+      }
+    } else if (open && mode === 'normal') {
+      // Reset for normal mode
+      resetFlow();
+    }
+  }, [open, mode, alternativeOrderData]);
 
   // Fetch existing clients
   const { data: clients } = useQuery({
@@ -97,7 +126,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   };
 
-  // Fetch payment methods when payment type is selected
+  // Enhanced fetch payment methods for alternative mode
   const fetchPaymentMethods = async () => {
     if (!paymentType) return;
     
@@ -114,18 +143,27 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       query = query.eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
     }
 
+    // In alternative mode, exclude the current payment method
+    if (mode !== 'normal' && alternativeOrderData?.currentPaymentMethod) {
+      query = query.neq('id', alternativeOrderData.currentPaymentMethod.id);
+    }
+
     const { data, error } = await query;
     if (error) throw error;
     
-    setAvailablePaymentMethods(data || []);
+    // Filter methods with available capacity
+    const availableMethods = (data || []).filter(method => 
+      (method.current_usage || 0) < method.payment_limit && 
+      !usedPaymentMethods.includes(method.id)
+    );
     
-    // Find next available payment method that hasn't been used
-    if (data && data.length > 0) {
-      const availableMethod = data.find(method => 
-        method.current_usage < method.payment_limit && 
-        !usedPaymentMethods.includes(method.id)
-      );
-      setSelectedPaymentMethod(availableMethod || null);
+    setAvailablePaymentMethods(availableMethods);
+    
+    // Select first available method
+    if (availableMethods.length > 0) {
+      setSelectedPaymentMethod(availableMethods[0]);
+    } else {
+      setSelectedPaymentMethod(null);
     }
   };
 
@@ -133,7 +171,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     if (paymentType && (selectedClient || orderType === 'new')) {
       fetchPaymentMethods();
     }
-  }, [paymentType, selectedClient, orderType, usedPaymentMethods]);
+  }, [paymentType, selectedClient, orderType, usedPaymentMethods, mode, alternativeOrderData]);
 
   // Auto-calculate quantity when amount or price changes
   useEffect(() => {
@@ -500,6 +538,11 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const renderCurrentStep = () => {
+    // Skip order type and amount verification for alternative modes
+    if (mode !== 'normal' && (currentStep === 'order-type' || currentStep === 'amount-verification')) {
+      return null;
+    }
+
     switch (currentStep) {
       case 'order-type':
         return (
@@ -648,7 +691,20 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       case 'payment-type-selection':
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Step 3: Choose Payment Method Type</h3>
+            <h3 className="text-lg font-semibold">
+              {mode === 'alternative-change-type' ? 'Step 3: Change Payment Method Type' : 'Step 3: Choose Payment Method Type'}
+            </h3>
+            
+            {mode === 'alternative-change-type' && (
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800 mb-2">
+                  <strong>Current Order:</strong> {alternativeOrderData?.order?.order_number}
+                </p>
+                <p className="text-sm text-blue-800">
+                  <strong>Current Method:</strong> {alternativeOrderData?.currentPaymentMethod?.type}
+                </p>
+              </div>
+            )}
             
             <div className="space-y-3">
               <div>
@@ -674,7 +730,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             </div>
 
             <Button 
-              onClick={handlePaymentTypeSelection}
+              onClick={() => setCurrentStep('payment-method-display')}
               disabled={!paymentType}
               className="w-full"
             >
@@ -686,12 +742,27 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       case 'payment-method-display':
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Step 4: Payment Method Details</h3>
+            <h3 className="text-lg font-semibold">
+              {mode !== 'normal' ? 'Step 4: Alternative Payment Method Details' : 'Step 4: Payment Method Details'}
+            </h3>
+            
+            {mode !== 'normal' && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-800 mb-2">
+                  <strong>Order:</strong> {alternativeOrderData?.order?.order_number} - {alternativeOrderData?.order?.client_name}
+                </p>
+                <p className="text-sm text-green-800">
+                  <strong>Amount:</strong> ₹{alternativeOrderData?.order?.total_amount?.toLocaleString()}
+                </p>
+              </div>
+            )}
             
             {selectedPaymentMethod ? (
               <div className="p-4 bg-green-50 rounded-lg border">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium text-green-800">🔁 Selected Payment Method</h4>
+                  <h4 className="font-medium text-green-800">
+                    {mode !== 'normal' ? '🔄 Alternative Payment Method' : '🔁 Selected Payment Method'}
+                  </h4>
                   <Badge className="bg-green-100 text-green-800">
                     {selectedPaymentMethod.type}
                   </Badge>
@@ -797,13 +868,31 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
             )}
 
-            <Button 
-              onClick={handleContinueToActions}
-              disabled={!selectedPaymentMethod}
-              className="w-full"
-            >
-              Continue
-            </Button>
+            <div className="flex gap-3">
+              {mode !== 'normal' && (
+                <Button 
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button 
+                onClick={() => {
+                  if (mode !== 'normal') {
+                    // For alternative mode, directly assign the new payment method
+                    handleAlternativePaymentMethodAssigned();
+                  } else {
+                    setCurrentStep('action-buttons');
+                  }
+                }}
+                disabled={!selectedPaymentMethod}
+                className={mode !== 'normal' ? "flex-1" : "w-full"}
+              >
+                {mode !== 'normal' ? 'Assign Alternative Method' : 'Continue'}
+              </Button>
+            </div>
           </div>
         );
 
@@ -1011,11 +1100,64 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   };
 
+  // Handle alternative payment method assignment
+  const handleAlternativePaymentMethodAssigned = async () => {
+    if (!selectedPaymentMethod || !alternativeOrderData?.order) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .update({
+          sales_payment_method_id: selectedPaymentMethod.id,
+          status: 'AWAITING_PAYMENT',
+          payment_status: 'PENDING',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', alternativeOrderData.order.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      // Show the new payment method details to the operator
+      let methodDetails = '';
+      if (selectedPaymentMethod.type === 'UPI') {
+        methodDetails = `UPI ID: ${selectedPaymentMethod.upi_id}`;
+      } else {
+        methodDetails = `
+Account Holder: ${selectedPaymentMethod.bank_accounts?.bank_account_holder_name}
+Account Number: ${selectedPaymentMethod.bank_accounts?.account_number}
+IFSC: ${selectedPaymentMethod.bank_accounts?.IFSC}
+Bank: ${selectedPaymentMethod.bank_accounts?.bank_name}
+        `.trim();
+      }
+
+      toast({ 
+        title: "Alternative Payment Method Assigned", 
+        description: `New ${selectedPaymentMethod.type} method assigned:\n${methodDetails}`,
+        duration: 10000
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({ 
+        title: "Error", 
+        description: `Failed to assign alternative method: ${error.message}`, 
+        variant: "destructive" 
+      });
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Step-by-Step Sales Order Process</DialogTitle>
+          <DialogTitle>
+            {mode === 'alternative-same-type' ? 'Alternative Payment Method - Same Type' :
+             mode === 'alternative-change-type' ? 'Alternative Payment Method - Change Type' :
+             'Step-by-Step Sales Order Process'}
+          </DialogTitle>
         </DialogHeader>
         
         <div className="space-y-6">
@@ -1026,9 +1168,12 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
           <Button 
             variant="outline" 
             onClick={() => {
-              if (currentStep === 'order-type') {
+              if (currentStep === 'payment-type-selection' && mode !== 'normal') {
+                onOpenChange(false);
+              } else if (currentStep === 'order-type') {
                 onOpenChange(false);
               } else {
+                // Handle back navigation
                 const steps: FlowStep[] = ['order-type', 'amount-verification', 'payment-type-selection', 'payment-method-display', 'action-buttons', 'final-form'];
                 const currentIndex = steps.indexOf(currentStep);
                 if (currentIndex > 0) {
@@ -1037,7 +1182,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               }
             }}
           >
-            {currentStep === 'order-type' ? 'Cancel' : 'Back'}
+            {currentStep === 'order-type' || (mode !== 'normal' && currentStep === 'payment-type-selection') ? 'Cancel' : 'Back'}
           </Button>
         </div>
       </DialogContent>

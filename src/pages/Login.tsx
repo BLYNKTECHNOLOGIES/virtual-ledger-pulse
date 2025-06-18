@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +33,7 @@ export function Login({ onLogin }: LoginProps) {
     confirmPassword: "",
   });
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -57,9 +56,9 @@ export function Login({ onLogin }: LoginProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loginData, onLogin, toast]);
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (registerData.password !== registerData.confirmPassword) {
@@ -135,7 +134,61 @@ export function Login({ onLogin }: LoginProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [registerData, toast]);
+
+  // Memoize password toggle functions
+  const togglePassword = useCallback(() => setShowPassword(!showPassword), [showPassword]);
+  const toggleConfirmPassword = useCallback(() => setShowConfirmPassword(!showConfirmPassword), [showConfirmPassword]);
+
+  // Memoize login form inputs to prevent unnecessary re-renders
+  const loginForm = useMemo(() => (
+    <form onSubmit={handleLogin} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="username">Username</Label>
+        <div className="relative">
+          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            id="username"
+            type="text"
+            placeholder="Enter your username"
+            className="pl-10"
+            value={loginData.username}
+            onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
+            required
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            className="pl-10 pr-10"
+            value={loginData.password}
+            onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+            required
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="absolute right-0 top-0 h-full px-3"
+            onClick={togglePassword}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isLoading}>
+        {isLoading ? "Signing in..." : "Sign In"}
+      </Button>
+    </form>
+  ), [loginData, showPassword, isLoading, handleLogin, togglePassword]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -152,52 +205,7 @@ export function Login({ onLogin }: LoginProps) {
             </TabsList>
             
             <TabsContent value="login">
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="username"
-                      type="text"
-                      placeholder="Enter your username"
-                      className="pl-10"
-                      value={loginData.username}
-                      onChange={(e) => setLoginData(prev => ({ ...prev, username: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
-                      className="pl-10 pr-10"
-                      value={loginData.password}
-                      onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
+              {loginForm}
             </TabsContent>
 
             <TabsContent value="register">
@@ -287,7 +295,7 @@ export function Login({ onLogin }: LoginProps) {
                       variant="ghost"
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={togglePassword}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
@@ -312,7 +320,7 @@ export function Login({ onLogin }: LoginProps) {
                       variant="ghost"
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={toggleConfirmPassword}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>

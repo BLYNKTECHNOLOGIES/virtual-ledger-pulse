@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { AddUserDialog } from "@/components/AddUserDialog";
 import { AssignRoleDialog } from "@/components/users/AssignRoleDialog";
 import { RoleManagement } from "@/components/roles/RoleManagement";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/useDebounce";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -35,7 +36,10 @@ export default function UserManagement() {
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
 
-  // Fetch pending registrations
+  // Debounce search term to reduce API calls
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Fetch pending registrations with optimized query
   const { data: pendingRegistrations, refetch: refetchPendingRegistrations } = useQuery({
     queryKey: ['pending_registrations'],
     queryFn: async () => {
@@ -53,14 +57,21 @@ export default function UserManagement() {
     refreshUsers();
   }, []);
 
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Memoize filtered users to prevent unnecessary recalculations
+  const filteredUsers = useMemo(() => {
+    if (!debouncedSearchTerm) return users;
+    
+    const searchLower = debouncedSearchTerm.toLowerCase();
+    return users.filter(user =>
+      user.username.toLowerCase().includes(searchLower) ||
+      user.email.toLowerCase().includes(searchLower) ||
+      (user.first_name && user.first_name.toLowerCase().includes(searchLower)) ||
+      (user.last_name && user.last_name.toLowerCase().includes(searchLower))
+    );
+  }, [users, debouncedSearchTerm]);
 
-  const getStatusBadge = (status: string) => {
+  // Memoize status badge component
+  const getStatusBadge = useCallback((status: string) => {
     switch (status) {
       case "ACTIVE":
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
@@ -71,9 +82,9 @@ export default function UserManagement() {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
+  }, []);
 
-  const getRegistrationStatusBadge = (status: string) => {
+  const getRegistrationStatusBadge = useCallback((status: string) => {
     switch (status) {
       case "PENDING":
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
@@ -84,9 +95,9 @@ export default function UserManagement() {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
-  };
+  }, []);
 
-  const handleDeleteUser = async (id: string, username: string) => {
+  const handleDeleteUser = useCallback(async (id: string, username: string) => {
     if (confirm(`Are you sure you want to delete user "${username}"?`)) {
       try {
         await deleteUser(id);
@@ -102,18 +113,18 @@ export default function UserManagement() {
         });
       }
     }
-  };
+  }, [deleteUser, toast]);
 
-  const handleManageRoles = (userId: string) => {
+  const handleManageRoles = useCallback((userId: string) => {
     setSelectedUserId(userId);
     setShowRoleDialog(true);
-  };
+  }, []);
 
-  const handleRolesUpdated = () => {
+  const handleRolesUpdated = useCallback(() => {
     refreshUsers();
-  };
+  }, [refreshUsers]);
 
-  const handleApproveRegistration = async (registrationId: string) => {
+  const handleApproveRegistration = useCallback(async (registrationId: string) => {
     try {
       const { error } = await supabase.rpc('approve_registration', {
         registration_id: registrationId
@@ -135,9 +146,9 @@ export default function UserManagement() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast, refetchPendingRegistrations, refreshUsers]);
 
-  const handleRejectRegistration = async (registrationId: string, reason?: string) => {
+  const handleRejectRegistration = useCallback(async (registrationId: string, reason?: string) => {
     try {
       const { error } = await supabase.rpc('reject_registration', {
         registration_id: registrationId,
@@ -159,9 +170,12 @@ export default function UserManagement() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast, refetchPendingRegistrations]);
 
-  const pendingCount = pendingRegistrations?.filter(reg => reg.status === 'PENDING').length || 0;
+  const pendingCount = useMemo(() => 
+    pendingRegistrations?.filter(reg => reg.status === 'PENDING').length || 0, 
+    [pendingRegistrations]
+  );
 
   return (
     <div className="space-y-6 p-6">

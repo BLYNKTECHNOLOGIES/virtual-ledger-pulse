@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 interface CreateRoleDialogProps {
   open: boolean;
@@ -15,7 +16,9 @@ interface CreateRoleDialogProps {
   onRoleCreated: () => void;
 }
 
-const AVAILABLE_PERMISSIONS = [
+type Permission = Database['public']['Enums']['app_permission'];
+
+const AVAILABLE_PERMISSIONS: { id: Permission; label: string }[] = [
   { id: 'view_dashboard', label: 'View Dashboard' },
   { id: 'view_sales', label: 'View Sales' },
   { id: 'view_purchase', label: 'View Purchase' },
@@ -37,7 +40,7 @@ export function CreateRoleDialog({ open, onOpenChange, onRoleCreated }: CreateRo
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    permissions: [] as string[]
+    permissions: [] as Permission[]
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -92,7 +95,7 @@ export function CreateRoleDialog({ open, onOpenChange, onRoleCreated }: CreateRo
     }
   };
 
-  const handlePermissionChange = (permissionId: string, checked: boolean) => {
+  const handlePermissionChange = (permissionId: Permission, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       permissions: checked

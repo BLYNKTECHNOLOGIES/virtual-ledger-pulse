@@ -17,18 +17,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
-import { MinimizedDialogsContainer } from "@/components/sales/MinimizedDialogsContainer";
-import { useMinimizedDialogs } from "@/hooks/useMinimizedDialogs";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { restoreDialog } = useMinimizedDialogs();
-  
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
-  const [activeDialogId, setActiveDialogId] = useState<string>('');
-  const [dialogCounter, setDialogCounter] = useState(1);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -301,21 +295,6 @@ export default function Sales() {
     </div>
   );
 
-  const handleNewOrder = () => {
-    const newDialogId = `sales-flow-${dialogCounter}`;
-    setActiveDialogId(newDialogId);
-    setDialogCounter(prev => prev + 1);
-    setShowStepByStepFlow(true);
-  };
-
-  const handleRestoreDialog = (id: string, type: string) => {
-    if (type === 'sales') {
-      setActiveDialogId(id);
-      setShowStepByStepFlow(true);
-      restoreDialog(id);
-    }
-  };
-
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -328,7 +307,7 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={handleNewOrder}>
+          <Button onClick={() => setShowStepByStepFlow(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -479,7 +458,6 @@ export default function Sales() {
       <StepBySalesFlow 
         open={showStepByStepFlow}
         onOpenChange={setShowStepByStepFlow}
-        dialogId={activeDialogId}
       />
 
       {/* Details Dialog */}
@@ -495,9 +473,6 @@ export default function Sales() {
         onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
         order={selectedOrderForEdit}
       />
-
-      {/* Minimized Dialogs Container */}
-      <MinimizedDialogsContainer onRestoreDialog={handleRestoreDialog} />
     </div>
   );
 }

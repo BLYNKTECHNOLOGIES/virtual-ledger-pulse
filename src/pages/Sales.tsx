@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, Settings } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
+import { OrderStatusDialog } from "@/components/sales/OrderStatusDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
@@ -30,6 +32,7 @@ export default function Sales() {
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
+  const [selectedOrderForStatus, setSelectedOrderForStatus] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
 
   // Fetch sales orders from database
@@ -64,7 +67,9 @@ export default function Sales() {
   });
 
   // Filter orders based on active tab
-  const pendingOrders = salesOrders?.filter(order => order.payment_status === 'PENDING') || [];
+  const pendingOrders = salesOrders?.filter(order => 
+    order.payment_status === 'PENDING' || order.status === 'AWAITING_PAYMENT'
+  ) || [];
   const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
 
   const deleteSalesOrderMutation = useMutation({
@@ -273,6 +278,15 @@ export default function Sales() {
                   >
                     <Edit className="h-3 w-3" />
                   </Button>
+                  {(order.status === 'AWAITING_PAYMENT' || order.payment_status === 'PENDING') && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setSelectedOrderForStatus(order)}
+                    >
+                      <Settings className="h-3 w-3" />
+                    </Button>
+                  )}
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -472,6 +486,13 @@ export default function Sales() {
         open={!!selectedOrderForEdit}
         onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
         order={selectedOrderForEdit}
+      />
+
+      {/* Status Change Dialog */}
+      <OrderStatusDialog
+        open={!!selectedOrderForStatus}
+        onOpenChange={(open) => !open && setSelectedOrderForStatus(null)}
+        order={selectedOrderForStatus}
       />
     </div>
   );

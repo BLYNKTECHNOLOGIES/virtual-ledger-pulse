@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -43,6 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUsers = async () => {
     try {
+      console.log('=== REFRESHING USERS ===');
+      setLoading(true);
+      
+      // First, let's check what tables exist
+      const { data: tablesCheck } = await supabase
+        .from('information_schema.tables')
+        .select('table_name')
+        .eq('table_schema', 'public')
+        .eq('table_name', 'users');
+      
+      console.log('Users table exists:', tablesCheck);
+
       console.log('Fetching users from database...');
       const { data: usersData, error } = await supabase
         .from('users')
@@ -58,8 +69,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         `)
         .order('created_at', { ascending: false });
 
+      console.log('Raw query result:', { data: usersData, error });
+
       if (error) {
         console.error('Error fetching users:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
 
@@ -80,26 +99,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.log('Transformed users:', transformedUsers);
       setUsers(transformedUsers);
     } catch (error: any) {
-      console.error('Error fetching users:', error);
-      setUsers([]); // Set empty array on error
+      console.error('Error in refreshUsers:', error);
+      // Don't set empty array on error, keep existing users
+      if (users.length === 0) {
+        setUsers([]); // Only set empty if we don't have any users yet
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log('=== AUTH PROVIDER INIT ===');
+    
     // Check for stored authentication on app load
     const storedUser = localStorage.getItem('currentUser');
+    console.log('Stored user:', storedUser);
+    
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
+      console.log('Setting user from localStorage:', parsedUser);
       // Load permissions for the user
       refreshUserPermissions(parsedUser.id);
     }
     
     // Load all users
     refreshUsers();
-    setLoading(false);
   }, []);
 
   const refreshUserPermissions = async (userId?: string) => {
@@ -132,13 +158,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (credentials: { username: string; password: string }) => {
     try {
+      console.log('Attempting login for:', credentials.username);
+      
       const { data, error } = await supabase
         .rpc('validate_user_credentials', {
           input_username: credentials.username,
           input_password: credentials.password
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login RPC error:', error);
+        throw error;
+      }
+
+      console.log('Login response:', data);
 
       if (data && data.length > 0 && data[0].is_valid) {
         const userData = data[0];
@@ -152,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           created_at: new Date().toLocaleDateString('en-GB')
         };
 
+        console.log('Setting authenticated user:', foundUser);
         setUser(foundUser);
         localStorage.setItem('currentUser', JSON.stringify(foundUser));
         
@@ -163,6 +197,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .from('users')
           .update({ last_login: new Date().toISOString() })
           .eq('id', foundUser.id);
+
+        // Refresh users list after successful login
+        await refreshUsers();
 
       } else {
         throw new Error("Invalid username or password");

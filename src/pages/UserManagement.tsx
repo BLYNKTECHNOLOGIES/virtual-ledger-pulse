@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { OptimizedTabs, OptimizedTabsContent, OptimizedTabsList, OptimizedTabsTrigger } from "@/components/ui/optimized-tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { AssignRoleDialog } from "@/components/users/AssignRoleDialog";
@@ -36,6 +37,39 @@ export default function UserManagement() {
 
   // Debounce search term to reduce API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Debug function to test data fetching
+  const debugDataFetching = async () => {
+    console.log('=== DEBUGGING DATA FETCHING ===');
+    
+    // Check current user
+    const { data: user, error: userError } = await supabase.auth.getUser();
+    console.log("Current logged-in user:", user);
+    console.log("User error:", userError);
+    
+    // Test users table
+    const { data: usersData, error: usersError } = await supabase
+      .from("users")
+      .select("*");
+    console.log("All users from direct query:", usersData);
+    console.log("Users error:", usersError);
+    
+    // Test pending registrations
+    const { data: pendingData, error: pendingError } = await supabase
+      .from("pending_registrations")
+      .select("*");
+    console.log("Pending registrations from direct query:", pendingData);
+    console.log("Pending error:", pendingError);
+    
+    // Test roles
+    const { data: rolesData, error: rolesError } = await supabase
+      .from("roles")
+      .select("*");
+    console.log("Roles from direct query:", rolesData);
+    console.log("Roles error:", rolesError);
+    
+    console.log('=== END DEBUG ===');
+  };
 
   // Fetch pending registrations with optimized query
   const { data: pendingRegistrations, refetch: refetchPendingRegistrations, isLoading: pendingLoading } = useQuery({
@@ -170,9 +204,14 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-600 mt-1">Manage system users, roles, and permissions</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">Manage system users, roles, and permissions</p>
+        </div>
+        <Button onClick={debugDataFetching} variant="outline" className="bg-red-100 text-red-800">
+          Debug Data
+        </Button>
       </div>
 
       <OptimizedTabs defaultValue="users" className="space-y-6">

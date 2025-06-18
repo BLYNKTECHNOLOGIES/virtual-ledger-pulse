@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calculator, FileText, Download, Plus, Eye } from "lucide-react";
+import { Calculator, FileText, Download, Plus } from "lucide-react";
 import { PayslipGenerationDialog } from "@/components/payroll/PayslipGenerationDialog";
 import { generatePayslipPDF } from "@/utils/payslipPdfGenerator";
 import { toast } from "sonner";
@@ -15,7 +14,7 @@ import { toast } from "sonner";
 export default function Payroll() {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
 
-  // Fetch payslips
+  // Fetch payslips with payment_status included
   const { data: payslips, refetch: refetchPayslips } = useQuery({
     queryKey: ['payslips'],
     queryFn: async () => {
@@ -63,19 +62,6 @@ export default function Payroll() {
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
-  const getPaymentStatusBadge = (status: string) => {
-    switch (status) {
-      case 'PAID':
-        return <Badge className="bg-green-100 text-green-800">Paid</Badge>;
-      case 'PENDING':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      case 'FAILED':
-        return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
-      default:
-        return <Badge variant="secondary">{status || 'Pending'}</Badge>;
     }
   };
 

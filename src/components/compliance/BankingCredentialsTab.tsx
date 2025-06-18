@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,17 +95,19 @@ export function BankingCredentialsTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('banking_credentials')
-        .select(`
-          *,
-          bank_accounts:bank_account_id (
-            account_name,
-            bank_name,
-            account_number
-          )
-        `)
+        .select('*, bank_accounts(*)')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as BankingCredential[];
+      
+      const credentials: BankingCredential[] = (data ?? []).map((item) => ({
+        ...item,
+        security_questions: (item.security_questions ?? []).map((q: any) => ({
+          question: q.question,
+          answer: q.answer,
+        })),
+      }));
+      
+      return credentials;
     },
   });
 

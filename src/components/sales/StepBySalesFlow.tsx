@@ -19,7 +19,7 @@ interface StepBySalesFlowProps {
   alternativeOrderData?: any;
 }
 
-type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice';
+type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form';
 
 export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternativeOrderData }: StepBySalesFlowProps) {
   const { toast } = useToast();
@@ -54,7 +54,7 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
   // Initialize alternative mode data when opening
   useEffect(() => {
     if (open && mode !== 'normal' && alternativeOrderData) {
-      const { order, currentPaymentMethod, availableSameType, differentTypeMethods } = alternativeOrderData;
+      const { order, currentPaymentMethod, availableSameType, availableDifferentTypes } = alternativeOrderData;
       
       // Set up the order data
       setOrderAmount(order.total_amount);
@@ -75,8 +75,10 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
           setSelectedPaymentMethod(availableSameType[0]);
         }
         
+        // Go directly to step 4 to show the alternative method
         setCurrentStep('payment-method-display');
       } else if (mode === 'alternative-change-type') {
+        // Go to step 3 to select new payment type
         setCurrentStep('payment-type-selection');
       }
     } else if (open && mode === 'normal') {
@@ -905,36 +907,6 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
               >
                 {mode !== 'normal' ? 'Assign Alternative Method' : 'Continue'}
               </Button>
-            </div>
-          </div>
-        );
-
-      case 'alternative-method-choice':
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Change Payment Method</h3>
-            
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 mb-4">
-                Would you like to change the payment method type (UPI/Bank Transfer) or keep the same type but get an alternative method?
-              </p>
-              
-              <div className="space-y-3">
-                <Button 
-                  onClick={handleChangePaymentMethodType}
-                  className="w-full"
-                  variant="outline"
-                >
-                  Change Payment Method Type
-                </Button>
-                
-                <Button 
-                  onClick={handleKeepSamePaymentType}
-                  className="w-full"
-                >
-                  Keep Same Type - Get Alternative Method
-                </Button>
-              </div>
             </div>
           </div>
         );

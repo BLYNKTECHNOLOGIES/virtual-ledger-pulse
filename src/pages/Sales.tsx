@@ -120,7 +120,7 @@ export default function Sales() {
         order,
         currentPaymentMethod,
         availableSameType: availableSameMethods,
-        differentTypeMethods: availableDifferentTypes
+        availableDifferentTypes: availableDifferentTypes
       });
       
       return null;
@@ -137,14 +137,32 @@ export default function Sales() {
   const handleAlternativeMethodChoice = (choice: 'same-type' | 'change-type') => {
     if (!alternativeMethodDialog) return;
 
+    const { availableSameType, availableDifferentTypes } = alternativeMethodDialog;
+
     if (choice === 'same-type') {
-      // Open step-by-step flow in alternative mode (goes to step 4 directly)
-      setStepFlowMode('alternative-same-type');
-      setShowStepByStepFlow(true);
+      if (availableSameType && availableSameType.length > 0) {
+        // Set mode and show step flow directly to step 4
+        setStepFlowMode('alternative-same-type');
+        setShowStepByStepFlow(true);
+      } else {
+        toast({
+          title: "No Alternative Methods",
+          description: "No available methods of this type. Please contact admin.",
+          variant: "destructive"
+        });
+      }
     } else {
-      // Open step-by-step flow to change payment method type (goes to step 3)
-      setStepFlowMode('alternative-change-type');
-      setShowStepByStepFlow(true);
+      if (availableDifferentTypes && availableDifferentTypes.length > 0) {
+        // Set mode and show step flow to step 3
+        setStepFlowMode('alternative-change-type');
+        setShowStepByStepFlow(true);
+      } else {
+        toast({
+          title: "No Alternative Methods",
+          description: "No alternative payment method types available. Please contact admin.",
+          variant: "destructive"
+        });
+      }
     }
     
     setAlternativeMethodDialog(null);
@@ -715,7 +733,7 @@ export default function Sales() {
       <Dialog open={!!alternativeMethodDialog} onOpenChange={(open) => !open && setAlternativeMethodDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alternative Payment Method - Same Type</DialogTitle>
+            <DialogTitle>Change Payment Method Type?</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {alternativeMethodDialog?.availableSameType?.length > 0 ? (
@@ -739,7 +757,7 @@ export default function Sales() {
                   </Button>
                 </div>
               </>
-            ) : alternativeMethodDialog?.differentTypeMethods?.length > 0 ? (
+            ) : alternativeMethodDialog?.availableDifferentTypes?.length > 0 ? (
               <>
                 <p className="text-sm text-gray-600">
                   No alternative methods available for the current payment type. Would you like to change the payment method type?

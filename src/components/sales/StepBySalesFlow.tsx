@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw } from "lucide-react";
+import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw, Copy } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,7 @@ interface StepBySalesFlowProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type FlowStep = 'order-type' | 'amount-verification' | 'payment-method' | 'action-buttons' | 'final-form';
+type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form';
 
 export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const [currentStep, setCurrentStep] = useState<FlowStep>('order-type');
@@ -32,8 +32,9 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   });
   const [orderAmount, setOrderAmount] = useState(0);
   const [cosmosAlert, setCosmosAlert] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>([]);
   const [finalOrderData, setFinalOrderData] = useState({
     order_number: '',
     platform: '',
@@ -55,47 +56,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     },
   });
 
-  // Fetch payment methods based on risk category and type
-  const { data: paymentMethods } = useQuery({
-    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite || newClientData.risk_appetite, paymentType],
-    queryFn: async () => {
-      let query = supabase
-        .from('sales_payment_methods')
-        .select('*, bank_accounts:bank_account_id(account_name, bank_name)')
-        .eq('is_active', true);
-
-      // Filter by client risk category
-      const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
-      const riskCategory = getRiskCategoryFromAppetite(riskLevel);
-      query = query.eq('risk_category', riskCategory);
-
-      // Filter by payment type if selected
-      if (paymentType) {
-        query = query.eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedClient || orderType === 'new'
-  });
-
-  // Auto-select the first available payment method when paymentType changes
-  useEffect(() => {
-    if (paymentMethods && paymentMethods.length > 0 && paymentType) {
-      const availableMethod = paymentMethods.find(method => 
-        method.current_usage < method.payment_limit
-      );
-      if (availableMethod) {
-        setSelectedPaymentMethod(availableMethod);
-      } else {
-        // If no method has available limit, still select the first one but show warning
-        setSelectedPaymentMethod(paymentMethods[0]);
-      }
-    }
-  }, [paymentMethods, paymentType]);
-
   const getRiskCategoryFromAppetite = (appetite: string) => {
     switch (appetite) {
       case 'LOW': return 'Low Risk';
@@ -105,6 +65,43 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       default: return 'High Risk'; // Default for new clients
     }
   };
+
+  // Fetch payment methods when payment type is selected
+  const fetchPaymentMethods = async () => {
+    if (!paymentType) return;
+    
+    const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
+    const riskCategory = getRiskCategoryFromAppetite(riskLevel);
+    
+    let query = supabase
+      .from('sales_payment_methods')
+      .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+      .eq('is_active', true)
+      .eq('risk_category', riskCategory);
+
+    if (paymentType) {
+      query = query.eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    
+    setAvailablePaymentMethods(data || []);
+    
+    // Auto-select the first available payment method
+    if (data && data.length > 0) {
+      const availableMethod = data.find(method => 
+        method.current_usage < method.payment_limit
+      );
+      setSelectedPaymentMethod(availableMethod || data[0]);
+    }
+  };
+
+  useEffect(() => {
+    if (paymentType && (selectedClient || orderType === 'new')) {
+      fetchPaymentMethods();
+    }
+  }, [paymentType, selectedClient, orderType]);
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -147,8 +144,9 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     setNewClientData({ name: '', phone: '', platform: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
     setOrderAmount(0);
     setCosmosAlert(false);
-    setSelectedPaymentMethod(null);
     setPaymentType(null);
+    setSelectedPaymentMethod(null);
+    setAvailablePaymentMethods([]);
     setFinalOrderData({ order_number: '', platform: '', quantity: 1, description: '', credits_applied: 0 });
   };
 
@@ -161,10 +159,14 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     if (selectedClient && orderAmount > (selectedClient.monthly_limit - selectedClient.current_month_used)) {
       setCosmosAlert(true);
     }
-    setCurrentStep('payment-method');
+    setCurrentStep('payment-type-selection');
   };
 
-  const handlePaymentMethodSelection = () => {
+  const handlePaymentTypeSelection = () => {
+    setCurrentStep('payment-method-display');
+  };
+
+  const handleContinueToActions = () => {
     setCurrentStep('action-buttons');
   };
 
@@ -181,9 +183,17 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handleAlternativePaymentMethod = () => {
-    setSelectedPaymentMethod(null);
-    setPaymentType(null);
-    setCurrentStep('payment-method');
+    // Keep the same payment type but show alternative methods
+    if (availablePaymentMethods.length > 1) {
+      const currentIndex = availablePaymentMethods.findIndex(method => method.id === selectedPaymentMethod?.id);
+      const nextIndex = (currentIndex + 1) % availablePaymentMethods.length;
+      setSelectedPaymentMethod(availablePaymentMethods[nextIndex]);
+    } else {
+      // If no alternatives in the same type, go back to payment type selection
+      setCurrentStep('payment-type-selection');
+      setPaymentType(null);
+      setSelectedPaymentMethod(null);
+    }
   };
 
   const handlePaymentReceived = () => {
@@ -207,6 +217,11 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       status: 'COMPLETED'
     };
     createSalesOrderMutation.mutate(orderData);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Payment details copied to clipboard" });
   };
 
   const renderCurrentStep = () => {
@@ -355,10 +370,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
           </div>
         );
 
-      case 'payment-method':
+      case 'payment-type-selection':
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Step 3: Choose Payment Method</h3>
+            <h3 className="text-lg font-semibold">Step 3: Choose Payment Method Type</h3>
             
             <div className="space-y-3">
               <div>
@@ -374,40 +389,143 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 </Select>
               </div>
 
-              {paymentType && selectedPaymentMethod && (
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">🔁 Auto-Selected Payment Method</h4>
-                  <div className="text-sm space-y-1">
-                    <div><strong>Client Risk Level:</strong> {selectedClient?.risk_appetite || newClientData.risk_appetite}</div>
-                    <div><strong>Method:</strong> {selectedPaymentMethod.type === 'UPI' ? selectedPaymentMethod.upi_id : selectedPaymentMethod.bank_accounts?.account_name}</div>
-                    <div><strong>Risk Category:</strong> {selectedPaymentMethod.risk_category}</div>
-                    <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString()}</div>
-                    {selectedPaymentMethod.current_usage >= selectedPaymentMethod.payment_limit && (
-                      <Badge variant="destructive" className="mt-1">
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                        Payment limit exceeded! Consider alternative method.
-                      </Badge>
-                    )}
-                  </div>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-medium mb-2">Client Risk Information</h4>
+                <div className="text-sm space-y-1">
+                  <div><strong>Client Risk Level:</strong> {selectedClient?.risk_appetite || newClientData.risk_appetite}</div>
+                  <div><strong>Risk Category:</strong> {getRiskCategoryFromAppetite(selectedClient?.risk_appetite || newClientData.risk_appetite)}</div>
                 </div>
-              )}
-
-              {paymentMethods && paymentMethods.length === 0 && paymentType && (
-                <div className="p-4 bg-red-50 rounded-lg">
-                  <p className="text-sm text-red-800">
-                    No payment methods available for {paymentType} with {selectedClient?.risk_appetite || newClientData.risk_appetite} risk level.
-                    Please contact administrator to add payment methods.
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
 
             <Button 
-              onClick={handlePaymentMethodSelection}
+              onClick={handlePaymentTypeSelection}
+              disabled={!paymentType}
+              className="w-full"
+            >
+              Continue
+            </Button>
+          </div>
+        );
+
+      case 'payment-method-display':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Step 4: Payment Method Details</h3>
+            
+            {selectedPaymentMethod ? (
+              <div className="p-4 bg-green-50 rounded-lg border">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-green-800">🔁 Selected Payment Method</h4>
+                  <Badge className="bg-green-100 text-green-800">
+                    {selectedPaymentMethod.type}
+                  </Badge>
+                </div>
+                
+                {selectedPaymentMethod.type === 'UPI' ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">UPI ID</div>
+                        <div className="text-lg font-mono">{selectedPaymentMethod.upi_id}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.upi_id)}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">Account Holder Name</div>
+                        <div className="text-lg">{selectedPaymentMethod.bank_accounts?.bank_account_holder_name}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.bank_account_holder_name || '')}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">Account Number</div>
+                        <div className="text-lg font-mono">{selectedPaymentMethod.bank_accounts?.account_number}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.account_number || '')}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">IFSC Code</div>
+                        <div className="text-lg font-mono">{selectedPaymentMethod.bank_accounts?.IFSC}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.IFSC || '')}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                      <div>
+                        <div className="font-medium">Bank Name</div>
+                        <div className="text-lg">{selectedPaymentMethod.bank_accounts?.bank_name}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(selectedPaymentMethod.bank_accounts?.bank_name || '')}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3 text-sm text-gray-600">
+                  <div><strong>Risk Category:</strong> {selectedPaymentMethod.risk_category}</div>
+                  <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString()}</div>
+                  {selectedPaymentMethod.current_usage >= selectedPaymentMethod.payment_limit && (
+                    <Badge variant="destructive" className="mt-1">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Payment limit exceeded!
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-800">
+                  No payment methods available for {paymentType} with {selectedClient?.risk_appetite || newClientData.risk_appetite} risk level.
+                  Please contact administrator to add payment methods.
+                </p>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleContinueToActions}
               disabled={!selectedPaymentMethod}
               className="w-full"
             >
-              Confirm Payment Method
+              Continue
             </Button>
           </div>
         );
@@ -439,7 +557,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 🟡 Alternative Payment Method
               </Button>
               <p className="text-xs text-gray-600 px-2">
-                Re-prompts the payment screen. Can switch from UPI to IMPS or vice versa. Tracks both attempts for audit logs.
+                {availablePaymentMethods.length > 1 
+                  ? "Switches to next available payment method of the same type."
+                  : "Re-prompts the payment type selection for alternate method."
+                }
               </p>
 
               <Button 
@@ -517,7 +638,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
-                <Label>Payment Received In (Bank)</Label>
+                <Label>Payment Received In</Label>
                 <Input 
                   value={selectedPaymentMethod?.type === 'UPI' ? selectedPaymentMethod.upi_id : selectedPaymentMethod?.bank_accounts?.account_name}
                   disabled
@@ -578,7 +699,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               if (currentStep === 'order-type') {
                 onOpenChange(false);
               } else {
-                const steps: FlowStep[] = ['order-type', 'amount-verification', 'payment-method', 'action-buttons', 'final-form'];
+                const steps: FlowStep[] = ['order-type', 'amount-verification', 'payment-type-selection', 'payment-method-display', 'action-buttons', 'final-form'];
                 const currentIndex = steps.indexOf(currentStep);
                 if (currentIndex > 0) {
                   setCurrentStep(steps[currentIndex - 1]);

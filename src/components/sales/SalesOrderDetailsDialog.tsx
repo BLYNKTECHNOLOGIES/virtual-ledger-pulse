@@ -2,6 +2,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SalesOrderDetailsDialogProps {
   open: boolean;
@@ -10,6 +12,31 @@ interface SalesOrderDetailsDialogProps {
 }
 
 export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrderDetailsDialogProps) {
+  // Fetch bank account details if sales_payment_method_id exists
+  const { data: bankAccountData } = useQuery({
+    queryKey: ['bank_account_for_order', order?.sales_payment_method_id],
+    queryFn: async () => {
+      if (!order?.sales_payment_method_id) return null;
+      
+      const { data: paymentMethod } = await supabase
+        .from('sales_payment_methods')
+        .select('bank_account_id')
+        .eq('id', order.sales_payment_method_id)
+        .single();
+
+      if (!paymentMethod?.bank_account_id) return null;
+
+      const { data: bankAccount } = await supabase
+        .from('bank_accounts')
+        .select('account_name, bank_name, account_number')
+        .eq('id', paymentMethod.bank_account_id)
+        .single();
+
+      return bankAccount;
+    },
+    enabled: !!order?.sales_payment_method_id && open,
+  });
+
   if (!order) return null;
 
   const getStatusBadge = (status: string) => {
@@ -77,6 +104,32 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               <p className="text-sm">{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}</p>
             </div>
           </div>
+
+          {/* Bank Account Information */}
+          {bankAccountData && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">Payment Received In</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Bank Account</label>
+                  <p className="text-sm text-blue-900">{bankAccountData.account_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-blue-700">Bank Name</label>
+                  <p className="text-sm text-blue-900">{bankAccountData.bank_name}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium text-blue-700">Account Number</label>
+                  <p className="text-sm text-blue-900 font-mono">
+                    {bankAccountData.account_number ? 
+                      `****${bankAccountData.account_number.slice(-4)}` : 
+                      'N/A'
+                    }
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           
           {order.description && (
             <div>

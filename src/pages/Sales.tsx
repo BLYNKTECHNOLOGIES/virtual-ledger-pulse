@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ export default function Sales() {
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("pending");
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -61,6 +62,10 @@ export default function Sales() {
       return data || [];
     },
   });
+
+  // Filter orders based on active tab
+  const pendingOrders = salesOrders?.filter(order => order.payment_status === 'PENDING') || [];
+  const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -215,6 +220,81 @@ export default function Sales() {
     }
   };
 
+  const renderOrdersTable = (orders: any[]) => (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id} className="border-b hover:bg-gray-50">
+              <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
+              <td className="py-3 px-4">
+                <div>
+                  <div className="font-medium">{order.client_name}</div>
+                  {order.description && (
+                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                      {order.description}
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="py-3 px-4">{order.platform}</td>
+              <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{order.quantity || 1}</td>
+              <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
+              <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+              <td className="py-3 px-4">
+                <div className="flex gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedOrderForDetails(order)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    View Details
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedOrderForEdit(order)}
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleDeleteOrder(order.id)}
+                    disabled={deleteSalesOrderMutation.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {orders.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No orders found for this category.
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -343,7 +423,7 @@ export default function Sales() {
         </CardContent>
       </Card>
 
-      {/* Sales Orders Dashboard */}
+      {/* Sales Orders Dashboard with Tabs */}
       <Card>
         <CardHeader>
           <CardTitle>Sales Orders Dashboard</CardTitle>
@@ -352,78 +432,24 @@ export default function Sales() {
           {isLoading ? (
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salesOrders?.map((order) => (
-                    <tr key={order.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium">{order.client_name}</div>
-                          {order.description && (
-                            <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                              {order.description}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">{order.platform}</td>
-                      <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
-                      <td className="py-3 px-4">{order.quantity || 1}</td>
-                      <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
-                      <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
-                      <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setSelectedOrderForDetails(order)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View Details
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setSelectedOrderForEdit(order)}
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteOrder(order.id)}
-                            disabled={deleteSalesOrderMutation.isPending}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {salesOrders?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No sales orders found. Create your first sales order to get started.
-                </div>
-              )}
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pending">
+                  Pending Orders ({pendingOrders.length})
+                </TabsTrigger>
+                <TabsTrigger value="completed">
+                  Completed Orders ({completedOrders.length})
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="pending" className="mt-6">
+                {renderOrdersTable(pendingOrders)}
+              </TabsContent>
+              
+              <TabsContent value="completed" className="mt-6">
+                {renderOrdersTable(completedOrders)}
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

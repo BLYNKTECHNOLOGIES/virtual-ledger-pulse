@@ -15,19 +15,10 @@ function LayoutContent({ children }: LayoutProps) {
   return (
     <div className="flex h-screen w-full">
       <AppSidebar />
-      <SidebarInset className={cn(
-        "flex-1 flex flex-col transition-all duration-200 ease-in-out",
-        isCollapsed ? "ml-0" : "ml-0" // Let SidebarInset handle the margin
-      )}>
+      <SidebarInset className="flex-1 flex flex-col transition-all duration-300 ease-in-out w-full">
         <TopHeader />
-        <main className={cn(
-          "flex-1 overflow-auto bg-gray-50 transition-all duration-200 ease-in-out",
-          "w-full" // Ensure full width utilization
-        )}>
-          <div className={cn(
-            "h-full w-full transition-all duration-200 ease-in-out",
-            isCollapsed ? "max-w-full" : "max-w-full" // Always use full width available
-          )}>
+        <main className="flex-1 overflow-auto bg-gray-50 w-full">
+          <div className="h-full w-full">
             {children}
           </div>
         </main>

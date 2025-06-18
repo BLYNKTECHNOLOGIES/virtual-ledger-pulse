@@ -225,46 +225,43 @@ export default function Sales() {
   };
 
   const renderOrdersTable = (orders: any[]) => (
-    <div className="overflow-x-auto">
-      <div className={cn(
-        "min-w-full transition-all duration-200",
-        isCollapsed ? "w-full" : "w-full"
-      )}>
-        <table className="w-full table-auto">
+    <div className="overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full table-auto min-w-[800px]">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Order #</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Customer</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Platform</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Amount</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Qty</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Price</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Status</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Date</th>
-              <th className="text-left py-3 px-2 font-medium text-gray-600 text-sm">Actions</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Order #</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Customer</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Platform</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Amount</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Qty</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Price</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Status</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Date</th>
+              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody>
             {orders.map((order) => (
               <tr key={order.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-2 font-mono text-xs">{order.order_number}</td>
-                <td className="py-3 px-2">
+                <td className="py-3 px-3 font-mono text-xs">{order.order_number}</td>
+                <td className="py-3 px-3">
                   <div>
                     <div className="font-medium text-sm">{order.client_name}</div>
                     {order.description && (
-                      <div className="text-xs text-gray-500 max-w-[150px] truncate">
+                      <div className="text-xs text-gray-500 max-w-[120px] truncate">
                         {order.description}
                       </div>
                     )}
                   </div>
                 </td>
-                <td className="py-3 px-2 text-sm">{order.platform}</td>
-                <td className="py-3 px-2 font-medium text-sm">₹{Number(order.total_amount).toLocaleString()}</td>
-                <td className="py-3 px-2 text-sm">{order.quantity || 1}</td>
-                <td className="py-3 px-2 text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
-                <td className="py-3 px-2">{getStatusBadge(order.payment_status)}</td>
-                <td className="py-3 px-2 text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                <td className="py-3 px-2">
+                <td className="py-3 px-3 text-sm">{order.platform}</td>
+                <td className="py-3 px-3 font-medium text-sm">₹{Number(order.total_amount).toLocaleString()}</td>
+                <td className="py-3 px-3 text-sm">{order.quantity || 1}</td>
+                <td className="py-3 px-3 text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
+                <td className="py-3 px-3">{getStatusBadge(order.payment_status)}</td>
+                <td className="py-3 px-3 text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+                <td className="py-3 px-3">
                   <div className="flex gap-1">
                     <Button 
                       variant="ghost" 
@@ -307,24 +304,18 @@ export default function Sales() {
   );
 
   return (
-    <div className={cn(
-      "space-y-6 p-4 w-full transition-all duration-200 ease-in-out",
-      isCollapsed ? "max-w-full" : "max-w-full"
-    )}>
+    <div className="space-y-6 p-4 w-full max-w-full">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="min-w-0 flex-1">
-          <h1 className={cn(
-            "font-bold text-gray-900 transition-all duration-200",
-            isCollapsed ? "text-2xl" : "text-3xl"
-          )}>Sales Order Processing</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Sales Order Processing</h1>
         </div>
         <div className="flex gap-2 flex-shrink-0">
-          <Button variant="outline" onClick={handleExportCSV} size={isCollapsed ? "sm" : "default"}>
+          <Button variant="outline" onClick={handleExportCSV} size="sm" className="whitespace-nowrap">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => setShowStepByStepFlow(true)} size={isCollapsed ? "sm" : "default"}>
+          <Button onClick={() => setShowStepByStepFlow(true)} size="sm" className="whitespace-nowrap">
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -345,7 +336,7 @@ export default function Sales() {
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-                <Button variant="outline" onClick={() => setShowFilterDialog(true)} size={isCollapsed ? "sm" : "default"}>
+                <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
                   <Filter className="h-4 w-4 mr-2" />
                   Filter
                 </Button>
@@ -434,7 +425,7 @@ export default function Sales() {
                   </div>
                 </DialogContent>
               </Dialog>
-              <Button variant="outline" size={isCollapsed ? "sm" : "default"}>
+              <Button variant="outline" size="sm">
                 <Search className="h-4 w-4 mr-2" />
                 Search
               </Button>
@@ -446,10 +437,7 @@ export default function Sales() {
       {/* Sales Orders Dashboard with Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle className={cn(
-            "transition-all duration-200",
-            isCollapsed ? "text-lg" : "text-xl"
-          )}>Sales Orders Dashboard</CardTitle>
+          <CardTitle className="text-lg md:text-xl">Sales Orders Dashboard</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -457,10 +445,10 @@ export default function Sales() {
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2 m-4 mb-0">
-                <TabsTrigger value="pending">
+                <TabsTrigger value="pending" className="text-sm">
                   Pending Orders ({pendingOrders.length})
                 </TabsTrigger>
-                <TabsTrigger value="completed">
+                <TabsTrigger value="completed" className="text-sm">
                   Completed Orders ({completedOrders.length})
                 </TabsTrigger>
               </TabsList>

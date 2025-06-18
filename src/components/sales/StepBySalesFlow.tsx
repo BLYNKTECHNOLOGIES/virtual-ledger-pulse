@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw, Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface StepBySalesFlowProps {
   open: boolean;
@@ -20,6 +20,9 @@ interface StepBySalesFlowProps {
 type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice';
 
 export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const [currentStep, setCurrentStep] = useState<FlowStep>('order-type');
   const [orderType, setOrderType] = useState<'repeat' | 'new' | null>(null);
   const [selectedClient, setSelectedClient] = useState<any>(null);
@@ -45,9 +48,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     warehouseId: '',
     price: 0
   });
-
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   // Fetch existing clients
   const { data: clients } = useQuery({
@@ -738,9 +738,9 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               <div>
                 <Label>Platform Name</Label>
                 <Input 
-                  value={finalOrderData.platform}
-                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, platform: e.target.value }))}
-                  placeholder="Enter platform"
+                  value={selectedClient?.platform || newClientData.platform || ''}
+                  disabled
+                  className="bg-gray-100"
                 />
               </div>
 
@@ -796,7 +796,8 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 <Input 
                   type="number"
                   value={orderAmount}
-                  onChange={(e) => setOrderAmount(parseFloat(e.target.value) || 0)}
+                  disabled
+                  className="bg-gray-100"
                 />
               </div>
 
@@ -817,7 +818,8 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                   type="number"
                   step="0.01"
                   value={finalOrderData.quantity}
-                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+                  disabled
+                  className="bg-gray-100"
                   placeholder="Auto-calculated"
                 />
               </div>
@@ -827,7 +829,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 <Input 
                   value={selectedPaymentMethod?.type === 'UPI' 
                     ? selectedPaymentMethod.upi_id 
-                    : selectedPaymentMethod?.bank_accounts?.bank_name || 'N/A'
+                    : selectedPaymentMethod?.bank_accounts?.account_name || 'N/A'
                   }
                   disabled
                   className="bg-gray-100"
@@ -847,7 +849,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
 
             <Button 
               onClick={handleFinalSubmit}
-              disabled={!finalOrderData.order_number || !finalOrderData.platform || !finalOrderData.stockName || !finalOrderData.warehouseId}
+              disabled={!finalOrderData.order_number || !finalOrderData.stockName || !finalOrderData.warehouseId || !finalOrderData.price}
               className="w-full"
             >
               Complete Sales Order

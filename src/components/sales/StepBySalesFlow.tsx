@@ -135,6 +135,14 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   }, [paymentType, selectedClient, orderType, usedPaymentMethods]);
 
+  // Auto-calculate quantity when amount or price changes
+  useEffect(() => {
+    if (finalOrderData.price > 0 && orderAmount > 0) {
+      const calculatedQuantity = orderAmount / finalOrderData.price;
+      setFinalOrderData(prev => ({ ...prev, quantity: calculatedQuantity }));
+    }
+  }, [orderAmount, finalOrderData.price]);
+
   // Create lead mutation
   const createLeadMutation = useMutation({
     mutationFn: async (leadData: any) => {
@@ -677,6 +685,15 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
+                <Label>Customer Contact Number</Label>
+                <Input 
+                  value={selectedClient?.phone || newClientData.phone}
+                  disabled
+                  className="bg-gray-100"
+                />
+              </div>
+
+              <div>
                 <Label>Platform Name</Label>
                 <Input 
                   value={finalOrderData.platform}
@@ -742,7 +759,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
-                <Label>Price (Can be decimals)</Label>
+                <Label>Price</Label>
                 <Input 
                   type="number"
                   step="0.01"
@@ -753,13 +770,13 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
-                <Label>Quantity (Can be decimals)</Label>
+                <Label>Quantity</Label>
                 <Input 
                   type="number"
                   step="0.01"
                   value={finalOrderData.quantity}
                   onChange={(e) => setFinalOrderData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
-                  placeholder="Enter quantity"
+                  placeholder="Auto-calculated"
                 />
               </div>
 
@@ -768,7 +785,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 <Input 
                   value={selectedPaymentMethod?.type === 'UPI' 
                     ? selectedPaymentMethod.upi_id 
-                    : selectedPaymentMethod?.bank_accounts?.bank_name
+                    : selectedPaymentMethod?.bank_accounts?.bank_name || 'N/A'
                   }
                   disabled
                   className="bg-gray-100"

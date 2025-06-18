@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,17 +89,26 @@ export default function Sales() {
       if (!currentPaymentMethod) throw new Error('Current payment method not found');
 
       // Find alternative payment methods of the same type and risk category
-      const { data: alternativeMethods } = await supabase
+      // First get all methods that match the criteria
+      const { data: allAlternativeMethods } = await supabase
         .from('sales_payment_methods')
         .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
         .eq('is_active', true)
         .eq('type', currentPaymentMethod.type)
         .eq('risk_category', currentPaymentMethod.risk_category)
-        .neq('id', currentPaymentMethod.id)
-        .lt('current_usage', supabase.raw('payment_limit'));
+        .neq('id', currentPaymentMethod.id);
 
-      if (!alternativeMethods || alternativeMethods.length === 0) {
+      if (!allAlternativeMethods || allAlternativeMethods.length === 0) {
         throw new Error('No alternative payment methods available');
+      }
+
+      // Filter methods that have available capacity (current_usage < payment_limit)
+      const alternativeMethods = allAlternativeMethods.filter(method => 
+        (method.current_usage || 0) < method.payment_limit
+      );
+
+      if (alternativeMethods.length === 0) {
+        throw new Error('No alternative payment methods available with sufficient capacity');
       }
 
       // Select the first available alternative method

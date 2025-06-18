@@ -70,7 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           hint: error.hint,
           code: error.code
         });
-        throw error;
+        // Don't throw error, just log it and set empty array
+        setUsers([]);
+        return;
       }
 
       console.log('Users fetched from DB:', usersData);
@@ -88,17 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })) || [];
 
       console.log('Transformed users:', transformedUsers);
+      console.log('Setting users state with', transformedUsers.length, 'users');
       setUsers(transformedUsers);
     } catch (error: any) {
       console.error('Error in refreshUsers:', error);
-      // Don't set empty array on error, keep existing users
-      if (users.length === 0) {
-        setUsers([]); // Only set empty if we don't have any users yet
-      }
+      setUsers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
-  }, []); // Remove users dependency to prevent infinite loop
+  }, []);
 
   useEffect(() => {
     console.log('=== AUTH PROVIDER INIT ===');
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Load all users only once on mount
     refreshUsers();
-  }, []); // Empty dependency array to run only once
+  }, [refreshUsers]);
 
   const refreshUserPermissions = useCallback(async (userId?: string) => {
     const targetUserId = userId || user?.id;

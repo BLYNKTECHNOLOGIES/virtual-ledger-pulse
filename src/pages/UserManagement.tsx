@@ -42,17 +42,13 @@ export default function UserManagement() {
   const debugDataFetching = async () => {
     console.log('=== DEBUGGING DATA FETCHING ===');
     
-    // Check current user
-    const { data: user, error: userError } = await supabase.auth.getUser();
-    console.log("Current logged-in user:", user);
-    console.log("User error:", userError);
-    
     // Test users table
     const { data: usersData, error: usersError } = await supabase
       .from("users")
       .select("*");
     console.log("All users from direct query:", usersData);
     console.log("Users error:", usersError);
+    console.log("Users count:", usersData?.length || 0);
     
     // Test pending registrations
     const { data: pendingData, error: pendingError } = await supabase
@@ -60,6 +56,7 @@ export default function UserManagement() {
       .select("*");
     console.log("Pending registrations from direct query:", pendingData);
     console.log("Pending error:", pendingError);
+    console.log("Pending count:", pendingData?.length || 0);
     
     // Test roles
     const { data: rolesData, error: rolesError } = await supabase
@@ -67,6 +64,12 @@ export default function UserManagement() {
       .select("*");
     console.log("Roles from direct query:", rolesData);
     console.log("Roles error:", rolesError);
+    console.log("Roles count:", rolesData?.length || 0);
+    
+    // Check what's in the users state from auth
+    console.log("Users from auth context:", users);
+    console.log("Users from auth count:", users?.length || 0);
+    console.log("Loading state:", loading);
     
     console.log('=== END DEBUG ===');
   };
@@ -92,6 +95,16 @@ export default function UserManagement() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes to prevent excessive refetching
     refetchOnWindowFocus: false, // Prevent refetch on window focus
   });
+
+  // Debug effect to log state changes
+  useEffect(() => {
+    console.log('UserManagement render state:', {
+      users: users?.length || 0,
+      pendingRegistrations: pendingRegistrations?.length || 0,
+      loading,
+      pendingLoading
+    });
+  }, [users, pendingRegistrations, loading, pendingLoading]);
 
   // Only run this effect once on mount - no dependencies that change
   useEffect(() => {
@@ -197,7 +210,7 @@ export default function UserManagement() {
     pendingLoading
   });
 
-  if (loading || pendingLoading) {
+  if (loading && pendingLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>

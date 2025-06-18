@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
@@ -8,6 +9,7 @@ interface User {
   role: string;
   status: string;
   created: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -19,6 +21,8 @@ interface AuthContextType {
   addUser: (userData: Omit<User, 'id' | 'created'>) => void;
   updateUser: (id: string, userData: Partial<User>) => void;
   deleteUser: (id: string) => void;
+  userHasPermission: (permission: string) => boolean;
+  refreshUserPermissions: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,9 +79,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for stored authentication on app load
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      // Load permissions for the user
+      refreshUserPermissions(parsedUser.username);
     }
   }, []);
+
+  const refreshUserPermissions = async (username?: string) => {
+    const targetUsername = username || user?.username;
+    if (!targetUsername) return;
+
+    try {
+      const { data, error } = await supabase
+        .rpc('get_user_permissions', { username: targetUsername });
+
+      if (error) {
+        console.error('Error fetching permissions:', error);
+        return;
+      }
+
+      const permissions = data?.map((item: any) => item.permission) || [];
+      
+      setUser(prevUser => {
+        if (prevUser) {
+          const updatedUser = { ...prevUser, permissions };
+          localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+          return updatedUser;
+        }
+        return prevUser;
+      });
+    } catch (error) {
+      console.error('Error refreshing permissions:', error);
+    }
+  };
 
   const login = async (credentials: { username: string; password: string }) => {
     // Simulate authentication - replace with actual auth logic
@@ -87,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // In a real app, you'd verify the password here
       setUser(foundUser);
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
+      
+      // Load user permissions from Supabase
+      await refreshUserPermissions(foundUser.username);
     } else {
       throw new Error("Invalid username or password");
     }
@@ -116,6 +154,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsers(prev => prev.filter(user => user.id !== id));
   };
 
+  const userHasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -124,7 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     users,
     addUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    userHasPermission,
+    refreshUserPermissions
   };
 
   return (

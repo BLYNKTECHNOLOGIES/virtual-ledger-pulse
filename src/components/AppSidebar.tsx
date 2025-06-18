@@ -1,7 +1,27 @@
 
 import {
+  Calendar,
+  Home,
+  Users,
+  Building2,
+  CreditCard,
+  TrendingUp,
+  UserCheck,
+  Calculator,
+  Scale,
+  Package,
+  BookOpen,
+  ShoppingCart,
+  Settings,
+  UserPlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react"
+
+import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -9,124 +29,116 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-} from "@/components/ui/sidebar";
-import {
-  BarChart3,
-  DollarSign,
-  ShoppingCart,
-  CreditCard,
-  Users,
-  UserPlus,
-  Building2,
-  Calculator,
-  Package,
-  FileText,
-  Shield,
-  TrendingUp,
-} from "lucide-react";
-import { Link } from "react-router-dom";
+  useSidebar,
+} from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button"
 
-const menuItems = [
+// Menu items.
+const items = [
   {
     title: "Dashboard",
     url: "/",
-    icon: BarChart3,
+    icon: Home,
+    color: "text-blue-600"
   },
   {
     title: "Sales",
     url: "/sales",
     icon: TrendingUp,
+    color: "text-green-600"
   },
   {
     title: "Purchase",
     url: "/purchase",
     icon: ShoppingCart,
+    color: "text-purple-600"
   },
   {
     title: "BAMS",
     url: "/bams",
-    icon: CreditCard,
+    icon: Building2,
+    color: "text-orange-600"
   },
   {
     title: "Clients",
     url: "/clients",
     icon: Users,
+    color: "text-cyan-600"
   },
   {
     title: "Leads",
-    url: "/leads", 
+    url: "/leads",
     icon: UserPlus,
+    color: "text-emerald-600"
   },
   {
     title: "User Management",
     url: "/user-management",
-    icon: Shield,
+    icon: Settings,
+    color: "text-indigo-600"
   },
   {
     title: "HRMS",
     url: "/hrms",
-    icon: Building2,
+    icon: UserCheck,
+    color: "text-pink-600"
   },
   {
     title: "Payroll",
     url: "/payroll",
-    icon: DollarSign,
+    icon: Calculator,
+    color: "text-indigo-600"
   },
   {
     title: "Compliance",
     url: "/compliance",
-    icon: FileText,
+    icon: Scale,
+    color: "text-red-600"
   },
   {
     title: "Stock Management",
     url: "/stock",
     icon: Package,
+    color: "text-teal-600"
   },
   {
     title: "Accounting",
     url: "/accounting",
-    icon: Calculator,
+    icon: BookOpen,
+    color: "text-amber-600"
   },
-];
+]
 
 export function AppSidebar() {
+  const { state, toggleSidebar } = useSidebar()
+  const isCollapsed = state === "collapsed"
+
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b px-6 py-4">
-        <div className="flex flex-col items-center space-y-2">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">B</span>
+    <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 border-slate-700">
+      <SidebarHeader className="p-4 border-b border-slate-700">
+        <div className="flex items-center gap-3">
+          {!isCollapsed && (
+            <div>
+              <h2 className="text-lg font-bold text-white">BLYNK VIRTUAL</h2>
+              <h3 className="text-sm font-medium text-slate-300">TECHNOLOGIES</h3>
+              <p className="text-xs text-slate-400 mt-1">PRIVATE LIMITED</p>
             </div>
-            <div className="text-left">
-              <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent leading-tight">
-                Blynk Virtual
-              </h1>
-              <p className="text-sm font-medium text-gray-600 -mt-1">
-                Technologies
-              </p>
-            </div>
-          </div>
-          <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-200 to-transparent"></div>
-          <p className="text-xs text-gray-500 font-medium tracking-wide">
-            ENTERPRISE MANAGEMENT
-          </p>
+          )}
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      
+      <SidebarContent className="bg-gradient-to-b from-slate-900 to-slate-800">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2">
-            Navigation
-          </SidebarGroupLabel>
+          <SidebarGroupLabel className="text-slate-400 font-medium">Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                    <Link to={item.url} className="flex items-center space-x-3 py-2.5">
-                      <item.icon className="h-4 w-4" />
-                      <span className="font-medium">{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton asChild className="hover:bg-slate-700/50 data-[active=true]:bg-slate-600 text-slate-200 hover:text-white transition-colors">
+                    <a href={item.url} className="flex items-center gap-3">
+                      <item.icon className={`h-5 w-5 ${item.color}`} />
+                      {!isCollapsed && <span className="font-medium">{item.title}</span>}
+                    </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -134,6 +146,24 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      
+      <SidebarFooter className="p-4 border-t border-slate-700">
+        <div className="flex items-center justify-between">
+          {!isCollapsed && (
+            <div className="text-xs text-slate-400">
+              © 2025 BLYNK Virtual Technologies
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleSidebar}
+            className="text-slate-300 hover:bg-slate-700 hover:text-white ml-auto"
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
+        </div>
+      </SidebarFooter>
     </Sidebar>
-  );
+  )
 }

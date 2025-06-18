@@ -60,12 +60,28 @@ export function PayerManagement() {
 
       if (error) throw error;
 
-      return data?.map(payer => ({
-        ...payer,
-        payment_methods: payer.payer_payment_methods?.map(
-          (ppm: any) => ppm.purchase_payment_methods
-        ) || []
-      })) || [];
+      return data?.map(payer => {
+        // Safely cast payer_type with validation
+        const allowedPayerTypes = ["UPI", "Bank Transfer"] as const;
+        const payerType = allowedPayerTypes.includes(payer.payer_type as any) 
+          ? payer.payer_type as "UPI" | "Bank Transfer"
+          : "UPI";
+
+        // Safely cast status with validation
+        const allowedStatuses = ["ACTIVE", "INACTIVE"] as const;
+        const status = allowedStatuses.includes(payer.status as any)
+          ? payer.status as "ACTIVE" | "INACTIVE"
+          : "ACTIVE";
+
+        return {
+          ...payer,
+          payer_type: payerType,
+          status: status,
+          payment_methods: payer.payer_payment_methods?.map(
+            (ppm: any) => ppm.purchase_payment_methods
+          ) || []
+        };
+      }) || [];
     },
   });
 
@@ -94,6 +110,10 @@ export function PayerManagement() {
     if (confirm('Are you sure you want to delete this payer?')) {
       deletePayerMutation.mutate(payerId);
     }
+  };
+
+  const handleEditPayer = (payer: Payer) => {
+    setEditingPayer(payer);
   };
 
   const getStatusBadge = (status: string) => {
@@ -177,7 +197,7 @@ export function PayerManagement() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setEditingPayer(payer)}
+                          onClick={() => handleEditPayer(payer)}
                         >
                           <Edit className="h-3 w-3" />
                         </Button>

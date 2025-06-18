@@ -41,7 +41,9 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     platform: '',
     quantity: 1,
     description: '',
-    credits_applied: 0
+    stockName: '',
+    warehouseId: '',
+    price: 0
   });
 
   const { toast } = useToast();
@@ -57,13 +59,41 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     },
   });
 
+  // Fetch products with available quantity
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .gt('current_stock_quantity', 0);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch warehouses
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const getRiskCategoryFromAppetite = (appetite: string) => {
     switch (appetite) {
       case 'LOW': return 'Low Risk';
       case 'MEDIUM': return 'Medium Risk';
       case 'HIGH': return 'High Risk';
       case 'NONE': return 'No Risk';
-      default: return 'High Risk'; // Default for new clients
+      default: return 'High Risk';
     }
   };
 
@@ -150,7 +180,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     setSelectedPaymentMethod(null);
     setAvailablePaymentMethods([]);
     setUsedPaymentMethods([]);
-    setFinalOrderData({ order_number: '', platform: '', quantity: 1, description: '', credits_applied: 0 });
+    setFinalOrderData({ order_number: '', platform: '', quantity: 1, description: '', stockName: '', warehouseId: '', price: 0 });
   };
 
   const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
@@ -190,7 +220,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handleChangePaymentMethodType = () => {
-    // Go back to step 3 to change payment type
     setPaymentType(null);
     setSelectedPaymentMethod(null);
     setUsedPaymentMethods([]);
@@ -198,12 +227,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handleKeepSamePaymentType = () => {
-    // Mark current method as used and find next available
     if (selectedPaymentMethod) {
       const newUsedMethods = [...usedPaymentMethods, selectedPaymentMethod.id];
       setUsedPaymentMethods(newUsedMethods);
       
-      // Find next available method of same type
       const nextMethod = availablePaymentMethods.find(method => 
         method.current_usage < method.payment_limit && 
         !newUsedMethods.includes(method.id) &&
@@ -214,7 +241,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
         setSelectedPaymentMethod(nextMethod);
         setCurrentStep('payment-method-display');
       } else {
-        // No more methods available
         setSelectedPaymentMethod(null);
         setCurrentStep('payment-method-display');
       }
@@ -222,23 +248,27 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handlePaymentReceived = () => {
+    setFinalOrderData(prev => ({
+      ...prev,
+      platform: selectedClient?.platform || newClientData.platform || ''
+    }));
     setCurrentStep('final-form');
   };
 
   const handleFinalSubmit = () => {
+    const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
     const orderData = {
       order_number: finalOrderData.order_number,
       client_name: selectedClient?.name || newClientData.name,
       platform: finalOrderData.platform,
       amount: orderAmount,
       quantity: finalOrderData.quantity,
-      price_per_unit: orderAmount / finalOrderData.quantity,
+      price_per_unit: finalOrderData.price,
       order_date: new Date().toISOString().split('T')[0],
       payment_status: 'COMPLETED',
       sales_payment_method_id: selectedPaymentMethod?.id,
       description: finalOrderData.description,
       cosmos_alert: cosmosAlert,
-      credits_applied: finalOrderData.credits_applied,
       status: 'COMPLETED'
     };
     createSalesOrderMutation.mutate(orderData);
@@ -665,16 +695,45 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
-                <Label>Quantity of Items Sold</Label>
-                <Input 
-                  type="number"
-                  value={finalOrderData.quantity}
-                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                />
+                <Label>Stock Name</Label>
+                <Select 
+                  value={finalOrderData.stockName} 
+                  onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, stockName: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select stock" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products?.map((product) => (
+                      <SelectItem key={product.id} value={product.name}>
+                        {product.name} - {product.code} (Available: {product.current_stock_quantity} {product.unit_of_measurement})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
-                <Label>Total Amount of Sale</Label>
+                <Label>Select Warehouse</Label>
+                <Select 
+                  value={finalOrderData.warehouseId} 
+                  onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, warehouseId: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select warehouse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {warehouses?.map((warehouse) => (
+                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name} - {warehouse.location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Amount of Sales</Label>
                 <Input 
                   type="number"
                   value={orderAmount}
@@ -683,35 +742,42 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </div>
 
               <div>
-                <Label>Price per Item</Label>
+                <Label>Price (Can be decimals)</Label>
                 <Input 
-                  value={(orderAmount / finalOrderData.quantity).toFixed(2)}
-                  disabled
-                  className="bg-gray-100"
+                  type="number"
+                  step="0.01"
+                  value={finalOrderData.price}
+                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                  placeholder="Enter price"
+                />
+              </div>
+
+              <div>
+                <Label>Quantity (Can be decimals)</Label>
+                <Input 
+                  type="number"
+                  step="0.01"
+                  value={finalOrderData.quantity}
+                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+                  placeholder="Enter quantity"
                 />
               </div>
 
               <div>
                 <Label>Payment Received In</Label>
                 <Input 
-                  value={selectedPaymentMethod?.type === 'UPI' ? selectedPaymentMethod.upi_id : selectedPaymentMethod?.bank_accounts?.account_name}
+                  value={selectedPaymentMethod?.type === 'UPI' 
+                    ? selectedPaymentMethod.upi_id 
+                    : selectedPaymentMethod?.bank_accounts?.bank_name
+                  }
                   disabled
                   className="bg-gray-100"
-                />
-              </div>
-
-              <div>
-                <Label>Credits Applied</Label>
-                <Input 
-                  type="number"
-                  value={finalOrderData.credits_applied}
-                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, credits_applied: parseFloat(e.target.value) || 0 }))}
                 />
               </div>
             </div>
 
             <div>
-              <Label>Description</Label>
+              <Label>Order Description (Optional)</Label>
               <Textarea 
                 value={finalOrderData.description}
                 onChange={(e) => setFinalOrderData(prev => ({ ...prev, description: e.target.value }))}
@@ -722,7 +788,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
 
             <Button 
               onClick={handleFinalSubmit}
-              disabled={!finalOrderData.order_number || !finalOrderData.platform}
+              disabled={!finalOrderData.order_number || !finalOrderData.platform || !finalOrderData.stockName || !finalOrderData.warehouseId}
               className="w-full"
             >
               Complete Sales Order
@@ -762,10 +828,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             }}
           >
             {currentStep === 'order-type' ? 'Cancel' : 'Back'}
-          </Button>
-          
-          <Button variant="outline" onClick={resetFlow}>
-            Reset Flow
           </Button>
         </div>
       </DialogContent>

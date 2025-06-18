@@ -11,8 +11,35 @@ import { PayslipGenerationDialog } from "./PayslipGenerationDialog";
 import { generatePayslipPDF, PayslipData } from "@/utils/payslipPdfGenerator";
 import { useToast } from "@/hooks/use-toast";
 
-interface PayslipWithPayment extends any {
+interface PayslipRecord {
+  id: string;
+  employee_id: string;
+  month_year: string;
+  basic_salary: number;
+  hra: number;
+  conveyance_allowance: number;
+  medical_allowance: number;
+  other_allowances: number;
+  total_earnings: number;
+  epf: number;
+  esi: number;
+  professional_tax: number;
+  total_deductions: number;
+  net_salary: number;
+  total_working_days: number;
+  leaves_taken: number;
+  lop_days: number;
+  paid_days: number;
+  gross_wages: number;
+  created_at: string;
   payment_status?: string;
+  employees?: {
+    name: string;
+    employee_id: string;
+    designation: string;
+    department: string;
+    date_of_joining: string;
+  };
 }
 
 export function SalaryPayoutTab() {
@@ -33,7 +60,7 @@ export function SalaryPayoutTab() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as PayslipWithPayment[];
+      return data as PayslipRecord[];
     },
   });
 
@@ -72,15 +99,15 @@ export function SalaryPayoutTab() {
   const totalEmployees = payslips?.length || 0;
   const totalDeductions = paidSalaries.reduce((sum, payslip) => sum + (payslip.total_deductions || 0), 0);
 
-  const handleDownloadPayslip = (payslip: any) => {
+  const handleDownloadPayslip = (payslip: PayslipRecord) => {
     const payslipData: PayslipData = {
       employee: {
         id: payslip.employee_id,
-        name: payslip.employees.name,
-        employee_id: payslip.employees.employee_id,
-        designation: payslip.employees.designation,
-        department: payslip.employees.department,
-        date_of_joining: payslip.employees.date_of_joining,
+        name: payslip.employees?.name || '',
+        employee_id: payslip.employees?.employee_id || '',
+        designation: payslip.employees?.designation || '',
+        department: payslip.employees?.department || '',
+        date_of_joining: payslip.employees?.date_of_joining || '',
       },
       payslip: {
         month_year: payslip.month_year,

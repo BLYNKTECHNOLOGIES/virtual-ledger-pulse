@@ -51,10 +51,12 @@ export const generatePayslipPDF = (data: PayslipData) => {
         body {
           font-family: Arial, sans-serif;
           margin: 0;
-          padding: 20px;
+          padding: 15px;
           font-size: 12px;
-          line-height: 1.3;
+          line-height: 1.2;
           position: relative;
+          box-sizing: border-box;
+          height: 100vh;
         }
         .payslip-container {
           max-width: 800px;
@@ -62,37 +64,45 @@ export const generatePayslipPDF = (data: PayslipData) => {
           border: 2px solid #000;
           position: relative;
           background-color: white;
+          height: calc(100vh - 30px);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
         .watermark {
           position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
+          top: 50px;
+          left: 50px;
           opacity: 0.08;
           z-index: 1;
           pointer-events: none;
         }
         .watermark img {
-          width: 400px;
-          height: 600px;
+          width: 100px;
+          height: 400px;
           object-fit: contain;
+          transform: rotate(0deg);
         }
         .content {
           position: relative;
           z-index: 2;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
         }
         .header {
           background-color: #f8f9fa;
-          padding: 15px;
+          padding: 12px;
           border-bottom: 2px solid #000;
           text-align: left;
           display: flex;
           align-items: center;
+          flex-shrink: 0;
         }
         .company-logo {
-          width: 120px;
-          height: 120px;
-          margin-right: 20px;
+          width: 80px;
+          height: 80px;
+          margin-right: 15px;
           flex-shrink: 0;
         }
         .company-logo img {
@@ -104,7 +114,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
           flex: 1;
         }
         .company-name {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: bold;
           margin: 0 0 4px 0;
           color: #1a365d;
@@ -112,40 +122,41 @@ export const generatePayslipPDF = (data: PayslipData) => {
         .company-address {
           color: #666;
           margin: 2px 0;
-          font-size: 11px;
+          font-size: 10px;
         }
         .company-details {
           color: #666;
           margin: 2px 0;
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 600;
         }
         .payslip-title {
           color: #666;
           margin: 8px 0 0 0;
           font-weight: 600;
-          font-size: 13px;
+          font-size: 12px;
         }
         .employee-details {
           display: flex;
-          padding: 15px;
+          padding: 12px;
           border-bottom: 1px solid #000;
+          flex-shrink: 0;
         }
         .employee-left, .employee-right {
           flex: 1;
         }
         .employee-left {
-          padding-right: 30px;
+          padding-right: 20px;
         }
         .detail-row {
           display: flex;
-          margin-bottom: 8px;
-          padding: 2px 0;
+          margin-bottom: 6px;
+          padding: 1px 0;
         }
         .detail-label {
           font-weight: 600;
           color: #333;
-          width: 140px;
+          width: 120px;
           flex-shrink: 0;
         }
         .detail-value {
@@ -153,31 +164,33 @@ export const generatePayslipPDF = (data: PayslipData) => {
           flex: 1;
         }
         .attendance-section {
-          padding: 15px;
+          padding: 12px;
           border-bottom: 1px solid #000;
+          flex-shrink: 0;
         }
         .attendance-grid {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 10px;
+          gap: 15px;
+          margin-bottom: 8px;
         }
         .attendance-item {
           text-align: center;
         }
         .attendance-label {
           font-weight: bold;
-          margin-bottom: 5px;
+          margin-bottom: 4px;
         }
         .attendance-value {
           background-color: #f8f9fa;
-          padding: 8px;
+          padding: 6px;
           border: 1px solid #ddd;
-          font-size: 14px;
+          font-size: 12px;
         }
         .earnings-deductions {
           display: flex;
-          padding: 0;
+          flex: 1;
+          min-height: 0;
         }
         .earnings, .deductions {
           flex: 1;
@@ -188,7 +201,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
         }
         .section-header {
           background-color: #f8f9fa;
-          padding: 10px;
+          padding: 8px;
           text-align: center;
           font-weight: bold;
           border-bottom: 1px solid #000;
@@ -196,7 +209,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
         .amount-row {
           display: flex;
           justify-content: space-between;
-          padding: 8px 15px;
+          padding: 6px 12px;
           border-bottom: 1px solid #ddd;
         }
         .amount-row:last-child {
@@ -206,23 +219,26 @@ export const generatePayslipPDF = (data: PayslipData) => {
         }
         .net-salary {
           text-align: center;
-          padding: 15px;
+          padding: 12px;
           background-color: #e3f2fd;
-          font-size: 16px;
+          font-size: 14px;
           font-weight: bold;
           border-bottom: 1px solid #000;
+          flex-shrink: 0;
         }
         .signature-section {
-          padding: 30px 15px 15px 15px;
+          padding: 20px 15px 15px 15px;
           text-align: left;
+          flex-shrink: 0;
+          margin-top: auto;
         }
         .signature-space {
           width: 200px;
-          height: 50px;
+          height: 40px;
           margin-bottom: 5px;
         }
         .signature-label {
-          font-size: 11px;
+          font-size: 10px;
           color: #666;
           font-weight: 600;
         }
@@ -230,8 +246,15 @@ export const generatePayslipPDF = (data: PayslipData) => {
           font-family: 'Arial', sans-serif;
         }
         @media print {
-          body { margin: 0; padding: 10px; }
-          .payslip-container { border: 2px solid #000; }
+          body { 
+            margin: 0; 
+            padding: 10px; 
+            height: 100vh;
+          }
+          .payslip-container { 
+            border: 2px solid #000;
+            height: calc(100vh - 20px);
+          }
         }
       </style>
     </head>
@@ -320,7 +343,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
                 <div class="attendance-value">${payslip.lop_days}</div>
               </div>
             </div>
-            <div style="text-align: center; padding-top: 10px; border-top: 1px solid #ddd;">
+            <div style="text-align: center; padding-top: 8px; border-top: 1px solid #ddd;">
               <strong>Paid Days: ${payslip.paid_days}</strong>
             </div>
           </div>

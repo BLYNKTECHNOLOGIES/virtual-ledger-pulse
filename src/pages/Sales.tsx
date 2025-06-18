@@ -17,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { OrderTypeSelectionDialog } from "@/components/sales/OrderTypeSelectionDialog";
 import { EnhancedOrderCreationDialog } from "@/components/sales/EnhancedOrderCreationDialog";
 import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
-import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export default function Sales() {
   const [showOrderTypeDialog, setShowOrderTypeDialog] = useState(false);
@@ -166,15 +165,13 @@ export default function Sales() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">🧾 Sales Order Processing</h1>
-          <p className="text-gray-600 mt-1">Core Sales Processing Module - Track orders from creation to payment confirmation</p>
+          <h1 className="text-3xl font-bold text-gray-900">Sales Order Processing</h1>
         </div>
         <div className="flex gap-2">
-          <NotificationDropdown />
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV

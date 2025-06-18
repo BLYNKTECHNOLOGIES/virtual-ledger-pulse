@@ -9,20 +9,27 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Search, Filter, Download, FileText, Edit, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
+import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
+import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
+  const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -53,6 +60,88 @@ export default function Sales() {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const deleteSalesOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const order = salesOrders?.find(o => o.id === orderId);
+      if (!order) throw new Error('Order not found');
+
+      // Start a transaction to revert all changes
+      const { error: deleteError } = await supabase
+        .from('sales_orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (deleteError) throw deleteError;
+
+      // Revert bank transaction if exists
+      if (order.sales_payment_method_id) {
+        const { data: paymentMethod } = await supabase
+          .from('sales_payment_methods')
+          .select('bank_account_id')
+          .eq('id', order.sales_payment_method_id)
+          .single();
+
+        if (paymentMethod?.bank_account_id) {
+          // Remove the bank transaction
+          await supabase
+            .from('bank_transactions')
+            .delete()
+            .eq('reference_number', order.order_number)
+            .eq('bank_account_id', paymentMethod.bank_account_id);
+
+          // Update payment method usage
+          await supabase
+            .from('sales_payment_methods')
+            .update({
+              current_usage: Math.max(0, (await supabase.from('sales_payment_methods').select('current_usage').eq('id', order.sales_payment_method_id).single()).data?.current_usage - order.total_amount),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.sales_payment_method_id);
+        }
+      }
+
+      // Revert product stock if product is linked
+      if (order.product_id) {
+        const { data: product } = await supabase
+          .from('products')
+          .select('current_stock_quantity, total_sales')
+          .eq('id', order.product_id)
+          .single();
+
+        if (product) {
+          await supabase
+            .from('products')
+            .update({
+              current_stock_quantity: product.current_stock_quantity + order.quantity,
+              total_sales: Math.max(0, (product.total_sales || 0) - order.quantity)
+            })
+            .eq('id', order.product_id);
+        }
+
+        // Remove stock transaction
+        await supabase
+          .from('stock_transactions')
+          .delete()
+          .eq('reference_number', order.order_number)
+          .eq('product_id', order.product_id);
+      }
+
+      return orderId;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Sales order deleted and all changes reverted successfully" });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+    },
+    onError: (error) => {
+      console.error('Error deleting sales order:', error);
+      toast({ title: "Error", description: "Failed to delete sales order", variant: "destructive" });
+    }
   });
 
   const handleExportCSV = () => {
@@ -121,18 +210,8 @@ export default function Sales() {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (confirm('Are you sure you want to delete this order?')) {
-      const { error } = await supabase
-        .from('sales_orders')
-        .delete()
-        .eq('id', orderId);
-      
-      if (error) {
-        console.error('Error deleting order:', error);
-      } else {
-        // Refetch data
-        window.location.reload();
-      }
+    if (confirm('Are you sure you want to delete this order? This will revert all related changes.')) {
+      deleteSalesOrderMutation.mutate(orderId);
     }
   };
 
@@ -303,20 +382,34 @@ export default function Sales() {
                         </div>
                       </td>
                       <td className="py-3 px-4">{order.platform}</td>
-                      <td className="py-3 px-4 font-medium">₹{order.total_amount}</td>
+                      <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
                       <td className="py-3 px-4">{order.quantity || 1}</td>
-                      <td className="py-3 px-4">₹{order.price_per_unit || order.total_amount}</td>
+                      <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
                       <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
                       <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                       <td className="py-3 px-4">
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setSelectedOrderForDetails(order)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
                             View Details
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setSelectedOrderForEdit(order)}
+                          >
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDeleteOrder(order.id)}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteOrder(order.id)}
+                            disabled={deleteSalesOrderMutation.isPending}
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
@@ -339,6 +432,20 @@ export default function Sales() {
       <StepBySalesFlow 
         open={showStepByStepFlow}
         onOpenChange={setShowStepByStepFlow}
+      />
+
+      {/* Details Dialog */}
+      <SalesOrderDetailsDialog
+        open={!!selectedOrderForDetails}
+        onOpenChange={(open) => !open && setSelectedOrderForDetails(null)}
+        order={selectedOrderForDetails}
+      />
+
+      {/* Edit Dialog */}
+      <EditSalesOrderDialog
+        open={!!selectedOrderForEdit}
+        onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
+        order={selectedOrderForEdit}
       />
     </div>
   );

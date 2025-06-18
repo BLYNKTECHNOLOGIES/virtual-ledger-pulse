@@ -867,6 +867,80 @@ export type Database = {
           },
         ]
       }
+      payer_payment_methods: {
+        Row: {
+          created_at: string
+          id: string
+          payer_id: string
+          purchase_payment_method_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payer_id: string
+          purchase_payment_method_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payer_id?: string
+          purchase_payment_method_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payer_payment_methods_payer_id_fkey"
+            columns: ["payer_id"]
+            isOneToOne: false
+            referencedRelation: "payers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payer_payment_methods_purchase_payment_method_id_fkey"
+            columns: ["purchase_payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payers: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          payer_type: string
+          safe_funds: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          payer_type: string
+          safe_funds?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          payer_type?: string
+          safe_funds?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           account_number: string | null

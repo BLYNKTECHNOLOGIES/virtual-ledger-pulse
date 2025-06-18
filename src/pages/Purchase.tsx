@@ -12,6 +12,7 @@ import { PendingPurchaseOrders } from "@/components/purchase/PendingPurchaseOrde
 import { ReviewNeededOrders } from "@/components/purchase/ReviewNeededOrders";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
 import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
+import { PayerManagement } from "@/components/purchase/PayerManagement";
 
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
@@ -63,7 +64,7 @@ export default function Purchase() {
       <Card className="w-full">
         <CardContent className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="pending" className="flex items-center gap-2">
                 Pending Purchase Orders
                 {ordersSummary?.pending > 0 && (
@@ -82,6 +83,9 @@ export default function Purchase() {
                   <Badge variant="default">{ordersSummary.completed}</Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="payers" className="flex items-center gap-2">
+                Payer Management
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="pending">
@@ -94,6 +98,10 @@ export default function Purchase() {
 
             <TabsContent value="completed">
               <CompletedPurchaseOrders />
+            </TabsContent>
+
+            <TabsContent value="payers">
+              <PayerManagement />
             </TabsContent>
           </Tabs>
         </CardContent>

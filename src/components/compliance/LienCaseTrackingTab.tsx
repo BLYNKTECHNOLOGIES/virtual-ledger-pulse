@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export function LienCaseTrackingTab() {
     },
   });
 
-  // Fetch lien cases
+  // Fetch lien cases with proper filtering
   const { data: lienCases, refetch: refetchLiens } = useQuery({
     queryKey: ['lien_cases', selectedBankFilter],
     queryFn: async () => {
@@ -58,13 +59,17 @@ export function LienCaseTrackingTab() {
         .select('*, bank_accounts(bank_name, account_name)')
         .order('created_at', { ascending: false });
 
-      if (selectedBankFilter) {
-        query = query.eq('bank_accounts.bank_name', selectedBankFilter);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      
+      // Filter on the client side if a bank filter is selected
+      if (selectedBankFilter && data) {
+        return data.filter(lien => 
+          lien.bank_accounts?.bank_name === selectedBankFilter
+        );
+      }
+      
+      return data || [];
     },
   });
 

@@ -44,15 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('=== REFRESHING USERS ===');
       setLoading(true);
-      
-      // First, let's check what tables exist
-      const { data: tablesCheck } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'users');
-      
-      console.log('Users table exists:', tablesCheck);
 
       console.log('Fetching users from database...');
       const { data: usersData, error } = await supabase

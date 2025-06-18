@@ -4,113 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, UserPlus } from "lucide-react";
-
-// Mock data for demonstration
-const mockUsers = [
-  {
-    id: 1,
-    username: "architadamle48",
-    email: "architadamle48@gmail.com",
-    role: "User",
-    created: "22/5/2025",
-    status: "Active"
-  },
-  {
-    id: 2,
-    username: "75666govindyadav",
-    email: "75666govindyadav@gmail.com",
-    role: "User", 
-    created: "13/5/2025",
-    status: "Active"
-  },
-  {
-    id: 3,
-    username: "priyankathakur3303",
-    email: "priyankathakur3303@gmail.com",
-    role: "User",
-    created: "12/5/2025", 
-    status: "Active"
-  },
-  {
-    id: 4,
-    username: "saxenapriya78",
-    email: "saxenapriya7826@gmail.com",
-    role: "Admin",
-    created: "12/5/2025",
-    status: "Active"
-  },
-  {
-    id: 5,
-    username: "blynkex.1",
-    email: "blynkex.1@gmail.com",
-    role: "Admin",
-    created: "10/5/2025",
-    status: "Active"
-  },
-  {
-    id: 6,
-    username: "sachinpandey565656",
-    email: "sachinpandey565656@gmail.com",
-    role: "User",
-    created: "8/5/2025",
-    status: "Active"
-  },
-  {
-    id: 7,
-    username: "blynks2024",
-    email: "blynks2024@gmail.com",
-    role: "User",
-    created: "8/5/2025",
-    status: "Active"
-  },
-  {
-    id: 8,
-    username: "rammpatel66",
-    email: "rammpatel66@gmail.com",
-    role: "User",
-    created: "8/5/2025",
-    status: "Active"
-  },
-  {
-    id: 9,
-    username: "abhisheksingh",
-    email: "abhisheksinghto@gmail.com",
-    role: "Admin",
-    created: "8/5/2025",
-    status: "Active"
-  },
-  {
-    id: 10,
-    username: "avkashpathrol8",
-    email: "avkashpathrol8@gmail.com",
-    role: "User",
-    created: "7/5/2025",
-    status: "Active"
-  },
-  {
-    id: 11,
-    username: "nikeshnagre2",
-    email: "nikeshnagre2@gmail.com",
-    role: "User",
-    created: "7/5/2025",
-    status: "Active"
-  },
-  {
-    id: 12,
-    username: "shubhamsingh01981",
-    email: "shubhamsingh01981@gmail.com",
-    role: "User",
-    created: "7/5/2025",
-    status: "Active"
-  }
-];
+import { Search, Edit, Trash2, UserPlus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { AddUserDialog } from "@/components/AddUserDialog";
+import { useToast } from "@/hooks/use-toast";
 
 export default function UserManagement() {
+  const { users, deleteUser } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("Filtering Active");
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const filteredUsers = mockUsers.filter(user =>
+  const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -121,6 +26,16 @@ export default function UserManagement() {
     ) : (
       <Badge variant="secondary">User</Badge>
     );
+  };
+
+  const handleDeleteUser = (id: string, username: string) => {
+    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+      deleteUser(id);
+      toast({
+        title: "Success",
+        description: "User deleted successfully"
+      });
+    }
   };
 
   return (
@@ -134,27 +49,13 @@ export default function UserManagement() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Users</CardTitle>
+            <CardTitle>Users ({filteredUsers.length})</CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                Today
-              </Button>
-              <Button variant="outline" size="sm">
-                This Week
-              </Button>
-              <Button variant="outline" size="sm">
-                This Month
-              </Button>
-              <Button variant="outline" size="sm">
-                Last Month
-              </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                {filterStatus}
-              </Button>
-              <Button variant="outline" size="sm">
-                🔄 Refresh
-              </Button>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+              <Button 
+                size="sm" 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setShowAddDialog(true)}
+              >
                 <UserPlus className="h-4 w-4 mr-2" />
                 New User
               </Button>
@@ -175,7 +76,7 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredUsers.map((user) => (
           <Card key={user.id} className="hover:shadow-lg transition-shadow">
             <CardContent className="p-4">
@@ -188,6 +89,12 @@ export default function UserManagement() {
                 <div className="space-y-1">
                   <p className="text-sm text-gray-600 truncate">{user.email}</p>
                   <p className="text-xs text-gray-500">📅 Created: {user.created}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Status:</span>
+                    <Badge variant={user.status === "Active" ? "default" : "secondary"} className="text-xs">
+                      {user.status}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t">
@@ -196,7 +103,12 @@ export default function UserManagement() {
                       <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
-                    <Button size="sm" variant="outline" className="h-8 px-2 text-red-600 hover:text-red-700">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-8 px-2 text-red-600 hover:text-red-700"
+                      onClick={() => handleDeleteUser(user.id, user.username)}
+                    >
                       <Trash2 className="h-3 w-3 mr-1" />
                       Delete
                     </Button>
@@ -217,6 +129,11 @@ export default function UserManagement() {
           </CardContent>
         </Card>
       )}
+
+      <AddUserDialog 
+        open={showAddDialog} 
+        onOpenChange={setShowAddDialog} 
+      />
     </div>
   );
 }

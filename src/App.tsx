@@ -9,6 +9,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { Layout } from "./components/Layout";
 import { lazyLoad } from "./utils/lazyLoad";
 import { usePerformance } from "./hooks/usePerformance";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
+import Login from "./pages/Login";
 
 // Lazy load pages for better code splitting
 const Index = lazyLoad(() => import("./pages/Index"));
@@ -44,37 +46,51 @@ const LoadingFallback = () => (
   </div>
 );
 
+function AppContent() {
+  const { isAuthenticated, login } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Login onLogin={login} />;
+  }
+
+  return (
+    <BrowserRouter>
+      <SidebarProvider>
+        <Layout>
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/sales" element={<Sales />} />
+              <Route path="/purchase" element={<Purchase />} />
+              <Route path="/bams" element={<BAMS />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:clientId" element={<ClientDetail />} />
+              <Route path="/leads" element={<Leads />} />
+              <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/hrms" element={<HRMS />} />
+              <Route path="/payroll" element={<Payroll />} />
+              <Route path="/compliance" element={<Compliance />} />
+              <Route path="/stock" element={<StockManagement />} />
+              <Route path="/accounting" element={<Accounting />} />
+            </Routes>
+          </Suspense>
+        </Layout>
+      </SidebarProvider>
+    </BrowserRouter>
+  );
+}
+
 const App = () => {
   usePerformance();
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <SidebarProvider>
-            <Layout>
-              <Suspense fallback={<LoadingFallback />}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/sales" element={<Sales />} />
-                  <Route path="/purchase" element={<Purchase />} />
-                  <Route path="/bams" element={<BAMS />} />
-                  <Route path="/clients" element={<Clients />} />
-                  <Route path="/clients/:clientId" element={<ClientDetail />} />
-                  <Route path="/leads" element={<Leads />} />
-                  <Route path="/user-management" element={<UserManagement />} />
-                  <Route path="/hrms" element={<HRMS />} />
-                  <Route path="/payroll" element={<Payroll />} />
-                  <Route path="/compliance" element={<Compliance />} />
-                  <Route path="/stock" element={<StockManagement />} />
-                  <Route path="/accounting" element={<Accounting />} />
-                </Routes>
-              </Suspense>
-            </Layout>
-          </SidebarProvider>
-        </BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <AppContent />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

@@ -1,17 +1,24 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, DollarSign, Download, CreditCard } from "lucide-react";
+import { FileText, DollarSign, Download, CreditCard, CheckCircle, Clock } from "lucide-react";
 import { PayslipGenerationDialog } from "./PayslipGenerationDialog";
 import { generatePayslipPDF, PayslipData } from "@/utils/payslipPdfGenerator";
+import { useToast } from "@/hooks/use-toast";
+
+interface PayslipWithPayment extends any {
+  payment_status?: string;
+}
 
 export function SalaryPayoutTab() {
   const [showPayslipDialog, setShowPayslipDialog] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch payslips from database
   const { data: payslips } = useQuery({
@@ -26,12 +33,44 @@ export function SalaryPayoutTab() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as PayslipWithPayment[];
     },
   });
 
-  // Get recent payslips (last 10)
-  const recentPayslips = payslips?.slice(0, 10) || [];
+  // Mark salary as paid mutation
+  const markSalaryPaidMutation = useMutation({
+    mutationFn: async (payslipId: string) => {
+      const { error } = await supabase
+        .from('payslips')
+        .update({ payment_status: 'PAID' })
+        .eq('id', payslipId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Salary marked as paid successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['payslips'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Separate pending and paid salaries
+  const pendingSalaries = payslips?.filter(payslip => payslip.payment_status !== 'PAID') || [];
+  const paidSalaries = payslips?.filter(payslip => payslip.payment_status === 'PAID') || [];
+
+  // Calculate totals for salary register
+  const totalPaidAmount = paidSalaries.reduce((sum, payslip) => sum + (payslip.net_salary || 0), 0);
+  const totalEmployees = payslips?.length || 0;
+  const totalDeductions = paidSalaries.reduce((sum, payslip) => sum + (payslip.total_deductions || 0), 0);
 
   const handleDownloadPayslip = (payslip: any) => {
     const payslipData: PayslipData = {
@@ -69,21 +108,28 @@ export function SalaryPayoutTab() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="payslips" className="space-y-4">
+      <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="payslips">Payslips</TabsTrigger>
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Pending Salary
+          </TabsTrigger>
+          <TabsTrigger value="paid" className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            Salaries Paid
+          </TabsTrigger>
           <TabsTrigger value="register">Salary Register</TabsTrigger>
           <TabsTrigger value="summary">Salary Summary</TabsTrigger>
           <TabsTrigger value="adjustments">Salary Adjustments</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="payslips">
+        <TabsContent value="pending">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Employee Payslips
+                  <Clock className="h-5 w-5" />
+                  Pending Salaries
                 </CardTitle>
                 <Button onClick={() => setShowPayslipDialog(true)}>
                   <FileText className="h-4 w-4 mr-2" />
@@ -93,27 +139,80 @@ export function SalaryPayoutTab() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentPayslips.length === 0 ? (
+                {pendingSalaries.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    No payslips generated yet
+                    No pending salaries found
                   </div>
                 ) : (
-                  recentPayslips.map((payslip) => (
+                  pendingSalaries.map((payslip) => (
                     <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <h3 className="font-semibold">{payslip.employees?.name}</h3>
                         <p className="text-sm text-gray-600">{payslip.month_year}</p>
                         <p className="text-sm text-gray-500">
-                          Gross: ₹{payslip.total_earnings?.toLocaleString()} | Net: ₹{payslip.net_salary?.toLocaleString()}
+                          Net Salary: ₹{payslip.net_salary?.toLocaleString()}
                         </p>
                         <p className="text-xs text-gray-400">
                           Employee ID: {payslip.employees?.employee_id}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={payslip.status === "GENERATED" ? "default" : "secondary"}>
-                          {payslip.status}
-                        </Badge>
+                        <Badge variant="destructive">Pending</Badge>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDownloadPayslip(payslip)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => markSalaryPaidMutation.mutate(payslip.id)}
+                          disabled={markSalaryPaidMutation.isPending}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Mark Paid
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="paid">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5" />
+                Paid Salaries
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {paidSalaries.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No paid salaries found
+                  </div>
+                ) : (
+                  paidSalaries.map((payslip) => (
+                    <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{payslip.employees?.name}</h3>
+                        <p className="text-sm text-gray-600">{payslip.month_year}</p>
+                        <p className="text-sm text-gray-500">
+                          Net Salary: ₹{payslip.net_salary?.toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Employee ID: {payslip.employees?.employee_id}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default">Paid</Badge>
                         <Button 
                           variant="outline" 
                           size="sm"
@@ -143,16 +242,16 @@ export function SalaryPayoutTab() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">₹12,50,000</div>
+                    <div className="text-2xl font-bold text-green-600">₹{totalPaidAmount.toLocaleString()}</div>
                     <div className="text-sm text-gray-600">Total Paid</div>
                   </div>
                   <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">18</div>
+                    <div className="text-2xl font-bold text-blue-600">{totalEmployees}</div>
                     <div className="text-sm text-gray-600">Employees</div>
                   </div>
                   <div className="text-center p-4 border rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">₹2,30,000</div>
-                    <div className="text-sm text-gray-600">Deductions</div>
+                    <div className="text-2xl font-bold text-purple-600">₹{totalDeductions.toLocaleString()}</div>
+                    <div className="text-sm text-gray-600">Total Deductions</div>
                   </div>
                   <div className="text-center p-4 border rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">June 2025</div>

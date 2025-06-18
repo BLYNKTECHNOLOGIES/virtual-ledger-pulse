@@ -73,8 +73,8 @@ export const generatePayslipPDF = (data: PayslipData) => {
           pointer-events: none;
         }
         .watermark img {
-          width: 600px;
-          height: 400px;
+          width: 400px;
+          height: 600px;
           object-fit: contain;
         }
         .content {
@@ -214,19 +214,17 @@ export const generatePayslipPDF = (data: PayslipData) => {
         }
         .signature-section {
           padding: 30px 15px 15px 15px;
-          text-align: right;
+          text-align: left;
         }
-        .signature-line {
-          border-bottom: 1px solid #000;
+        .signature-space {
           width: 200px;
-          margin-left: auto;
+          height: 50px;
           margin-bottom: 5px;
-          height: 40px;
         }
         .signature-label {
           font-size: 11px;
           color: #666;
-          text-align: center;
+          font-weight: 600;
         }
         .currency {
           font-family: 'Arial', sans-serif;
@@ -389,7 +387,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
           </div>
 
           <div class="signature-section">
-            <div class="signature-line"></div>
+            <div class="signature-space"></div>
             <div class="signature-label">Authorised Signatory</div>
           </div>
         </div>

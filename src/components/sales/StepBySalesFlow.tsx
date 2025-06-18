@@ -143,6 +143,53 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   }, [orderAmount, finalOrderData.price]);
 
+  // Create pending sales order mutation
+  const createPendingSalesOrderMutation = useMutation({
+    mutationFn: async (orderData: any) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .insert([{
+          order_number: `ORD-${Date.now()}`,
+          client_name: selectedClient?.name || newClientData.name,
+          client_phone: selectedClient?.phone || newClientData.phone,
+          platform: selectedClient?.platform || newClientData.platform,
+          total_amount: orderAmount,
+          quantity: 1,
+          price_per_unit: orderAmount,
+          sales_payment_method_id: selectedPaymentMethod?.id,
+          payment_status: 'PENDING',
+          status: 'AWAITING_PAYMENT',
+          order_date: new Date().toISOString().split('T')[0],
+          cosmos_alert: cosmosAlert,
+          risk_level: selectedClient?.risk_appetite || newClientData.risk_appetite,
+          created_by: user?.id,
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Order Created",
+        description: "Sales order created and moved to pending status.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      resetFlow();
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create sales order: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create lead mutation
   const createLeadMutation = useMutation({
     mutationFn: async (leadData: any) => {
@@ -418,6 +465,38 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied", description: "Payment details copied to clipboard" });
+  };
+
+  const handlePaymentMethodAssigned = () => {
+    if (!selectedPaymentMethod) {
+      toast({
+        title: "No Payment Method",
+        description: "No available payment methods found. Order will be cancelled.",
+        variant: "destructive",
+      });
+      
+      // Create lead and cancel order
+      const leadData = {
+        name: selectedClient?.name || newClientData.name,
+        contact_number: selectedClient?.phone || newClientData.phone,
+        estimated_order_value: orderAmount,
+        status: 'NEW',
+        source: 'Cancelled Sales Order - No Payment Methods',
+        description: `Cancelled order for amount ₹${orderAmount} - No payment methods available`
+      };
+      
+      supabase.from('leads').insert([leadData]).then(() => {
+        toast({
+          title: "Order Cancelled",
+          description: "Order has been cancelled and moved to leads.",
+        });
+        resetFlow();
+        onOpenChange(false);
+      });
+      return;
+    }
+
+    createPendingSalesOrderMutation.mutate({});
   };
 
   const renderCurrentStep = () => {
@@ -761,43 +840,25 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       case 'action-buttons':
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">⚠️ Three Action Buttons After Payment Method Is Given</h3>
+            <h3 className="text-lg font-semibold">Payment Method Action</h3>
             
             <div className="space-y-3">
               <Button 
-                variant="destructive" 
-                onClick={handleOrderCancelled}
-                className="w-full flex items-center gap-2"
+                onClick={handlePaymentMethodAssigned}
+                disabled={createPendingSalesOrderMutation.isPending}
+                className="w-full flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                size="lg"
               >
-                <X className="h-4 w-4" />
-                🔴 Order Cancelled
+                📥 Payment Method Assigned
               </Button>
-              <p className="text-xs text-gray-600 px-2">
-                Moves the record into the Leads Tab for future follow-up. Auto-attaches metadata: reason, date/time, who cancelled.
-              </p>
-
-              <Button 
-                variant="outline" 
-                onClick={handleAlternativePaymentMethod}
-                className="w-full flex items-center gap-2"
-              >
-                <RotateCcw className="h-4 w-4" />
-                🟡 Alternative Payment Method
-              </Button>
-              <p className="text-xs text-gray-600 px-2">
-                Allows you to change payment method type or get an alternative method of the same type.
-              </p>
-
-              <Button 
-                onClick={handlePaymentReceived}
-                className="w-full flex items-center gap-2"
-              >
-                <CheckCircle className="h-4 w-4" />
-                🟢 Payment Received
-              </Button>
-              <p className="text-xs text-gray-600 px-2">
-                Opens form to capture the full sales data with auto pre-filled information wherever possible.
-              </p>
+              
+              {!selectedPaymentMethod && (
+                <div className="p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    No payment methods available. Clicking the button above will cancel the order and move it to leads.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );

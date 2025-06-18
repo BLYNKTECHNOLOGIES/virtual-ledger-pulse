@@ -7,13 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, User, Lock, Mail } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LoginProps {
   onLogin: (credentials: { username: string; password: string }) => void;
-  onRegister?: (userData: { username: string; email: string; password: string; firstName?: string; lastName?: string; phone?: string }) => void;
 }
 
-export function Login({ onLogin, onRegister }: LoginProps) {
+export function Login({ onLogin }: LoginProps) {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -39,7 +39,6 @@ export function Login({ onLogin, onRegister }: LoginProps) {
     setIsLoading(true);
 
     try {
-      // Simulate authentication - replace with actual auth logic
       if (loginData.username && loginData.password) {
         onLogin({ username: loginData.username, password: loginData.password });
         toast({
@@ -81,29 +80,56 @@ export function Login({ onLogin, onRegister }: LoginProps) {
       return;
     }
 
+    if (!registerData.username || !registerData.email) {
+      toast({
+        title: "Registration Failed",
+        description: "Username and email are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      if (onRegister) {
-        onRegister({
+      // Submit registration for approval
+      const { error } = await supabase
+        .from('pending_registrations')
+        .insert({
           username: registerData.username,
           email: registerData.email,
-          password: registerData.password,
-          firstName: registerData.firstName,
-          lastName: registerData.lastName,
+          first_name: registerData.firstName,
+          last_name: registerData.lastName,
           phone: registerData.phone,
+          password_hash: `crypt('${registerData.password}', gen_salt('bf'))`
         });
-        toast({
-          title: "Registration Successful",
-          description: "Your account has been created successfully!",
-        });
-      } else {
-        throw new Error("Registration functionality not available");
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          throw new Error("Username or email already exists");
+        }
+        throw error;
       }
+
+      toast({
+        title: "Registration Submitted",
+        description: "Your registration has been submitted for admin approval. You will be notified once approved.",
+      });
+
+      // Reset form
+      setRegisterData({
+        username: "",
+        email: "",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+      });
     } catch (error: any) {
       toast({
         title: "Registration Failed",
-        description: error.message || "Failed to create account",
+        description: error.message || "Failed to submit registration",
         variant: "destructive",
       });
     } finally {
@@ -294,7 +320,7 @@ export function Login({ onLogin, onRegister }: LoginProps) {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating Account..." : "Create Account"}
+                  {isLoading ? "Submitting..." : "Submit Registration"}
                 </Button>
               </form>
             </TabsContent>

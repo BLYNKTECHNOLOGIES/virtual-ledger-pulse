@@ -1001,6 +1001,51 @@ export type Database = {
           },
         ]
       }
+      pending_registrations: {
+        Row: {
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          password_hash: string
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          submitted_at: string
+          username: string
+        }
+        Insert: {
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          password_hash: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          username: string
+        }
+        Update: {
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          password_hash?: string
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          submitted_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       performance_review_criteria: {
         Row: {
           category: string
@@ -2160,6 +2205,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_registration: {
+        Args: { registration_id: string }
+        Returns: boolean
+      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string
@@ -2187,6 +2236,10 @@ export type Database = {
           created_at: string
           roles: Json
         }[]
+      }
+      reject_registration: {
+        Args: { registration_id: string; reason?: string }
+        Returns: boolean
       }
       user_has_permission: {
         Args: {

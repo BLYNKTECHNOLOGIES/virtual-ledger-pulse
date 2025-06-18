@@ -98,68 +98,31 @@ export default function Sales() {
         .eq('risk_category', currentPaymentMethod.risk_category)
         .neq('id', currentPaymentMethod.id);
 
-      if (!allAlternativeMethods || allAlternativeMethods.length === 0) {
-        // Check if there are methods of different types available
-        const { data: differentTypeMethods } = await supabase
-          .from('sales_payment_methods')
-          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-          .eq('is_active', true)
-          .eq('risk_category', currentPaymentMethod.risk_category)
-          .neq('type', currentPaymentMethod.type);
-
-        if (!differentTypeMethods || differentTypeMethods.length === 0) {
-          throw new Error('No alternative payment methods available for this risk category. Contact your admin.');
-        }
-        
-        // Show dialog asking if they want to change payment method type
-        setAlternativeMethodDialog({
-          order,
-          currentPaymentMethod,
-          differentTypeMethods: differentTypeMethods.filter(method => 
-            (method.current_usage || 0) < method.payment_limit
-          )
-        });
-        return null;
-      }
-
       // Filter methods that have available capacity
-      const availableMethods = allAlternativeMethods.filter(method => 
+      const availableSameMethods = (allAlternativeMethods || []).filter(method => 
         (method.current_usage || 0) < method.payment_limit
       );
 
-      if (availableMethods.length === 0) {
-        // Check if there are methods of different types available
-        const { data: differentTypeMethods } = await supabase
-          .from('sales_payment_methods')
-          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-          .eq('is_active', true)
-          .eq('risk_category', currentPaymentMethod.risk_category)
-          .neq('type', currentPaymentMethod.type);
+      // Check if there are methods of different types available
+      const { data: differentTypeMethods } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+        .eq('is_active', true)
+        .eq('risk_category', currentPaymentMethod.risk_category)
+        .neq('type', currentPaymentMethod.type);
 
-        const availableDifferentTypes = differentTypeMethods?.filter(method => 
-          (method.current_usage || 0) < method.payment_limit
-        ) || [];
+      const availableDifferentTypes = (differentTypeMethods || []).filter(method => 
+        (method.current_usage || 0) < method.payment_limit
+      );
 
-        if (availableDifferentTypes.length === 0) {
-          throw new Error('All possible payment methods have been provided. No available methods left. Contact your admin.');
-        }
-
-        // Show dialog asking if they want to change payment method type
-        setAlternativeMethodDialog({
-          order,
-          currentPaymentMethod,
-          differentTypeMethods: availableDifferentTypes
-        });
-        return null;
-      }
-
-      // Show dialog asking if they want to change payment method type or keep same type
+      // Show dialog asking if they want to change payment method type
       setAlternativeMethodDialog({
         order,
         currentPaymentMethod,
-        availableSameType: availableMethods,
-        differentTypeMethods: []
+        availableSameType: availableSameMethods,
+        differentTypeMethods: availableDifferentTypes
       });
+      
       return null;
     },
     onError: (error) => {
@@ -752,7 +715,7 @@ export default function Sales() {
       <Dialog open={!!alternativeMethodDialog} onOpenChange={(open) => !open && setAlternativeMethodDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Payment Method Type?</DialogTitle>
+            <DialogTitle>Alternative Payment Method - Same Type</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {alternativeMethodDialog?.availableSameType?.length > 0 ? (
@@ -766,17 +729,17 @@ export default function Sales() {
                     onClick={() => handleAlternativeMethodChoice('same-type')}
                     className="flex-1"
                   >
-                    Keep Same Type
+                    No (Keep Same Type)
                   </Button>
                   <Button 
                     onClick={() => handleAlternativeMethodChoice('change-type')}
                     className="flex-1"
                   >
-                    Change Payment Method Type
+                    Yes (Change Payment Method Type)
                   </Button>
                 </div>
               </>
-            ) : (
+            ) : alternativeMethodDialog?.differentTypeMethods?.length > 0 ? (
               <>
                 <p className="text-sm text-gray-600">
                   No alternative methods available for the current payment type. Would you like to change the payment method type?
@@ -793,7 +756,21 @@ export default function Sales() {
                     onClick={() => handleAlternativeMethodChoice('change-type')}
                     className="flex-1"
                   >
-                    Change Payment Method Type
+                    Yes (Change Payment Method Type)
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">
+                  All possible payment methods have been provided. No available methods left. Contact your admin.
+                </p>
+                <div className="flex justify-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setAlternativeMethodDialog(null)}
+                  >
+                    OK
                   </Button>
                 </div>
               </>

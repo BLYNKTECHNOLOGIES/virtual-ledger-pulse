@@ -54,7 +54,7 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
   // Initialize alternative mode data when opening
   useEffect(() => {
     if (open && mode !== 'normal' && alternativeOrderData) {
-      const { order, currentPaymentMethod } = alternativeOrderData;
+      const { order, currentPaymentMethod, availableSameType, differentTypeMethods } = alternativeOrderData;
       
       // Set up the order data
       setOrderAmount(order.total_amount);
@@ -68,6 +68,13 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
       if (mode === 'alternative-same-type') {
         // Set payment type from current method
         setPaymentType(currentPaymentMethod.type === 'UPI' ? 'UPI' : 'Bank Transfer');
+        
+        // Set available methods and select the first one
+        if (availableSameType && availableSameType.length > 0) {
+          setAvailablePaymentMethods(availableSameType);
+          setSelectedPaymentMethod(availableSameType[0]);
+        }
+        
         setCurrentStep('payment-method-display');
       } else if (mode === 'alternative-change-type') {
         setCurrentStep('payment-type-selection');
@@ -168,10 +175,10 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
   };
 
   useEffect(() => {
-    if (paymentType && (selectedClient || orderType === 'new')) {
+    if (paymentType && (selectedClient || orderType === 'new') && mode === 'normal') {
       fetchPaymentMethods();
     }
-  }, [paymentType, selectedClient, orderType, usedPaymentMethods, mode, alternativeOrderData]);
+  }, [paymentType, selectedClient, orderType, usedPaymentMethods, mode]);
 
   // Auto-calculate quantity when amount or price changes
   useEffect(() => {
@@ -709,7 +716,13 @@ export function StepBySalesFlow({ open, onOpenChange, mode = 'normal', alternati
             <div className="space-y-3">
               <div>
                 <Label>Payment Type</Label>
-                <Select onValueChange={(value: 'UPI' | 'Bank Transfer') => setPaymentType(value)}>
+                <Select onValueChange={(value: 'UPI' | 'Bank Transfer') => {
+                  setPaymentType(value);
+                  // Fetch payment methods when type is selected in alternative mode
+                  if (mode === 'alternative-change-type') {
+                    fetchPaymentMethods();
+                  }
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select payment type" />
                   </SelectTrigger>

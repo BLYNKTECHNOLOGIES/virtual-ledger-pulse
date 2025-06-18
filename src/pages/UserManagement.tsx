@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { OptimizedTabs, OptimizedTabsContent, OptimizedTabsList, OptimizedTabsTrigger } from "@/components/ui/optimized-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -57,9 +58,16 @@ export default function UserManagement() {
   });
 
   useEffect(() => {
-    console.log('UserManagement mounted, refreshing users...');
+    console.log('UserManagement component mounted');
+    console.log('Current users from auth:', users);
+    console.log('Loading state:', loading);
     refreshUsers();
   }, [refreshUsers]);
+
+  // Debug log users whenever they change
+  useEffect(() => {
+    console.log('Users updated in UserManagement:', users);
+  }, [users]);
 
   const handleDeleteUser = useCallback(async (id: string, username: string) => {
     if (confirm(`Are you sure you want to delete user "${username}"?`)) {
@@ -144,6 +152,13 @@ export default function UserManagement() {
     pendingRegistrations?.filter(reg => reg.status === 'PENDING').length || 0, 
     [pendingRegistrations]
   );
+
+  console.log('Rendering UserManagement with:', {
+    users: users?.length || 0,
+    pendingCount,
+    loading,
+    pendingLoading
+  });
 
   if (loading || pendingLoading) {
     return (

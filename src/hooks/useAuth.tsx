@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -62,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
       }
 
-      console.log('Users fetched:', usersData);
+      console.log('Users fetched from DB:', usersData);
 
       // Transform the data to match the expected User interface
       const transformedUsers = usersData?.map(userData => ({
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Load all users
     refreshUsers();
+    setLoading(false);
   }, []);
 
   const refreshUserPermissions = async (userId?: string) => {

@@ -28,7 +28,11 @@ const Login = lazy(() => import("./pages/Login"));
 const queryClient = new QueryClient();
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
+
+  const handleLogin = async (credentials: { username: string; password: string }) => {
+    await login(credentials);
+  };
 
   return (
     <BrowserRouter>
@@ -38,7 +42,7 @@ function AppContent() {
           element={
             isAuthenticated ? <Navigate to="/" replace /> : (
               <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-                <Login />
+                <Login onLogin={handleLogin} />
               </Suspense>
             )
           } 

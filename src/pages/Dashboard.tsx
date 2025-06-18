@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -128,28 +127,28 @@ export default function Dashboard() {
           value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
           change="+12.5%"
           trend="up"
-          icon={<DollarSign className="h-6 w-6" />}
+          icon={DollarSign}
         />
         <MetricCard
           title="Sales Orders"
           value={metrics?.totalSales?.toString() || "0"}
           change="+8.2%"
           trend="up"
-          icon={<TrendingUp className="h-6 w-6" />}
+          icon={TrendingUp}
         />
         <MetricCard
           title="Active Clients"
           value={metrics?.totalClients?.toString() || "0"}
           change="+3.1%"
           trend="up"
-          icon={<Users className="h-6 w-6" />}
+          icon={Users}
         />
         <MetricCard
           title="Products"
           value={metrics?.totalProducts?.toString() || "0"}
           change="+1.2%"
           trend="up"
-          icon={<Package className="h-6 w-6" />}
+          icon={Package}
         />
       </div>
 

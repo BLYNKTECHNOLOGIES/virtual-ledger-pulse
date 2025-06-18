@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface User {
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const refreshUsers = async () => {
+  const refreshUsers = useCallback(async () => {
     try {
       console.log('=== REFRESHING USERS ===');
       setLoading(true);
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Remove users dependency to prevent infinite loop
 
   useEffect(() => {
     console.log('=== AUTH PROVIDER INIT ===');
@@ -115,11 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUserPermissions(parsedUser.id);
     }
     
-    // Load all users
+    // Load all users only once on mount
     refreshUsers();
-  }, []);
+  }, []); // Empty dependency array to run only once
 
-  const refreshUserPermissions = async (userId?: string) => {
+  const refreshUserPermissions = useCallback(async (userId?: string) => {
     const targetUserId = userId || user?.id;
     if (!targetUserId) return;
 
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error refreshing permissions:', error);
     }
-  };
+  }, [user?.id]);
 
   const login = async (credentials: { username: string; password: string }) => {
     try {

@@ -89,14 +89,17 @@ export default function UserManagement() {
       console.log('Pending registrations fetched:', data);
       return data as PendingRegistration[];
     },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes to prevent excessive refetching
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
   });
 
+  // Only run this effect once on mount - no dependencies that change
   useEffect(() => {
     console.log('UserManagement component mounted');
     console.log('Current users from auth:', users);
     console.log('Loading state:', loading);
-    refreshUsers();
-  }, [refreshUsers]);
+    // Don't call refreshUsers here as it's already called in AuthProvider
+  }, []); // Empty dependency array
 
   // Debug log users whenever they change
   useEffect(() => {

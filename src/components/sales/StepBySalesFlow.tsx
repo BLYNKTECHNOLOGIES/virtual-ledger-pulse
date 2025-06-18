@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +28,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     phone: '',
     platform: '',
     client_type: 'INDIVIDUAL',
-    risk_appetite: 'MEDIUM'
+    risk_appetite: 'HIGH'
   });
   const [orderAmount, setOrderAmount] = useState(0);
   const [cosmosAlert, setCosmosAlert] = useState(false);
@@ -56,19 +55,56 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     },
   });
 
-  // Fetch payment methods based on risk category
+  // Fetch payment methods based on risk category and type
   const { data: paymentMethods } = useQuery({
-    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite],
+    queryKey: ['sales_payment_methods', selectedClient?.risk_appetite || newClientData.risk_appetite, paymentType],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('sales_payment_methods')
         .select('*, bank_accounts:bank_account_id(account_name, bank_name)')
         .eq('is_active', true);
+
+      // Filter by client risk category
+      const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
+      const riskCategory = getRiskCategoryFromAppetite(riskLevel);
+      query = query.eq('risk_category', riskCategory);
+
+      // Filter by payment type if selected
+      if (paymentType) {
+        query = query.eq('type', paymentType === 'UPI' ? 'UPI' : 'Bank Account');
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
     enabled: !!selectedClient || orderType === 'new'
   });
+
+  // Auto-select the first available payment method when paymentType changes
+  useEffect(() => {
+    if (paymentMethods && paymentMethods.length > 0 && paymentType) {
+      const availableMethod = paymentMethods.find(method => 
+        method.current_usage < method.payment_limit
+      );
+      if (availableMethod) {
+        setSelectedPaymentMethod(availableMethod);
+      } else {
+        // If no method has available limit, still select the first one but show warning
+        setSelectedPaymentMethod(paymentMethods[0]);
+      }
+    }
+  }, [paymentMethods, paymentType]);
+
+  const getRiskCategoryFromAppetite = (appetite: string) => {
+    switch (appetite) {
+      case 'LOW': return 'Low Risk';
+      case 'MEDIUM': return 'Medium Risk';
+      case 'HIGH': return 'High Risk';
+      case 'NONE': return 'No Risk';
+      default: return 'High Risk'; // Default for new clients
+    }
+  };
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -108,7 +144,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     setCurrentStep('order-type');
     setOrderType(null);
     setSelectedClient(null);
-    setNewClientData({ name: '', phone: '', platform: '', client_type: 'INDIVIDUAL', risk_appetite: 'MEDIUM' });
+    setNewClientData({ name: '', phone: '', platform: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
     setOrderAmount(0);
     setCosmosAlert(false);
     setSelectedPaymentMethod(null);
@@ -274,6 +310,11 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                     placeholder="Enter platform"
                   />
                 </div>
+                <div className="p-3 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> New clients automatically get HIGH risk appetite by default
+                  </p>
+                </div>
               </div>
             )}
 
@@ -333,47 +374,33 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 </Select>
               </div>
 
-              {paymentType && (
-                <div>
-                  <Label>Available Payment Methods</Label>
-                  <Select onValueChange={(value) => {
-                    const method = paymentMethods?.find(m => m.id === value);
-                    setSelectedPaymentMethod(method);
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paymentMethods
-                        ?.filter(method => method.type === paymentType)
-                        ?.map((method) => (
-                        <SelectItem key={method.id} value={method.id}>
-                          <div className="flex flex-col">
-                            <span>
-                              {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              Limit: ₹{method.payment_limit?.toLocaleString()} | Used: ₹{method.current_usage?.toLocaleString()}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {paymentType && selectedPaymentMethod && (
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium mb-2">🔁 Auto-Selected Payment Method</h4>
+                  <div className="text-sm space-y-1">
+                    <div><strong>Client Risk Level:</strong> {selectedClient?.risk_appetite || newClientData.risk_appetite}</div>
+                    <div><strong>Method:</strong> {selectedPaymentMethod.type === 'UPI' ? selectedPaymentMethod.upi_id : selectedPaymentMethod.bank_accounts?.account_name}</div>
+                    <div><strong>Risk Category:</strong> {selectedPaymentMethod.risk_category}</div>
+                    <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString()}</div>
+                    {selectedPaymentMethod.current_usage >= selectedPaymentMethod.payment_limit && (
+                      <Badge variant="destructive" className="mt-1">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Payment limit exceeded! Consider alternative method.
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {paymentMethods && paymentMethods.length === 0 && paymentType && (
+                <div className="p-4 bg-red-50 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    No payment methods available for {paymentType} with {selectedClient?.risk_appetite || newClientData.risk_appetite} risk level.
+                    Please contact administrator to add payment methods.
+                  </p>
                 </div>
               )}
             </div>
-
-            {selectedPaymentMethod && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium mb-2">🔁 Dynamic Payment Assignment</h4>
-                <div className="text-sm space-y-1">
-                  <div>Method: {selectedPaymentMethod.type === 'UPI' ? selectedPaymentMethod.upi_id : selectedPaymentMethod.bank_accounts?.account_name}</div>
-                  <div>Risk Category: {selectedPaymentMethod.risk_category}</div>
-                  <div>Available Limit: ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString()}</div>
-                </div>
-              </div>
-            )}
 
             <Button 
               onClick={handlePaymentMethodSelection}
@@ -551,7 +578,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               if (currentStep === 'order-type') {
                 onOpenChange(false);
               } else {
-                // Go back to previous step logic
                 const steps: FlowStep[] = ['order-type', 'amount-verification', 'payment-method', 'action-buttons', 'final-form'];
                 const currentIndex = steps.indexOf(currentStep);
                 if (currentIndex > 0) {

@@ -1367,13 +1367,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sales_order_items_sales_order_id_fkey"
-            columns: ["sales_order_id"]
-            isOneToOne: false
-            referencedRelation: "sales_orders"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sales_order_items_warehouse_id_fkey"
             columns: ["warehouse_id"]
             isOneToOne: false
@@ -1384,77 +1377,91 @@ export type Database = {
       }
       sales_orders: {
         Row: {
-          amount: number
-          attachment_urls: string[] | null
           client_name: string
+          client_phone: string | null
           cosmos_alert: boolean | null
           created_at: string
           created_by: string | null
-          credits_applied: number | null
-          delivery_date: string | null
           description: string | null
           id: string
           order_date: string
           order_number: string
           payment_status: string
           platform: string | null
-          price_per_unit: number | null
-          quantity: number | null
+          price_per_unit: number
+          product_id: string | null
+          quantity: number
           risk_level: string | null
           sales_payment_method_id: string | null
           status: string
+          total_amount: number
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
-          amount: number
-          attachment_urls?: string[] | null
           client_name: string
+          client_phone?: string | null
           cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null
-          credits_applied?: number | null
-          delivery_date?: string | null
           description?: string | null
           id?: string
           order_date: string
           order_number: string
           payment_status?: string
           platform?: string | null
-          price_per_unit?: number | null
-          quantity?: number | null
+          price_per_unit: number
+          product_id?: string | null
+          quantity: number
           risk_level?: string | null
           sales_payment_method_id?: string | null
           status?: string
+          total_amount: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
-          amount?: number
-          attachment_urls?: string[] | null
           client_name?: string
+          client_phone?: string | null
           cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null
-          credits_applied?: number | null
-          delivery_date?: string | null
           description?: string | null
           id?: string
           order_date?: string
           order_number?: string
           payment_status?: string
           platform?: string | null
-          price_per_unit?: number | null
-          quantity?: number | null
+          price_per_unit?: number
+          product_id?: string | null
+          quantity?: number
           risk_level?: string | null
           sales_payment_method_id?: string | null
           status?: string
+          total_amount?: number
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_orders_sales_payment_method_id_fkey"
             columns: ["sales_payment_method_id"]
             isOneToOne: false
             referencedRelation: "sales_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]

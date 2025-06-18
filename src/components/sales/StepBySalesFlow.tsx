@@ -157,19 +157,50 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   });
 
-  // Create sales order mutation with bank account crediting
+  // Create sales order mutation with proper data structure
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Get the selected product to link to the order
+      const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
+      
+      // Prepare the complete sales order data
+      const salesOrderData = {
+        order_number: finalOrderData.order_number,
+        client_name: selectedClient?.name || newClientData.name,
+        client_phone: selectedClient?.phone || newClientData.phone,
+        platform: finalOrderData.platform,
+        product_id: selectedProduct?.id || null,
+        warehouse_id: finalOrderData.warehouseId,
+        quantity: finalOrderData.quantity,
+        price_per_unit: finalOrderData.price,
+        total_amount: orderAmount,
+        sales_payment_method_id: selectedPaymentMethod?.id,
+        payment_status: 'COMPLETED',
+        status: 'COMPLETED',
+        order_date: new Date().toISOString().split('T')[0],
+        description: finalOrderData.description,
+        cosmos_alert: cosmosAlert,
+        risk_level: selectedClient?.risk_appetite || newClientData.risk_appetite,
+        created_by: user?.id
+      };
+
+      console.log('Creating sales order with data:', salesOrderData);
+
       // First create the sales order
       const { data: salesOrder, error: salesError } = await supabase
         .from('sales_orders')
-        .insert([{ ...orderData, created_by: user?.id }])
+        .insert([salesOrderData])
         .select()
         .single();
       
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error('Sales order creation error:', salesError);
+        throw salesError;
+      }
+
+      console.log('Sales order created successfully:', salesOrder);
 
       // If payment method is selected, credit the amount to the linked bank account
       if (selectedPaymentMethod?.bank_account_id) {
@@ -180,8 +211,8 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             amount: orderAmount,
             transaction_type: 'INCOME',
             transaction_date: new Date().toISOString().split('T')[0],
-            description: `Sales income from order ${orderData.order_number} - ${orderData.client_name}`,
-            reference_number: orderData.order_number,
+            description: `Sales income from order ${finalOrderData.order_number} - ${selectedClient?.name || newClientData.name}`,
+            reference_number: finalOrderData.order_number,
             category: 'Sales Revenue'
           });
 
@@ -204,18 +235,66 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
         }
       }
 
+      // Update product stock if product is selected
+      if (selectedProduct) {
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({
+            current_stock_quantity: selectedProduct.current_stock_quantity - finalOrderData.quantity,
+            total_sales: (selectedProduct.total_sales || 0) + finalOrderData.quantity,
+            average_selling_price: selectedProduct.total_sales > 0 
+              ? ((selectedProduct.average_selling_price || 0) * selectedProduct.total_sales + finalOrderData.price * finalOrderData.quantity) / (selectedProduct.total_sales + finalOrderData.quantity)
+              : finalOrderData.price
+          })
+          .eq('id', selectedProduct.id);
+
+        if (stockError) {
+          console.error('Error updating product stock:', stockError);
+        }
+
+        // Create stock transaction record
+        const { error: stockTransactionError } = await supabase
+          .from('stock_transactions')
+          .insert({
+            product_id: selectedProduct.id,
+            transaction_type: 'SALE',
+            quantity: -finalOrderData.quantity, // Negative for outgoing stock
+            unit_price: finalOrderData.price,
+            total_amount: orderAmount,
+            transaction_date: new Date().toISOString().split('T')[0],
+            supplier_customer_name: selectedClient?.name || newClientData.name,
+            reference_number: finalOrderData.order_number,
+            reason: 'Sales Order'
+          });
+
+        if (stockTransactionError) {
+          console.error('Error creating stock transaction:', stockTransactionError);
+        }
+      }
+
       return salesOrder;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Sales order creation completed successfully:', data);
       toast({ 
         title: "Success", 
-        description: "Sales order created successfully and amount credited to bank account" 
+        description: "Sales order created successfully with all linked records updated" 
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       resetFlow();
       onOpenChange(false);
+    },
+    onError: (error) => {
+      console.error('Sales order creation failed:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to create sales order. Please check the details and try again.",
+        variant: "destructive"
+      });
     }
   });
 
@@ -306,22 +385,34 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   };
 
   const handleFinalSubmit = () => {
-    const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
-    const orderData = {
-      order_number: finalOrderData.order_number,
-      client_name: selectedClient?.name || newClientData.name,
-      platform: finalOrderData.platform,
-      amount: orderAmount,
-      quantity: finalOrderData.quantity,
-      price_per_unit: finalOrderData.price,
-      order_date: new Date().toISOString().split('T')[0],
-      payment_status: 'COMPLETED',
-      sales_payment_method_id: selectedPaymentMethod?.id,
-      description: finalOrderData.description,
-      cosmos_alert: cosmosAlert,
-      status: 'COMPLETED'
-    };
-    createSalesOrderMutation.mutate(orderData);
+    console.log('Final submit clicked with data:', {
+      finalOrderData,
+      selectedClient,
+      newClientData,
+      orderAmount,
+      selectedPaymentMethod,
+      cosmosAlert
+    });
+
+    // Validate required fields
+    if (!finalOrderData.order_number) {
+      toast({ title: "Error", description: "Order number is required", variant: "destructive" });
+      return;
+    }
+    if (!finalOrderData.stockName) {
+      toast({ title: "Error", description: "Stock selection is required", variant: "destructive" });
+      return;
+    }
+    if (!finalOrderData.warehouseId) {
+      toast({ title: "Error", description: "Warehouse selection is required", variant: "destructive" });
+      return;
+    }
+    if (!finalOrderData.price || finalOrderData.price <= 0) {
+      toast({ title: "Error", description: "Valid price is required", variant: "destructive" });
+      return;
+    }
+
+    createSalesOrderMutation.mutate({});
   };
 
   const copyToClipboard = (text: string) => {
@@ -846,10 +937,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
 
             <Button 
               onClick={handleFinalSubmit}
-              disabled={!finalOrderData.order_number || !finalOrderData.stockName || !finalOrderData.warehouseId || !finalOrderData.price}
+              disabled={!finalOrderData.order_number || !finalOrderData.stockName || !finalOrderData.warehouseId || !finalOrderData.price || createSalesOrderMutation.isPending}
               className="w-full"
             >
-              Complete Sales Order
+              {createSalesOrderMutation.isPending ? "Creating Order..." : "Complete Sales Order"}
             </Button>
           </div>
         );

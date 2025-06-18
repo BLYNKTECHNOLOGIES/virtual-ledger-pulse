@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +15,10 @@ import { Calculator, Building2 } from "lucide-react";
 interface PayslipGenerationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
-export function PayslipGenerationDialog({ open, onOpenChange }: PayslipGenerationDialogProps) {
+export function PayslipGenerationDialog({ open, onOpenChange, onSuccess }: PayslipGenerationDialogProps) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [monthYear, setMonthYear] = useState(() => {
     const now = new Date();
@@ -112,6 +112,7 @@ export function PayslipGenerationDialog({ open, onOpenChange }: PayslipGeneratio
     onSuccess: () => {
       toast.success('Payslip generated successfully');
       queryClient.invalidateQueries({ queryKey: ['payslips'] });
+      onSuccess?.();
       onOpenChange(false);
       resetForm();
     },
@@ -215,8 +216,8 @@ export function PayslipGenerationDialog({ open, onOpenChange }: PayslipGeneratio
                 <div className="flex items-center gap-2">
                   <Building2 className="h-5 w-5" />
                   <div>
-                    <CardTitle>Company Name</CardTitle>
-                    <p className="text-sm text-gray-600">Company Address</p>
+                    <CardTitle>BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED</CardTitle>
+                    <p className="text-sm text-gray-600">First Floor Balwant Arcade, Plot No. 15, Zone 2</p>
                     <p className="text-sm text-gray-600">Pay Slip for {new Date(monthYear).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
                   </div>
                 </div>

@@ -27,7 +27,8 @@ export default function Payroll() {
             name,
             employee_id,
             designation,
-            department
+            department,
+            date_of_joining
           )
         `)
         .order('created_at', { ascending: false });
@@ -40,7 +41,11 @@ export default function Payroll() {
   const handleDownloadPayslip = async (payslip: any) => {
     try {
       console.log('Generating PDF for payslip:', payslip);
-      await generatePayslipPDF(payslip, payslip.employees);
+      const payslipData = {
+        employee: payslip.employees,
+        payslip: payslip
+      };
+      await generatePayslipPDF(payslipData);
       toast.success('Payslip downloaded successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -70,7 +75,7 @@ export default function Payroll() {
       case 'FAILED':
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{status || 'Pending'}</Badge>;
     }
   };
 
@@ -81,82 +86,81 @@ export default function Payroll() {
         <p className="text-gray-600 mt-2">Employee compensation and payslip management</p>
       </div>
 
-      <Tabs defaultValue="payslips" className="space-y-6">
+      <Tabs defaultValue="salary-payout" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="payslips" className="flex items-center gap-2">
+          <TabsTrigger value="salary-payout" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
-            Payslip Management
+            Salary Payout
           </TabsTrigger>
           <TabsTrigger value="compliance" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Compliance Reports
+            Compliance
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="payslips" className="space-y-6">
-          {/* Header Section */}
+        <TabsContent value="salary-payout" className="space-y-6">
+          {/* Salary Payout Section */}
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Payslip Management</CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">Generate, manage and download employee payslips</p>
+                  <CardTitle>Salary Payout</CardTitle>
+                  <p className="text-sm text-gray-600 mt-1">Employee compensation and compliance management</p>
                 </div>
-                <Button 
-                  onClick={() => setShowGenerateDialog(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Generate Payslip
-                </Button>
               </div>
             </CardHeader>
           </Card>
 
-          {/* Payslips Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Generated Payslips ({payslips?.length || 0})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payslips && payslips.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Employee</TableHead>
-                        <TableHead>Employee ID</TableHead>
-                        <TableHead>Month/Year</TableHead>
-                        <TableHead>Department</TableHead>
-                        <TableHead>Gross Salary</TableHead>
-                        <TableHead>Net Salary</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Payment Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+          {/* Sub-tabs for Salary Payout */}
+          <Tabs defaultValue="payslips" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="payslips">Payslips</TabsTrigger>
+              <TabsTrigger value="salary-register">Salary Register</TabsTrigger>
+              <TabsTrigger value="salary-summary">Salary Summary</TabsTrigger>
+              <TabsTrigger value="salary-adjustments">Salary Adjustments</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="payslips" className="space-y-4">
+              {/* Employee Payslips Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Employee Payslips
+                      </CardTitle>
+                    </div>
+                    <Button 
+                      onClick={() => setShowGenerateDialog(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Generate Payslips
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {payslips && payslips.length > 0 ? (
+                    <div className="space-y-4">
                       {payslips.map((payslip) => (
-                        <TableRow key={payslip.id}>
-                          <TableCell className="font-medium">
-                            {payslip.employees?.name}
-                          </TableCell>
-                          <TableCell>{payslip.employees?.employee_id}</TableCell>
-                          <TableCell>
-                            {new Date(payslip.month_year).toLocaleDateString('en-US', { 
-                              month: 'long', 
-                              year: 'numeric' 
-                            })}
-                          </TableCell>
-                          <TableCell>{payslip.employees?.department}</TableCell>
-                          <TableCell>₹{payslip.total_earnings?.toLocaleString()}</TableCell>
-                          <TableCell className="font-semibold text-green-600">
-                            ₹{payslip.net_salary?.toLocaleString()}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(payslip.status)}</TableCell>
-                          <TableCell>{getPaymentStatusBadge(payslip.payment_status || 'PENDING')}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
+                        <div key={payslip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-lg">{payslip.employees?.name}</h3>
+                              <p className="text-sm text-gray-600">
+                                {new Date(payslip.month_year).toLocaleDateString('en-US', { 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                              <div className="flex gap-4 text-sm">
+                                <span>Gross: ₹{payslip.total_earnings?.toLocaleString()}</span>
+                                <span>Net: ₹{payslip.net_salary?.toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(payslip.status)}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -164,32 +168,69 @@ export default function Payroll() {
                                 className="h-8"
                               >
                                 <Download className="h-3 w-3 mr-1" />
-                                PDF
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8"
-                              >
-                                <Eye className="h-3 w-3 mr-1" />
-                                View
+                                Download
                               </Button>
                             </div>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No payslips generated yet</p>
-                  <p className="text-sm">Click "Generate Payslip" to create your first payslip</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No payslips generated yet</p>
+                      <p className="text-sm">Click "Generate Payslips" to create your first payslip</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="salary-register">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Salary Register</CardTitle>
+                  <p className="text-sm text-gray-600">Complete salary register for all employees</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Salary register coming soon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="salary-summary">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Salary Summary</CardTitle>
+                  <p className="text-sm text-gray-600">Monthly salary summary and analytics</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-gray-500">
+                    <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Salary summary coming soon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="salary-adjustments">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Salary Adjustments</CardTitle>
+                  <p className="text-sm text-gray-600">Manage salary adjustments and corrections</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Salary adjustments coming soon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="compliance">
@@ -280,6 +321,7 @@ export default function Payroll() {
       <PayslipGenerationDialog
         open={showGenerateDialog}
         onOpenChange={setShowGenerateDialog}
+        onSuccess={() => refetchPayslips()}
       />
     </div>
   );

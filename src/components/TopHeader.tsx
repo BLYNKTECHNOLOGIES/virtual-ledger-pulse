@@ -39,7 +39,6 @@ export function TopHeader() {
               <div>
                 <p className="font-medium">{user?.username}</p>
                 <p className="text-sm text-gray-500">{user?.email}</p>
-                <p className="text-xs text-gray-400">{user?.role}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

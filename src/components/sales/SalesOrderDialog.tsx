@@ -15,7 +15,7 @@ import { FileUpload } from "./FileUpload";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { WarehouseSelector } from "@/components/stock/WarehouseSelector";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 interface SalesOrderDialogProps {
   open: boolean;

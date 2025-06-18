@@ -1327,6 +1327,62 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          role_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          permission: Database["public"]["Enums"]["app_permission"]
+          role_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          permission?: Database["public"]["Enums"]["app_permission"]
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_system_role: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_system_role?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sales_order_items: {
         Row: {
           created_at: string
@@ -1729,6 +1785,38 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouse_stock_movements: {
         Row: {
           created_at: string
@@ -1823,9 +1911,36 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_permissions: {
+        Args: { username: string }
+        Returns: {
+          permission: Database["public"]["Enums"]["app_permission"]
+        }[]
+      }
+      user_has_permission: {
+        Args: {
+          username: string
+          check_permission: Database["public"]["Enums"]["app_permission"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_permission:
+        | "view_dashboard"
+        | "view_sales"
+        | "view_purchase"
+        | "view_bams"
+        | "view_clients"
+        | "view_leads"
+        | "view_user_management"
+        | "view_hrms"
+        | "view_payroll"
+        | "view_compliance"
+        | "view_stock_management"
+        | "view_accounting"
+        | "manage_users"
+        | "manage_roles"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1940,6 +2055,23 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_permission: [
+        "view_dashboard",
+        "view_sales",
+        "view_purchase",
+        "view_bams",
+        "view_clients",
+        "view_leads",
+        "view_user_management",
+        "view_hrms",
+        "view_payroll",
+        "view_compliance",
+        "view_stock_management",
+        "view_accounting",
+        "manage_users",
+        "manage_roles",
+      ],
+    },
   },
 } as const

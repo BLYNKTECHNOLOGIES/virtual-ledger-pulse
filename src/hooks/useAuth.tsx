@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
@@ -8,6 +9,7 @@ interface User {
   role: string;
   status: string;
   created: string;
+  permissions?: string[];
 }
 
 interface AuthContextType {
@@ -19,6 +21,7 @@ interface AuthContextType {
   addUser: (userData: Omit<User, 'id' | 'created'>) => void;
   updateUser: (id: string, userData: Partial<User>) => void;
   deleteUser: (id: string) => void;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,9 +78,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for stored authentication on app load
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      // Fetch user permissions from Supabase
+      fetchUserPermissions(userData.username);
     }
   }, []);
+
+  const fetchUserPermissions = async (username: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_user_permissions', { username });
+
+      if (error) {
+        console.error('Error fetching user permissions:', error);
+        return;
+      }
+
+      // Update user with permissions
+      setUser(prev => prev ? {
+        ...prev,
+        permissions: data?.map((item: any) => item.permission) || []
+      } : null);
+    } catch (error) {
+      console.error('Error fetching user permissions:', error);
+    }
+  };
 
   const login = async (credentials: { username: string; password: string }) => {
     // Simulate authentication - replace with actual auth logic
@@ -87,6 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // In a real app, you'd verify the password here
       setUser(foundUser);
       localStorage.setItem('currentUser', JSON.stringify(foundUser));
+      
+      // Fetch user permissions
+      await fetchUserPermissions(foundUser.username);
     } else {
       throw new Error("Invalid username or password");
     }
@@ -116,6 +145,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUsers(prev => prev.filter(user => user.id !== id));
   };
 
+  const hasPermission = (permission: string): boolean => {
+    if (!user) return false;
+    
+    // Admin users have all permissions
+    if (user.role === 'Admin') return true;
+    
+    // Check specific permissions
+    return user.permissions?.includes(permission) || false;
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -124,7 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     users,
     addUser,
     updateUser,
-    deleteUser
+    deleteUser,
+    hasPermission
   };
 
   return (

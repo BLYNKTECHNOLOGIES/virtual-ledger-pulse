@@ -165,6 +165,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       description: "Order has been cancelled and moved to leads for follow-up.",
     });
     setShowPaymentMethodAlert(false);
+    resetForm();
     onOpenChange(false);
   };
 

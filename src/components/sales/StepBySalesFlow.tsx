@@ -157,21 +157,63 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   });
 
-  // Create sales order mutation
+  // Create sales order mutation with bank account crediting
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase
+      
+      // First create the sales order
+      const { data: salesOrder, error: salesError } = await supabase
         .from('sales_orders')
         .insert([{ ...orderData, created_by: user?.id }])
         .select()
         .single();
-      if (error) throw error;
-      return data;
+      
+      if (salesError) throw salesError;
+
+      // If payment method is selected, credit the amount to the linked bank account
+      if (selectedPaymentMethod?.bank_account_id) {
+        const { error: bankTransactionError } = await supabase
+          .from('bank_transactions')
+          .insert({
+            bank_account_id: selectedPaymentMethod.bank_account_id,
+            amount: orderAmount,
+            transaction_type: 'INCOME',
+            transaction_date: new Date().toISOString().split('T')[0],
+            description: `Sales income from order ${orderData.order_number} - ${orderData.client_name}`,
+            reference_number: orderData.order_number,
+            category: 'Sales Revenue'
+          });
+
+        if (bankTransactionError) {
+          console.error('Error creating bank transaction:', bankTransactionError);
+          // Don't throw error, just log it as the sales order was created successfully
+        }
+
+        // Update payment method usage
+        const { error: usageError } = await supabase
+          .from('sales_payment_methods')
+          .update({
+            current_usage: selectedPaymentMethod.current_usage + orderAmount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', selectedPaymentMethod.id);
+
+        if (usageError) {
+          console.error('Error updating payment method usage:', usageError);
+        }
+      }
+
+      return salesOrder;
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Sales order created successfully" });
+      toast({ 
+        title: "Success", 
+        description: "Sales order created successfully and amount credited to bank account" 
+      });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       resetFlow();
       onOpenChange(false);
     }

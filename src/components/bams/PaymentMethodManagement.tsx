@@ -87,12 +87,17 @@ export function PaymentMethodManagement() {
   // Create payment method mutation
   const createMethodMutation = useMutation({
     mutationFn: async (methodData: typeof formData) => {
+      // Validate that bank account is selected
+      if (!methodData.bank_account_id) {
+        throw new Error("Bank account selection is required for all payment methods");
+      }
+
       const { error } = await supabase
         .from('sales_payment_methods')
         .insert({
           type: methodData.type,
           upi_id: methodData.type === "UPI" ? methodData.upi_id : null,
-          bank_account_id: methodData.type === "Bank Account" ? methodData.bank_account_id : null,
+          bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit),
           frequency: methodData.frequency,
@@ -105,7 +110,7 @@ export function PaymentMethodManagement() {
     onSuccess: () => {
       toast({
         title: "Payment Method Created",
-        description: "New payment method has been successfully added.",
+        description: "New payment method has been successfully added and linked to bank account.",
       });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       resetForm();
@@ -123,12 +128,17 @@ export function PaymentMethodManagement() {
   // Update payment method mutation
   const updateMethodMutation = useMutation({
     mutationFn: async (methodData: typeof formData & { id: string }) => {
+      // Validate that bank account is selected
+      if (!methodData.bank_account_id) {
+        throw new Error("Bank account selection is required for all payment methods");
+      }
+
       const { error } = await supabase
         .from('sales_payment_methods')
         .update({
           type: methodData.type,
           upi_id: methodData.type === "UPI" ? methodData.upi_id : null,
-          bank_account_id: methodData.type === "Bank Account" ? methodData.bank_account_id : null,
+          bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit),
           frequency: methodData.frequency,
@@ -161,6 +171,25 @@ export function PaymentMethodManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Additional validation
+    if (!formData.bank_account_id) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a bank account. All payment methods must be linked to a bank account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.type === "UPI" && !formData.upi_id.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "UPI ID is required for UPI payment methods.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (editingMethod) {
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
@@ -213,7 +242,7 @@ export function PaymentMethodManagement() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Sales Payment Methods</h2>
-          <p className="text-gray-600">Manage UPI and bank account payment methods with risk categories for sales</p>
+          <p className="text-gray-600">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
@@ -234,27 +263,13 @@ export function PaymentMethodManagement() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="type">Payment Type *</Label>
-                  <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Account") => 
-                    setFormData(prev => ({ ...prev, type: value, upi_id: "", bank_account_id: "" }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="UPI">UPI</SelectItem>
-                      <SelectItem value="Bank Account">Bank Account</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
                   <Label htmlFor="bank_account_id">Select Bank Account *</Label>
-                  <Select value={formData.bank_account_id} onValueChange={(value) => 
-                    setFormData(prev => ({ ...prev, bank_account_id: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select bank account" />
+                  <Select 
+                    value={formData.bank_account_id} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
+                  >
+                    <SelectTrigger className={!formData.bank_account_id ? "border-red-300" : ""}>
+                      <SelectValue placeholder="Select bank account (Required)" />
                     </SelectTrigger>
                     <SelectContent>
                       {bankAccounts?.map((account) => (
@@ -269,6 +284,24 @@ export function PaymentMethodManagement() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-gray-600 mt-1">
+                    All sales through this method will be credited to this bank account
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="type">Payment Type *</Label>
+                  <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Account") => 
+                    setFormData(prev => ({ ...prev, type: value, upi_id: "" }))
+                  }>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                      <SelectItem value="Bank Account">Bank Account</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {formData.type === "UPI" && (
@@ -279,7 +312,7 @@ export function PaymentMethodManagement() {
                       value={formData.upi_id}
                       onChange={(e) => setFormData(prev => ({ ...prev, upi_id: e.target.value }))}
                       placeholder="user@paytm"
-                      required={formData.type === "UPI"}
+                      className={formData.type === "UPI" && !formData.upi_id.trim() ? "border-red-300" : ""}
                     />
                   </div>
                 )}
@@ -355,6 +388,12 @@ export function PaymentMethodManagement() {
                 <Label htmlFor="is_active">Active Payment Method</Label>
               </div>
 
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> All sales transactions through this payment method will be automatically credited to the selected bank account. This ensures proper financial tracking and reconciliation.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
@@ -387,6 +426,7 @@ export function PaymentMethodManagement() {
                 <TableRow>
                   <TableHead>Type</TableHead>
                   <TableHead>Payment Details</TableHead>
+                  <TableHead>Linked Bank Account</TableHead>
                   <TableHead>Risk Category</TableHead>
                   <TableHead>Limit</TableHead>
                   <TableHead>Usage</TableHead>
@@ -412,21 +452,26 @@ export function PaymentMethodManagement() {
                       {method.type === "UPI" ? (
                         <div className="flex flex-col">
                           <span className="font-medium">{method.upi_id}</span>
-                          {method.bank_accounts && (
-                            <span className="text-sm text-gray-500">
-                              via {method.bank_accounts.account_name}
-                            </span>
-                          )}
                         </div>
                       ) : (
-                        method.bank_accounts ? 
-                          <div className="flex flex-col">
-                            <span className="font-medium">{method.bank_accounts.account_name}</span>
-                            <span className="text-sm text-gray-500">
-                              {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
-                            </span>
-                          </div> : 
-                          "Bank account not found"
+                        <div className="flex flex-col">
+                          <span className="font-medium">Bank Transfer</span>
+                          <span className="text-sm text-gray-500">
+                            Direct bank account payment
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {method.bank_accounts ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{method.bank_accounts.account_name}</span>
+                          <span className="text-sm text-gray-500">
+                            {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant="destructive">No Bank Account Linked</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -464,7 +509,7 @@ export function PaymentMethodManagement() {
                 ))}
                 {paymentMethods?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                       No payment methods found. Add your first payment method to get started.
                     </TableCell>
                   </TableRow>

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,7 @@ const indianStates = [
 
 export function LienCaseTrackingTab() {
   const [showNewLienDialog, setShowNewLienDialog] = useState(false);
-  const [selectedBankFilter, setSelectedBankFilter] = useState<string>("");
+  const [selectedBankFilter, setSelectedBankFilter] = useState<string>("placeholder");
   const [newLien, setNewLien] = useState({
     bank_account_id: "",
     date_imposed: "",
@@ -75,8 +74,8 @@ export function LienCaseTrackingTab() {
         
         const lienData = data || [];
         
-        // Filter on the client side if a bank filter is selected
-        if (selectedBankFilter && lienData.length > 0) {
+        // Filter on the client side if a bank filter is selected and it's not the placeholder
+        if (selectedBankFilter && selectedBankFilter !== "placeholder" && lienData.length > 0) {
           return lienData.filter(lien => 
             lien.bank_accounts?.bank_name === selectedBankFilter
           );
@@ -176,19 +175,23 @@ export function LienCaseTrackingTab() {
                   <SelectValue placeholder="Filter by bank" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Banks</SelectItem>
-                  {uniqueBankNames.map((bankName) => (
-                    <SelectItem key={bankName} value={bankName}>
-                      {bankName}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="placeholder" disabled>
+                    Select a bank
+                  </SelectItem>
+                  {uniqueBankNames
+                    .filter(bankName => bankName && bankName.trim() !== "")
+                    .map((bankName) => (
+                      <SelectItem key={bankName} value={bankName}>
+                        {bankName}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
-              {selectedBankFilter && (
+              {selectedBankFilter && selectedBankFilter !== "placeholder" && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedBankFilter("")}
+                  onClick={() => setSelectedBankFilter("placeholder")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -352,7 +355,7 @@ export function LienCaseTrackingTab() {
           
           {(!lienCases || lienCases.length === 0) && (
             <div className="text-center py-8 text-gray-500">
-              No lien cases found. {selectedBankFilter && "Try removing the bank filter or"} Report your first lien case to get started.
+              No lien cases found. {selectedBankFilter && selectedBankFilter !== "placeholder" && "Try removing the bank filter or"} Report your first lien case to get started.
             </div>
           )}
         </div>

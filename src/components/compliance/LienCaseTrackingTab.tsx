@@ -37,58 +37,80 @@ export function LienCaseTrackingTab() {
   });
   const { toast } = useToast();
 
-  // Fetch bank accounts
+  // Fetch bank accounts with error handling
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .order('bank_name');
-      if (error) throw error;
-      return data;
+      try {
+        const { data, error } = await supabase
+          .from('bank_accounts')
+          .select('*')
+          .order('bank_name');
+        if (error) {
+          console.error('Error fetching bank accounts:', error);
+          throw error;
+        }
+        return data || [];
+      } catch (error) {
+        console.error('Query error:', error);
+        return [];
+      }
     },
   });
 
-  // Fetch lien cases with proper filtering
+  // Fetch lien cases with comprehensive error handling
   const { data: lienCases, refetch: refetchLiens } = useQuery({
     queryKey: ['lien_cases', selectedBankFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('lien_cases')
-        .select('*, bank_accounts(bank_name, account_name)')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('lien_cases')
+          .select('*, bank_accounts(bank_name, account_name)')
+          .order('created_at', { ascending: false });
 
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      // Filter on the client side if a bank filter is selected
-      if (selectedBankFilter && data) {
-        return data.filter(lien => 
-          lien.bank_accounts?.bank_name === selectedBankFilter
-        );
+        if (error) {
+          console.error('Error fetching lien cases:', error);
+          throw error;
+        }
+        
+        const lienData = data || [];
+        
+        // Filter on the client side if a bank filter is selected
+        if (selectedBankFilter && lienData.length > 0) {
+          return lienData.filter(lien => 
+            lien.bank_accounts?.bank_name === selectedBankFilter
+          );
+        }
+        
+        return lienData;
+      } catch (error) {
+        console.error('Lien cases query error:', error);
+        return [];
       }
-      
-      return data || [];
     },
   });
 
-  // Get unique bank names for filter
-  const uniqueBankNames = Array.from(new Set(bankAccounts?.map(account => account.bank_name) || []));
+  // Get unique bank names for filter with safe fallback
+  const uniqueBankNames = Array.from(new Set((bankAccounts || []).map(account => account.bank_name).filter(Boolean)));
 
   const generateLienNumber = async () => {
-    const { data, error } = await supabase
-      .from('lien_cases')
-      .select('lien_number')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    try {
+      const { data, error } = await supabase
+        .from('lien_cases')
+        .select('lien_number')
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-    if (error) return "LIEN-0001";
+      if (error) return "LIEN-0001";
 
-    if (!data || data.length === 0) return "LIEN-0001";
+      if (!data || data.length === 0) return "LIEN-0001";
 
-    const lastNumber = parseInt(data[0].lien_number.split('-')[1]) || 0;
-    return `LIEN-${String(lastNumber + 1).padStart(4, '0')}`;
+      const lastNumber = parseInt(data[0].lien_number.split('-')[1]) || 0;
+      return `LIEN-${String(lastNumber + 1).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating lien number:', error);
+      return "LIEN-0001";
+    }
   };
 
   const handleReportLien = async (e: React.FormEvent) => {
@@ -129,6 +151,7 @@ export function LienCaseTrackingTab() {
       setShowNewLienDialog(false);
       refetchLiens();
     } catch (error) {
+      console.error('Error reporting lien:', error);
       toast({
         title: "Error",
         description: "Failed to report lien",
@@ -195,7 +218,7 @@ export function LienCaseTrackingTab() {
                           <SelectValue placeholder="Select bank account" />
                         </SelectTrigger>
                         <SelectContent>
-                          {bankAccounts?.map((account) => (
+                          {(bankAccounts || []).map((account) => (
                             <SelectItem key={account.id} value={account.id}>
                               {account.bank_name} - {account.account_name}
                             </SelectItem>
@@ -286,7 +309,7 @@ export function LienCaseTrackingTab() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {lienCases?.map((lien) => (
+          {(lienCases || []).map((lien) => (
             <div key={lien.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
               <div className="flex justify-between items-start mb-2">
                 <div>
@@ -326,6 +349,12 @@ export function LienCaseTrackingTab() {
               </div>
             </div>
           ))}
+          
+          {(!lienCases || lienCases.length === 0) && (
+            <div className="text-center py-8 text-gray-500">
+              No lien cases found. {selectedBankFilter && "Try removing the bank filter or"} Report your first lien case to get started.
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -6,6 +6,7 @@ import { Building2, Scale, Receipt } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
 import { TaxationComplianceTab } from "@/components/compliance/TaxationComplianceTab";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function Compliance() {
   return (
@@ -15,34 +16,42 @@ export default function Compliance() {
         <p className="text-gray-600 mt-2">Manage banking, legal, and taxation compliance</p>
       </div>
 
-      <Tabs defaultValue="banking" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="banking" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Banking Compliance
-          </TabsTrigger>
-          <TabsTrigger value="legal" className="flex items-center gap-2">
-            <Scale className="h-4 w-4" />
-            Legal Compliance
-          </TabsTrigger>
-          <TabsTrigger value="taxation" className="flex items-center gap-2">
-            <Receipt className="h-4 w-4" />
-            Taxation Compliance
-          </TabsTrigger>
-        </TabsList>
+      <ErrorBoundary>
+        <Tabs defaultValue="banking" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="banking" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Banking Compliance
+            </TabsTrigger>
+            <TabsTrigger value="legal" className="flex items-center gap-2">
+              <Scale className="h-4 w-4" />
+              Legal Compliance
+            </TabsTrigger>
+            <TabsTrigger value="taxation" className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Taxation Compliance
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="banking">
-          <BankingComplianceTab />
-        </TabsContent>
+          <TabsContent value="banking">
+            <ErrorBoundary>
+              <BankingComplianceTab />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="legal">
-          <LegalComplianceTab />
-        </TabsContent>
+          <TabsContent value="legal">
+            <ErrorBoundary>
+              <LegalComplianceTab />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="taxation">
-          <TaxationComplianceTab />
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="taxation">
+            <ErrorBoundary>
+              <TaxationComplianceTab />
+            </ErrorBoundary>
+          </TabsContent>
+        </Tabs>
+      </ErrorBoundary>
     </div>
   );
 }

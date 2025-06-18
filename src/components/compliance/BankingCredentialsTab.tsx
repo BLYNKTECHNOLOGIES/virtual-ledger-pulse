@@ -76,50 +76,68 @@ export function BankingCredentialsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch bank accounts for dropdown
+  // Fetch bank accounts for dropdown with error handling
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts_dropdown'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('id, account_name, bank_name, account_number')
-        .eq('status', 'ACTIVE')
-        .order('account_name');
-      if (error) throw error;
-      return data as BankAccount[];
+      try {
+        const { data, error } = await supabase
+          .from('bank_accounts')
+          .select('id, account_name, bank_name, account_number')
+          .eq('status', 'ACTIVE')
+          .order('account_name');
+        if (error) {
+          console.error('Error fetching bank accounts:', error);
+          throw error;
+        }
+        return (data || []) as BankAccount[];
+      } catch (error) {
+        console.error('Bank accounts query error:', error);
+        return [];
+      }
     },
   });
 
-  // Get unique bank names for filter
-  const uniqueBankNames = Array.from(new Set(bankAccounts?.map(account => account.bank_name) || []));
+  // Get unique bank names for filter with safe fallback
+  const uniqueBankNames = Array.from(new Set((bankAccounts || []).map(account => account.bank_name).filter(Boolean)));
 
-  // Fetch banking credentials with bank account details
+  // Fetch banking credentials with bank account details and error handling
   const { data: credentials, isLoading } = useQuery({
     queryKey: ['banking_credentials', selectedBankFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('banking_credentials')
-        .select('*, bank_accounts(*)')
-        .order('created_at', { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from('banking_credentials')
+          .select('*, bank_accounts(*)')
+          .order('created_at', { ascending: false });
 
-      if (selectedBankFilter) {
-        query = query.eq('bank_accounts.bank_name', selectedBankFilter);
+        if (error) {
+          console.error('Error fetching banking credentials:', error);
+          throw error;
+        }
+        
+        const credentialsData = (data ?? []).map((item) => ({
+          ...item,
+          security_questions: Array.isArray(item.security_questions)
+            ? (item.security_questions as any[]).map((q) => ({
+                question: q.question,
+                answer: q.answer,
+              }))
+            : [],
+        })) as BankingCredential[];
+        
+        // Filter by bank if selected
+        if (selectedBankFilter && credentialsData.length > 0) {
+          return credentialsData.filter(credential => 
+            credential.bank_accounts?.bank_name === selectedBankFilter
+          );
+        }
+        
+        return credentialsData;
+      } catch (error) {
+        console.error('Banking credentials query error:', error);
+        return [];
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      const credentials: BankingCredential[] = (data ?? []).map((item) => ({
-        ...item,
-        security_questions: Array.isArray(item.security_questions)
-          ? (item.security_questions as any[]).map((q) => ({
-              question: q.question,
-              answer: q.answer,
-            }))
-          : [],
-      }));
-      
-      return credentials;
     },
   });
 
@@ -567,7 +585,7 @@ export function BankingCredentialsTab() {
         <div className="text-center py-8">Loading banking credentials...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {credentials?.map((credential) => (
+          {(credentials || []).map((credential) => (
             <Card key={credential.id} className="relative">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -650,9 +668,9 @@ export function BankingCredentialsTab() {
             </Card>
           ))}
           
-          {credentials?.length === 0 && (
+          {(!credentials || credentials.length === 0) && (
             <div className="col-span-full text-center py-8 text-gray-500">
-              No banking credentials found. Add your first credential to get started.
+              No banking credentials found. {selectedBankFilter && "Try removing the bank filter or"} Add your first credential to get started.
             </div>
           )}
         </div>

@@ -25,13 +25,19 @@ export function RoleManagement() {
 
   const fetchRoles = async () => {
     try {
+      console.log('Fetching roles...');
       // Fetch roles with their permissions
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError);
+        throw rolesError;
+      }
+
+      console.log('Roles data:', rolesData);
 
       // Fetch permissions for each role
       const rolesWithPermissions = await Promise.all(
@@ -41,7 +47,10 @@ export function RoleManagement() {
             .select('permission')
             .eq('role_id', role.id);
 
-          if (permError) throw permError;
+          if (permError) {
+            console.error('Error fetching permissions for role:', role.id, permError);
+            throw permError;
+          }
 
           return {
             ...role,
@@ -50,8 +59,10 @@ export function RoleManagement() {
         })
       );
 
+      console.log('Roles with permissions:', rolesWithPermissions);
       setRoles(rolesWithPermissions);
     } catch (error: any) {
+      console.error('Error in fetchRoles:', error);
       toast({
         title: "Error",
         description: "Failed to fetch roles",

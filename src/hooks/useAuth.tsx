@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,6 +30,7 @@ interface AuthContextType {
   userHasPermission: (permission: string) => boolean;
   refreshUserPermissions: () => Promise<void>;
   refreshUsers: () => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +38,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored authentication on app load
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUsers = async () => {
     try {
+      console.log('Fetching users from database...');
       const { data: usersData, error } = await supabase
         .from('users')
         .select(`
@@ -69,10 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+
+      console.log('Users fetched:', usersData);
 
       // Transform the data to match the expected User interface
-      const transformedUsers = usersData.map(userData => ({
+      const transformedUsers = usersData?.map(userData => ({
         id: userData.id,
         username: userData.username,
         email: userData.email,
@@ -81,12 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: userData.phone,
         status: userData.status,
         created_at: new Date(userData.created_at).toLocaleDateString('en-GB'),
-        role: 'User' // Default role, will be updated with actual roles
-      }));
+      })) || [];
 
+      console.log('Transformed users:', transformedUsers);
       setUsers(transformedUsers);
     } catch (error: any) {
       console.error('Error fetching users:', error);
+      setUsers([]); // Set empty array on error
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -253,7 +263,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     deleteUser,
     userHasPermission,
     refreshUserPermissions,
-    refreshUsers
+    refreshUsers,
+    loading
   };
 
   return (

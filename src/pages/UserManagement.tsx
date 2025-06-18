@@ -26,7 +26,7 @@ interface PendingRegistration {
 }
 
 export default function UserManagement() {
-  const { users, deleteUser, refreshUsers } = useAuth();
+  const { users, deleteUser, refreshUsers, loading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,17 +41,24 @@ export default function UserManagement() {
   const { data: pendingRegistrations, refetch: refetchPendingRegistrations } = useQuery({
     queryKey: ['pending_registrations'],
     queryFn: async () => {
+      console.log('Fetching pending registrations...');
       const { data, error } = await supabase
         .from('pending_registrations')
         .select('*')
         .order('submitted_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pending registrations:', error);
+        throw error;
+      }
+      
+      console.log('Pending registrations:', data);
       return data as PendingRegistration[];
     },
   });
 
   useEffect(() => {
+    console.log('UserManagement mounted, refreshing users...');
     refreshUsers();
   }, []);
 
@@ -84,6 +91,7 @@ export default function UserManagement() {
 
   const handleApproveRegistration = useCallback(async (registrationId: string) => {
     try {
+      console.log('Approving registration:', registrationId);
       const { error } = await supabase.rpc('approve_registration', {
         registration_id: registrationId
       });
@@ -98,6 +106,7 @@ export default function UserManagement() {
       refetchPendingRegistrations();
       refreshUsers();
     } catch (error: any) {
+      console.error('Error approving registration:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to approve registration",
@@ -108,6 +117,7 @@ export default function UserManagement() {
 
   const handleRejectRegistration = useCallback(async (registrationId: string, reason?: string) => {
     try {
+      console.log('Rejecting registration:', registrationId, 'Reason:', reason);
       const { error } = await supabase.rpc('reject_registration', {
         registration_id: registrationId,
         reason: reason
@@ -122,6 +132,7 @@ export default function UserManagement() {
 
       refetchPendingRegistrations();
     } catch (error: any) {
+      console.error('Error rejecting registration:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to reject registration",
@@ -135,6 +146,14 @@ export default function UserManagement() {
     [pendingRegistrations]
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -144,7 +163,9 @@ export default function UserManagement() {
 
       <OptimizedTabs defaultValue="users" className="space-y-6">
         <OptimizedTabsList>
-          <OptimizedTabsTrigger value="users">Users</OptimizedTabsTrigger>
+          <OptimizedTabsTrigger value="users">
+            Users ({users.length})
+          </OptimizedTabsTrigger>
           <OptimizedTabsTrigger value="approvals" className="relative">
             Approvals
             {pendingCount > 0 && (

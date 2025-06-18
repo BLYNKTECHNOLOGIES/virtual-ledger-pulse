@@ -36,6 +36,7 @@ export default function Sales() {
   const [activeTab, setActiveTab] = useState("pending");
   const [alternativeMethodDialog, setAlternativeMethodDialog] = useState<any>(null);
   const [stepFlowMode, setStepFlowMode] = useState<'normal' | 'alternative-same-type' | 'alternative-change-type'>('normal');
+  const [selectedAlternativeMethod, setSelectedAlternativeMethod] = useState<any>(null);
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
@@ -98,67 +99,33 @@ export default function Sales() {
         .eq('risk_category', currentPaymentMethod.risk_category)
         .neq('id', currentPaymentMethod.id);
 
-      if (!allAlternativeMethods || allAlternativeMethods.length === 0) {
-        // Check if there are methods of different types available
-        const { data: differentTypeMethods } = await supabase
-          .from('sales_payment_methods')
-          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-          .eq('is_active', true)
-          .eq('risk_category', currentPaymentMethod.risk_category)
-          .neq('type', currentPaymentMethod.type);
-
-        if (!differentTypeMethods || differentTypeMethods.length === 0) {
-          throw new Error('No alternative payment methods available for this risk category. Contact your admin.');
-        }
-        
-        // Show dialog asking if they want to change payment method type
-        setAlternativeMethodDialog({
-          order,
-          currentPaymentMethod,
-          differentTypeMethods: differentTypeMethods.filter(method => 
-            (method.current_usage || 0) < method.payment_limit
-          )
-        });
-        return null;
-      }
-
       // Filter methods that have available capacity
-      const availableMethods = allAlternativeMethods.filter(method => 
+      const availableSameMethods = allAlternativeMethods?.filter(method => 
         (method.current_usage || 0) < method.payment_limit
-      );
+      ) || [];
 
-      if (availableMethods.length === 0) {
-        // Check if there are methods of different types available
-        const { data: differentTypeMethods } = await supabase
-          .from('sales_payment_methods')
-          .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
-          .eq('is_active', true)
-          .eq('risk_category', currentPaymentMethod.risk_category)
-          .neq('type', currentPaymentMethod.type);
+      // Find alternative payment methods of different types
+      const { data: differentTypeMethods } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+        .eq('is_active', true)
+        .eq('risk_category', currentPaymentMethod.risk_category)
+        .neq('type', currentPaymentMethod.type);
 
-        const availableDifferentTypes = differentTypeMethods?.filter(method => 
-          (method.current_usage || 0) < method.payment_limit
-        ) || [];
+      const availableDifferentMethods = differentTypeMethods?.filter(method => 
+        (method.current_usage || 0) < method.payment_limit
+      ) || [];
 
-        if (availableDifferentTypes.length === 0) {
-          throw new Error('All possible payment methods have been provided. No available methods left. Contact your admin.');
-        }
-
-        // Show dialog asking if they want to change payment method type
-        setAlternativeMethodDialog({
-          order,
-          currentPaymentMethod,
-          differentTypeMethods: availableDifferentTypes
-        });
-        return null;
+      if (availableSameMethods.length === 0 && availableDifferentMethods.length === 0) {
+        throw new Error('All possible payment methods have been provided. No available methods left. Contact your admin.');
       }
 
-      // Show dialog asking if they want to change payment method type or keep same type
+      // Show dialog asking if they want to change payment method type
       setAlternativeMethodDialog({
         order,
         currentPaymentMethod,
-        availableSameType: availableMethods,
-        differentTypeMethods: []
+        availableSameType: availableSameMethods,
+        differentTypeMethods: availableDifferentMethods
       });
       return null;
     },
@@ -171,13 +138,55 @@ export default function Sales() {
     }
   });
 
-  const handleAlternativeMethodChoice = (choice: 'same-type' | 'change-type') => {
+  const handleAlternativeMethodChoice = async (choice: 'same-type' | 'change-type') => {
     if (!alternativeMethodDialog) return;
 
-    if (choice === 'same-type') {
+    if (choice === 'same-type' && alternativeMethodDialog.availableSameType.length > 0) {
+      // Automatically select the first available method of the same type
+      const selectedMethod = alternativeMethodDialog.availableSameType[0];
+      
+      // Update the order with the new payment method
+      const { error } = await supabase
+        .from('sales_orders')
+        .update({
+          sales_payment_method_id: selectedMethod.id,
+          status: 'AWAITING_PAYMENT',
+          payment_status: 'PENDING',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', alternativeMethodDialog.order.id);
+
+      if (error) {
+        toast({ 
+          title: "Error", 
+          description: "Failed to update order with alternative payment method", 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Update payment method usage
+      await supabase
+        .from('sales_payment_methods')
+        .update({
+          current_usage: (selectedMethod.current_usage || 0) + alternativeMethodDialog.order.total_amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedMethod.id);
+
+      // Set the selected method for the dialog
+      setSelectedAlternativeMethod(selectedMethod);
+      
       // Open step-by-step flow in alternative mode (goes to step 4 directly)
       setStepFlowMode('alternative-same-type');
       setShowStepByStepFlow(true);
+      
+      toast({ 
+        title: "Success", 
+        description: "Alternative payment method assigned successfully" 
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
     } else {
       // Open step-by-step flow to change payment method type (goes to step 3)
       setStepFlowMode('alternative-change-type');
@@ -191,6 +200,7 @@ export default function Sales() {
     setShowStepByStepFlow(false);
     setStepFlowMode('normal');
     setAlternativeMethodDialog(null);
+    setSelectedAlternativeMethod(null);
   };
 
   // Move to leads mutation
@@ -808,6 +818,7 @@ export default function Sales() {
         onOpenChange={handleStepFlowClose}
         mode={stepFlowMode}
         alternativeOrderData={alternativeMethodDialog}
+        selectedAlternativeMethod={selectedAlternativeMethod}
       />
 
       {/* Details Dialog */}

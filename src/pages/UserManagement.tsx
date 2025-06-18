@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,39 +13,62 @@ import { RoleManagement } from "@/components/roles/RoleManagement";
 import { useToast } from "@/hooks/use-toast";
 
 export default function UserManagement() {
-  const { users, deleteUser } = useAuth();
+  const { users, deleteUser, refreshUsers } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<string>("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+
+  useEffect(() => {
+    refreshUsers();
+  }, []);
 
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getRoleBadge = (role: string) => {
-    return role === "Admin" ? (
-      <Badge className="bg-blue-100 text-blue-800">Admin</Badge>
-    ) : (
-      <Badge variant="secondary">User</Badge>
-    );
-  };
-
-  const handleDeleteUser = (id: string, username: string) => {
-    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
-      deleteUser(id);
-      toast({
-        title: "Success",
-        description: "User deleted successfully"
-      });
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "ACTIVE":
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+      case "INACTIVE":
+        return <Badge variant="secondary">Inactive</Badge>;
+      case "SUSPENDED":
+        return <Badge className="bg-red-100 text-red-800">Suspended</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const handleManageRoles = (username: string) => {
-    setSelectedUser(username);
+  const handleDeleteUser = async (id: string, username: string) => {
+    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
+      try {
+        await deleteUser(id);
+        toast({
+          title: "Success",
+          description: "User deleted successfully"
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete user",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleManageRoles = (userId: string) => {
+    setSelectedUserId(userId);
     setShowRoleDialog(true);
+  };
+
+  const handleRolesUpdated = () => {
+    refreshUsers();
   };
 
   return (
@@ -100,18 +123,20 @@ export default function UserManagement() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <h3 className="font-semibold text-gray-900 truncate">{user.username}</h3>
-                      {getRoleBadge(user.role)}
+                      {getStatusBadge(user.status)}
                     </div>
                     
                     <div className="space-y-1">
                       <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                      <p className="text-xs text-gray-500">📅 Created: {user.created}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">Status:</span>
-                        <Badge variant={user.status === "Active" ? "default" : "secondary"} className="text-xs">
-                          {user.status}
-                        </Badge>
-                      </div>
+                      {(user.first_name || user.last_name) && (
+                        <p className="text-sm text-gray-600 truncate">
+                          {[user.first_name, user.last_name].filter(Boolean).join(' ')}
+                        </p>
+                      )}
+                      {user.phone && (
+                        <p className="text-xs text-gray-500">📞 {user.phone}</p>
+                      )}
+                      <p className="text-xs text-gray-500">📅 Created: {user.created_at}</p>
                     </div>
 
                     <div className="flex justify-between items-center pt-2 border-t">
@@ -120,7 +145,7 @@ export default function UserManagement() {
                           size="sm" 
                           variant="outline" 
                           className="h-8 px-2"
-                          onClick={() => handleManageRoles(user.username)}
+                          onClick={() => handleManageRoles(user.id)}
                         >
                           <Settings className="h-3 w-3 mr-1" />
                           Roles
@@ -170,9 +195,9 @@ export default function UserManagement() {
       <AssignRoleDialog
         open={showRoleDialog}
         onOpenChange={setShowRoleDialog}
-        username={selectedUser}
+        userId={selectedUserId}
         currentRoles={[]}
-        onRolesUpdated={() => {}}
+        onRolesUpdated={handleRolesUpdated}
       />
     </div>
   );

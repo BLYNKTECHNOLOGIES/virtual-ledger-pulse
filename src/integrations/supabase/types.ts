@@ -266,6 +266,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_verification_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_verification_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_offboarding: {
         Row: {
           assets_returned: boolean | null
@@ -793,6 +828,41 @@ export type Database = {
             columns: ["applicant_id"]
             isOneToOne: false
             referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      password_reset_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token: string
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "password_reset_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1785,6 +1855,91 @@ export type Database = {
           },
         ]
       }
+      user_activity_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          description: string | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preferences: {
+        Row: {
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          notifications_enabled: boolean | null
+          theme: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
@@ -1815,7 +1970,109 @@ export type Database = {
             referencedRelation: "roles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          ip_address: unknown | null
+          is_active: boolean | null
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: unknown | null
+          is_active?: boolean | null
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          account_locked_until: string | null
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          email_verified: boolean | null
+          failed_login_attempts: number | null
+          first_name: string | null
+          id: string
+          last_login: string | null
+          last_name: string | null
+          password_hash: string
+          phone: string | null
+          status: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          account_locked_until?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          email_verified?: boolean | null
+          failed_login_attempts?: number | null
+          first_name?: string | null
+          id?: string
+          last_login?: string | null
+          last_name?: string | null
+          password_hash: string
+          phone?: string | null
+          status?: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          account_locked_until?: string | null
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          email_verified?: boolean | null
+          failed_login_attempts?: number | null
+          first_name?: string | null
+          id?: string
+          last_login?: string | null
+          last_name?: string | null
+          password_hash?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
       }
       warehouse_stock_movements: {
         Row: {
@@ -1917,12 +2174,38 @@ export type Database = {
           permission: Database["public"]["Enums"]["app_permission"]
         }[]
       }
+      get_user_with_roles: {
+        Args: { user_uuid: string }
+        Returns: {
+          user_id: string
+          username: string
+          email: string
+          first_name: string
+          last_name: string
+          phone: string
+          status: string
+          created_at: string
+          roles: Json
+        }[]
+      }
       user_has_permission: {
         Args: {
           username: string
           check_permission: Database["public"]["Enums"]["app_permission"]
         }
         Returns: boolean
+      }
+      validate_user_credentials: {
+        Args: { input_username: string; input_password: string }
+        Returns: {
+          user_id: string
+          username: string
+          email: string
+          first_name: string
+          last_name: string
+          status: string
+          is_valid: boolean
+        }[]
       }
     }
     Enums: {

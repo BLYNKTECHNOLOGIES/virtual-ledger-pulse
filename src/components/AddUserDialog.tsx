@@ -19,11 +19,14 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    role: "User",
-    status: "Active"
+    first_name: "",
+    last_name: "",
+    phone: "",
+    status: "ACTIVE"
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.username || !formData.email) {
@@ -35,19 +38,32 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
       return;
     }
 
-    addUser(formData);
-    toast({
-      title: "Success",
-      description: "User added successfully"
-    });
-    
-    setFormData({
-      username: "",
-      email: "",
-      role: "User",
-      status: "Active"
-    });
-    onOpenChange(false);
+    setIsLoading(true);
+    try {
+      await addUser(formData);
+      toast({
+        title: "Success",
+        description: "User added successfully. Default password is 'password123'",
+      });
+      
+      setFormData({
+        username: "",
+        email: "",
+        first_name: "",
+        last_name: "",
+        phone: "",
+        status: "ACTIVE"
+      });
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add user",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -79,18 +95,37 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
               required
             />
           </div>
-          
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                value={formData.first_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                placeholder="Enter first name"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                value={formData.last_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                placeholder="Enter last name"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => setFormData(prev => ({ ...prev, role: value }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="User">User</SelectItem>
-                <SelectItem value="Admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              placeholder="Enter phone number"
+            />
           </div>
           
           <div className="space-y-2">
@@ -100,8 +135,9 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="INACTIVE">Inactive</SelectItem>
+                <SelectItem value="SUSPENDED">Suspended</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -110,7 +146,9 @@ export function AddUserDialog({ open, onOpenChange }: AddUserDialogProps) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add User</Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Adding..." : "Add User"}
+            </Button>
           </div>
         </form>
       </DialogContent>

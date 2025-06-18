@@ -12,7 +12,7 @@ import { X } from "lucide-react";
 interface AssignRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  username: string;
+  userId: string;
   currentRoles: string[];
   onRolesUpdated: () => void;
 }
@@ -26,7 +26,7 @@ interface Role {
 export function AssignRoleDialog({ 
   open, 
   onOpenChange, 
-  username, 
+  userId, 
   currentRoles, 
   onRolesUpdated 
 }: AssignRoleDialogProps) {
@@ -41,7 +41,7 @@ export function AssignRoleDialog({
       fetchRoles();
       fetchUserRoles();
     }
-  }, [open, username]);
+  }, [open, userId]);
 
   const fetchRoles = async () => {
     try {
@@ -73,7 +73,7 @@ export function AssignRoleDialog({
             description
           )
         `)
-        .eq('user_id', username);
+        .eq('user_id', userId);
 
       if (error) throw error;
       
@@ -96,7 +96,7 @@ export function AssignRoleDialog({
       const { error } = await supabase
         .from('user_roles')
         .insert({
-          user_id: username,
+          user_id: userId,
           role_id: selectedRoleId,
           assigned_by: 'current_user' // You might want to get this from auth context
         });
@@ -127,7 +127,7 @@ export function AssignRoleDialog({
       const { error } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', username)
+        .eq('user_id', userId)
         .eq('role_id', roleId);
 
       if (error) throw error;
@@ -156,7 +156,7 @@ export function AssignRoleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage Roles for {username}</DialogTitle>
+          <DialogTitle>Manage User Roles</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4">

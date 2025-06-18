@@ -6,10 +6,17 @@ interface User {
   id: string;
   username: string;
   email: string;
-  role: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
   status: string;
-  created: string;
+  created_at: string;
   permissions?: string[];
+  roles?: Array<{
+    id: string;
+    name: string;
+    description: string;
+  }>;
 }
 
 interface AuthContextType {
@@ -18,62 +25,19 @@ interface AuthContextType {
   login: (credentials: { username: string; password: string }) => Promise<void>;
   logout: () => void;
   users: User[];
-  addUser: (userData: Omit<User, 'id' | 'created'>) => void;
-  updateUser: (id: string, userData: Partial<User>) => void;
-  deleteUser: (id: string) => void;
+  addUser: (userData: Omit<User, 'id' | 'created_at'>) => Promise<void>;
+  updateUser: (id: string, userData: Partial<User>) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   userHasPermission: (permission: string) => boolean;
   refreshUserPermissions: () => Promise<void>;
+  refreshUsers: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users data - in a real app, this would come from a database
-const mockUsers: User[] = [
-  {
-    id: "1",
-    username: "admin",
-    email: "admin@company.com",
-    role: "Admin",
-    created: "22/5/2025",
-    status: "Active"
-  },
-  {
-    id: "2",
-    username: "architadamle48",
-    email: "architadamle48@gmail.com",
-    role: "User",
-    created: "22/5/2025",
-    status: "Active"
-  },
-  {
-    id: "3",
-    username: "govindyadav",
-    email: "75666govindyadav@gmail.com",
-    role: "User", 
-    created: "13/5/2025",
-    status: "Active"
-  },
-  {
-    id: "4",
-    username: "priyankathakur",
-    email: "priyankathakur3303@gmail.com",
-    role: "User",
-    created: "12/5/2025", 
-    status: "Active"
-  },
-  {
-    id: "5",
-    username: "saxenapriya78",
-    email: "saxenapriya7826@gmail.com",
-    role: "Admin",
-    created: "12/5/2025",
-    status: "Active"
-  }
-];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
     // Check for stored authentication on app load
@@ -84,7 +48,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Load permissions for the user
       refreshUserPermissions(parsedUser.username);
     }
+    
+    // Load all users
+    refreshUsers();
   }, []);
+
+  const refreshUsers = async () => {
+    try {
+      const { data: usersData, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          username,
+          email,
+          first_name,
+          last_name,
+          phone,
+          status,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform the data to match the expected User interface
+      const transformedUsers = usersData.map(userData => ({
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        phone: userData.phone,
+        status: userData.status,
+        created_at: new Date(userData.created_at).toLocaleDateString('en-GB'),
+        role: 'User' // Default role, will be updated with actual roles
+      }));
+
+      setUsers(transformedUsers);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+    }
+  };
 
   const refreshUserPermissions = async (username?: string) => {
     const targetUsername = username || user?.username;
@@ -115,18 +119,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (credentials: { username: string; password: string }) => {
-    // Simulate authentication - replace with actual auth logic
-    const foundUser = users.find(u => u.username === credentials.username);
-    
-    if (foundUser) {
-      // In a real app, you'd verify the password here
-      setUser(foundUser);
-      localStorage.setItem('currentUser', JSON.stringify(foundUser));
-      
-      // Load user permissions from Supabase
-      await refreshUserPermissions(foundUser.username);
-    } else {
-      throw new Error("Invalid username or password");
+    try {
+      const { data, error } = await supabase
+        .rpc('validate_user_credentials', {
+          input_username: credentials.username,
+          input_password: credentials.password
+        });
+
+      if (error) throw error;
+
+      if (data && data.length > 0 && data[0].is_valid) {
+        const userData = data[0];
+        const foundUser: User = {
+          id: userData.user_id,
+          username: userData.username,
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          status: userData.status,
+          created_at: new Date().toLocaleDateString('en-GB')
+        };
+
+        setUser(foundUser);
+        localStorage.setItem('currentUser', JSON.stringify(foundUser));
+        
+        // Load user permissions from Supabase
+        await refreshUserPermissions(foundUser.username);
+
+        // Update last login
+        await supabase
+          .from('users')
+          .update({ last_login: new Date().toISOString() })
+          .eq('id', foundUser.id);
+
+      } else {
+        throw new Error("Invalid username or password");
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(error.message || "Login failed");
     }
   };
 
@@ -135,23 +166,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('currentUser');
   };
 
-  const addUser = (userData: Omit<User, 'id' | 'created'>) => {
-    const newUser: User = {
-      ...userData,
-      id: Date.now().toString(),
-      created: new Date().toLocaleDateString('en-GB')
-    };
-    setUsers(prev => [...prev, newUser]);
+  const addUser = async (userData: Omit<User, 'id' | 'created_at'>) => {
+    try {
+      // Generate a default password (should be changed on first login)
+      const defaultPassword = 'password123';
+      
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          username: userData.username,
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          phone: userData.phone,
+          password_hash: `crypt('${defaultPassword}', gen_salt('bf'))`, // This should use proper password hashing
+          status: userData.status || 'ACTIVE',
+          email_verified: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Refresh users list
+      await refreshUsers();
+    } catch (error: any) {
+      console.error('Error adding user:', error);
+      throw error;
+    }
   };
 
-  const updateUser = (id: string, userData: Partial<User>) => {
-    setUsers(prev => prev.map(user => 
-      user.id === id ? { ...user, ...userData } : user
-    ));
+  const updateUser = async (id: string, userData: Partial<User>) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          username: userData.username,
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          phone: userData.phone,
+          status: userData.status
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh users list
+      await refreshUsers();
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   };
 
-  const deleteUser = (id: string) => {
-    setUsers(prev => prev.filter(user => user.id !== id));
+  const deleteUser = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Refresh users list
+      await refreshUsers();
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
   };
 
   const userHasPermission = (permission: string): boolean => {
@@ -169,7 +252,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUser,
     deleteUser,
     userHasPermission,
-    refreshUserPermissions
+    refreshUserPermissions,
+    refreshUsers
   };
 
   return (

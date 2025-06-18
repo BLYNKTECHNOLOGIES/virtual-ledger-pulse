@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { Layout } from "./components/Layout";
+import { RouteLayout } from "./components/RouteLayout";
 import { lazyLoad } from "./utils/lazyLoad";
 import { usePerformance } from "./hooks/usePerformance";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
@@ -56,25 +56,23 @@ function AppContent() {
   return (
     <BrowserRouter>
       <SidebarProvider>
-        <Layout>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/purchase" element={<Purchase />} />
-              <Route path="/bams" element={<BAMS />} />
-              <Route path="/clients" element={<Clients />} />
-              <Route path="/clients/:clientId" element={<ClientDetail />} />
-              <Route path="/leads" element={<Leads />} />
-              <Route path="/user-management" element={<UserManagement />} />
-              <Route path="/hrms" element={<HRMS />} />
-              <Route path="/payroll" element={<Payroll />} />
-              <Route path="/compliance" element={<Compliance />} />
-              <Route path="/stock" element={<StockManagement />} />
-              <Route path="/accounting" element={<Accounting />} />
-            </Routes>
-          </Suspense>
-        </Layout>
+        <Routes>
+          <Route path="/" element={<RouteLayout />}>
+            <Route index element={<Index />} />
+            <Route path="sales" element={<Sales />} />
+            <Route path="purchase" element={<Purchase />} />
+            <Route path="bams" element={<BAMS />} />
+            <Route path="clients" element={<Clients />} />
+            <Route path="clients/:clientId" element={<ClientDetail />} />
+            <Route path="leads" element={<Leads />} />
+            <Route path="user-management" element={<UserManagement />} />
+            <Route path="hrms" element={<HRMS />} />
+            <Route path="payroll" element={<Payroll />} />
+            <Route path="compliance" element={<Compliance />} />
+            <Route path="stock" element={<StockManagement />} />
+            <Route path="accounting" element={<Accounting />} />
+          </Route>
+        </Routes>
       </SidebarProvider>
     </BrowserRouter>
   );

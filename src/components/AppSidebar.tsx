@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react"
+import { NavLink } from "react-router-dom"
 
 import {
   Sidebar,
@@ -135,10 +136,16 @@ export function AppSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="hover:bg-slate-700/50 data-[active=true]:bg-slate-600 text-slate-200 hover:text-white transition-colors">
-                    <a href={item.url} className="flex items-center gap-3">
+                    <NavLink 
+                      to={item.url} 
+                      end={item.url === "/"}
+                      className={({ isActive }) => 
+                        `flex items-center gap-3 ${isActive ? 'bg-slate-600 text-white font-medium' : ''}`
+                      }
+                    >
                       <item.icon className={`h-5 w-5 ${item.color}`} />
                       {!isCollapsed && <span className="font-medium">{item.title}</span>}
-                    </a>
+                    </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

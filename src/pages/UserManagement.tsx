@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { OptimizedTabs, OptimizedTabsContent, OptimizedTabsList, OptimizedTabsTrigger } from "@/components/ui/optimized-tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { AddUserDialog } from "@/components/AddUserDialog";
@@ -142,21 +142,21 @@ export default function UserManagement() {
         <p className="text-gray-600 mt-1">Manage system users, roles, and permissions</p>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="approvals" className="relative">
+      <OptimizedTabs defaultValue="users" className="space-y-6">
+        <OptimizedTabsList>
+          <OptimizedTabsTrigger value="users">Users</OptimizedTabsTrigger>
+          <OptimizedTabsTrigger value="approvals" className="relative">
             Approvals
             {pendingCount > 0 && (
               <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] h-5">
                 {pendingCount}
               </Badge>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-        </TabsList>
+          </OptimizedTabsTrigger>
+          <OptimizedTabsTrigger value="roles">Roles</OptimizedTabsTrigger>
+        </OptimizedTabsList>
 
-        <TabsContent value="users" className="space-y-6">
+        <OptimizedTabsContent value="users" className="space-y-6" keepMounted>
           <UsersTab
             users={users}
             searchTerm={searchTerm}
@@ -166,20 +166,20 @@ export default function UserManagement() {
             onDeleteUser={handleDeleteUser}
             onManageRoles={handleManageRoles}
           />
-        </TabsContent>
+        </OptimizedTabsContent>
 
-        <TabsContent value="approvals" className="space-y-6">
+        <OptimizedTabsContent value="approvals" className="space-y-6" keepMounted>
           <ApprovalsTab
             registrations={pendingRegistrations || []}
             onApprove={handleApproveRegistration}
             onReject={handleRejectRegistration}
           />
-        </TabsContent>
+        </OptimizedTabsContent>
 
-        <TabsContent value="roles">
+        <OptimizedTabsContent value="roles" keepMounted>
           <RoleManagement />
-        </TabsContent>
-      </Tabs>
+        </OptimizedTabsContent>
+      </OptimizedTabs>
 
       <AddUserDialog 
         open={showAddDialog} 

@@ -16,6 +16,9 @@ import {
   UserPlus,
   PanelLeftClose,
   PanelLeftOpen,
+  Video,
+  Shield,
+  BarChart3,
 } from "lucide-react"
 
 import {
@@ -106,6 +109,24 @@ const items = [
     url: "/accounting",
     icon: BookOpen,
     color: "text-amber-600"
+  },
+  {
+    title: "Video KYC",
+    url: "/video-kyc",
+    icon: Video,
+    color: "text-purple-600"
+  },
+  {
+    title: "KYC Approvals",
+    url: "/kyc-approvals",
+    icon: Shield,
+    color: "text-blue-600"
+  },
+  {
+    title: "Statistics",
+    url: "/statistics",
+    icon: BarChart3,
+    color: "text-green-600"
   },
 ]
 

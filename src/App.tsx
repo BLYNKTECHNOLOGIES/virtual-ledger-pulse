@@ -24,6 +24,9 @@ const Payroll = lazyLoad(() => import("./pages/Payroll"));
 const Compliance = lazyLoad(() => import("./pages/Compliance"));
 const StockManagement = lazyLoad(() => import("./pages/StockManagement"));
 const Accounting = lazyLoad(() => import("./pages/Accounting"));
+const VideoKYC = lazyLoad(() => import("./pages/VideoKYC"));
+const KYCApprovals = lazyLoad(() => import("./pages/KYCApprovals"));
+const Statistics = lazyLoad(() => import("./pages/Statistics"));
 
 // Optimize QueryClient with better defaults
 const queryClient = new QueryClient({
@@ -70,6 +73,9 @@ const App = () => {
                   <Route path="/compliance" element={<Compliance />} />
                   <Route path="/stock" element={<StockManagement />} />
                   <Route path="/accounting" element={<Accounting />} />
+                  <Route path="/video-kyc" element={<VideoKYC />} />
+                  <Route path="/kyc-approvals" element={<KYCApprovals />} />
+                  <Route path="/statistics" element={<Statistics />} />
                 </Routes>
               </Suspense>
             </Layout>

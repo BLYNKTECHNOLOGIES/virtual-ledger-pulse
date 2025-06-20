@@ -2,22 +2,19 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, UserCheck, Trophy, Clock, Receipt, Calendar, Video, Shield, TrendingUp } from "lucide-react";
+import { Users, UserCheck, Trophy, Clock, Receipt, Calendar } from "lucide-react";
 import { RecruitmentTab } from "@/components/hrms/RecruitmentTab";
 import { EmployeeLifecycleTab } from "@/components/hrms/EmployeeLifecycleTab";
 import { PerformanceTab } from "@/components/hrms/PerformanceTab";
 import { ShiftAttendanceTab } from "@/components/hrms/ShiftAttendanceTab";
 import { ClaimExpenseTab } from "@/components/hrms/ClaimExpenseTab";
 import { LeavesTab } from "@/components/hrms/LeavesTab";
-import { VideoKYCTab } from "@/components/hrms/VideoKYCTab";
-import { KYCApprovalsTab } from "@/components/hrms/KYCApprovalsTab";
-import { StatisticsTab } from "@/components/hrms/StatisticsTab";
 
 export default function HRMS() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <Tabs defaultValue="recruitment" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="recruitment" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Recruitment
@@ -41,18 +38,6 @@ export default function HRMS() {
           <TabsTrigger value="leaves" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Leaves
-          </TabsTrigger>
-          <TabsTrigger value="video-kyc" className="flex items-center gap-2">
-            <Video className="h-4 w-4" />
-            Video KYC
-          </TabsTrigger>
-          <TabsTrigger value="kyc-approvals" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            KYC Approvals
-          </TabsTrigger>
-          <TabsTrigger value="statistics" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Statistics
           </TabsTrigger>
         </TabsList>
 
@@ -78,18 +63,6 @@ export default function HRMS() {
 
         <TabsContent value="leaves">
           <LeavesTab />
-        </TabsContent>
-
-        <TabsContent value="video-kyc">
-          <VideoKYCTab />
-        </TabsContent>
-
-        <TabsContent value="kyc-approvals">
-          <KYCApprovalsTab />
-        </TabsContent>
-
-        <TabsContent value="statistics">
-          <StatisticsTab />
         </TabsContent>
       </Tabs>
     </div>

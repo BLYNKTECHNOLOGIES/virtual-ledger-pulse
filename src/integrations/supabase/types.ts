@@ -266,41 +266,6 @@ export type Database = {
         }
         Relationships: []
       }
-      email_verification_tokens: {
-        Row: {
-          created_at: string | null
-          expires_at: string
-          id: string
-          token: string
-          used: boolean | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          token: string
-          used?: boolean | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-          used?: boolean | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_verification_tokens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employee_offboarding: {
         Row: {
           assets_returned: boolean | null
@@ -631,132 +596,6 @@ export type Database = {
           },
         ]
       }
-      kyc_approval_requests: {
-        Row: {
-          aadhar_back_image_url: string | null
-          aadhar_front_image_url: string | null
-          additional_info: string | null
-          counterparty_name: string
-          created_at: string | null
-          id: string
-          negative_feedback_screenshot_url: string | null
-          order_amount: number
-          purpose_of_buying: string | null
-          rejection_reason: string | null
-          requested_by: string | null
-          review_date: string | null
-          reviewed_by: string | null
-          status: Database["public"]["Enums"]["kyc_approval_status"]
-          updated_at: string | null
-          verified_feedback_screenshot_url: string | null
-        }
-        Insert: {
-          aadhar_back_image_url?: string | null
-          aadhar_front_image_url?: string | null
-          additional_info?: string | null
-          counterparty_name: string
-          created_at?: string | null
-          id?: string
-          negative_feedback_screenshot_url?: string | null
-          order_amount: number
-          purpose_of_buying?: string | null
-          rejection_reason?: string | null
-          requested_by?: string | null
-          review_date?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["kyc_approval_status"]
-          updated_at?: string | null
-          verified_feedback_screenshot_url?: string | null
-        }
-        Update: {
-          aadhar_back_image_url?: string | null
-          aadhar_front_image_url?: string | null
-          additional_info?: string | null
-          counterparty_name?: string
-          created_at?: string | null
-          id?: string
-          negative_feedback_screenshot_url?: string | null
-          order_amount?: number
-          purpose_of_buying?: string | null
-          rejection_reason?: string | null
-          requested_by?: string | null
-          review_date?: string | null
-          reviewed_by?: string | null
-          status?: Database["public"]["Enums"]["kyc_approval_status"]
-          updated_at?: string | null
-          verified_feedback_screenshot_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kyc_approval_requests_requested_by_fkey"
-            columns: ["requested_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "kyc_approval_requests_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      kyc_queries: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          kyc_request_id: string | null
-          manual_query_text: string | null
-          query_type: Database["public"]["Enums"]["query_type"]
-          resolved: boolean | null
-          resolved_at: string | null
-          response_text: string | null
-          vkyc_required: boolean | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          kyc_request_id?: string | null
-          manual_query_text?: string | null
-          query_type: Database["public"]["Enums"]["query_type"]
-          resolved?: boolean | null
-          resolved_at?: string | null
-          response_text?: string | null
-          vkyc_required?: boolean | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          kyc_request_id?: string | null
-          manual_query_text?: string | null
-          query_type?: Database["public"]["Enums"]["query_type"]
-          resolved?: boolean | null
-          resolved_at?: string | null
-          response_text?: string | null
-          vkyc_required?: boolean | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "kyc_queries_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "kyc_queries_kyc_request_id_fkey"
-            columns: ["kyc_request_id"]
-            isOneToOne: false
-            referencedRelation: "kyc_approval_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       leads: {
         Row: {
           contact_number: string | null
@@ -958,115 +797,6 @@ export type Database = {
           },
         ]
       }
-      password_reset_tokens: {
-        Row: {
-          created_at: string | null
-          expires_at: string
-          id: string
-          token: string
-          used: boolean | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          token: string
-          used?: boolean | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-          used?: boolean | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "password_reset_tokens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payer_payment_methods: {
-        Row: {
-          created_at: string
-          id: string
-          payer_id: string
-          purchase_payment_method_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          payer_id: string
-          purchase_payment_method_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          payer_id?: string
-          purchase_payment_method_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payer_payment_methods_payer_id_fkey"
-            columns: ["payer_id"]
-            isOneToOne: false
-            referencedRelation: "payers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payer_payment_methods_purchase_payment_method_id_fkey"
-            columns: ["purchase_payment_method_id"]
-            isOneToOne: false
-            referencedRelation: "purchase_payment_methods"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payers: {
-        Row: {
-          created_at: string
-          employee_id: string
-          id: string
-          payer_type: string
-          safe_funds: boolean
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          employee_id: string
-          id?: string
-          payer_type: string
-          safe_funds?: boolean
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          employee_id?: string
-          id?: string
-          payer_type?: string
-          safe_funds?: boolean
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payers_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payment_methods: {
         Row: {
           account_number: string | null
@@ -1200,51 +930,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      pending_registrations: {
-        Row: {
-          email: string
-          first_name: string | null
-          id: string
-          last_name: string | null
-          password_hash: string
-          phone: string | null
-          rejection_reason: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          status: string
-          submitted_at: string
-          username: string
-        }
-        Insert: {
-          email: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          password_hash: string
-          phone?: string | null
-          rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          submitted_at?: string
-          username: string
-        }
-        Update: {
-          email?: string
-          first_name?: string | null
-          id?: string
-          last_name?: string | null
-          password_hash?: string
-          phone?: string | null
-          rejection_reason?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          status?: string
-          submitted_at?: string
-          username?: string
-        }
-        Relationships: []
       }
       performance_review_criteria: {
         Row: {
@@ -1603,7 +1288,6 @@ export type Database = {
           is_active: boolean
           last_reset: string | null
           payment_limit: number
-          safe_funds: boolean
           type: string
           updated_at: string
         }
@@ -1617,7 +1301,6 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
-          safe_funds?: boolean
           type?: string
           updated_at?: string
         }
@@ -1631,7 +1314,6 @@ export type Database = {
           is_active?: boolean
           last_reset?: string | null
           payment_limit?: number
-          safe_funds?: boolean
           type?: string
           updated_at?: string
         }
@@ -1644,62 +1326,6 @@ export type Database = {
             referencedColumns: ["account_name"]
           },
         ]
-      }
-      role_permissions: {
-        Row: {
-          created_at: string | null
-          id: string
-          permission: Database["public"]["Enums"]["app_permission"]
-          role_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          permission: Database["public"]["Enums"]["app_permission"]
-          role_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          permission?: Database["public"]["Enums"]["app_permission"]
-          role_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "role_permissions_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      roles: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          id: string
-          is_system_role: boolean | null
-          name: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_system_role?: boolean | null
-          name: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          is_system_role?: boolean | null
-          name?: string
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       sales_order_items: {
         Row: {
@@ -2103,241 +1729,6 @@ export type Database = {
           },
         ]
       }
-      user_activity_log: {
-        Row: {
-          action: string
-          created_at: string | null
-          description: string | null
-          id: string
-          ip_address: unknown | null
-          metadata: Json | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_activity_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_preferences: {
-        Row: {
-          created_at: string | null
-          email_notifications: boolean | null
-          id: string
-          language: string | null
-          notifications_enabled: boolean | null
-          theme: string | null
-          timezone: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          email_notifications?: boolean | null
-          id?: string
-          language?: string | null
-          notifications_enabled?: boolean | null
-          theme?: string | null
-          timezone?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          email_notifications?: boolean | null
-          id?: string
-          language?: string | null
-          notifications_enabled?: boolean | null
-          theme?: string | null
-          timezone?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_preferences_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          assigned_at: string | null
-          assigned_by: string | null
-          id: string
-          role_id: string
-          user_id: string
-        }
-        Insert: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          id?: string
-          role_id: string
-          user_id: string
-        }
-        Update: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          id?: string
-          role_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      users: {
-        Row: {
-          account_locked_until: string | null
-          avatar_url: string | null
-          created_at: string | null
-          email: string
-          email_verified: boolean | null
-          failed_login_attempts: number | null
-          first_name: string | null
-          id: string
-          last_login: string | null
-          last_name: string | null
-          password_hash: string
-          phone: string | null
-          status: string
-          updated_at: string | null
-          username: string
-        }
-        Insert: {
-          account_locked_until?: string | null
-          avatar_url?: string | null
-          created_at?: string | null
-          email: string
-          email_verified?: boolean | null
-          failed_login_attempts?: number | null
-          first_name?: string | null
-          id?: string
-          last_login?: string | null
-          last_name?: string | null
-          password_hash: string
-          phone?: string | null
-          status?: string
-          updated_at?: string | null
-          username: string
-        }
-        Update: {
-          account_locked_until?: string | null
-          avatar_url?: string | null
-          created_at?: string | null
-          email?: string
-          email_verified?: boolean | null
-          failed_login_attempts?: number | null
-          first_name?: string | null
-          id?: string
-          last_login?: string | null
-          last_name?: string | null
-          password_hash?: string
-          phone?: string | null
-          status?: string
-          updated_at?: string | null
-          username?: string
-        }
-        Relationships: []
-      }
-      video_kyc: {
-        Row: {
-          completed_date: string | null
-          conducted_by: string | null
-          counterparty_name: string
-          created_at: string | null
-          id: string
-          kyc_request_id: string | null
-          notes: string | null
-          scheduled_date: string | null
-          status: string
-          updated_at: string | null
-          video_url: string | null
-        }
-        Insert: {
-          completed_date?: string | null
-          conducted_by?: string | null
-          counterparty_name: string
-          created_at?: string | null
-          id?: string
-          kyc_request_id?: string | null
-          notes?: string | null
-          scheduled_date?: string | null
-          status?: string
-          updated_at?: string | null
-          video_url?: string | null
-        }
-        Update: {
-          completed_date?: string | null
-          conducted_by?: string | null
-          counterparty_name?: string
-          created_at?: string | null
-          id?: string
-          kyc_request_id?: string | null
-          notes?: string | null
-          scheduled_date?: string | null
-          status?: string
-          updated_at?: string | null
-          video_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "video_kyc_conducted_by_fkey"
-            columns: ["conducted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "video_kyc_kyc_request_id_fkey"
-            columns: ["kyc_request_id"]
-            isOneToOne: false
-            referencedRelation: "kyc_approval_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       warehouse_stock_movements: {
         Row: {
           created_at: string
@@ -2424,10 +1815,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      approve_registration: {
-        Args: { registration_id: string }
-        Returns: boolean
-      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string
@@ -2436,89 +1823,9 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      get_user_permissions: {
-        Args: { user_uuid: string } | { username: string }
-        Returns: {
-          permission: Database["public"]["Enums"]["app_permission"]
-        }[]
-      }
-      get_user_with_roles: {
-        Args: { user_uuid: string }
-        Returns: {
-          user_id: string
-          username: string
-          email: string
-          first_name: string
-          last_name: string
-          phone: string
-          status: string
-          created_at: string
-          roles: Json
-        }[]
-      }
-      reject_registration: {
-        Args: { registration_id: string; reason?: string }
-        Returns: boolean
-      }
-      user_has_permission: {
-        Args:
-          | {
-              user_uuid: string
-              check_permission: Database["public"]["Enums"]["app_permission"]
-            }
-          | {
-              username: string
-              check_permission: Database["public"]["Enums"]["app_permission"]
-            }
-        Returns: boolean
-      }
-      validate_user_credentials: {
-        Args: { input_username: string; input_password: string }
-        Returns: {
-          user_id: string
-          username: string
-          email: string
-          first_name: string
-          last_name: string
-          status: string
-          is_valid: boolean
-        }[]
-      }
     }
     Enums: {
-      app_permission:
-        | "view_dashboard"
-        | "view_sales"
-        | "view_purchase"
-        | "view_bams"
-        | "view_clients"
-        | "view_leads"
-        | "view_user_management"
-        | "view_hrms"
-        | "view_payroll"
-        | "view_compliance"
-        | "view_stock_management"
-        | "view_accounting"
-        | "manage_users"
-        | "manage_roles"
-        | "manage_sales"
-        | "manage_purchase"
-        | "manage_stock"
-        | "view_stock"
-        | "manage_inventory"
-        | "view_inventory"
-        | "manage_clients"
-        | "manage_leads"
-        | "manage_hrms"
-        | "manage_payroll"
-        | "manage_accounting"
-        | "manage_banking"
-        | "view_banking"
-        | "manage_compliance"
-        | "admin_access"
-        | "super_admin_access"
-      kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
-      query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2633,41 +1940,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_permission: [
-        "view_dashboard",
-        "view_sales",
-        "view_purchase",
-        "view_bams",
-        "view_clients",
-        "view_leads",
-        "view_user_management",
-        "view_hrms",
-        "view_payroll",
-        "view_compliance",
-        "view_stock_management",
-        "view_accounting",
-        "manage_users",
-        "manage_roles",
-        "manage_sales",
-        "manage_purchase",
-        "manage_stock",
-        "view_stock",
-        "manage_inventory",
-        "view_inventory",
-        "manage_clients",
-        "manage_leads",
-        "manage_hrms",
-        "manage_payroll",
-        "manage_accounting",
-        "manage_banking",
-        "view_banking",
-        "manage_compliance",
-        "admin_access",
-        "super_admin_access",
-      ],
-      kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
-      query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],
-    },
+    Enums: {},
   },
 } as const

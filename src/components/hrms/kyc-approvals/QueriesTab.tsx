@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { User, Eye, MessageSquare, Video, Calendar } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
+import { KYCQueryResolutionDialog } from "./KYCQueryResolutionDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,11 +34,13 @@ interface KYCQuery {
   };
 }
 
-export function QueriesTab() {
+export function QYCQueriesTab() {
   const [queries, setQueries] = useState<KYCQuery[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [resolutionDialogOpen, setResolutionDialogOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<any>(null);
+  const [selectedQuery, setSelectedQuery] = useState<any>(null);
   const { toast } = useToast();
 
   const fetchQueries = async () => {
@@ -77,35 +79,13 @@ export function QueriesTab() {
     setDetailsDialogOpen(true);
   };
 
-  const handleResolveQuery = async (queryId: string) => {
-    try {
-      const { error } = await supabase
-        .from('kyc_queries')
-        .update({ 
-          resolved: true, 
-          resolved_at: new Date().toISOString(),
-          response_text: "Query resolved by compliance officer"
-        })
-        .eq('id', queryId);
+  const handleResolveQuery = async (query: any) => {
+    setSelectedQuery(query);
+    setResolutionDialogOpen(true);
+  };
 
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Query Resolved",
-        description: "Query has been marked as resolved.",
-      });
-
-      fetchQueries();
-    } catch (error) {
-      console.error('Error resolving query:', error);
-      toast({
-        title: "Error",
-        description: "Failed to resolve query.",
-        variant: "destructive",
-      });
-    }
+  const handleResolutionSuccess = async () => {
+    await fetchQueries();
   };
 
   if (loading) {
@@ -217,9 +197,9 @@ export function QueriesTab() {
                     View KYC Details
                   </Button>
                   {!query.resolved && (
-                    <Button size="sm" onClick={() => handleResolveQuery(query.id)} className="flex items-center gap-2">
+                    <Button size="sm" onClick={() => handleResolveQuery(query)} className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
-                      Mark as Resolved
+                      Resolve Query
                     </Button>
                   )}
                 </div>
@@ -233,6 +213,13 @@ export function QueriesTab() {
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
         kycRequest={selectedKYC}
+      />
+
+      <KYCQueryResolutionDialog
+        open={resolutionDialogOpen}
+        onOpenChange={setResolutionDialogOpen}
+        query={selectedQuery}
+        onSuccess={handleResolutionSuccess}
       />
     </div>
   );

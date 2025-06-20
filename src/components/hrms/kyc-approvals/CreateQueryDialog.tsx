@@ -52,7 +52,11 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest }: CreateQuer
               <Checkbox 
                 id="vkyc-required"
                 checked={vkycRequired}
-                onCheckedChange={setVkycRequired}
+                onCheckedChange={(checked) => {
+                  if (checked !== "indeterminate") {
+                    setVkycRequired(checked);
+                  }
+                }}
               />
               <Label htmlFor="vkyc-required" className="flex items-center gap-2">
                 <Video className="h-4 w-4" />

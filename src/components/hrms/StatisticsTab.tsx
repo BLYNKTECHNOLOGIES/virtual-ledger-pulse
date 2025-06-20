@@ -104,7 +104,7 @@ export function StatisticsTab() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                    <Tooltip formatter={(value) => `₹${(Number(value) / 1000).toFixed(0)}K`} />
                     <Area type="monotone" dataKey="revenue" stroke="#10B981" fill="#10B981" fillOpacity={0.3} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -125,7 +125,7 @@ export function StatisticsTab() {
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${(Number(percent) * 100).toFixed(0)}%`}
                     >
                       {userEngagementData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />

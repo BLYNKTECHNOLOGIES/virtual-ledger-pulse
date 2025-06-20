@@ -1,131 +1,167 @@
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Eye, AlertCircle, RotateCcw } from "lucide-react";
+import { User, Eye, Calendar } from "lucide-react";
+import { KYCDetailsDialog } from "./KYCDetailsDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-const mockRejectedKYC = [
-  {
-    id: "1",
-    counterpartyName: "Robert Wilson",
-    orderAmount: 35000,
-    purposeOfBuying: "Personal Investment",
-    createdAt: "2024-01-14",
-    rejectedAt: "2024-01-16",
-    requestedBy: "Agent Taylor",
-    rejectedBy: "Compliance Officer C",
-    rejectionReason: "Incomplete documentation - Aadhar images are not clear and readable",
-    hasAadharFront: true,
-    hasAadharBack: true,
-    hasVerifiedFeedback: false,
-    hasNegativeFeedback: true,
-  },
-  {
-    id: "2",
-    counterpartyName: "Emma Thompson",
-    orderAmount: 92000,
-    purposeOfBuying: "Property Investment",
-    createdAt: "2024-01-12",
-    rejectedAt: "2024-01-13",
-    requestedBy: "Agent Martinez",
-    rejectedBy: "Compliance Officer A",
-    rejectionReason: "High-risk profile detected based on negative feedback screenshots",
-    hasAadharFront: true,
-    hasAadharBack: true,
-    hasVerifiedFeedback: true,
-    hasNegativeFeedback: true,
-  },
-];
+interface KYCRequest {
+  id: string;
+  counterparty_name: string;
+  order_amount: number;
+  purpose_of_buying: string | null;
+  additional_info: string | null;
+  aadhar_front_url: string | null;
+  aadhar_back_url: string | null;
+  verified_feedback_url: string | null;
+  negative_feedback_url: string | null;
+  binance_id_screenshot_url: string;
+  additional_documents_url: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export function RejectedKYCTab() {
-  const handleResubmit = (kycId: string) => {
-    console.log("Resubmitting KYC:", kycId);
-    // Handle resubmission logic
+  const [kycRequests, setKycRequests] = useState<KYCRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedKYC, setSelectedKYC] = useState<KYCRequest | null>(null);
+  const { toast } = useToast();
+
+  const fetchRejectedKYC = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kyc_approval_requests')
+        .select('*')
+        .eq('status', 'REJECTED')
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      setKycRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching rejected KYC requests:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch rejected KYC requests.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchRejectedKYC();
+  }, []);
+
+  const handleViewDetails = (kyc: KYCRequest) => {
+    setSelectedKYC(kyc);
+    setDetailsDialogOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading rejected KYC requests...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Rejected KYC Requests</h3>
         <div className="text-sm text-gray-500">
-          Total Rejected: {mockRejectedKYC.length}
+          Total Rejected: {kycRequests.length}
         </div>
       </div>
 
-      <div className="grid gap-4">
-        {mockRejectedKYC.map((kyc) => (
-          <Card key={kyc.id} className="border-red-200">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  {kyc.counterpartyName}
-                </CardTitle>
-                <Badge variant="destructive">REJECTED</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Order Amount</p>
-                  <p className="font-medium">₹{kyc.orderAmount.toLocaleString()}</p>
+      {kycRequests.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-gray-500">No rejected KYC requests found.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {kycRequests.map((kyc) => (
+            <Card key={kyc.id}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    {kyc.counterparty_name}
+                  </CardTitle>
+                  <Badge className="bg-red-100 text-red-800">REJECTED</Badge>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Purpose</p>
-                  <p className="font-medium">{kyc.purposeOfBuying}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Requested Date</p>
-                  <p className="font-medium">{kyc.createdAt}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Rejected Date</p>
-                  <p className="font-medium">{kyc.rejectedAt}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Requested By</p>
-                  <p className="font-medium">{kyc.requestedBy}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Rejected By</p>
-                  <p className="font-medium">{kyc.rejectedBy}</p>
-                </div>
-              </div>
-
-              <div className="mb-4 p-3 bg-red-50 rounded border-l-4 border-red-400">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
-                    <p className="text-sm font-medium text-red-800">Rejection Reason:</p>
-                    <p className="text-sm text-red-700">{kyc.rejectionReason}</p>
+                    <p className="text-sm font-medium text-gray-500">Order Amount</p>
+                    <p className="font-medium">₹{kyc.order_amount.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Purpose</p>
+                    <p className="font-medium">{kyc.purpose_of_buying || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Requested Date</p>
+                    <p className="font-medium">{new Date(kyc.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Rejected Date</p>
+                    <p className="font-medium">{new Date(kyc.updated_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2 mb-4 flex-wrap">
-                {kyc.hasAadharFront && <Badge variant="outline" className="text-green-600">Aadhar Front</Badge>}
-                {kyc.hasAadharBack && <Badge variant="outline" className="text-green-600">Aadhar Back</Badge>}
-                {kyc.hasVerifiedFeedback && <Badge variant="outline" className="text-green-600">Verified Feedback</Badge>}
-                {kyc.hasNegativeFeedback &&  <Badge variant="outline" className="text-red-600">Negative Feedback</Badge>}
-              </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <Eye className="h-4 w-4" />
-                  View Details
-                </Button>
-                <Button size="sm" onClick={() => handleResubmit(kyc.id)} className="flex items-center gap-2">
-                  <RotateCcw className="h-4 w-4" />
-                  Resubmit Request
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {kyc.aadhar_front_url && <Badge variant="outline" className="text-green-600">Aadhar Front</Badge>}
+                  {kyc.aadhar_back_url && <Badge variant="outline" className="text-green-600">Aadhar Back</Badge>}
+                  <Badge variant="outline" className="text-blue-600">Binance ID</Badge>
+                  {kyc.verified_feedback_url && <Badge variant="outline" className="text-green-600">Verified Feedback</Badge>}
+                  {kyc.negative_feedback_url && <Badge variant="outline" className="text-red-600">Negative Feedback</Badge>}
+                  {kyc.additional_documents_url && <Badge variant="outline" className="text-purple-600">Additional Docs</Badge>}
+                </div>
+
+                {kyc.additional_info && (
+                  <div className="mb-4 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                    <p className="text-sm font-medium text-blue-800">Additional Info:</p>
+                    <p className="text-sm text-blue-700">{kyc.additional_info}</p>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(kyc)} className="flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    View Details
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    View Timeline
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <KYCDetailsDialog
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        kycRequest={selectedKYC}
+      />
     </div>
   );
 }

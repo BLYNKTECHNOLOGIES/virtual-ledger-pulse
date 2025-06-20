@@ -6,26 +6,79 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MessageSquare, Video } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface CreateQueryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   kycRequest: any;
+  onSuccess?: () => void;
 }
 
-export function CreateQueryDialog({ open, onOpenChange, kycRequest }: CreateQueryDialogProps) {
+export function CreateQueryDialog({ open, onOpenChange, kycRequest, onSuccess }: CreateQueryDialogProps) {
   const [vkycRequired, setVkycRequired] = useState(false);
   const [manualQuery, setManualQuery] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = () => {
-    const queryData = {
-      kycRequestId: kycRequest?.id,
-      vkycRequired,
-      manualQuery: manualQuery.trim(),
-    };
+  const handleSubmit = async () => {
+    if (!vkycRequired && !manualQuery.trim()) {
+      toast({
+        title: "Query Required",
+        description: "Please either check VKYC required or enter a manual query.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
     
-    console.log("Creating query:", queryData);
-    onOpenChange(false);
+    try {
+      // Create the query
+      const { error: queryError } = await supabase
+        .from('kyc_queries')
+        .insert({
+          kyc_request_id: kycRequest?.id,
+          vkyc_required: vkycRequired,
+          manual_query: manualQuery.trim() || null,
+        });
+
+      if (queryError) {
+        throw queryError;
+      }
+
+      // Update the KYC request status to QUERIED
+      const { error: updateError } = await supabase
+        .from('kyc_approval_requests')
+        .update({ status: 'QUERIED' })
+        .eq('id', kycRequest?.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      toast({
+        title: "Query Raised",
+        description: "Query has been raised successfully for this KYC request.",
+      });
+
+      // Reset form
+      setVkycRequired(false);
+      setManualQuery("");
+      
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error creating query:', error);
+      toast({
+        title: "Error",
+        description: "Failed to raise query. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!kycRequest) return null;
@@ -43,8 +96,8 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest }: CreateQuer
         <div className="space-y-4">
           <div className="bg-gray-50 p-3 rounded">
             <p className="text-sm font-medium">KYC Request for:</p>
-            <p className="font-semibold">{kycRequest.counterpartyName}</p>
-            <p className="text-sm text-gray-600">Amount: ₹{kycRequest.orderAmount?.toLocaleString()}</p>
+            <p className="font-semibold">{kycRequest.counterparty_name}</p>
+            <p className="text-sm text-gray-600">Amount: ₹{kycRequest.order_amount?.toLocaleString()}</p>
           </div>
 
           <div className="space-y-4">
@@ -77,15 +130,15 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest }: CreateQuer
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1" disabled={isSubmitting}>
               Cancel
             </Button>
             <Button 
               onClick={handleSubmit} 
               className="flex-1"
-              disabled={!vkycRequired && !manualQuery.trim()}
+              disabled={(!vkycRequired && !manualQuery.trim()) || isSubmitting}
             >
-              Raise Query
+              {isSubmitting ? "Raising Query..." : "Raise Query"}
             </Button>
           </div>
         </div>

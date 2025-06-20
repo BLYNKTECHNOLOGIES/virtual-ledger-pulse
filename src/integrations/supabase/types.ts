@@ -631,6 +631,119 @@ export type Database = {
           },
         ]
       }
+      kyc_approval_requests: {
+        Row: {
+          aadhar_back_url: string | null
+          aadhar_front_url: string | null
+          additional_documents_url: string | null
+          additional_info: string | null
+          binance_id_screenshot_url: string
+          counterparty_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          negative_feedback_url: string | null
+          order_amount: number
+          purpose_of_buying: string | null
+          status: string
+          updated_at: string
+          verified_feedback_url: string | null
+        }
+        Insert: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          additional_documents_url?: string | null
+          additional_info?: string | null
+          binance_id_screenshot_url: string
+          counterparty_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          negative_feedback_url?: string | null
+          order_amount: number
+          purpose_of_buying?: string | null
+          status?: string
+          updated_at?: string
+          verified_feedback_url?: string | null
+        }
+        Update: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          additional_documents_url?: string | null
+          additional_info?: string | null
+          binance_id_screenshot_url?: string
+          counterparty_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          negative_feedback_url?: string | null
+          order_amount?: number
+          purpose_of_buying?: string | null
+          status?: string
+          updated_at?: string
+          verified_feedback_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_approval_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kyc_queries: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          kyc_request_id: string
+          manual_query: string | null
+          resolved: boolean
+          resolved_at: string | null
+          response_text: string | null
+          vkyc_required: boolean
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kyc_request_id: string
+          manual_query?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          response_text?: string | null
+          vkyc_required?: boolean
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kyc_request_id?: string
+          manual_query?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          response_text?: string | null
+          vkyc_required?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_queries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_queries_kyc_request_id_fkey"
+            columns: ["kyc_request_id"]
+            isOneToOne: false
+            referencedRelation: "kyc_approval_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           contact_number: string | null

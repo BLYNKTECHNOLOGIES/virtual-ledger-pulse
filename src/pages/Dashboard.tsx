@@ -47,14 +47,6 @@ export default function Dashboard() {
       size: 'small' as const
     },
     {
-      id: 'sales-target',
-      name: 'Sales Target',
-      description: 'Progress towards sales goals',
-      icon: Target,
-      category: 'Metrics',
-      size: 'medium' as const
-    },
-    {
       id: 'revenue-chart',
       name: 'Revenue Chart',
       description: 'Monthly revenue trends and analytics',

@@ -1,10 +1,9 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, Target, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, Globe, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Building, UserCheck, Clock } from "lucide-react";
+import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, Globe, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Building, UserCheck, Clock } from "lucide-react";
 
 interface WidgetType {
   id: string;
@@ -66,14 +65,6 @@ const availableWidgets: WidgetType[] = [
     icon: DollarSign,
     category: 'Metrics',
     size: 'small'
-  },
-  {
-    id: 'sales-target',
-    name: 'Sales Target',
-    description: 'Progress towards sales goals',
-    icon: Target,
-    category: 'Metrics',
-    size: 'medium'
   },
   {
     id: 'profit-margin',

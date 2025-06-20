@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import {
   Calendar, 
   FileText, 
   Activity, 
-  Target,
   PieChart,
   LineChart,
   ShoppingCart,
@@ -59,7 +59,6 @@ const iconMap = {
   'revenue-chart': BarChart3,
   'total-clients': Users,
   'inventory-status': Package,
-  'sales-target': Target,
   'recent-orders': FileText,
   'daily-activity': Activity,
   'upcoming-tasks': Calendar,
@@ -193,31 +192,6 @@ export function DashboardWidget({ widget, onRemove, onMove, metrics }: Dashboard
                   <span className="text-sm font-medium text-red-600">3%</span>
                 </div>
               </div>
-            </div>
-          </div>
-        );
-
-      case 'sales-target':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-2xl font-bold">₹{((metrics?.totalRevenue || 650000) / 100000).toFixed(1)}L</div>
-                <p className="text-sm text-gray-600">Monthly Target: ₹10L</p>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                <Target className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span className="font-medium">65%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500" style={{ width: '65%' }}></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">₹3.5L remaining to reach target</p>
             </div>
           </div>
         );

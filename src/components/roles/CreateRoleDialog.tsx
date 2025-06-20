@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AVAILABLE_PERMISSIONS } from "@/hooks/usePermissions";
 import type { Database } from "@/integrations/supabase/types";
 
 interface CreateRoleDialogProps {
@@ -17,23 +18,6 @@ interface CreateRoleDialogProps {
 }
 
 type Permission = Database['public']['Enums']['app_permission'];
-
-const AVAILABLE_PERMISSIONS: { id: Permission; label: string }[] = [
-  { id: 'view_dashboard', label: 'View Dashboard' },
-  { id: 'view_sales', label: 'View Sales' },
-  { id: 'view_purchase', label: 'View Purchase' },
-  { id: 'view_bams', label: 'View BAMS' },
-  { id: 'view_clients', label: 'View Clients' },
-  { id: 'view_leads', label: 'View Leads' },
-  { id: 'view_user_management', label: 'View User Management' },
-  { id: 'view_hrms', label: 'View HRMS' },
-  { id: 'view_payroll', label: 'View Payroll' },
-  { id: 'view_compliance', label: 'View Compliance' },
-  { id: 'view_stock_management', label: 'View Stock Management' },
-  { id: 'view_accounting', label: 'View Accounting' },
-  { id: 'manage_users', label: 'Manage Users' },
-  { id: 'manage_roles', label: 'Manage Roles' },
-];
 
 export function CreateRoleDialog({ open, onOpenChange, onRoleCreated }: CreateRoleDialogProps) {
   const { toast } = useToast();
@@ -95,22 +79,26 @@ export function CreateRoleDialog({ open, onOpenChange, onRoleCreated }: CreateRo
     }
   };
 
-  const handlePermissionChange = (permissionId: Permission, checked: boolean) => {
+  const handlePermissionChange = (permissionId: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       permissions: checked
-        ? [...prev.permissions, permissionId]
+        ? [...prev.permissions, permissionId as Permission]
         : prev.permissions.filter(p => p !== permissionId)
     }));
   };
 
+  // Group permissions by category
+  const pagePermissions = AVAILABLE_PERMISSIONS.filter(p => p.id.startsWith('view_'));
+  const managementPermissions = AVAILABLE_PERMISSIONS.filter(p => p.id.startsWith('manage_'));
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Role</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Role Name *</Label>
             <Input
@@ -133,27 +121,59 @@ export function CreateRoleDialog({ open, onOpenChange, onRoleCreated }: CreateRo
             />
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Label>Permissions</Label>
-            <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto p-2 border rounded">
-              {AVAILABLE_PERMISSIONS.map((permission) => (
-                <div key={permission.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={permission.id}
-                    checked={formData.permissions.includes(permission.id)}
-                    onCheckedChange={(checked) => 
-                      handlePermissionChange(permission.id, checked as boolean)
-                    }
-                  />
-                  <Label htmlFor={permission.id} className="text-sm">
-                    {permission.label}
-                  </Label>
-                </div>
-              ))}
+            
+            {/* Page Access Permissions */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-gray-700">Page Access Permissions</h4>
+              <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-3 border rounded bg-gray-50">
+                {pagePermissions.map((permission) => (
+                  <div key={permission.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={permission.id}
+                      checked={formData.permissions.includes(permission.id as Permission)}
+                      onCheckedChange={(checked) => 
+                        handlePermissionChange(permission.id, checked as boolean)
+                      }
+                    />
+                    <div className="flex flex-col">
+                      <Label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
+                        {permission.label}
+                      </Label>
+                      <span className="text-xs text-gray-500">{permission.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Management Permissions */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm text-gray-700">Management Permissions</h4>
+              <div className="grid grid-cols-1 gap-3 p-3 border rounded bg-gray-50">
+                {managementPermissions.map((permission) => (
+                  <div key={permission.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={permission.id}
+                      checked={formData.permissions.includes(permission.id as Permission)}
+                      onCheckedChange={(checked) => 
+                        handlePermissionChange(permission.id, checked as boolean)
+                      }
+                    />
+                    <div className="flex flex-col">
+                      <Label htmlFor={permission.id} className="text-sm font-medium cursor-pointer">
+                        {permission.label}
+                      </Label>
+                      <span className="text-xs text-gray-500">{permission.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

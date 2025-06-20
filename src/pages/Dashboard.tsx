@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw, BarChart3, Activity } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
@@ -28,8 +28,16 @@ export default function Dashboard() {
   const [isEditMode, setIsEditMode] = useState(false);
   const { toast } = useToast();
 
-  // Default widgets
+  // Default widgets with better selection
   const defaultWidgets = [
+    {
+      id: 'total-revenue',
+      name: 'Total Revenue',
+      description: 'Current month revenue',
+      icon: DollarSign,
+      category: 'Metrics',
+      size: 'small' as const
+    },
     {
       id: 'total-clients',
       name: 'Total Clients',
@@ -37,6 +45,14 @@ export default function Dashboard() {
       icon: Users,
       category: 'Metrics',
       size: 'small' as const
+    },
+    {
+      id: 'sales-target',
+      name: 'Sales Target',
+      description: 'Progress towards sales goals',
+      icon: Target,
+      category: 'Metrics',
+      size: 'medium' as const
     },
     {
       id: 'revenue-chart',
@@ -153,7 +169,7 @@ export default function Dashboard() {
   const handleAddWidget = (widget: Widget) => {
     setDashboardWidgets(prev => [...prev, widget]);
     toast({
-      title: "Widget Added",
+      title: "Widget Added Successfully! 🎉",
       description: `${widget.name} has been added to your dashboard.`,
     });
   };
@@ -190,164 +206,198 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with your business.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Period Filter */}
-          <div className="flex gap-2">
-            {["24h", "7d", "30d", "90d"].map((period) => (
-              <Button
-                key={period}
-                variant={selectedPeriod === period ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPeriod(period)}
-              >
-                {period}
-              </Button>
-            ))}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
+      <div className="space-y-8 p-6 max-w-7xl mx-auto">
+        {/* Enhanced Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-gray-600 mt-2 text-lg">Welcome back! Here's what's happening with your business today.</p>
           </div>
           
-          {/* Dashboard Controls */}
-          <div className="flex items-center gap-2 border-l pl-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditMode(!isEditMode)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              {isEditMode ? 'Exit Edit' : 'Edit Mode'}
-            </Button>
-            <AddWidgetDialog 
-              onAddWidget={handleAddWidget}
-              existingWidgets={dashboardWidgets.map(w => w.id)}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Period Filter */}
+            <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border">
+              {["24h", "7d", "30d", "90d"].map((period) => (
+                <Button
+                  key={period}
+                  variant={selectedPeriod === period ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setSelectedPeriod(period)}
+                  className={selectedPeriod === period ? 
+                    "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm" : 
+                    "hover:bg-blue-50 text-gray-700"
+                  }
+                >
+                  {period}
+                </Button>
+              ))}
+            </div>
+            
+            {/* Dashboard Controls */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={isEditMode ? 
+                  "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" : 
+                  "hover:bg-blue-50 border-gray-200"
+                }
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {isEditMode ? 'Exit Edit' : 'Edit Mode'}
+              </Button>
+              <AddWidgetDialog 
+                onAddWidget={handleAddWidget}
+                existingWidgets={dashboardWidgets.map(w => w.id)}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResetDashboard}
+                className="hover:bg-red-50 hover:border-red-200 hover:text-red-700"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Mode Banner */}
+        {isEditMode && (
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-4 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <Settings className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Edit Mode Active</h3>
+                <p className="text-blue-100 text-sm">
+                  Use the three-dot menu on each widget to move or remove them. Add new widgets using the "Add Widget" button above.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Links Widget */}
+        <QuickLinksWidget onRemove={handleRemoveWidget} />
+
+        {/* Dynamic Widgets Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {dashboardWidgets.map((widget) => (
+            <DashboardWidget
+              key={widget.id}
+              widget={widget}
+              onRemove={handleRemoveWidget}
+              onMove={handleMoveWidget}
+              metrics={metrics}
             />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetDashboard}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
-          </div>
+          ))}
         </div>
-      </div>
 
-      {isEditMode && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-blue-600" />
-            <p className="text-sm text-blue-800">
-              <strong>Edit Mode:</strong> Use the three-dot menu on each widget to move or remove them. 
-              Add new widgets using the "Add Widget" button above.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Links Widget */}
-      <QuickLinksWidget onRemove={handleRemoveWidget} />
-
-      {/* Dynamic Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {dashboardWidgets.map((widget) => (
-          <DashboardWidget
-            key={widget.id}
-            widget={widget}
-            onRemove={handleRemoveWidget}
-            onMove={handleMoveWidget}
-            metrics={metrics}
-          />
-        ))}
-      </div>
-
-      {/* Recent Activity - Always visible */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          {/* Placeholder for additional content */}
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recentActivity?.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${
-                    activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
-                  }`}>
-                    {activity.type === 'sale' ? (
-                      <ArrowUpIcon className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <ArrowDownIcon className="h-4 w-4 text-blue-600" />
-                    )}
+        {/* Enhanced Recent Activity */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+          <div className="xl:col-span-3">
+            {/* Placeholder for additional dashboard content */}
+            <Card className="h-64 bg-gradient-to-br from-white to-gray-50 border-0 shadow-sm">
+              <CardContent className="h-full flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BarChart3 className="h-8 w-8 text-white" />
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{activity.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Add More Widgets</h3>
+                  <p className="text-gray-600 text-sm">Click "Add Widget" to customize your dashboard with more analytics and metrics.</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card className="bg-white shadow-sm border-0">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4">
+              {recentActivity?.slice(0, 6).map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${
+                      activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                    }`}>
+                      {activity.type === 'sale' ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm text-gray-900">{activity.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-semibold text-sm ${
+                      activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
+                    }`}>
+                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
                     </p>
+                    <p className="text-xs text-gray-500">{activity.reference}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-semibold text-sm ${
-                    activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
-                  }`}>
-                    {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500">{activity.reference}</p>
+              ))}
+              {(!recentActivity || recentActivity.length === 0) && (
+                <div className="text-center py-8 text-gray-500">
+                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No recent activity</p>
                 </div>
-              </div>
-            ))}
-            {(!recentActivity || recentActivity.length === 0) && (
-              <div className="text-center py-4 text-gray-500 text-sm">
-                No recent activity
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Default Metrics - Always visible for new users */}
-      {dashboardWidgets.length === 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Revenue"
-            value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
-            change="+12.5%"
-            trend="up"
-            icon={DollarSign}
-          />
-          <MetricCard
-            title="Sales Orders"
-            value={metrics?.totalSales?.toString() || "0"}
-            change="+8.2%"
-            trend="up"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Active Clients"
-            value={metrics?.totalClients?.toString() || "0"}
-            change="+3.1%"
-            trend="up"
-            icon={Users}
-          />
-          <MetricCard
-            title="Products"
-            value={metrics?.totalProducts?.toString() || "0"}
-            change="+1.2%"
-            trend="up"
-            icon={Package}
-          />
+              )}
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {/* Default Metrics for new users */}
+        {dashboardWidgets.length === 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard
+              title="Total Revenue"
+              value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
+              change="+12.5%"
+              trend="up"
+              icon={DollarSign}
+            />
+            <MetricCard
+              title="Sales Orders"
+              value={metrics?.totalSales?.toString() || "0"}
+              change="+8.2%"
+              trend="up"
+              icon={TrendingUp}
+            />
+            <MetricCard
+              title="Active Clients"
+              value={metrics?.totalClients?.toString() || "0"}
+              change="+3.1%"
+              trend="up"
+              icon={Users}
+            />
+            <MetricCard
+              title="Products"
+              value={metrics?.totalProducts?.toString() || "0"}
+              change="+1.2%"
+              trend="up"
+              icon={Package}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

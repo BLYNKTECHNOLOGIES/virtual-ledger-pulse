@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, Target } from "lucide-react";
+import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, Target, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, Globe, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Building, UserCheck, Clock } from "lucide-react";
 
 interface WidgetType {
   id: string;
@@ -16,6 +16,7 @@ interface WidgetType {
 }
 
 const availableWidgets: WidgetType[] = [
+  // Analytics Widgets
   {
     id: 'revenue-chart',
     name: 'Revenue Chart',
@@ -25,6 +26,32 @@ const availableWidgets: WidgetType[] = [
     size: 'large'
   },
   {
+    id: 'customer-chart',
+    name: 'Customer Growth',
+    description: 'Customer acquisition trends',
+    icon: LineChart,
+    category: 'Analytics',
+    size: 'large'
+  },
+  {
+    id: 'earnings-rate',
+    name: 'Earnings Rate',
+    description: 'Daily and weekly earnings rate',
+    icon: TrendingUp,
+    category: 'Analytics',
+    size: 'medium'
+  },
+  {
+    id: 'performance-overview',
+    name: 'Performance Overview',
+    description: 'Overall business performance metrics',
+    icon: PieChart,
+    category: 'Analytics',
+    size: 'large'
+  },
+  
+  // Metrics Widgets
+  {
     id: 'total-clients',
     name: 'Total Clients',
     description: 'Quick view of total client count',
@@ -33,12 +60,12 @@ const availableWidgets: WidgetType[] = [
     size: 'small'
   },
   {
-    id: 'inventory-status',
-    name: 'Inventory Status',
-    description: 'Current stock levels and alerts',
-    icon: Package,
-    category: 'Operations',
-    size: 'medium'
+    id: 'total-revenue',
+    name: 'Total Revenue',
+    description: 'Current month revenue',
+    icon: DollarSign,
+    category: 'Metrics',
+    size: 'small'
   },
   {
     id: 'sales-target',
@@ -46,6 +73,40 @@ const availableWidgets: WidgetType[] = [
     description: 'Progress towards sales goals',
     icon: Target,
     category: 'Metrics',
+    size: 'medium'
+  },
+  {
+    id: 'profit-margin',
+    name: 'Profit Margin',
+    description: 'Current profit margins',
+    icon: TrendingUp,
+    category: 'Metrics',
+    size: 'small'
+  },
+  {
+    id: 'conversion-rate',
+    name: 'Conversion Rate',
+    description: 'Lead to customer conversion',
+    icon: ArrowUpRight,
+    category: 'Metrics',
+    size: 'small'
+  },
+  {
+    id: 'growth-rate',
+    name: 'Growth Rate',
+    description: 'Monthly growth percentage',
+    icon: TrendingUp,
+    category: 'Metrics',
+    size: 'small'
+  },
+  
+  // Operations Widgets
+  {
+    id: 'inventory-status',
+    name: 'Inventory Status',
+    description: 'Current stock levels and alerts',
+    icon: Package,
+    category: 'Operations',
     size: 'medium'
   },
   {
@@ -57,13 +118,57 @@ const availableWidgets: WidgetType[] = [
     size: 'large'
   },
   {
+    id: 'order-status',
+    name: 'Order Status',
+    description: 'Order processing status breakdown',
+    icon: ShoppingCart,
+    category: 'Operations',
+    size: 'medium'
+  },
+  {
+    id: 'expense-details',
+    name: 'Expense Breakdown',
+    description: 'Detailed expense categories',
+    icon: CreditCard,
+    category: 'Operations',
+    size: 'large'
+  },
+  
+  // Activity Widgets
+  {
     id: 'daily-activity',
     name: 'Daily Activity',
     description: 'Today\'s business activities',
     icon: Activity,
-    category: 'Analytics',
+    category: 'Activity',
     size: 'medium'
   },
+  {
+    id: 'live-notifications',
+    name: 'Live Notifications',
+    description: 'Real-time system notifications',
+    icon: Bell,
+    category: 'Activity',
+    size: 'medium'
+  },
+  {
+    id: 'quick-stats',
+    name: 'Quick Stats',
+    description: 'Key performance indicators',
+    icon: Zap,
+    category: 'Activity',
+    size: 'medium'
+  },
+  {
+    id: 'real-time-data',
+    name: 'Real-time Data',
+    description: 'Live business data feed',
+    icon: Globe,
+    category: 'Activity',
+    size: 'large'
+  },
+  
+  // Productivity Widgets
   {
     id: 'upcoming-tasks',
     name: 'Upcoming Tasks',
@@ -73,12 +178,62 @@ const availableWidgets: WidgetType[] = [
     size: 'medium'
   },
   {
-    id: 'profit-margin',
-    name: 'Profit Margin',
-    description: 'Current profit margins',
-    icon: TrendingUp,
-    category: 'Metrics',
+    id: 'time-tracker',
+    name: 'Time Tracker',
+    description: 'Track time spent on activities',
+    icon: Timer,
+    category: 'Productivity',
+    size: 'medium'
+  },
+  {
+    id: 'team-status',
+    name: 'Team Status',
+    description: 'Current team availability',
+    icon: UserCheck,
+    category: 'Productivity',
+    size: 'medium'
+  },
+  {
+    id: 'schedule-overview',
+    name: 'Schedule Overview',
+    description: 'Today\'s schedule and appointments',
+    icon: Clock,
+    category: 'Productivity',
+    size: 'large'
+  },
+  
+  // Financial Widgets
+  {
+    id: 'wallet-balance',
+    name: 'Wallet Balance',
+    description: 'Current account balances',
+    icon: Wallet,
+    category: 'Financial',
     size: 'small'
+  },
+  {
+    id: 'payment-methods',
+    name: 'Payment Methods',
+    description: 'Available payment options',
+    icon: CreditCard,
+    category: 'Financial',
+    size: 'medium'
+  },
+  {
+    id: 'cash-flow',
+    name: 'Cash Flow',
+    description: 'Income vs expenses flow',
+    icon: ArrowUpRight,
+    category: 'Financial',
+    size: 'large'
+  },
+  {
+    id: 'expense-trends',
+    name: 'Expense Trends',
+    description: 'Monthly expense patterns',
+    icon: TrendingDown,
+    category: 'Financial',
+    size: 'medium'
   }
 ];
 
@@ -103,20 +258,35 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
     setOpen(false);
   };
 
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      'Analytics': 'bg-blue-100 text-blue-700 border-blue-200',
+      'Metrics': 'bg-green-100 text-green-700 border-green-200',
+      'Operations': 'bg-orange-100 text-orange-700 border-orange-200',
+      'Activity': 'bg-purple-100 text-purple-700 border-purple-200',
+      'Productivity': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+      'Financial': 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    };
+    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-700 border-gray-200';
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
           <Plus className="h-4 w-4" />
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Dashboard Widget</DialogTitle>
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            Add Dashboard Widget
+          </DialogTitle>
+          <p className="text-gray-600 mt-2">Choose from our collection of widgets to customize your dashboard</p>
         </DialogHeader>
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Category Filter */}
           <div className="flex gap-2 flex-wrap">
             {categories.map((category) => (
@@ -125,6 +295,10 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
                 variant={selectedCategory === category ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
+                className={selectedCategory === category ? 
+                  "bg-gradient-to-r from-blue-600 to-purple-600 text-white" : 
+                  "hover:bg-blue-50"
+                }
               >
                 {category}
               </Button>
@@ -132,34 +306,40 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           </div>
 
           {/* Widget Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredWidgets.map((widget) => {
               const IconComponent = widget.icon;
               return (
-                <Card key={widget.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card 
+                  key={widget.id} 
+                  className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-0 shadow-sm hover:shadow-blue-100"
+                >
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                          <IconComponent className="h-5 w-5 text-blue-600" />
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
+                          <IconComponent className="h-5 w-5 text-white" />
                         </div>
-                        <div>
-                          <CardTitle className="text-sm font-medium">{widget.name}</CardTitle>
-                          <Badge variant="outline" className="text-xs mt-1">
+                        <div className="flex-1">
+                          <CardTitle className="text-sm font-semibold text-gray-900">{widget.name}</CardTitle>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs mt-1 ${getCategoryColor(widget.category)}`}
+                          >
                             {widget.category}
                           </Badge>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
                         {widget.size}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <p className="text-sm text-gray-600 mb-3">{widget.description}</p>
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{widget.description}</p>
                     <Button
                       size="sm"
-                      className="w-full"
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-sm"
                       onClick={() => handleAddWidget(widget)}
                     >
                       Add Widget
@@ -171,11 +351,22 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           </div>
 
           {filteredWidgets.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              {existingWidgets.length === availableWidgets.length 
-                ? "All widgets have been added to your dashboard"
-                : "No widgets available in this category"
-              }
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Package className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {existingWidgets.length === availableWidgets.length 
+                  ? "All widgets added!" 
+                  : "No widgets found"
+                }
+              </h3>
+              <p className="text-gray-500">
+                {existingWidgets.length === availableWidgets.length 
+                  ? "You've added all available widgets to your dashboard"
+                  : "Try selecting a different category to see more widgets"
+                }
+              </p>
             </div>
           )}
         </div>

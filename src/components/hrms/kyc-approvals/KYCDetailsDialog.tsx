@@ -2,7 +2,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Calendar, FileText, Image, Download, ExternalLink } from "lucide-react";
+import { User, Calendar, FileText, Image, Download, ExternalLink, Eye } from "lucide-react";
+import { OptimizedImage } from "@/components/ui/optimized-image";
+import { useState } from "react";
 
 interface KYCDetailsDialogProps {
   open: boolean;
@@ -11,15 +13,107 @@ interface KYCDetailsDialogProps {
 }
 
 export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsDialogProps) {
+  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
+
   if (!kycRequest) return null;
 
   const handleViewDocument = (url: string) => {
     window.open(url, '_blank');
   };
 
+  const handleImageError = (documentType: string) => {
+    setImageErrors(prev => ({ ...prev, [documentType]: true }));
+  };
+
+  const DocumentCard = ({ 
+    title, 
+    icon: Icon, 
+    url, 
+    isRequired = false, 
+    iconColor = "text-blue-600",
+    badgeColor = "text-green-600" 
+  }: {
+    title: string;
+    icon: any;
+    url: string | null;
+    isRequired?: boolean;
+    iconColor?: string;
+    badgeColor?: string;
+  }) => {
+    const documentKey = title.toLowerCase().replace(/\s+/g, '_');
+    const hasError = imageErrors[documentKey];
+    const isImage = url && (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.webp'));
+    
+    return (
+      <div className={`border rounded-lg p-4 ${isRequired ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+        <div className="flex items-center gap-2 mb-3">
+          <Icon className={`h-5 w-5 ${isRequired ? 'text-red-600' : iconColor}`} />
+          <span className="font-medium">{title}</span>
+          {isRequired && (
+            <Badge variant="outline" className="text-red-600 border-red-300">Required</Badge>
+          )}
+        </div>
+        
+        {url ? (
+          <div className="space-y-3">
+            <Badge variant="outline" className={badgeColor}>Available</Badge>
+            
+            {/* Image Preview */}
+            {isImage && !hasError && (
+              <div className="mt-3">
+                <div className="w-full h-48 border rounded-lg overflow-hidden bg-gray-50">
+                  <OptimizedImage
+                    src={url}
+                    alt={title}
+                    className="w-full h-full object-contain"
+                    onError={() => handleImageError(documentKey)}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Error state or non-image file */}
+            {(!isImage || hasError) && (
+              <div className="mt-3 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">
+                  {hasError ? 'Preview not available' : 'Document available'}
+                </p>
+              </div>
+            )}
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 mt-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleViewDocument(url)}
+                className="flex items-center gap-1"
+              >
+                <Eye className="h-3 w-3" />
+                View Full Size
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleViewDocument(url)}
+                className="flex items-center gap-1"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
+        )}
+      </div>
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
@@ -75,169 +169,59 @@ export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsD
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               
               {/* Binance ID Screenshot - Mandatory */}
-              <div className="border rounded-lg p-4 bg-red-50 border-red-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <Image className="h-5 w-5 text-red-600" />
-                  <span className="font-medium text-red-800">Binance ID Screenshot</span>
-                  <Badge variant="outline" className="text-red-600 border-red-300">Required</Badge>
-                </div>
-                {kycRequest.binance_id_screenshot_url ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-green-600">Available</Badge>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleViewDocument(kycRequest.binance_id_screenshot_url)}
-                        className="flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-red-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Binance ID Screenshot"
+                icon={Image}
+                url={kycRequest.binance_id_screenshot_url}
+                isRequired={true}
+                iconColor="text-red-600"
+                badgeColor="text-green-600"
+              />
 
               {/* Aadhar Front */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Image className="h-5 w-5 text-blue-600" />
-                  <span className="font-medium">Aadhar Front</span>
-                </div>
-                {(kycRequest.aadhar_front_url || kycRequest.hasAadharFront) ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-green-600">Available</Badge>
-                    {kycRequest.aadhar_front_url && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleViewDocument(kycRequest.aadhar_front_url)}
-                          className="flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Aadhar Front"
+                icon={Image}
+                url={kycRequest.aadhar_front_url}
+                iconColor="text-blue-600"
+                badgeColor="text-green-600"
+              />
 
               {/* Aadhar Back */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Image className="h-5 w-5 text-blue-600" />
-                  <span className="font-medium">Aadhar Back</span>
-                </div>
-                {(kycRequest.aadhar_back_url || kycRequest.hasAadharBack) ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-green-600">Available</Badge>
-                    {kycRequest.aadhar_back_url && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleViewDocument(kycRequest.aadhar_back_url)}
-                          className="flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Aadhar Back"
+                icon={Image}
+                url={kycRequest.aadhar_back_url}
+                iconColor="text-blue-600"
+                badgeColor="text-green-600"
+              />
               
               {/* Verified Feedback */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="h-5 w-5 text-green-600" />
-                  <span className="font-medium">Verified Feedback</span>
-                </div>
-                {(kycRequest.verified_feedback_url || kycRequest.hasVerifiedFeedback) ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-green-600">Available</Badge>
-                    {kycRequest.verified_feedback_url && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleViewDocument(kycRequest.verified_feedback_url)}
-                          className="flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View Screenshot
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Verified Feedback"
+                icon={FileText}
+                url={kycRequest.verified_feedback_url}
+                iconColor="text-green-600"
+                badgeColor="text-green-600"
+              />
               
               {/* Negative Feedback */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="h-5 w-5 text-red-600" />
-                  <span className="font-medium">Negative Feedback</span>
-                </div>
-                {(kycRequest.negative_feedback_url || kycRequest.hasNegativeFeedback) ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-red-600">Available</Badge>
-                    {kycRequest.negative_feedback_url && (
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => handleViewDocument(kycRequest.negative_feedback_url)}
-                          className="flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View Screenshot
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Negative Feedback"
+                icon={FileText}
+                url={kycRequest.negative_feedback_url}
+                iconColor="text-red-600"
+                badgeColor="text-red-600"
+              />
 
               {/* Additional Documents */}
-              <div className="border rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="h-5 w-5 text-purple-600" />
-                  <span className="font-medium">Additional Documents</span>
-                </div>
-                {kycRequest.additional_documents_url ? (
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="text-purple-600">Available</Badge>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleViewDocument(kycRequest.additional_documents_url)}
-                        className="flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        View Document
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Badge variant="outline" className="text-gray-600">Not Provided</Badge>
-                )}
-              </div>
+              <DocumentCard
+                title="Additional Documents"
+                icon={FileText}
+                url={kycRequest.additional_documents_url}
+                iconColor="text-purple-600"
+                badgeColor="text-purple-600"
+              />
             </div>
           </div>
 

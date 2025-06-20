@@ -13,16 +13,10 @@ interface KYCDetailsDialogProps {
 }
 
 export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsDialogProps) {
-  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
-
   if (!kycRequest) return null;
 
   const handleViewDocument = (url: string) => {
     window.open(url, '_blank');
-  };
-
-  const handleImageError = (documentType: string) => {
-    setImageErrors(prev => ({ ...prev, [documentType]: true }));
   };
 
   const DocumentCard = ({ 
@@ -40,8 +34,6 @@ export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsD
     iconColor?: string;
     badgeColor?: string;
   }) => {
-    const documentKey = title.toLowerCase().replace(/\s+/g, '_');
-    const hasError = imageErrors[documentKey];
     const isImage = url && (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png') || url.includes('.webp'));
     
     return (
@@ -59,26 +51,23 @@ export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsD
             <Badge variant="outline" className={badgeColor}>Available</Badge>
             
             {/* Image Preview */}
-            {isImage && !hasError && (
+            {isImage && (
               <div className="mt-3">
                 <div className="w-full h-48 border rounded-lg overflow-hidden bg-gray-50">
                   <OptimizedImage
                     src={url}
                     alt={title}
                     className="w-full h-full object-contain"
-                    onError={() => handleImageError(documentKey)}
                   />
                 </div>
               </div>
             )}
             
-            {/* Error state or non-image file */}
-            {(!isImage || hasError) && (
+            {/* Non-image file display */}
+            {!isImage && (
               <div className="mt-3 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center">
                 <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">
-                  {hasError ? 'Preview not available' : 'Document available'}
-                </p>
+                <p className="text-sm text-gray-600">Document available</p>
               </div>
             )}
             

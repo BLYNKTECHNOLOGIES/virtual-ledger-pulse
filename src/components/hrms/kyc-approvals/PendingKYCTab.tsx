@@ -3,8 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Eye, CheckCircle, XCircle, MessageSquare } from "lucide-react";
+import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
+import { CreateKYCRequestDialog } from "./CreateKYCRequestDialog";
+import { CreateQueryDialog } from "./CreateQueryDialog";
 
 const mockPendingKYC = [
   {
@@ -18,6 +20,7 @@ const mockPendingKYC = [
     hasAadharBack: true,
     hasVerifiedFeedback: true,
     hasNegativeFeedback: false,
+    additionalInfo: "Client has good transaction history",
   },
   {
     id: "2",
@@ -30,11 +33,14 @@ const mockPendingKYC = [
     hasAadharBack: true,
     hasVerifiedFeedback: false,
     hasNegativeFeedback: true,
+    additionalInfo: "First time buyer, needs additional verification",
   },
 ];
 
 export function PendingKYCTab() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [createRequestOpen, setCreateRequestOpen] = useState(false);
+  const [createQueryOpen, setCreateQueryOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<any>(null);
 
   const handleViewDetails = (kyc: any) => {
@@ -52,13 +58,21 @@ export function PendingKYCTab() {
     // Handle rejection logic
   };
 
-  const handleQuery = (kycId: string) => {
-    console.log("Raising query for KYC:", kycId);
-    // Handle query logic
+  const handleQuery = (kyc: any) => {
+    setSelectedKYC(kyc);
+    setCreateQueryOpen(true);
   };
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Pending KYC Approvals</h3>
+        <Button onClick={() => setCreateRequestOpen(true)} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Create New Request
+        </Button>
+      </div>
+
       <div className="grid gap-4">
         {mockPendingKYC.map((kyc) => (
           <Card key={kyc.id}>
@@ -91,14 +105,21 @@ export function PendingKYCTab() {
                 </div>
               </div>
 
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-4 flex-wrap">
                 {kyc.hasAadharFront && <Badge variant="outline" className="text-green-600">Aadhar Front</Badge>}
                 {kyc.hasAadharBack && <Badge variant="outline" className="text-green-600">Aadhar Back</Badge>}
                 {kyc.hasVerifiedFeedback && <Badge variant="outline" className="text-green-600">Verified Feedback</Badge>}
                 {kyc.hasNegativeFeedback && <Badge variant="outline" className="text-red-600">Negative Feedback</Badge>}
               </div>
+
+              {kyc.additionalInfo && (
+                <div className="mb-4 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
+                  <p className="text-sm font-medium text-blue-800">Additional Info:</p>
+                  <p className="text-sm text-blue-700">{kyc.additionalInfo}</p>
+                </div>
+              )}
               
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={() => handleViewDetails(kyc)} className="flex items-center gap-2">
                   <Eye className="h-4 w-4" />
                   View Details
@@ -111,7 +132,7 @@ export function PendingKYCTab() {
                   <XCircle className="h-4 w-4" />
                   Reject
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => handleQuery(kyc.id)} className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleQuery(kyc)} className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
                   Query
                 </Button>
@@ -124,6 +145,17 @@ export function PendingKYCTab() {
       <KYCDetailsDialog
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
+        kycRequest={selectedKYC}
+      />
+
+      <CreateKYCRequestDialog
+        open={createRequestOpen}
+        onOpenChange={setCreateRequestOpen}
+      />
+
+      <CreateQueryDialog
+        open={createQueryOpen}
+        onOpenChange={setCreateQueryOpen}
         kycRequest={selectedKYC}
       />
     </div>

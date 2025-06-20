@@ -18,14 +18,10 @@ import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useSidebar } from "@/components/ui/sidebar";
 
 export default function Sales() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { state } = useSidebar();
-  const isCollapsed = state === "collapsed";
-  
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -225,76 +221,72 @@ export default function Sales() {
   };
 
   const renderOrdersTable = (orders: any[]) => (
-    <div className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full table-auto min-w-[800px]">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Order #</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Customer</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Platform</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Amount</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Qty</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Price</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Status</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Date</th>
-              <th className="text-left py-3 px-3 font-medium text-gray-600 text-sm whitespace-nowrap">Actions</th>
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b">
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((order) => (
+            <tr key={order.id} className="border-b hover:bg-gray-50">
+              <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
+              <td className="py-3 px-4">
+                <div>
+                  <div className="font-medium">{order.client_name}</div>
+                  {order.description && (
+                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                      {order.description}
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="py-3 px-4">{order.platform}</td>
+              <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{order.quantity || 1}</td>
+              <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
+              <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
+              <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
+              <td className="py-3 px-4">
+                <div className="flex gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedOrderForDetails(order)}
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    View Details
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setSelectedOrderForEdit(order)}
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleDeleteOrder(order.id)}
+                    disabled={deleteSalesOrderMutation.isPending}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr key={order.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-3 font-mono text-xs">{order.order_number}</td>
-                <td className="py-3 px-3">
-                  <div>
-                    <div className="font-medium text-sm">{order.client_name}</div>
-                    {order.description && (
-                      <div className="text-xs text-gray-500 max-w-[120px] truncate">
-                        {order.description}
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="py-3 px-3 text-sm">{order.platform}</td>
-                <td className="py-3 px-3 font-medium text-sm">₹{Number(order.total_amount).toLocaleString()}</td>
-                <td className="py-3 px-3 text-sm">{order.quantity || 1}</td>
-                <td className="py-3 px-3 text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
-                <td className="py-3 px-3">{getStatusBadge(order.payment_status)}</td>
-                <td className="py-3 px-3 text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                <td className="py-3 px-3">
-                  <div className="flex gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="h-8 px-2"
-                      onClick={() => setSelectedOrderForDetails(order)}
-                    >
-                      <Eye className="h-3 w-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="h-8 px-2"
-                      onClick={() => setSelectedOrderForEdit(order)}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-8 px-2"
-                      onClick={() => handleDeleteOrder(order.id)}
-                      disabled={deleteSalesOrderMutation.isPending}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
       {orders.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No orders found for this category.
@@ -304,18 +296,18 @@ export default function Sales() {
   );
 
   return (
-    <div className="space-y-6 p-4 w-full max-w-full">
+    <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Sales Order Processing</h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Sales Order Processing</h1>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button variant="outline" onClick={handleExportCSV} size="sm" className="whitespace-nowrap">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => setShowStepByStepFlow(true)} size="sm" className="whitespace-nowrap">
+          <Button onClick={() => setShowStepByStepFlow(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
           </Button>
@@ -325,111 +317,108 @@ export default function Sales() {
       {/* Search and Filter Bar */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4 flex-wrap">
-            <div className="flex-1 min-w-[200px]">
+          <div className="flex gap-4">
+            <div className="flex-1">
               <Input 
                 placeholder="Search by order number, customer name, platform..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
               />
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-                <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Filter Sales Orders</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
+            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
+              <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Filter Sales Orders</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Payment Status</Label>
+                    <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="PARTIAL">Partial</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="FAILED">Failed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Payment Status</Label>
-                      <Select value={filterPaymentStatus} onValueChange={setFilterPaymentStatus}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PARTIAL">Partial</SelectItem>
-                          <SelectItem value="COMPLETED">Completed</SelectItem>
-                          <SelectItem value="FAILED">Failed</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Date From</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateFrom && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateFrom ? format(filterDateFrom, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateFrom}
+                            onSelect={setFilterDateFrom}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Date From</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !filterDateFrom && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {filterDateFrom ? format(filterDateFrom, "PPP") : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={filterDateFrom}
-                              onSelect={setFilterDateFrom}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div>
-                        <Label>Date To</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !filterDateTo && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {filterDateTo ? format(filterDateTo, "PPP") : "Pick a date"}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <Calendar
-                              mode="single"
-                              selected={filterDateTo}
-                              onSelect={setFilterDateTo}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <Button variant="outline" onClick={clearFilters}>
-                        Clear Filters
-                      </Button>
-                      <Button onClick={() => setShowFilterDialog(false)}>
-                        Apply Filters
-                      </Button>
+                    <div>
+                      <Label>Date To</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !filterDateTo && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filterDateTo ? format(filterDateTo, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={filterDateTo}
+                            onSelect={setFilterDateTo}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
-                </DialogContent>
-              </Dialog>
-              <Button variant="outline" size="sm">
-                <Search className="h-4 w-4 mr-2" />
-                Search
-              </Button>
-            </div>
+                  
+                  <div className="flex justify-between">
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                    <Button onClick={() => setShowFilterDialog(false)}>
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -437,27 +426,27 @@ export default function Sales() {
       {/* Sales Orders Dashboard with Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg md:text-xl">Sales Orders Dashboard</CardTitle>
+          <CardTitle>Sales Orders Dashboard</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent>
           {isLoading ? (
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 m-4 mb-0">
-                <TabsTrigger value="pending" className="text-sm">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pending">
                   Pending Orders ({pendingOrders.length})
                 </TabsTrigger>
-                <TabsTrigger value="completed" className="text-sm">
+                <TabsTrigger value="completed">
                   Completed Orders ({completedOrders.length})
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="pending" className="mt-4 p-4 pt-0">
+              <TabsContent value="pending" className="mt-6">
                 {renderOrdersTable(pendingOrders)}
               </TabsContent>
               
-              <TabsContent value="completed" className="mt-4 p-4 pt-0">
+              <TabsContent value="completed" className="mt-6">
                 {renderOrdersTable(completedOrders)}
               </TabsContent>
             </Tabs>

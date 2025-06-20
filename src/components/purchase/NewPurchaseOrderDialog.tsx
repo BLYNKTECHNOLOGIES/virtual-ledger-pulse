@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -26,17 +24,6 @@ interface ProductItem {
   warehouse_id: string;
 }
 
-interface Payer {
-  id: string;
-  employee: {
-    name: string;
-    employee_id: string;
-  };
-  safe_funds: boolean;
-  payer_type: string;
-  status: string;
-}
-
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -51,14 +38,13 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     bank_account_number: "",
     bank_account_name: "",
     ifsc_code: "",
+    assigned_to: "",
     order_date: new Date().toISOString().split('T')[0],
     tds_applied: false,
     pan_number: "",
-    requires_safe_funds: false,
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
-  const [assignedPayer, setAssignedPayer] = useState<Payer | null>(null);
 
   // Calculate amounts
   const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
@@ -79,34 +65,20 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     },
   });
 
-  // Fetch available payers
-  const { data: payers } = useQuery({
-    queryKey: ['available_payers'],
+  // Fetch employees for assignment
+  const { data: employees } = useQuery({
+    queryKey: ['employees'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('payers')
-        .select(`
-          *,
-          employee:employees(name, employee_id)
-        `)
+        .from('employees')
+        .select('id, name, employee_id')
         .eq('status', 'ACTIVE')
-        .order('created_at');
+        .order('name');
       
       if (error) throw error;
       return data;
     },
   });
-
-  // Auto-assign payer based on safe funds requirement
-  useEffect(() => {
-    if (payers && payers.length > 0) {
-      const suitablePayer = payers.find(payer => 
-        payer.safe_funds === formData.requires_safe_funds
-      ) || payers[0]; // Fallback to first available payer
-      
-      setAssignedPayer(suitablePayer);
-    }
-  }, [payers, formData.requires_safe_funds]);
 
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
@@ -125,7 +97,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           bank_account_number: orderData.bank_account_number,
           bank_account_name: orderData.bank_account_name,
           ifsc_code: orderData.ifsc_code,
-          assigned_to: assignedPayer?.employee?.name || null,
+          assigned_to: orderData.assigned_to,
           total_amount: totalAmount,
           tds_applied: orderData.tds_applied,
           pan_number: orderData.pan_number,
@@ -211,13 +183,12 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       bank_account_number: "",
       bank_account_name: "",
       ifsc_code: "",
+      assigned_to: "",
       order_date: new Date().toISOString().split('T')[0],
       tds_applied: false,
       pan_number: "",
-      requires_safe_funds: false,
     });
     setProductItems([]);
-    setAssignedPayer(null);
   };
 
   // Auto-fill contact number when supplier is selected from clients
@@ -329,34 +300,20 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="requires_safe_funds"
-                checked={formData.requires_safe_funds}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, requires_safe_funds: !!checked }))}
-              />
-              <Label htmlFor="requires_safe_funds">Requires Safe Funds</Label>
-            </div>
-
             <div>
-              <Label>Auto-Assigned Payer</Label>
-              {assignedPayer ? (
-                <div className="p-2 bg-gray-50 rounded border">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{assignedPayer.employee?.name}</span>
-                    <Badge variant={assignedPayer.safe_funds ? "default" : "outline"}>
-                      {assignedPayer.safe_funds ? "Safe Funds" : "Regular"}
-                    </Badge>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    ID: {assignedPayer.employee?.employee_id} | Type: {assignedPayer.payer_type}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-2 bg-red-50 rounded border border-red-200 text-red-600">
-                  No suitable payer available
-                </div>
-              )}
+              <Label htmlFor="assigned_to">Assigned To</Label>
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, assigned_to: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.name}>
+                      {employee.name} ({employee.employee_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

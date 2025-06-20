@@ -1,191 +1,83 @@
 
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Layout } from "./components/Layout";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { PermissionGuard } from "./components/PermissionGuard";
+import { lazyLoad } from "./utils/lazyLoad";
+import { usePerformance } from "./hooks/usePerformance";
 
-// Lazy load pages for better performance
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Sales = lazy(() => import("./pages/Sales"));
-const Purchase = lazy(() => import("./pages/Purchase"));
-const BAMS = lazy(() => import("./pages/BAMS"));
-const Clients = lazy(() => import("./pages/Clients"));
-const ClientDetail = lazy(() => import("./pages/ClientDetail"));
-const Leads = lazy(() => import("./pages/Leads"));
-const UserManagement = lazy(() => import("./pages/UserManagement"));
-const HRMS = lazy(() => import("./pages/HRMS"));
-const Payroll = lazy(() => import("./pages/Payroll"));
-const Compliance = lazy(() => import("./pages/Compliance"));
-const StockManagement = lazy(() => import("./pages/StockManagement"));
-const Accounting = lazy(() => import("./pages/Accounting"));
-const Login = lazy(() => import("./pages/Login"));
+// Lazy load pages for better code splitting
+const Index = lazyLoad(() => import("./pages/Index"));
+const Sales = lazyLoad(() => import("./pages/Sales"));
+const Purchase = lazyLoad(() => import("./pages/Purchase"));
+const BAMS = lazyLoad(() => import("./pages/BAMS"));
+const Clients = lazyLoad(() => import("./pages/Clients"));
+const ClientDetail = lazyLoad(() => import("./pages/ClientDetail"));
+const Leads = lazyLoad(() => import("./pages/Leads"));
+const UserManagement = lazyLoad(() => import("./pages/UserManagement"));
+const HRMS = lazyLoad(() => import("./pages/HRMS"));
+const Payroll = lazyLoad(() => import("./pages/Payroll"));
+const Compliance = lazyLoad(() => import("./pages/Compliance"));
+const StockManagement = lazyLoad(() => import("./pages/StockManagement"));
+const Accounting = lazyLoad(() => import("./pages/Accounting"));
 
-const queryClient = new QueryClient();
+// Optimize QueryClient with better defaults
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
-function AppContent() {
-  const { isAuthenticated, login } = useAuth();
+// Loading fallback component
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+);
 
-  const handleLogin = async (credentials: { username: string; password: string }) => {
-    await login(credentials);
-  };
+const App = () => {
+  usePerformance();
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated ? <Navigate to="/" replace /> : (
-              <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
-                <Login onLogin={handleLogin} />
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <SidebarProvider>
+            <Layout>
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/sales" element={<Sales />} />
+                  <Route path="/purchase" element={<Purchase />} />
+                  <Route path="/bams" element={<BAMS />} />
+                  <Route path="/clients" element={<Clients />} />
+                  <Route path="/clients/:clientId" element={<ClientDetail />} />
+                  <Route path="/leads" element={<Leads />} />
+                  <Route path="/user-management" element={<UserManagement />} />
+                  <Route path="/hrms" element={<HRMS />} />
+                  <Route path="/payroll" element={<Payroll />} />
+                  <Route path="/compliance" element={<Compliance />} />
+                  <Route path="/stock" element={<StockManagement />} />
+                  <Route path="/accounting" element={<Accounting />} />
+                </Routes>
               </Suspense>
-            )
-          } 
-        />
-        <Route
-          path="/*"
-          element={
-            isAuthenticated ? (
-              <Layout>
-                <Suspense fallback={<div className="flex items-center justify-center h-64">Loading...</div>}>
-                  <Routes>
-                    <Route 
-                      path="/" 
-                      element={
-                        <PermissionGuard requiredPermission="view_dashboard">
-                          <Dashboard />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/sales" 
-                      element={
-                        <PermissionGuard requiredPermission="view_sales">
-                          <Sales />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/purchase" 
-                      element={
-                        <PermissionGuard requiredPermission="view_purchase">
-                          <Purchase />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/bams" 
-                      element={
-                        <PermissionGuard requiredPermission="view_bams">
-                          <BAMS />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/clients" 
-                      element={
-                        <PermissionGuard requiredPermission="view_clients">
-                          <Clients />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/clients/:id" 
-                      element={
-                        <PermissionGuard requiredPermission="view_clients">
-                          <ClientDetail />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/leads" 
-                      element={
-                        <PermissionGuard requiredPermission="view_leads">
-                          <Leads />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/user-management" 
-                      element={
-                        <PermissionGuard requiredPermission="view_user_management">
-                          <UserManagement />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/hrms" 
-                      element={
-                        <PermissionGuard requiredPermission="view_hrms">
-                          <HRMS />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/payroll" 
-                      element={
-                        <PermissionGuard requiredPermission="view_payroll">
-                          <Payroll />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/compliance" 
-                      element={
-                        <PermissionGuard requiredPermission="view_compliance">
-                          <Compliance />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/stock-management" 
-                      element={
-                        <PermissionGuard requiredPermission="view_stock_management">
-                          <StockManagement />
-                        </PermissionGuard>
-                      } 
-                    />
-                    <Route 
-                      path="/accounting" 
-                      element={
-                        <PermissionGuard requiredPermission="view_accounting">
-                          <Accounting />
-                        </PermissionGuard>
-                      } 
-                    />
-                  </Routes>
-                </Suspense>
-              </Layout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+            </Layout>
+          </SidebarProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
-}
-
-function App() {
-  return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider>
-            <AppContent />
-            <Toaster />
-            <Sonner />
-          </AuthProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
-  );
-}
+};
 
 export default App;

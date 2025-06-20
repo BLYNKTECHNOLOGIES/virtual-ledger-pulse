@@ -1,80 +1,22 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calculator, FileText, Download, Plus } from "lucide-react";
-import { PayslipGenerationDialog } from "@/components/payroll/PayslipGenerationDialog";
-import { generatePayslipPDF } from "@/utils/payslipPdfGenerator";
-import { toast } from "sonner";
+import { Calculator, FileText } from "lucide-react";
+import { SalaryPayoutTab } from "@/components/payroll/SalaryPayoutTab";
+import { CompliancePayrollTab } from "@/components/payroll/CompliancePayrollTab";
 
 export default function Payroll() {
-  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
-
-  // Fetch payslips with payment_status included
-  const { data: payslips, refetch: refetchPayslips } = useQuery({
-    queryKey: ['payslips'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payslips')
-        .select(`
-          *,
-          employees (
-            name,
-            employee_id,
-            designation,
-            department,
-            date_of_joining
-          )
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const handleDownloadPayslip = async (payslip: any) => {
-    try {
-      console.log('Generating PDF for payslip:', payslip);
-      const payslipData = {
-        employee: payslip.employees,
-        payslip: payslip
-      };
-      await generatePayslipPDF(payslipData);
-      toast.success('Payslip downloaded successfully');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Failed to generate PDF');
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'GENERATED':
-        return <Badge className="bg-blue-100 text-blue-800">Generated</Badge>;
-      case 'PAID':
-        return <Badge className="bg-green-100 text-green-800">Paid</Badge>;
-      case 'PENDING':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
-
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Payroll Management System</h1>
-        <p className="text-gray-600 mt-2">Employee compensation and payslip management</p>
+        <p className="text-gray-600 mt-2">Employee compensation and compliance management</p>
       </div>
 
-      <Tabs defaultValue="salary-payout" className="space-y-6">
+      <Tabs defaultValue="salary" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="salary-payout" className="flex items-center gap-2">
+          <TabsTrigger value="salary" className="flex items-center gap-2">
             <Calculator className="h-4 w-4" />
             Salary Payout
           </TabsTrigger>
@@ -84,231 +26,14 @@ export default function Payroll() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="salary-payout" className="space-y-6">
-          {/* Salary Payout Section */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Salary Payout</CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">Employee compensation and compliance management</p>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Sub-tabs for Salary Payout */}
-          <Tabs defaultValue="payslips" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="payslips">Payslips</TabsTrigger>
-              <TabsTrigger value="salary-register">Salary Register</TabsTrigger>
-              <TabsTrigger value="salary-summary">Salary Summary</TabsTrigger>
-              <TabsTrigger value="salary-adjustments">Salary Adjustments</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="payslips" className="space-y-4">
-              {/* Employee Payslips Section */}
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Employee Payslips
-                      </CardTitle>
-                    </div>
-                    <Button 
-                      onClick={() => setShowGenerateDialog(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Generate Payslips
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {payslips && payslips.length > 0 ? (
-                    <div className="space-y-4">
-                      {payslips.map((payslip) => (
-                        <div key={payslip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-2">
-                              <h3 className="font-semibold text-lg">{payslip.employees?.name}</h3>
-                              <p className="text-sm text-gray-600">
-                                {new Date(payslip.month_year).toLocaleDateString('en-US', { 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}
-                              </p>
-                              <div className="flex gap-4 text-sm">
-                                <span>Gross: ₹{payslip.total_earnings?.toLocaleString()}</span>
-                                <span>Net: ₹{payslip.net_salary?.toLocaleString()}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(payslip.status)}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDownloadPayslip(payslip)}
-                                className="h-8"
-                              >
-                                <Download className="h-3 w-3 mr-1" />
-                                Download
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                      <p>No payslips generated yet</p>
-                      <p className="text-sm">Click "Generate Payslips" to create your first payslip</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="salary-register">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Salary Register</CardTitle>
-                  <p className="text-sm text-gray-600">Complete salary register for all employees</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Salary register coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="salary-summary">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Salary Summary</CardTitle>
-                  <p className="text-sm text-gray-600">Monthly salary summary and analytics</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    <Calculator className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Salary summary coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="salary-adjustments">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Salary Adjustments</CardTitle>
-                  <p className="text-sm text-gray-600">Manage salary adjustments and corrections</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p>Salary adjustments coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+        <TabsContent value="salary">
+          <SalaryPayoutTab />
         </TabsContent>
 
         <TabsContent value="compliance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Compliance Reports</CardTitle>
-              <p className="text-sm text-gray-600">Tax filings, statutory compliance and reporting</p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-blue-600" />
-                      <div>
-                        <h3 className="font-semibold">PF Returns</h3>
-                        <p className="text-sm text-gray-600">Monthly PF compliance reports</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-green-600" />
-                      <div>
-                        <h3 className="font-semibold">ESI Returns</h3>
-                        <p className="text-sm text-gray-600">ESI contribution reports</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-purple-600" />
-                      <div>
-                        <h3 className="font-semibold">TDS Reports</h3>
-                        <p className="text-sm text-gray-600">Tax deduction statements</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-orange-600" />
-                      <div>
-                        <h3 className="font-semibold">Form 16</h3>
-                        <p className="text-sm text-gray-600">Annual tax certificates</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-red-600" />
-                      <div>
-                        <h3 className="font-semibold">Professional Tax</h3>
-                        <p className="text-sm text-gray-600">PT compliance reports</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-8 w-8 text-indigo-600" />
-                      <div>
-                        <h3 className="font-semibold">Bonus Reports</h3>
-                        <p className="text-sm text-gray-600">Annual bonus calculations</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
+          <CompliancePayrollTab />
         </TabsContent>
       </Tabs>
-
-      <PayslipGenerationDialog
-        open={showGenerateDialog}
-        onOpenChange={setShowGenerateDialog}
-        onSuccess={() => refetchPayslips()}
-      />
     </div>
   );
 }

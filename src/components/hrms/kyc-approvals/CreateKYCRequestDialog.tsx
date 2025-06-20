@@ -39,25 +39,42 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading file:', filePath);
+
+      const { data, error: uploadError } = await supabase.storage
         .from('kyc-documents')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
+        toast({
+          title: "Upload Error",
+          description: `Failed to upload ${file.name}: ${uploadError.message}`,
+          variant: "destructive",
+        });
         return null;
       }
 
-      const { data } = supabase.storage
+      console.log('Upload successful:', data);
+
+      const { data: urlData } = supabase.storage
         .from('kyc-documents')
         .getPublicUrl(filePath);
 
-      return data.publicUrl;
+      return urlData.publicUrl;
     } catch (error) {
       console.error('File upload error:', error);
+      toast({
+        title: "Upload Error",
+        description: `Failed to upload ${file.name}`,
+        variant: "destructive",
+      });
       return null;
     }
   };
@@ -72,27 +89,42 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
       return;
     }
 
+    const orderAmount = parseFloat(formData.orderAmount);
+    if (isNaN(orderAmount) || orderAmount <= 0) {
+      toast({
+        title: "Invalid Order Amount",
+        description: "Please enter a valid order amount greater than 0.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Upload files
-      const aadharFrontUrl = formData.aadharFrontFile ? await uploadFile(formData.aadharFrontFile, 'aadhar-front') : null;
-      const aadharBackUrl = formData.aadharBackFile ? await uploadFile(formData.aadharBackFile, 'aadhar-back') : null;
-      const verifiedFeedbackUrl = formData.verifiedFeedbackFile ? await uploadFile(formData.verifiedFeedbackFile, 'verified-feedback') : null;
-      const negativeFeedbackUrl = formData.negativeFeedbackFile ? await uploadFile(formData.negativeFeedbackFile, 'negative-feedback') : null;
+      console.log('Starting file uploads...');
+      
+      // Upload required Binance ID screenshot first
       const binanceIdUrl = await uploadFile(formData.binanceIdScreenshotFile!, 'binance-id');
-      const additionalDocsUrl = formData.additionalDocumentsFile ? await uploadFile(formData.additionalDocumentsFile, 'additional-docs') : null;
-
       if (!binanceIdUrl) {
         throw new Error('Failed to upload Binance ID screenshot');
       }
 
+      // Upload optional files
+      const aadharFrontUrl = formData.aadharFrontFile ? await uploadFile(formData.aadharFrontFile, 'aadhar-front') : null;
+      const aadharBackUrl = formData.aadharBackFile ? await uploadFile(formData.aadharBackFile, 'aadhar-back') : null;
+      const verifiedFeedbackUrl = formData.verifiedFeedbackFile ? await uploadFile(formData.verifiedFeedbackFile, 'verified-feedback') : null;
+      const negativeFeedbackUrl = formData.negativeFeedbackFile ? await uploadFile(formData.negativeFeedbackFile, 'negative-feedback') : null;
+      const additionalDocsUrl = formData.additionalDocumentsFile ? await uploadFile(formData.additionalDocumentsFile, 'additional-docs') : null;
+
+      console.log('All files uploaded, inserting into database...');
+
       // Insert into database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('kyc_approval_requests')
         .insert({
           counterparty_name: formData.counterpartyName,
-          order_amount: parseFloat(formData.orderAmount),
+          order_amount: orderAmount,
           purpose_of_buying: formData.purposeOfBuying || null,
           additional_info: formData.additionalInfo || null,
           aadhar_front_url: aadharFrontUrl,
@@ -101,11 +133,15 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
           negative_feedback_url: negativeFeedbackUrl,
           binance_id_screenshot_url: binanceIdUrl,
           additional_documents_url: additionalDocsUrl,
-        });
+        })
+        .select();
 
       if (error) {
+        console.error('Database insert error:', error);
         throw error;
       }
+
+      console.log('KYC request created successfully:', data);
 
       toast({
         title: "KYC Request Created",
@@ -132,7 +168,7 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
       console.error('Error creating KYC request:', error);
       toast({
         title: "Error",
-        description: "Failed to create KYC request. Please try again.",
+        description: `Failed to create KYC request: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {

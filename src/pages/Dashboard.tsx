@@ -1,17 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import { QuickAccessCard } from "@/components/dashboard/QuickAccessCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
+import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
+import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+
+interface Widget {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+  category: string;
+  size: 'small' | 'medium' | 'large';
+}
 
 export default function Dashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState("7d");
+  const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const { toast } = useToast();
+
+  // Default widgets
+  const defaultWidgets = [
+    {
+      id: 'total-clients',
+      name: 'Total Clients',
+      description: 'Quick view of total client count',
+      icon: Users,
+      category: 'Metrics',
+      size: 'small' as const
+    },
+    {
+      id: 'revenue-chart',
+      name: 'Revenue Chart',
+      description: 'Monthly revenue trends and analytics',
+      icon: TrendingUp,
+      category: 'Analytics',
+      size: 'large' as const
+    }
+  ];
+
+  // Load saved dashboard layout
+  useEffect(() => {
+    const savedWidgets = localStorage.getItem('dashboardWidgets');
+    if (savedWidgets) {
+      setDashboardWidgets(JSON.parse(savedWidgets));
+    } else {
+      setDashboardWidgets(defaultWidgets);
+    }
+  }, []);
+
+  // Save dashboard layout
+  useEffect(() => {
+    if (dashboardWidgets.length > 0) {
+      localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
+    }
+  }, [dashboardWidgets]);
 
   // Fetch dashboard metrics
   const { data: metrics } = useQuery({
@@ -98,6 +150,45 @@ export default function Dashboard() {
     },
   });
 
+  const handleAddWidget = (widget: Widget) => {
+    setDashboardWidgets(prev => [...prev, widget]);
+    toast({
+      title: "Widget Added",
+      description: `${widget.name} has been added to your dashboard.`,
+    });
+  };
+
+  const handleRemoveWidget = (widgetId: string) => {
+    setDashboardWidgets(prev => prev.filter(w => w.id !== widgetId));
+    toast({
+      title: "Widget Removed",
+      description: "Widget has been removed from your dashboard.",
+    });
+  };
+
+  const handleMoveWidget = (widgetId: string, direction: 'up' | 'down') => {
+    setDashboardWidgets(prev => {
+      const currentIndex = prev.findIndex(w => w.id === widgetId);
+      if (currentIndex === -1) return prev;
+      
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (newIndex < 0 || newIndex >= prev.length) return prev;
+      
+      const newWidgets = [...prev];
+      [newWidgets[currentIndex], newWidgets[newIndex]] = [newWidgets[newIndex], newWidgets[currentIndex]];
+      return newWidgets;
+    });
+  };
+
+  const handleResetDashboard = () => {
+    setDashboardWidgets(defaultWidgets);
+    localStorage.removeItem('dashboardWidgets');
+    toast({
+      title: "Dashboard Reset",
+      description: "Dashboard has been reset to default layout.",
+    });
+  };
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -106,60 +197,81 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">Welcome back! Here's what's happening with your business.</p>
         </div>
-        <div className="flex gap-2">
-          {["24h", "7d", "30d", "90d"].map((period) => (
+        <div className="flex items-center gap-3">
+          {/* Period Filter */}
+          <div className="flex gap-2">
+            {["24h", "7d", "30d", "90d"].map((period) => (
+              <Button
+                key={period}
+                variant={selectedPeriod === period ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedPeriod(period)}
+              >
+                {period}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Dashboard Controls */}
+          <div className="flex items-center gap-2 border-l pl-3">
             <Button
-              key={period}
-              variant={selectedPeriod === period ? "default" : "outline"}
+              variant="outline"
               size="sm"
-              onClick={() => setSelectedPeriod(period)}
+              onClick={() => setIsEditMode(!isEditMode)}
             >
-              {period}
+              <Settings className="h-4 w-4 mr-2" />
+              {isEditMode ? 'Exit Edit' : 'Edit Mode'}
             </Button>
-          ))}
+            <AddWidgetDialog 
+              onAddWidget={handleAddWidget}
+              existingWidgets={dashboardWidgets.map(w => w.id)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetDashboard}
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total Revenue"
-          value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
-          change="+12.5%"
-          trend="up"
-          icon={DollarSign}
-        />
-        <MetricCard
-          title="Sales Orders"
-          value={metrics?.totalSales?.toString() || "0"}
-          change="+8.2%"
-          trend="up"
-          icon={TrendingUp}
-        />
-        <MetricCard
-          title="Active Clients"
-          value={metrics?.totalClients?.toString() || "0"}
-          change="+3.1%"
-          trend="up"
-          icon={Users}
-        />
-        <MetricCard
-          title="Products"
-          value={metrics?.totalProducts?.toString() || "0"}
-          change="+1.2%"
-          trend="up"
-          icon={Package}
-        />
+      {isEditMode && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-blue-600" />
+            <p className="text-sm text-blue-800">
+              <strong>Edit Mode:</strong> Use the three-dot menu on each widget to move or remove them. 
+              Add new widgets using the "Add Widget" button above.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Links Widget */}
+      <QuickLinksWidget onRemove={handleRemoveWidget} />
+
+      {/* Dynamic Widgets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {dashboardWidgets.map((widget) => (
+          <DashboardWidget
+            key={widget.id}
+            widget={widget}
+            onRemove={handleRemoveWidget}
+            onMove={handleMoveWidget}
+            metrics={metrics}
+          />
+        ))}
       </div>
 
-      {/* Charts and Activity */}
+      {/* Recent Activity - Always visible */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
         <div className="lg:col-span-2">
-          <ExchangeChart />
+          {/* Placeholder for additional content */}
         </div>
-
-        {/* Recent Activity */}
+        
         <Card>
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
@@ -203,33 +315,39 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <QuickAccessCard
-          title="New Sale"
-          description="Create a new sales order"
-          href="/sales"
-          icon="plus"
-        />
-        <QuickAccessCard
-          title="Add Product"
-          description="Add new product to inventory"
-          href="/stock"
-          icon="package"
-        />
-        <QuickAccessCard
-          title="New Client"
-          description="Register a new client"
-          href="/clients"
-          icon="users"
-        />
-        <QuickAccessCard
-          title="Purchase Order"
-          description="Create new purchase order"
-          href="/purchase"
-          icon="shopping-cart"
-        />
-      </div>
+      {/* Default Metrics - Always visible for new users */}
+      {dashboardWidgets.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard
+            title="Total Revenue"
+            value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
+            change="+12.5%"
+            trend="up"
+            icon={DollarSign}
+          />
+          <MetricCard
+            title="Sales Orders"
+            value={metrics?.totalSales?.toString() || "0"}
+            change="+8.2%"
+            trend="up"
+            icon={TrendingUp}
+          />
+          <MetricCard
+            title="Active Clients"
+            value={metrics?.totalClients?.toString() || "0"}
+            change="+3.1%"
+            trend="up"
+            icon={Users}
+          />
+          <MetricCard
+            title="Products"
+            value={metrics?.totalProducts?.toString() || "0"}
+            change="+1.2%"
+            trend="up"
+            icon={Package}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -37,20 +38,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (validationError) {
         console.error('Validation error:', validationError);
-        throw new Error('Invalid credentials');
+        return null;
       }
 
       // Handle array response from validate_user_credentials
-      if (!Array.isArray(validationResult) || validationResult.length === 0 || !validationResult[0]?.is_valid) {
-        console.log('Invalid credentials - authentication failed');
-        throw new Error('Invalid email or password');
+      if (!Array.isArray(validationResult) || validationResult.length === 0) {
+        console.log('Invalid credentials - no user found');
+        return null;
       }
 
       const validationData = validationResult[0] as ValidationUser;
       
       if (!validationData?.is_valid) {
         console.log('Invalid credentials');
-        throw new Error('Invalid email or password');
+        return null;
       }
 
       // Get user with roles using the existing function
@@ -111,9 +112,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('User authenticated successfully:', authenticatedUser);
       console.log('User roles assigned:', roles);
       return authenticatedUser;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Authentication error:', error);
-      throw error;
+      return null;
     }
   };
 
@@ -176,6 +177,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('userSession', JSON.stringify(sessionData));
         console.log('Session stored in localStorage:', sessionData);
         
+        // Also create a Supabase session for consistency
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password
+        });
+        
+        if (signInError) {
+          console.warn('Could not create Supabase session, but custom auth succeeded:', signInError);
+        }
+        
         const isUserAdmin = authenticatedUser.roles?.some(role => 
           role.toLowerCase() === 'admin'
         ) || false;
@@ -185,18 +196,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         toast({
           title: "Success",
-          description: `Welcome back, ${authenticatedUser.firstName || authenticatedUser.username}!`,
+          description: `Logged in successfully as ${isUserAdmin ? 'Administrator' : 'User'}`,
         });
         
         return true;
       } else {
-        throw new Error('Authentication failed');
+        toast({
+          title: "Error",
+          description: "Invalid email/username or password",
+          variant: "destructive",
+        });
+        return false;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
       toast({
         title: "Error",
-        description: error.message || "Invalid email or password",
+        description: "Login failed. Please try again.",
         variant: "destructive",
       });
       return false;

@@ -70,23 +70,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('User data retrieved:', userData);
 
-      // Verify password using PostgreSQL's crypt function
-      const { data: passwordCheck, error: passwordError } = await supabase
-        .rpc('verify_password', {
-          input_password: password,
-          stored_hash: userData.password_hash
-        });
+      // Try to verify password using PostgreSQL's crypt function with type assertion
+      try {
+        const { data: passwordCheck, error: passwordError } = await supabase
+          .rpc('verify_password' as any, {
+            input_password: password,
+            stored_hash: userData.password_hash
+          });
 
-      if (passwordError) {
-        console.error('Password verification error:', passwordError);
-        // Fallback: simple base64 check for existing users
+        if (passwordError) {
+          console.error('Password verification error:', passwordError);
+          // Fallback: simple base64 check for existing users
+          const isValidPassword = userData.password_hash === btoa(password);
+          if (!isValidPassword) {
+            return null;
+          }
+        } else if (!passwordCheck) {
+          console.log('Password verification failed');
+          return null;
+        }
+      } catch (rpcError) {
+        console.error('RPC call failed, using fallback:', rpcError);
+        // Fallback: simple base64 check
         const isValidPassword = userData.password_hash === btoa(password);
         if (!isValidPassword) {
           return null;
         }
-      } else if (!passwordCheck) {
-        console.log('Password verification failed');
-        return null;
       }
 
       // Extract roles
@@ -186,14 +195,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     checkSession();
   }, []);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isLoading }}>

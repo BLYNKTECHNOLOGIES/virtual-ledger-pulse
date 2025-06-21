@@ -37,7 +37,16 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   });
 
   // Check if user has permission to create users
-  const canCreateUsers = isAdmin || hasRole('user_management');
+  const canCreateUsers = isAdmin || hasRole('user_management') || hasRole('admin');
+
+  console.log('User permissions check:', {
+    user: user,
+    isAdmin: isAdmin,
+    hasUserManagementRole: hasRole('user_management'),
+    hasAdminRole: hasRole('admin'),
+    canCreateUsers: canCreateUsers,
+    userRoles: user?.roles
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,7 +140,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <AlertTriangle className="h-4 w-4" />
-        <span className="text-sm">Insufficient permissions</span>
+        <span className="text-sm">Insufficient permissions (Current roles: {user?.roles?.join(', ') || 'None'})</span>
       </div>
     );
   }

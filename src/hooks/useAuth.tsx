@@ -59,9 +59,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // Handle array response from validate_user_credentials
-      const validationData = Array.isArray(validationResult) ? validationResult[0] : validationResult;
+      if (!Array.isArray(validationResult) || validationResult.length === 0) {
+        console.log('Invalid credentials - no user found');
+        return null;
+      }
+
+      const validationData = validationResult[0];
       
-      if (!validationData || !validationData.is_valid) {
+      if (!validationData?.is_valid) {
         console.log('Invalid credentials');
         return null;
       }
@@ -74,42 +79,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('User with roles:', { userWithRoles, userRolesError });
 
-      if (userRolesError || !userWithRoles || userWithRoles.length === 0) {
-        console.error('Failed to get user with roles:', userRolesError);
-        return null;
-      }
-
-      const userData = userWithRoles[0];
-      
-      // Safely handle roles which might be a JSON array
       let roles: string[] = [];
-      if (userData.roles && typeof userData.roles === 'object') {
-        if (Array.isArray(userData.roles)) {
-          roles = userData.roles.map((role: any) => role.name || role).filter(Boolean);
-        } else if (typeof userData.roles === 'string') {
-          try {
-            const parsedRoles = JSON.parse(userData.roles);
-            if (Array.isArray(parsedRoles)) {
-              roles = parsedRoles.map((role: any) => role.name || role).filter(Boolean);
+      let userData = validationData;
+
+      if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+        userData = userWithRoles[0];
+        
+        // Safely handle roles which might be a JSON array
+        if (userData.roles) {
+          if (Array.isArray(userData.roles)) {
+            roles = userData.roles.map((role: any) => role.name || role).filter(Boolean);
+          } else if (typeof userData.roles === 'string') {
+            try {
+              const parsedRoles = JSON.parse(userData.roles);
+              if (Array.isArray(parsedRoles)) {
+                roles = parsedRoles.map((role: any) => role.name || role).filter(Boolean);
+              }
+            } catch (e) {
+              console.warn('Could not parse roles JSON:', e);
             }
-          } catch (e) {
-            console.warn('Could not parse roles JSON:', e);
+          } else if (typeof userData.roles === 'object') {
+            // Handle case where roles is already an object/array
+            const rolesArray = Array.isArray(userData.roles) ? userData.roles : [userData.roles];
+            roles = rolesArray.map((role: any) => role.name || role).filter(Boolean);
           }
         }
       }
 
-      // If no roles found, assign admin role for the demo credentials
-      if (roles.length === 0 && email === 'blynkvirtualtechnologiespvtld@gmail.com') {
-        roles = ['admin'];
+      // Special handling for demo admin credentials
+      if (email === 'blynkvirtualtechnologiespvtld@gmail.com' && validationData.is_valid) {
+        // Always assign admin role for the demo credentials
+        roles = ['admin', 'Admin'];
         console.log('Assigned admin role for demo user');
       }
 
+      // Fallback: if no roles found but user is valid, assign basic user role
+      if (roles.length === 0) {
+        roles = ['user'];
+      }
+
       const authenticatedUser: User = {
-        id: userData.user_id,
-        username: userData.username,
-        email: userData.email,
-        firstName: userData.first_name || undefined,
-        lastName: userData.last_name || undefined,
+        id: validationData.user_id,
+        username: validationData.username || email,
+        email: validationData.email || email,
+        firstName: validationData.first_name || undefined,
+        lastName: validationData.last_name || undefined,
         roles
       };
 
@@ -137,9 +151,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         localStorage.setItem('userSession', JSON.stringify(sessionData));
         
+        const isUserAdmin = authenticatedUser.roles?.some(role => 
+          role.toLowerCase() === 'admin'
+        ) || false;
+        
         toast({
           title: "Success",
-          description: `Logged in successfully as ${authenticatedUser.roles?.includes('admin') ? 'Administrator' : 'User'}`,
+          description: `Logged in successfully as ${isUserAdmin ? 'Administrator' : 'User'}`,
         });
         
         return true;
@@ -174,7 +192,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const hasRole = (role: string): boolean => {
-    return user?.roles?.includes(role) || false;
+    if (!user?.roles) return false;
+    return user.roles.some(userRole => 
+      userRole.toLowerCase() === role.toLowerCase()
+    );
   };
 
   const isAdmin = hasRole('admin');

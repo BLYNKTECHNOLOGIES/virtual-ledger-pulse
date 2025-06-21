@@ -1,55 +1,12 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Edit, Trash2, UserPlus, UserCheck, Shield, CheckCircle, XCircle } from "lucide-react";
-
-// Mock data for active users
-const mockActiveUsers = [
-  {
-    id: 1,
-    username: "architadamle48",
-    email: "architadamle48@gmail.com",
-    role: "User",
-    created: "22/5/2025",
-    status: "Active"
-  },
-  {
-    id: 2,
-    username: "75666govindyadav",
-    email: "75666govindyadav@gmail.com",
-    role: "User", 
-    created: "13/5/2025",
-    status: "Active"
-  },
-  {
-    id: 3,
-    username: "priyankathakur3303",
-    email: "priyankathakur3303@gmail.com",
-    role: "User",
-    created: "12/5/2025", 
-    status: "Active"
-  },
-  {
-    id: 4,
-    username: "saxenapriya78",
-    email: "saxenapriya7826@gmail.com",
-    role: "Admin",
-    created: "12/5/2025",
-    status: "Active"
-  },
-  {
-    id: 5,
-    username: "blynkex.1",
-    email: "blynkex.1@gmail.com",
-    role: "Admin",
-    created: "10/5/2025",
-    status: "Active"
-  }
-];
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, CheckCircle, XCircle } from "lucide-react";
+import { useUsers } from "@/hooks/useUsers";
+import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 
 // Mock data for pending users
 const mockPendingUsers = [
@@ -100,18 +57,23 @@ const mockRoles = [
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
 
-  const filteredActiveUsers = mockActiveUsers.filter(user =>
+  const filteredActiveUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const getRoleBadge = (role: string) => {
-    return role === "Admin" ? (
-      <Badge className="bg-blue-100 text-blue-800">Admin</Badge>
-    ) : (
-      <Badge variant="secondary">User</Badge>
-    );
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-GB');
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (window.confirm('Are you sure you want to deactivate this user?')) {
+      await deleteUser(userId);
+    }
   };
 
   const handleApproveUser = (userId: number) => {
@@ -154,13 +116,10 @@ export default function UserManagement() {
               <div className="flex justify-between items-center">
                 <CardTitle>Active Users ({filteredActiveUsers.length})</CardTitle>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={fetchUsers}>
                     🔄 Refresh
                   </Button>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    New User
-                  </Button>
+                  <AddUserDialog onAddUser={createUser} />
                 </div>
               </div>
             </CardHeader>
@@ -177,38 +136,64 @@ export default function UserManagement() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredActiveUsers.map((user) => (
-              <Card key={user.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-gray-900 truncate">{user.username}</h3>
-                      {getRoleBadge(user.role)}
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                      <p className="text-xs text-gray-500">📅 Created: {user.created}</p>
-                    </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredActiveUsers.map((user) => (
+                <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-semibold text-gray-900 truncate">
+                          {user.first_name && user.last_name 
+                            ? `${user.first_name} ${user.last_name}`
+                            : user.username
+                          }
+                        </h3>
+                        <Badge variant="secondary">User</Badge>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-600 truncate">@{user.username}</p>
+                        <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                        {user.phone && (
+                          <p className="text-sm text-gray-600 truncate">{user.phone}</p>
+                        )}
+                        <p className="text-xs text-gray-500">📅 Created: {formatDate(user.created_at)}</p>
+                      </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" className="h-8 px-2">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="outline" className="h-8 px-2 text-red-600 hover:text-red-700">
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
-                        </Button>
+                      <div className="flex justify-between items-center pt-2 border-t">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="outline" className="h-8 px-2">
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 px-2 text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteUser(user.id)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {filteredActiveUsers.length === 0 && !isLoading && (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  No users found matching your search.
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         {/* Approve Users Tab */}
@@ -271,7 +256,7 @@ export default function UserManagement() {
               <div className="flex justify-between items-center">
                 <CardTitle>System Roles ({mockRoles.length})</CardTitle>
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="h-4 w-4 mr-2" />
+                  <UserPlus className="h-4 w-4 mr-2" />
                   Add Role
                 </Button>
               </div>

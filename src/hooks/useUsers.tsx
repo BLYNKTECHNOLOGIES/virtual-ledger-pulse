@@ -77,34 +77,13 @@ export function useUsers() {
 
       console.log('Permission check passed, proceeding with user creation');
 
-      // First, create a Supabase auth user to ensure proper authentication integration
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            first_name: userData.first_name,
-            last_name: userData.last_name,
-            username: userData.username,
-          }
-        }
-      });
-
-      if (authError) {
-        console.error('Auth user creation error:', authError);
-        throw new Error('Failed to create authentication user: ' + authError.message);
-      }
-
-      console.log('Auth user created:', authData);
-
       // Create a simple password hash for the custom users table
       const passwordHash = btoa(userData.password); // Simple base64 encoding for demo
 
-      // Insert into the custom users table
+      // Insert into the custom users table - let it generate its own UUID
       const { data, error } = await supabase
         .from('users')
         .insert([{
-          id: authData.user?.id, // Use the same ID as the auth user
           username: userData.username,
           email: userData.email,
           first_name: userData.first_name || null,
@@ -120,13 +99,6 @@ export function useUsers() {
 
       if (error) {
         console.error('Insert user error:', error);
-        
-        // If the custom user creation fails, we should clean up the auth user
-        if (authData.user) {
-          console.log('Cleaning up auth user due to custom user creation failure');
-          // Note: In a production app, you'd want to handle this cleanup properly
-        }
-        
         throw error;
       }
 

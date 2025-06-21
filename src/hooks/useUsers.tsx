@@ -5,6 +5,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { DatabaseUser } from '@/types/auth';
 
+type ValidStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+
+function isValidStatus(status: any): status is ValidStatus {
+  return ["ACTIVE", "INACTIVE", "SUSPENDED"].includes(status);
+}
+
 export function useUsers() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +76,14 @@ export function useUsers() {
       }
 
       console.log(`Successfully fetched ${allUsers?.length || 0} users`);
-      setUsers(allUsers || []);
+      
+      // Cast and validate the users data to match DatabaseUser type
+      const validatedUsers = (allUsers || []).map((user) => ({
+        ...user,
+        status: isValidStatus(user.status) ? user.status : "INACTIVE" as ValidStatus, // fallback
+      })) as DatabaseUser[];
+
+      setUsers(validatedUsers);
 
     } catch (error: any) {
       console.error('Error in fetchUsers:', error);

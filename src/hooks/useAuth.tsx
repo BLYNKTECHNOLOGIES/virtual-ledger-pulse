@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -160,16 +161,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('Attempting to restore session from storage...');
       
-      // First check localStorage for custom session
+      // Check localStorage for custom session
       const savedSession = localStorage.getItem('userSession');
       if (savedSession) {
         const sessionData = JSON.parse(savedSession);
         const now = Date.now();
         
-        // Check if session is still valid (not expired)
+        // Check if session is still valid (not expired) - extend to 7 days
         if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
           console.log('Restoring user session from localStorage:', sessionData.user);
           setUser(sessionData.user);
+          setIsLoading(false);
           return;
         } else {
           console.log('Session expired, removing from storage');
@@ -177,17 +179,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
       
-      // Then check Supabase session
-      const { data: { session }, error } = await supabase.auth.getSession();
-      console.log('Supabase session check:', { session, error });
-      
-      if (session?.user && !error) {
-        // If we have a Supabase session but no custom user data, 
-        // we need to authenticate through our custom system
-        console.log('Found Supabase session, checking custom auth...');
-        // Note: We can't re-authenticate without password, so we'll clear the session
-        await supabase.auth.signOut();
-      }
+      console.log('No valid session found in storage');
     } catch (error) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');
@@ -206,24 +198,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Setting user in state:', authenticatedUser);
         setUser(authenticatedUser);
         
-        // Store in localStorage with expiration (24 hours)
+        // Store in localStorage with longer expiration (7 days)
         const sessionData = {
           user: authenticatedUser,
           timestamp: Date.now(),
-          expiresIn: 24 * 60 * 60 * 1000 // 24 hours
+          expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
         };
         localStorage.setItem('userSession', JSON.stringify(sessionData));
         console.log('Session stored in localStorage:', sessionData);
-        
-        // Also create a Supabase session for consistency
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: credentials.email,
-          password: credentials.password
-        });
-        
-        if (signInError) {
-          console.warn('Could not create Supabase session, but custom auth succeeded:', signInError);
-        }
         
         const isUserAdmin = authenticatedUser.roles?.some(role => 
           role.toLowerCase() === 'admin'
@@ -265,9 +247,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
     localStorage.removeItem('userSession');
     
-    // Also sign out from Supabase if there's a session
-    await supabase.auth.signOut();
-    
     toast({
       title: "Success",
       description: "Logged out successfully",
@@ -295,30 +274,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     // Restore session on app load
     restoreSessionFromStorage();
+  }, []); // Remove user dependency to prevent logout loops
 
-    // Listen for Supabase auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Supabase auth state change:', event, session);
-      
-      if (event === 'SIGNED_OUT' || !session) {
-        // If signed out from Supabase, also clear our custom session
-        setUser(null);
-        localStorage.removeItem('userSession');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Update session in localStorage whenever user changes
+  // Update session in localStorage whenever user changes (but not on initial load)
   useEffect(() => {
     if (user) {
       const sessionData = {
         user,
         timestamp: Date.now(),
-        expiresIn: 24 * 60 * 60 * 1000 // 24 hours
+        expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
       console.log('Updated session in localStorage:', sessionData);

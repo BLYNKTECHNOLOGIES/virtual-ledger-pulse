@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,12 +24,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const authenticateUser = async (email: string, password: string): Promise<User | null> => {
     try {
+      console.log('=== AUTHENTICATION DEBUG START ===');
       console.log('Authenticating user with email:', email);
+      console.log('Password length:', password.length);
 
-      // Use the existing validate_user_credentials function
+      // First, let's check if the user exists in the database
+      console.log('Step 1: Checking if user exists in database...');
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, username, email, status, password_hash')
+        .eq('email', email.trim().toLowerCase())
+        .single();
+
+      console.log('User existence check result:', { existingUser, userCheckError });
+
+      if (userCheckError) {
+        console.error('Error checking user existence:', userCheckError);
+        if (userCheckError.code === 'PGRST116') {
+          console.log('User not found in database');
+          return null;
+        }
+        throw userCheckError;
+      }
+
+      if (!existingUser) {
+        console.log('No user found with that email');
+        return null;
+      }
+
+      console.log('User found:', {
+        id: existingUser.id,
+        email: existingUser.email,
+        status: existingUser.status,
+        hasPasswordHash: !!existingUser.password_hash
+      });
+
+      // Step 2: Use the validate_user_credentials function
+      console.log('Step 2: Validating credentials using RPC function...');
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
-          input_username: email,
+          input_username: email.trim().toLowerCase(),
           input_password: password
         });
 
@@ -43,16 +76,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Handle array response from validate_user_credentials
       if (!Array.isArray(validationResult) || validationResult.length === 0) {
-        console.log('Invalid credentials - no user found');
+        console.log('Invalid credentials - no validation result');
         return null;
       }
 
       const validationData = validationResult[0] as ValidationUser;
+      console.log('Validation data:', validationData);
       
       if (!validationData?.is_valid) {
-        console.log('Invalid credentials');
+        console.log('Credentials are invalid according to validation function');
         return null;
       }
+
+      console.log('Step 3: Credentials validated successfully, fetching user roles...');
 
       // Get user with roles using the existing function
       const { data: userWithRoles, error: userRolesError } = await supabase
@@ -60,7 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           user_uuid: validationData.user_id
         });
 
-      console.log('User with roles:', { userWithRoles, userRolesError });
+      console.log('User with roles result:', { userWithRoles, userRolesError });
 
       let roles: string[] = [];
 
@@ -111,9 +147,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       console.log('User authenticated successfully:', authenticatedUser);
       console.log('User roles assigned:', roles);
+      console.log('=== AUTHENTICATION DEBUG END ===');
       return authenticatedUser;
     } catch (error) {
       console.error('Authentication error:', error);
+      console.log('=== AUTHENTICATION DEBUG END (ERROR) ===');
       return null;
     }
   };
@@ -201,9 +239,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         return true;
       } else {
+        console.log('Authentication failed - no authenticated user returned');
         toast({
           title: "Error",
-          description: "Invalid email/username or password",
+          description: "Invalid email/username or password. Please check your credentials and try again.",
           variant: "destructive",
         });
         return false;

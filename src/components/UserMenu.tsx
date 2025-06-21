@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/hooks/useAuth';
 import { User, LogOut, Settings } from 'lucide-react';
 
 export function UserMenu() {
@@ -54,6 +54,11 @@ export function UserMenu() {
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
+            {user.roles && user.roles.length > 0 && (
+              <p className="text-xs leading-none text-muted-foreground">
+                Role: {user.roles.join(', ')}
+              </p>
+            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

@@ -64,27 +64,59 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .single();
 
       if (userError || !userData) {
-        console.error('User not found or error:', userError);
-        return null;
+        console.error('User lookup failed:', userError);
+        // Try with username instead of email
+        const { data: userByUsername, error: usernameError } = await supabase
+          .from('users')
+          .select(`
+            id,
+            username,
+            email,
+            first_name,
+            last_name,
+            password_hash,
+            status,
+            user_roles!inner (
+              roles!inner (
+                name
+              )
+            )
+          `)
+          .eq('username', email)
+          .eq('status', 'ACTIVE')
+          .single();
+
+        if (usernameError || !userByUsername) {
+          console.error('User not found by email or username');
+          return null;
+        }
+
+        // Use the user found by username
+        Object.assign(userData || {}, userByUsername);
       }
 
       console.log('User data retrieved:', userData);
 
       // Verify password using PostgreSQL's crypt function
       const { data: passwordCheck, error: passwordError } = await supabase
-        .rpc('verify_password' as any, {
+        .rpc('verify_password', {
           input_password: password,
           stored_hash: userData.password_hash
         });
 
       console.log('Password verification result:', { passwordCheck, passwordError });
 
-      if (passwordError || !passwordCheck) {
-        console.log('Password verification failed');
+      if (passwordError) {
+        console.error('Password verification error:', passwordError);
         return null;
       }
 
-      // Extract roles
+      if (!passwordCheck) {
+        console.log('Password verification failed - incorrect password');
+        return null;
+      }
+
+      // Extract roles - handle the case where user_roles might be empty
       const roles = userData.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean) || [];
 
       const authenticatedUser: User = {
@@ -123,7 +155,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         toast({
           title: "Error",
-          description: "Invalid email or password",
+          description: "Invalid email/username or password",
           variant: "destructive",
         });
         return false;

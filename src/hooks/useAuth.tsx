@@ -56,7 +56,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return null;
       }
 
-      if (!validationResult || !validationResult.is_valid) {
+      // Handle array response from validate_user_credentials
+      const validationData = Array.isArray(validationResult) ? validationResult[0] : validationResult;
+      
+      if (!validationData || !validationData.is_valid) {
         console.log('Invalid credentials');
         return null;
       }
@@ -64,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Get user with roles using the existing function
       const { data: userWithRoles, error: userRolesError } = await supabase
         .rpc('get_user_with_roles', {
-          user_uuid: validationResult.user_id
+          user_uuid: validationData.user_id
         });
 
       console.log('User with roles:', { userWithRoles, userRolesError });
@@ -75,7 +78,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       const userData = userWithRoles[0];
-      const roles = userData.roles ? userData.roles.map((role: any) => role.name) : [];
+      
+      // Safely handle roles which might be a JSON array
+      let roles: string[] = [];
+      if (userData.roles && typeof userData.roles === 'object') {
+        if (Array.isArray(userData.roles)) {
+          roles = userData.roles.map((role: any) => role.name || role).filter(Boolean);
+        } else if (typeof userData.roles === 'string') {
+          try {
+            const parsedRoles = JSON.parse(userData.roles);
+            if (Array.isArray(parsedRoles)) {
+              roles = parsedRoles.map((role: any) => role.name || role).filter(Boolean);
+            }
+          } catch (e) {
+            console.warn('Could not parse roles JSON:', e);
+          }
+        }
+      }
 
       const authenticatedUser: User = {
         id: userData.user_id,

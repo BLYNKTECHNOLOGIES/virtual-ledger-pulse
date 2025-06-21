@@ -2369,6 +2369,17 @@ export type Database = {
         Args: { registration_id: string }
         Returns: boolean
       }
+      create_user_with_password: {
+        Args: {
+          _username: string
+          _email: string
+          _password: string
+          _first_name?: string
+          _last_name?: string
+          _phone?: string
+        }
+        Returns: string
+      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string

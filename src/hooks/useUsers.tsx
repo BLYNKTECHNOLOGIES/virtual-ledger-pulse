@@ -120,47 +120,37 @@ export function useUsers() {
         throw new Error('You do not have permission to create users');
       }
 
-      // Simple password hashing for demo purposes - using base64 encoding
-      // In production, you should use proper password hashing
-      const hashedPassword = btoa(userData.password);
-
-      // Get default role if no role_id provided
-      let roleId = userData.role_id;
-      if (!roleId) {
-        const { data: defaultRole } = await supabase
-          .from('roles')
-          .select('id')
-          .eq('name', 'User')
-          .single();
-        roleId = defaultRole?.id;
-      }
-
-      // Insert into the custom users table
-      const { data, error } = await supabase
-        .from('users')
-        .insert([{
-          username: userData.username,
-          email: userData.email,
-          first_name: userData.first_name || null,
-          last_name: userData.last_name || null,
-          phone: userData.phone || null,
-          password_hash: hashedPassword,
-          status: 'ACTIVE',
-          email_verified: false,
-          failed_login_attempts: 0,
-          role_id: roleId,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      // Use the secure create_user_with_password function
+      const { data, error } = await supabase.rpc('create_user_with_password', {
+        _username: userData.username,
+        _email: userData.email,
+        _password: userData.password,
+        _first_name: userData.first_name || null,
+        _last_name: userData.last_name || null,
+        _phone: userData.phone || null
+      });
 
       if (error) {
-        console.error('Insert user error:', error);
+        console.error('Create user RPC error:', error);
         throw error;
       }
 
-      console.log('User created successfully:', data);
+      console.log('User created successfully with ID:', data);
+
+      // If a role_id was specified, assign the role
+      if (userData.role_id && data) {
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: data,
+            role_id: userData.role_id
+          });
+
+        if (roleError) {
+          console.warn('Role assignment failed:', roleError);
+          // Don't throw here, user was created successfully
+        }
+      }
 
       toast({
         title: "Success",

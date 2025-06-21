@@ -118,6 +118,46 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const restoreSessionFromStorage = async () => {
+    try {
+      console.log('Attempting to restore session from storage...');
+      
+      // First check localStorage for custom session
+      const savedSession = localStorage.getItem('userSession');
+      if (savedSession) {
+        const sessionData = JSON.parse(savedSession);
+        const now = Date.now();
+        
+        // Check if session is still valid (not expired)
+        if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
+          console.log('Restoring user session from localStorage:', sessionData.user);
+          setUser(sessionData.user);
+          return;
+        } else {
+          console.log('Session expired, removing from storage');
+          localStorage.removeItem('userSession');
+        }
+      }
+      
+      // Then check Supabase session
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('Supabase session check:', { session, error });
+      
+      if (session?.user && !error) {
+        // If we have a Supabase session but no custom user data, 
+        // we need to authenticate through our custom system
+        console.log('Found Supabase session, checking custom auth...');
+        // Note: We can't re-authenticate without password, so we'll clear the session
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      console.error('Session restoration error:', error);
+      localStorage.removeItem('userSession');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (credentials: { email: string; password: string }): Promise<boolean> => {
     try {
       setIsLoading(true);
@@ -136,6 +176,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         };
         localStorage.setItem('userSession', JSON.stringify(sessionData));
         console.log('Session stored in localStorage:', sessionData);
+        
+        // Also create a Supabase session for consistency
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password
+        });
+        
+        if (signInError) {
+          console.warn('Could not create Supabase session, but custom auth succeeded:', signInError);
+        }
         
         const isUserAdmin = authenticatedUser.roles?.some(role => 
           role.toLowerCase() === 'admin'
@@ -171,10 +221,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('userSession');
+    
+    // Also sign out from Supabase if there's a session
+    await supabase.auth.signOut();
+    
     toast({
       title: "Success",
       description: "Logged out successfully",
@@ -200,32 +254,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isAdmin = hasRole('admin');
 
   useEffect(() => {
-    // Check for existing session on app load
-    const checkSession = async () => {
-      try {
-        const savedSession = localStorage.getItem('userSession');
-        if (savedSession) {
-          const sessionData = JSON.parse(savedSession);
-          const now = Date.now();
-          
-          // Check if session is still valid (not expired)
-          if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
-            console.log('Restoring user session:', sessionData.user);
-            setUser(sessionData.user);
-          } else {
-            console.log('Session expired, removing from storage');
-            localStorage.removeItem('userSession');
-          }
-        }
-      } catch (error) {
-        console.error('Session restoration error:', error);
-        localStorage.removeItem('userSession');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Restore session on app load
+    restoreSessionFromStorage();
 
-    checkSession();
+    // Listen for Supabase auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Supabase auth state change:', event, session);
+      
+      if (event === 'SIGNED_OUT' || !session) {
+        // If signed out from Supabase, also clear our custom session
+        setUser(null);
+        localStorage.removeItem('userSession');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Update session in localStorage whenever user changes

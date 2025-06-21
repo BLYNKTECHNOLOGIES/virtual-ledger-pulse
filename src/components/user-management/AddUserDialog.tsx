@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const { user, isAdmin, hasRole } = useAuth();
+  const { user, isAdmin, hasRole, isLoading: authLoading } = useAuth();
   
   const [formData, setFormData] = useState({
     username: "",
@@ -39,11 +38,17 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   // Enhanced permission check with detailed logging
   const canCreateUsers = () => {
     console.log('=== Permission Check Debug ===');
+    console.log('Auth loading:', authLoading);
     console.log('Current user:', user);
     console.log('User roles:', user?.roles);
     console.log('isAdmin value:', isAdmin);
     console.log('hasRole("user_management"):', hasRole('user_management'));
     console.log('hasRole("admin"):', hasRole('admin'));
+    
+    // Don't show permission denied while still loading
+    if (authLoading) {
+      return false;
+    }
     
     const hasPermission = isAdmin || hasRole('user_management') || hasRole('admin');
     console.log('Final permission result:', hasPermission);
@@ -146,6 +151,16 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       setIsLoading(false);
     }
   };
+
+  // Show loading while auth is loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+        <span className="text-sm">Loading permissions...</span>
+      </div>
+    );
+  }
 
   if (!userCanCreate) {
     return (

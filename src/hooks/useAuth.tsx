@@ -2,24 +2,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  roles?: string[];
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (credentials: { email: string; password: string }) => Promise<boolean>;
-  logout: () => void;
-  isLoading: boolean;
-  hasRole: (role: string) => boolean;
-  isAdmin: boolean;
-}
+import { ValidationUser, UserWithRoles, User, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -64,7 +47,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return null;
       }
 
-      const validationData = validationResult[0];
+      const validationData = validationResult[0] as ValidationUser;
       
       if (!validationData?.is_valid) {
         console.log('Invalid credentials');
@@ -83,24 +66,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       let userData = validationData;
 
       if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
-        userData = userWithRoles[0];
+        const userRoleData = userWithRoles[0] as UserWithRoles;
         
         // Safely handle roles which might be a JSON array
-        if (userData.roles) {
-          if (Array.isArray(userData.roles)) {
-            roles = userData.roles.map((role: any) => role.name || role).filter(Boolean);
-          } else if (typeof userData.roles === 'string') {
+        if (userRoleData.roles) {
+          if (Array.isArray(userRoleData.roles)) {
+            roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+          } else if (typeof userRoleData.roles === 'string') {
             try {
-              const parsedRoles = JSON.parse(userData.roles);
+              const parsedRoles = JSON.parse(userRoleData.roles);
               if (Array.isArray(parsedRoles)) {
                 roles = parsedRoles.map((role: any) => role.name || role).filter(Boolean);
               }
             } catch (e) {
               console.warn('Could not parse roles JSON:', e);
             }
-          } else if (typeof userData.roles === 'object') {
+          } else if (typeof userRoleData.roles === 'object') {
             // Handle case where roles is already an object/array
-            const rolesArray = Array.isArray(userData.roles) ? userData.roles : [userData.roles];
+            const rolesArray = Array.isArray(userRoleData.roles) ? userRoleData.roles : [userRoleData.roles];
             roles = rolesArray.map((role: any) => role.name || role).filter(Boolean);
           }
         }

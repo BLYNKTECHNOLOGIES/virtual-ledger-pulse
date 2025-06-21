@@ -10,11 +10,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings, Shield } from 'lucide-react';
 
 export function UserMenu() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin, hasRole } = useAuth();
 
   if (!user) return null;
 
@@ -37,27 +38,44 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+            <AvatarFallback className={`text-white ${isAdmin ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
               {getInitials(user.firstName, user.lastName, user.email)}
             </AvatarFallback>
           </Avatar>
+          {isAdmin && (
+            <div className="absolute -top-1 -right-1">
+              <Shield className="h-4 w-4 text-red-600" />
+            </div>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.firstName && user.lastName 
-                ? `${user.firstName} ${user.lastName}` 
-                : user.username}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium leading-none">
+                {user.firstName && user.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user.username}
+              </p>
+              {isAdmin && (
+                <Badge variant="destructive" className="text-xs">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Admin
+                </Badge>
+              )}
+            </div>
             <p className="text-xs leading-none text-muted-foreground">
               {user.email}
             </p>
             {user.roles && user.roles.length > 0 && (
-              <p className="text-xs leading-none text-muted-foreground">
-                Role: {user.roles.join(', ')}
-              </p>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {user.roles.map((role) => (
+                  <Badge key={role} variant="outline" className="text-xs">
+                    {role}
+                  </Badge>
+                ))}
+              </div>
             )}
           </div>
         </DropdownMenuLabel>

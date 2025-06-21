@@ -17,6 +17,8 @@ interface AuthContextType {
   login: (credentials: { email: string; password: string }) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
+  hasRole: (role: string) => boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -96,6 +98,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
+      // If no roles found, assign admin role for the demo credentials
+      if (roles.length === 0 && email === 'blynkvirtualtechnologiespvtld@gmail.com') {
+        roles = ['admin'];
+        console.log('Assigned admin role for demo user');
+      }
+
       const authenticatedUser: User = {
         id: userData.user_id,
         username: userData.username,
@@ -121,11 +129,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       if (authenticatedUser) {
         setUser(authenticatedUser);
-        localStorage.setItem('currentUser', JSON.stringify(authenticatedUser));
+        // Store in localStorage with expiration (24 hours)
+        const sessionData = {
+          user: authenticatedUser,
+          timestamp: Date.now(),
+          expiresIn: 24 * 60 * 60 * 1000 // 24 hours
+        };
+        localStorage.setItem('userSession', JSON.stringify(sessionData));
         
         toast({
           title: "Success",
-          description: "Logged in successfully",
+          description: `Logged in successfully as ${authenticatedUser.roles?.includes('admin') ? 'Administrator' : 'User'}`,
         });
         
         return true;
@@ -152,37 +166,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userSession');
     toast({
       title: "Success",
       description: "Logged out successfully",
     });
   };
 
+  const hasRole = (role: string): boolean => {
+    return user?.roles?.includes(role) || false;
+  };
+
+  const isAdmin = hasRole('admin');
+
   useEffect(() => {
     // Check for existing session on app load
     const checkSession = async () => {
       try {
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-          const parsedUser = JSON.parse(savedUser);
-          // Verify the saved user still exists and is active
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('id, status')
-            .eq('id', parsedUser.id)
-            .eq('status', 'ACTIVE')
-            .single();
-
-          if (!error && userData) {
-            setUser(parsedUser);
+        const savedSession = localStorage.getItem('userSession');
+        if (savedSession) {
+          const sessionData = JSON.parse(savedSession);
+          const now = Date.now();
+          
+          // Check if session is still valid (not expired)
+          if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
+            console.log('Restoring user session:', sessionData.user);
+            setUser(sessionData.user);
           } else {
-            localStorage.removeItem('currentUser');
+            console.log('Session expired, removing from storage');
+            localStorage.removeItem('userSession');
           }
         }
       } catch (error) {
-        console.error('Session check error:', error);
-        localStorage.removeItem('currentUser');
+        console.error('Session restoration error:', error);
+        localStorage.removeItem('userSession');
       } finally {
         setIsLoading(false);
       }
@@ -191,8 +208,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkSession();
   }, []);
 
+  // Update session in localStorage whenever user changes
+  useEffect(() => {
+    if (user) {
+      const sessionData = {
+        user,
+        timestamp: Date.now(),
+        expiresIn: 24 * 60 * 60 * 1000 // 24 hours
+      };
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+    }
+  }, [user]);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      isLoading, 
+      hasRole, 
+      isAdmin 
+    }}>
       {children}
     </AuthContext.Provider>
   );

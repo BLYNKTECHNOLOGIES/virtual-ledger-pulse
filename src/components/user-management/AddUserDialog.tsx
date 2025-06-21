@@ -4,8 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { UserPlus, Shield, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AddUserDialogProps {
   onAddUser: (userData: {
@@ -22,6 +24,8 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user, isAdmin, hasRole } = useAuth();
+  
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -32,8 +36,20 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     confirmPassword: ""
   });
 
+  // Check if user has permission to create users
+  const canCreateUsers = isAdmin || hasRole('user_management');
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!canCreateUsers) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to create users. Please contact an administrator.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Validation
     if (!formData.username.trim()) {
@@ -111,6 +127,15 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     }
   };
 
+  if (!canCreateUsers) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <AlertTriangle className="h-4 w-4" />
+        <span className="text-sm">Insufficient permissions</span>
+      </div>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -121,8 +146,21 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-600" />
+            Add New User
+          </DialogTitle>
         </DialogHeader>
+        
+        {isAdmin && (
+          <Alert>
+            <Shield className="h-4 w-4" />
+            <AlertDescription>
+              You're creating a user as an administrator. The new user will have basic access rights.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

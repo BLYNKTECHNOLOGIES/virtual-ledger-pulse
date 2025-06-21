@@ -2447,6 +2447,22 @@ export type Database = {
         | "manage_compliance"
         | "admin_access"
         | "super_admin_access"
+        | "CREATE_USERS"
+        | "READ_USERS"
+        | "UPDATE_USERS"
+        | "DELETE_USERS"
+        | "MANAGE_ROLES"
+        | "MANAGE_SYSTEM"
+        | "VIEW_REPORTS"
+        | "MANAGE_CLIENTS"
+        | "MANAGE_LEADS"
+        | "MANAGE_SALES"
+        | "MANAGE_PURCHASE"
+        | "MANAGE_STOCK"
+        | "MANAGE_ACCOUNTING"
+        | "MANAGE_HRMS"
+        | "MANAGE_PAYROLL"
+        | "MANAGE_COMPLIANCE"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
     }
@@ -2595,6 +2611,22 @@ export const Constants = {
         "manage_compliance",
         "admin_access",
         "super_admin_access",
+        "CREATE_USERS",
+        "READ_USERS",
+        "UPDATE_USERS",
+        "DELETE_USERS",
+        "MANAGE_ROLES",
+        "MANAGE_SYSTEM",
+        "VIEW_REPORTS",
+        "MANAGE_CLIENTS",
+        "MANAGE_LEADS",
+        "MANAGE_SALES",
+        "MANAGE_PURCHASE",
+        "MANAGE_STOCK",
+        "MANAGE_ACCOUNTING",
+        "MANAGE_HRMS",
+        "MANAGE_PAYROLL",
+        "MANAGE_COMPLIANCE",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

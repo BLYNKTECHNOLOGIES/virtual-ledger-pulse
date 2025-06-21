@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,9 +30,23 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching users from database...');
+      console.log('Fetching all users from database...');
       
-      const { data, error } = await supabase
+      // First, let's try a simple query to get all users
+      const { data: allUsers, error: usersError } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        throw usersError;
+      }
+
+      console.log('All users from database:', allUsers);
+
+      // Now let's get users with their roles
+      const { data: usersWithRoles, error: rolesError } = await supabase
         .from('users')
         .select(`
           *,
@@ -41,18 +56,19 @@ export function useUsers() {
             description
           )
         `)
-        .eq('status', 'ACTIVE')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Fetch users error:', error);
-        throw error;
+      if (rolesError) {
+        console.error('Error fetching users with roles:', rolesError);
+        // If roles query fails, use the basic users data
+        setUsers(allUsers || []);
+      } else {
+        console.log('Users with roles:', usersWithRoles);
+        setUsers(usersWithRoles || []);
       }
-      
-      console.log('Fetched users with roles:', data);
-      setUsers(data || []);
+
     } catch (error: any) {
-      console.error('Error fetching users:', error);
+      console.error('Error in fetchUsers:', error);
       toast({
         title: "Error",
         description: "Failed to fetch users: " + (error.message || "Unknown error"),

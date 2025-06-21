@@ -60,10 +60,12 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
 
-  console.log('UserManagement - users:', users);
+  console.log('UserManagement - All users from database:', users);
   console.log('UserManagement - isLoading:', isLoading);
+  console.log('UserManagement - Total users count:', users.length);
 
-  const filteredActiveUsers = users.filter(user =>
+  // Filter users for active users tab - show all users regardless of status for now
+  const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -114,7 +116,7 @@ export default function UserManagement() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="active-users" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
-            Active Users
+            All Users ({users.length})
           </TabsTrigger>
           <TabsTrigger value="approve-users" className="flex items-center gap-2">
             <UserPlus className="h-4 w-4" />
@@ -131,7 +133,7 @@ export default function UserManagement() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Active Users ({filteredActiveUsers.length})</CardTitle>
+                <CardTitle>All Users ({filteredUsers.length} total)</CardTitle>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={fetchUsers}>
                     🔄 Refresh
@@ -156,12 +158,13 @@ export default function UserManagement() {
           {isLoading ? (
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-2">Loading users...</span>
             </div>
           ) : (
             <div>
-              {filteredActiveUsers.length > 0 ? (
+              {filteredUsers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredActiveUsers.map((user) => (
+                  {filteredUsers.map((user) => (
                     <Card key={user.id} className="hover:shadow-lg transition-shadow">
                       <CardContent className="p-4">
                         <div className="space-y-3">
@@ -172,9 +175,14 @@ export default function UserManagement() {
                                 : user.username
                               }
                             </h3>
-                            <Badge variant={getRoleBadgeVariant(user.role?.name)}>
-                              {user.role?.name || 'No Role'}
-                            </Badge>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={getRoleBadgeVariant(user.role?.name)}>
+                                {user.role?.name || 'No Role'}
+                              </Badge>
+                              <Badge variant={user.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                                {user.status}
+                              </Badge>
+                            </div>
                           </div>
                           
                           <div className="space-y-1">
@@ -214,11 +222,13 @@ export default function UserManagement() {
                     <div className="space-y-4">
                       <div className="text-gray-500">
                         <UserCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <h3 className="text-lg font-medium">No Active Users Found</h3>
+                        <h3 className="text-lg font-medium">
+                          {searchTerm ? "No Users Match Search" : "No Users Found"}
+                        </h3>
                         <p className="text-sm">
                           {searchTerm 
-                            ? "No users match your search criteria."
-                            : "There are no active users in the system yet."
+                            ? "No users match your search criteria. Try a different search term."
+                            : "There are no users in the database yet."
                           }
                         </p>
                       </div>

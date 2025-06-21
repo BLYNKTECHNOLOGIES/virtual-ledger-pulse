@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserPlus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddUserDialogProps {
   onAddUser: (userData: {
@@ -20,6 +21,7 @@ interface AddUserDialogProps {
 export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -33,39 +35,80 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation
+    if (!formData.username.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Username is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Email is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.password) {
+      toast({
+        title: "Validation Error",
+        description: "Password is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      toast({
+        title: "Validation Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.password.length < 6) {
-      alert("Password must be at least 6 characters long");
+      toast({
+        title: "Validation Error",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsLoading(true);
-    const result = await onAddUser({
-      username: formData.username,
-      email: formData.email,
-      first_name: formData.first_name || undefined,
-      last_name: formData.last_name || undefined,
-      phone: formData.phone || undefined,
-      password: formData.password
-    });
-
-    if (result.success) {
-      setFormData({
-        username: "",
-        email: "",
-        first_name: "",
-        last_name: "",
-        phone: "",
-        password: "",
-        confirmPassword: ""
+    
+    try {
+      const result = await onAddUser({
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        first_name: formData.first_name.trim() || undefined,
+        last_name: formData.last_name.trim() || undefined,
+        phone: formData.phone.trim() || undefined,
+        password: formData.password
       });
-      setOpen(false);
+
+      if (result.success) {
+        // Reset form
+        setFormData({
+          username: "",
+          email: "",
+          first_name: "",
+          last_name: "",
+          phone: "",
+          password: "",
+          confirmPassword: ""
+        });
+        setOpen(false);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -165,6 +208,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
+              disabled={isLoading}
             >
               Cancel
             </Button>

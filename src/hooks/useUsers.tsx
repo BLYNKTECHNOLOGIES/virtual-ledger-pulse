@@ -28,13 +28,18 @@ export function useUsers() {
         .eq('status', 'ACTIVE')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Fetch users error:', error);
+        throw error;
+      }
+      
+      console.log('Fetched users:', data);
       setUsers(data || []);
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch users",
+        description: "Failed to fetch users: " + (error.message || "Unknown error"),
         variant: "destructive",
       });
     } finally {
@@ -51,22 +56,43 @@ export function useUsers() {
     password: string;
   }) => {
     try {
-      // Hash the password using bcrypt (simplified - in real app, this should be done server-side)
+      console.log('Creating user with data:', userData);
+
+      // Get the current session to ensure we're authenticated
+      const { data: session, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session.session) {
+        console.error('Authentication error:', sessionError);
+        throw new Error('You must be logged in to create users');
+      }
+
+      console.log('Current session user:', session.session.user.id);
+
+      // Create a simple password hash (in production, this should be done server-side with proper bcrypt)
+      const passwordHash = btoa(userData.password); // Simple base64 encoding for demo
+
       const { data, error } = await supabase
         .from('users')
         .insert([{
           username: userData.username,
           email: userData.email,
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          phone: userData.phone,
-          password_hash: userData.password, // In production, this should be properly hashed
-          status: 'ACTIVE'
+          first_name: userData.first_name || null,
+          last_name: userData.last_name || null,
+          phone: userData.phone || null,
+          password_hash: passwordHash,
+          status: 'ACTIVE',
+          email_verified: false,
+          failed_login_attempts: 0
         }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert user error:', error);
+        throw error;
+      }
+
+      console.log('User created successfully:', data);
 
       toast({
         title: "Success",
@@ -88,12 +114,19 @@ export function useUsers() {
 
   const deleteUser = async (userId: string) => {
     try {
+      console.log('Deactivating user:', userId);
+
       const { error } = await supabase
         .from('users')
         .update({ status: 'INACTIVE' })
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update user error:', error);
+        throw error;
+      }
+
+      console.log('User deactivated successfully');
 
       toast({
         title: "Success",
@@ -103,10 +136,10 @@ export function useUsers() {
       fetchUsers(); // Refresh the users list
       return { success: true };
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      console.error('Error deactivating user:', error);
       toast({
         title: "Error",
-        description: "Failed to deactivate user",
+        description: "Failed to deactivate user: " + (error.message || "Unknown error"),
         variant: "destructive",
       });
       return { success: false, error };

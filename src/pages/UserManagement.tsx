@@ -60,6 +60,9 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
 
+  console.log('UserManagement - users:', users);
+  console.log('UserManagement - isLoading:', isLoading);
+
   const filteredActiveUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,58 +158,79 @@ export default function UserManagement() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredActiveUsers.map((user) => (
-                <Card key={user.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {user.first_name && user.last_name 
-                            ? `${user.first_name} ${user.last_name}`
-                            : user.username
-                          }
-                        </h3>
-                        <Badge variant={getRoleBadgeVariant(user.role?.name)}>
-                          {user.role?.name || 'No Role'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <p className="text-sm text-gray-600 truncate">@{user.username}</p>
-                        <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                        {user.phone && (
-                          <p className="text-sm text-gray-600 truncate">{user.phone}</p>
-                        )}
-                        <p className="text-xs text-gray-500">📅 Created: {formatDate(user.created_at)}</p>
-                      </div>
+            <div>
+              {filteredActiveUsers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredActiveUsers.map((user) => (
+                    <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold text-gray-900 truncate">
+                              {user.first_name && user.last_name 
+                                ? `${user.first_name} ${user.last_name}`
+                                : user.username
+                              }
+                            </h3>
+                            <Badge variant={getRoleBadgeVariant(user.role?.name)}>
+                              {user.role?.name || 'No Role'}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <p className="text-sm text-gray-600 truncate">@{user.username}</p>
+                            <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                            {user.phone && (
+                              <p className="text-sm text-gray-600 truncate">{user.phone}</p>
+                            )}
+                            <p className="text-xs text-gray-500">📅 Created: {formatDate(user.created_at)}</p>
+                          </div>
 
-                      <div className="flex justify-between items-center pt-2 border-t">
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="outline" className="h-8 px-2">
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="h-8 px-2 text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </Button>
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <div className="flex gap-1">
+                              <Button size="sm" variant="outline" className="h-8 px-2">
+                                <Edit className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 px-2 text-red-600 hover:text-red-700"
+                                onClick={() => handleDeleteUser(user.id)}
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <div className="space-y-4">
+                      <div className="text-gray-500">
+                        <UserCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <h3 className="text-lg font-medium">No Active Users Found</h3>
+                        <p className="text-sm">
+                          {searchTerm 
+                            ? "No users match your search criteria."
+                            : "There are no active users in the system yet."
+                          }
+                        </p>
                       </div>
+                      {!searchTerm && (
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">Get started by adding your first user:</p>
+                          <AddUserDialog onAddUser={createUser} />
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-              
-              {filteredActiveUsers.length === 0 && !isLoading && (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  No users found matching your search.
-                </div>
               )}
             </div>
           )}

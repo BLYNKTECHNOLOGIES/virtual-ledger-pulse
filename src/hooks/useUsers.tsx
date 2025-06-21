@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface User {
   id: string;
@@ -18,6 +19,7 @@ export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { user, isAdmin, hasRole } = useAuth();
 
   const fetchUsers = async () => {
     try {
@@ -57,16 +59,23 @@ export function useUsers() {
   }) => {
     try {
       console.log('Creating user with data:', userData);
+      console.log('Current authenticated user:', user);
+      console.log('Is admin:', isAdmin);
+      console.log('Has admin role:', hasRole('admin'));
 
-      // Get the current session to ensure we're authenticated
-      const { data: session, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session.session) {
-        console.error('Authentication error:', sessionError);
+      // Check if user is authenticated with our custom auth system
+      if (!user) {
+        console.error('No authenticated user found');
         throw new Error('You must be logged in to create users');
       }
 
-      console.log('Current session user:', session.session.user.id);
+      // Check if user has admin permissions
+      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
+        console.error('Insufficient permissions');
+        throw new Error('You do not have permission to create users');
+      }
+
+      console.log('Permission check passed, proceeding with user creation');
 
       // Create a simple password hash (in production, this should be done server-side with proper bcrypt)
       const passwordHash = btoa(userData.password); // Simple base64 encoding for demo

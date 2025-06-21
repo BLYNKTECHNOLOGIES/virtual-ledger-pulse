@@ -30,6 +30,8 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching users from database...');
+      
       const { data, error } = await supabase
         .from('users')
         .select(`
@@ -73,62 +75,19 @@ export function useUsers() {
   }) => {
     try {
       console.log('Creating user with data:', userData);
-      console.log('Current authenticated user:', user);
-      console.log('Is admin:', isAdmin);
-      console.log('Has admin role:', hasRole('admin'));
 
-      // Debug: Check Supabase auth session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      console.log('=== SUPABASE AUTH SESSION DEBUG ===');
-      console.log('Session data:', sessionData.session);
-      console.log('Session error:', sessionError);
-      console.log('Access token:', sessionData.session?.access_token ? 'Present' : 'Missing');
-      console.log('User ID from session:', sessionData.session?.user?.id);
-      console.log('=== END SESSION DEBUG ===');
-
-      // If no Supabase session, try to authenticate
-      if (!sessionData.session) {
-        console.log('No Supabase session found, attempting to sign in...');
-        
-        // Try to authenticate with our custom system first
-        if (!user) {
-          throw new Error('You must be logged in to create users');
-        }
-
-        // Create a Supabase session for the current user
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: userData.email,
-          password: userData.password
-        });
-
-        if (signInError) {
-          console.warn('Could not create Supabase session:', signInError);
-          // Continue anyway, as we have custom auth
-        } else {
-          console.log('Created Supabase session:', signInData);
-        }
-      }
-
-      // Check if user is authenticated with our custom auth system
+      // Check if user is authenticated
       if (!user) {
-        console.error('No authenticated user found');
         throw new Error('You must be logged in to create users');
       }
 
       // Check if user has admin permissions
       if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
-        console.error('Insufficient permissions');
         throw new Error('You do not have permission to create users');
       }
 
-      console.log('Permission check passed, proceeding with user creation');
-
       // Create a simple password hash for the custom users table
       const passwordHash = btoa(userData.password); // Simple base64 encoding for demo
-
-      // Debug: Check auth.uid() before insert
-      const { data: currentUser } = await supabase.auth.getUser();
-      console.log('Current Supabase user before insert:', currentUser);
 
       // Get default role if no role_id provided
       let roleId = userData.role_id;
@@ -141,7 +100,7 @@ export function useUsers() {
         roleId = defaultRole?.id;
       }
 
-      // Insert into the custom users table - let it generate its own UUID
+      // Insert into the custom users table
       const { data, error } = await supabase
         .from('users')
         .insert([{
@@ -161,10 +120,6 @@ export function useUsers() {
 
       if (error) {
         console.error('Insert user error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error details:', error.details);
-        console.error('Error hint:', error.hint);
         throw error;
       }
 

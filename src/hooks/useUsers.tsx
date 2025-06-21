@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +13,12 @@ interface User {
   phone?: string;
   status: string;
   created_at: string;
+  role_id?: string;
+  role?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
 }
 
 export function useUsers() {
@@ -25,7 +32,14 @@ export function useUsers() {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          *,
+          role:roles(
+            id,
+            name,
+            description
+          )
+        `)
         .eq('status', 'ACTIVE')
         .order('created_at', { ascending: false });
 
@@ -34,7 +48,7 @@ export function useUsers() {
         throw error;
       }
       
-      console.log('Fetched users:', data);
+      console.log('Fetched users with roles:', data);
       setUsers(data || []);
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -55,6 +69,7 @@ export function useUsers() {
     last_name?: string;
     phone?: string;
     password: string;
+    role_id?: string;
   }) => {
     try {
       console.log('Creating user with data:', userData);
@@ -115,6 +130,17 @@ export function useUsers() {
       const { data: currentUser } = await supabase.auth.getUser();
       console.log('Current Supabase user before insert:', currentUser);
 
+      // Get default role if no role_id provided
+      let roleId = userData.role_id;
+      if (!roleId) {
+        const { data: defaultRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'User')
+          .single();
+        roleId = defaultRole?.id;
+      }
+
       // Insert into the custom users table - let it generate its own UUID
       const { data, error } = await supabase
         .from('users')
@@ -127,7 +153,8 @@ export function useUsers() {
           password_hash: passwordHash,
           status: 'ACTIVE',
           email_verified: false,
-          failed_login_attempts: 0
+          failed_login_attempts: 0,
+          role_id: roleId
         }])
         .select()
         .single();

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,19 @@ export default function UserManagement() {
     // Add rejection logic here
   };
 
+  const getRoleBadgeVariant = (roleName?: string) => {
+    switch (roleName?.toLowerCase()) {
+      case 'admin':
+        return 'destructive';
+      case 'manager':
+        return 'default';
+      case 'user':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -153,7 +167,9 @@ export default function UserManagement() {
                             : user.username
                           }
                         </h3>
-                        <Badge variant="secondary">User</Badge>
+                        <Badge variant={getRoleBadgeVariant(user.role?.name)}>
+                          {user.role?.name || 'No Role'}
+                        </Badge>
                       </div>
                       
                       <div className="space-y-1">

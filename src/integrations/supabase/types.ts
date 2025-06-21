@@ -2228,6 +2228,7 @@ export type Database = {
           last_name: string | null
           password_hash: string
           phone: string | null
+          role_id: string | null
           status: string
           updated_at: string | null
           username: string
@@ -2245,6 +2246,7 @@ export type Database = {
           last_name?: string | null
           password_hash: string
           phone?: string | null
+          role_id?: string | null
           status?: string
           updated_at?: string | null
           username: string
@@ -2262,11 +2264,20 @@ export type Database = {
           last_name?: string | null
           password_hash?: string
           phone?: string | null
+          role_id?: string | null
           status?: string
           updated_at?: string | null
           username?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       warehouse_stock_movements: {
         Row: {

@@ -14,14 +14,8 @@ export const debugSupabaseAuth = async () => {
   console.log('2. User:', userData.user);
   console.log('   User error:', userError);
   
-  // Test auth.uid() via SQL
-  try {
-    const { data, error } = await supabase.rpc('get_current_user_id');
-    console.log('3. auth.uid() from RPC:', data);
-    console.log('   RPC error:', error);
-  } catch (e) {
-    console.log('3. RPC not available, checking manually');
-  }
+  // Check auth.uid() directly from user data
+  console.log('3. auth.uid() equivalent:', userData.user?.id || 'null');
   
   // Check if authenticated role is active
   const { data: testData, error: testError } = await supabase

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, CheckCircle, XCircle } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 // Mock data for pending users
 const mockPendingUsers = [
@@ -59,18 +59,25 @@ const mockRoles = [
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
+  const { user: currentUser, isAdmin } = useAuth();
 
-  console.log('UserManagement - All users from database:', users);
-  console.log('UserManagement - isLoading:', isLoading);
-  console.log('UserManagement - Total users count:', users.length);
+  console.log('=== USER MANAGEMENT DEBUG ===');
+  console.log('Current authenticated user:', currentUser);
+  console.log('Is admin:', isAdmin);
+  console.log('All users from hook:', users);
+  console.log('Users array length:', users.length);
+  console.log('Is loading:', isLoading);
+  console.log('=== END DEBUG ===');
 
-  // Filter users for active users tab - show all users regardless of status for now
+  // Filter users for active users tab - show all users
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  console.log('Filtered users:', filteredUsers);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -133,7 +140,7 @@ export default function UserManagement() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>All Users ({filteredUsers.length} total)</CardTitle>
+                <CardTitle>All Users ({users.length} total)</CardTitle>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={fetchUsers}>
                     🔄 Refresh
@@ -151,6 +158,16 @@ export default function UserManagement() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="max-w-sm"
                 />
+              </div>
+              
+              {/* Debug information */}
+              <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
+                <div>Debug Info:</div>
+                <div>• Auth User: {currentUser ? `${currentUser.username} (${currentUser.email})` : 'Not logged in'}</div>
+                <div>• Is Admin: {isAdmin ? 'Yes' : 'No'}</div>
+                <div>• Loading: {isLoading ? 'Yes' : 'No'}</div>
+                <div>• Total Users: {users.length}</div>
+                <div>• Filtered Users: {filteredUsers.length}</div>
               </div>
             </CardContent>
           </Card>
@@ -228,9 +245,16 @@ export default function UserManagement() {
                         <p className="text-sm">
                           {searchTerm 
                             ? "No users match your search criteria. Try a different search term."
-                            : "There are no users in the database yet."
+                            : "There are no users in the database yet. This could be due to database permissions or the users table being empty."
                           }
                         </p>
+                        
+                        {!searchTerm && (
+                          <div className="mt-4 text-xs text-gray-400">
+                            <p>Check the browser console for detailed debugging information.</p>
+                            <p>Make sure you have proper database access permissions.</p>
+                          </div>
+                        )}
                       </div>
                       {!searchTerm && (
                         <div className="space-y-2">

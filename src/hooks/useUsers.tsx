@@ -30,41 +30,83 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
+      console.log('=== FETCHING USERS DEBUG ===');
+      console.log('Current auth user:', user);
+      console.log('Is admin:', isAdmin);
+      console.log('Has admin role:', hasRole('admin'));
+      
+      // Check if user is authenticated
+      if (!user) {
+        console.log('No authenticated user found');
+        setUsers([]);
+        return;
+      }
+
+      // First, let's try to get the current Supabase session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      console.log('Supabase session:', sessionData.session);
+      console.log('Session error:', sessionError);
+
+      // Try a simple query first to test database connectivity
+      console.log('Testing database connectivity...');
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('count(*)')
+        .limit(1);
+      
+      console.log('Test query result:', testData);
+      console.log('Test query error:', testError);
+
+      if (testError) {
+        console.error('Database connectivity test failed:', testError);
+        throw new Error(`Database connection failed: ${testError.message}`);
+      }
+
+      // Now try to fetch all users
       console.log('Fetching all users from database...');
       
-      // First, let's try a simple query to get all users
       const { data: allUsers, error: usersError } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false });
+
+      console.log('All users query result:', allUsers);
+      console.log('All users query error:', usersError);
 
       if (usersError) {
         console.error('Error fetching users:', usersError);
         throw usersError;
       }
 
-      console.log('All users from database:', allUsers);
+      // If we have users, try to get them with roles
+      if (allUsers && allUsers.length > 0) {
+        console.log(`Found ${allUsers.length} users, now fetching with roles...`);
+        
+        const { data: usersWithRoles, error: rolesError } = await supabase
+          .from('users')
+          .select(`
+            *,
+            role:roles(
+              id,
+              name,
+              description
+            )
+          `)
+          .order('created_at', { ascending: false });
 
-      // Now let's get users with their roles
-      const { data: usersWithRoles, error: rolesError } = await supabase
-        .from('users')
-        .select(`
-          *,
-          role:roles(
-            id,
-            name,
-            description
-          )
-        `)
-        .order('created_at', { ascending: false });
+        console.log('Users with roles query result:', usersWithRoles);
+        console.log('Users with roles query error:', rolesError);
 
-      if (rolesError) {
-        console.error('Error fetching users with roles:', rolesError);
-        // If roles query fails, use the basic users data
-        setUsers(allUsers || []);
+        if (rolesError) {
+          console.warn('Error fetching users with roles, using basic user data:', rolesError);
+          setUsers(allUsers || []);
+        } else {
+          console.log(`Successfully fetched ${usersWithRoles?.length || 0} users with roles`);
+          setUsers(usersWithRoles || []);
+        }
       } else {
-        console.log('Users with roles:', usersWithRoles);
-        setUsers(usersWithRoles || []);
+        console.log('No users found in database');
+        setUsers([]);
       }
 
     } catch (error: any) {
@@ -74,6 +116,7 @@ export function useUsers() {
         description: "Failed to fetch users: " + (error.message || "Unknown error"),
         variant: "destructive",
       });
+      setUsers([]);
     } finally {
       setIsLoading(false);
     }
@@ -193,8 +236,9 @@ export function useUsers() {
   };
 
   useEffect(() => {
+    console.log('useUsers hook initialized, fetching users...');
     fetchUsers();
-  }, []);
+  }, [user]); // Add user as dependency
 
   return {
     users,

@@ -11,13 +11,18 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
-  const [password, setPassword] = useState('Blynk@0717');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -86,7 +91,7 @@ export function Login({ onLogin }: LoginProps) {
             <Button 
               type="submit" 
               className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              disabled={isLoading}
+              disabled={isLoading || !email || !password}
             >
               {isLoading ? (
                 <>
@@ -98,12 +103,6 @@ export function Login({ onLogin }: LoginProps) {
               )}
             </Button>
           </form>
-          
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Demo Credentials:</p>
-            <p>Email: blynkvirtualtechnologiespvtld@gmail.com</p>
-            <p>Password: Blynk@0717</p>
-          </div>
         </CardContent>
       </Card>
     </div>

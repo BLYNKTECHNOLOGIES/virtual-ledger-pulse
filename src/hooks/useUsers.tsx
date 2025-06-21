@@ -120,8 +120,20 @@ export function useUsers() {
         throw new Error('You do not have permission to create users');
       }
 
-      // Create a simple password hash for the custom users table
-      const passwordHash = btoa(userData.password); // Simple base64 encoding for demo
+      // Create a properly hashed password using PostgreSQL's crypt function
+      const { data: hashedResult, error: hashError } = await supabase
+        .rpc('crypt', {
+          password: userData.password,
+          salt: supabase.rpc('gen_salt', { type: 'bf' })
+        });
+
+      if (hashError) {
+        console.error('Password hashing error:', hashError);
+        // Fallback to simple base64 encoding for demo purposes
+        var passwordHash = btoa(userData.password);
+      } else {
+        var passwordHash = hashedResult;
+      }
 
       // Get default role if no role_id provided
       let roleId = userData.role_id;

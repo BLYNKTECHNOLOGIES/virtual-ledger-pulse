@@ -42,85 +42,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('Authenticating user with email:', email);
 
-      // Query the users table directly with password verification
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select(`
-          id,
-          username,
-          email,
-          first_name,
-          last_name,
-          password_hash,
-          status,
-          user_roles!inner (
-            roles!inner (
-              name
-            )
-          )
-        `)
-        .eq('email', email)
-        .eq('status', 'ACTIVE')
-        .single();
-
-      if (userError || !userData) {
-        console.error('User lookup failed:', userError);
-        // Try with username instead of email
-        const { data: userByUsername, error: usernameError } = await supabase
-          .from('users')
-          .select(`
-            id,
-            username,
-            email,
-            first_name,
-            last_name,
-            password_hash,
-            status,
-            user_roles!inner (
-              roles!inner (
-                name
-              )
-            )
-          `)
-          .eq('username', email)
-          .eq('status', 'ACTIVE')
-          .single();
-
-        if (usernameError || !userByUsername) {
-          console.error('User not found by email or username');
-          return null;
-        }
-
-        // Use the user found by username
-        Object.assign(userData || {}, userByUsername);
-      }
-
-      console.log('User data retrieved:', userData);
-
-      // Verify password using PostgreSQL's crypt function
-      const { data: passwordCheck, error: passwordError } = await supabase
-        .rpc('verify_password', {
-          input_password: password,
-          stored_hash: userData.password_hash
+      // Use the existing validate_user_credentials function
+      const { data: validationResult, error: validationError } = await supabase
+        .rpc('validate_user_credentials', {
+          input_username: email,
+          input_password: password
         });
 
-      console.log('Password verification result:', { passwordCheck, passwordError });
+      console.log('Validation result:', { validationResult, validationError });
 
-      if (passwordError) {
-        console.error('Password verification error:', passwordError);
+      if (validationError) {
+        console.error('Validation error:', validationError);
         return null;
       }
 
-      if (!passwordCheck) {
-        console.log('Password verification failed - incorrect password');
+      if (!validationResult || !validationResult.is_valid) {
+        console.log('Invalid credentials');
         return null;
       }
 
-      // Extract roles - handle the case where user_roles might be empty
-      const roles = userData.user_roles?.map((ur: any) => ur.roles?.name).filter(Boolean) || [];
+      // Get user with roles using the existing function
+      const { data: userWithRoles, error: userRolesError } = await supabase
+        .rpc('get_user_with_roles', {
+          user_uuid: validationResult.user_id
+        });
+
+      console.log('User with roles:', { userWithRoles, userRolesError });
+
+      if (userRolesError || !userWithRoles || userWithRoles.length === 0) {
+        console.error('Failed to get user with roles:', userRolesError);
+        return null;
+      }
+
+      const userData = userWithRoles[0];
+      const roles = userData.roles ? userData.roles.map((role: any) => role.name) : [];
 
       const authenticatedUser: User = {
-        id: userData.id,
+        id: userData.user_id,
         username: userData.username,
         email: userData.email,
         firstName: userData.first_name || undefined,

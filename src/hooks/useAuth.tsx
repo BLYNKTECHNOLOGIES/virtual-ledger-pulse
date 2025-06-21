@@ -63,9 +63,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('User with roles:', { userWithRoles, userRolesError });
 
       let roles: string[] = [];
-      let userData = validationData;
 
-      if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+      // Check if this is the demo admin user first
+      const isDemoAdmin = email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com';
+      
+      if (isDemoAdmin && validationData.is_valid) {
+        // Always assign admin role for the demo credentials
+        roles = ['admin', 'Admin'];
+        console.log('Demo admin user detected, assigned admin roles:', roles);
+      } else if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
         const userRoleData = userWithRoles[0] as UserWithRoles;
         
         // Safely handle roles which might be a JSON array
@@ -89,15 +95,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
-      // Special handling for demo admin credentials
-      if (email === 'blynkvirtualtechnologiespvtld@gmail.com' && validationData.is_valid) {
-        // Always assign admin role for the demo credentials
-        roles = ['admin', 'Admin'];
-        console.log('Assigned admin role for demo user');
-      }
-
-      // Fallback: if no roles found but user is valid, assign basic user role
-      if (roles.length === 0) {
+      // Fallback: if no roles found but user is valid, assign basic user role (except for demo admin)
+      if (roles.length === 0 && !isDemoAdmin) {
         roles = ['user'];
       }
 
@@ -111,6 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
 
       console.log('User authenticated successfully:', authenticatedUser);
+      console.log('User roles assigned:', roles);
       return authenticatedUser;
     } catch (error) {
       console.error('Authentication error:', error);
@@ -125,7 +125,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const authenticatedUser = await authenticateUser(credentials.email, credentials.password);
       
       if (authenticatedUser) {
+        console.log('Setting user in state:', authenticatedUser);
         setUser(authenticatedUser);
+        
         // Store in localStorage with expiration (24 hours)
         const sessionData = {
           user: authenticatedUser,
@@ -133,10 +135,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           expiresIn: 24 * 60 * 60 * 1000 // 24 hours
         };
         localStorage.setItem('userSession', JSON.stringify(sessionData));
+        console.log('Session stored in localStorage:', sessionData);
         
         const isUserAdmin = authenticatedUser.roles?.some(role => 
           role.toLowerCase() === 'admin'
         ) || false;
+        
+        console.log('Is user admin?', isUserAdmin);
+        console.log('User roles for admin check:', authenticatedUser.roles);
         
         toast({
           title: "Success",
@@ -166,6 +172,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('userSession');
     toast({
@@ -175,10 +182,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const hasRole = (role: string): boolean => {
-    if (!user?.roles) return false;
-    return user.roles.some(userRole => 
+    if (!user?.roles) {
+      console.log('No user or roles found for hasRole check');
+      return false;
+    }
+    
+    const hasRoleResult = user.roles.some(userRole => 
       userRole.toLowerCase() === role.toLowerCase()
     );
+    
+    console.log(`Checking if user has role '${role}':`, hasRoleResult);
+    console.log('User roles:', user.roles);
+    
+    return hasRoleResult;
   };
 
   const isAdmin = hasRole('admin');
@@ -221,6 +237,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         expiresIn: 24 * 60 * 60 * 1000 // 24 hours
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
+      console.log('Updated session in localStorage:', sessionData);
     }
   }, [user]);
 

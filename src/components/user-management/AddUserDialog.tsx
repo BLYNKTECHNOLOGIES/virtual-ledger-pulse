@@ -36,22 +36,31 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     confirmPassword: ""
   });
 
-  // Check if user has permission to create users
-  const canCreateUsers = isAdmin || hasRole('user_management') || hasRole('admin');
+  // Enhanced permission check with detailed logging
+  const canCreateUsers = () => {
+    console.log('=== Permission Check Debug ===');
+    console.log('Current user:', user);
+    console.log('User roles:', user?.roles);
+    console.log('isAdmin value:', isAdmin);
+    console.log('hasRole("user_management"):', hasRole('user_management'));
+    console.log('hasRole("admin"):', hasRole('admin'));
+    
+    const hasPermission = isAdmin || hasRole('user_management') || hasRole('admin');
+    console.log('Final permission result:', hasPermission);
+    console.log('=== End Permission Check ===');
+    
+    return hasPermission;
+  };
 
-  console.log('User permissions check:', {
-    user: user,
-    isAdmin: isAdmin,
-    hasUserManagementRole: hasRole('user_management'),
-    hasAdminRole: hasRole('admin'),
-    canCreateUsers: canCreateUsers,
-    userRoles: user?.roles
-  });
+  const userCanCreate = canCreateUsers();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!canCreateUsers) {
+    console.log('Form submit - checking permissions...');
+    
+    if (!userCanCreate) {
+      console.log('Permission denied for user creation');
       toast({
         title: "Access Denied",
         description: "You don't have permission to create users. Please contact an administrator.",
@@ -109,6 +118,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     setIsLoading(true);
     
     try {
+      console.log('Attempting to create user...');
       const result = await onAddUser({
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -130,17 +140,21 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           confirmPassword: ""
         });
         setOpen(false);
+        console.log('User created successfully');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (!canCreateUsers) {
+  if (!userCanCreate) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <AlertTriangle className="h-4 w-4" />
-        <span className="text-sm">Insufficient permissions (Current roles: {user?.roles?.join(', ') || 'None'})</span>
+        <span className="text-sm">
+          Insufficient permissions (Current roles: {user?.roles?.join(', ') || 'None'})
+          {user ? ` - User ID: ${user.id}` : ' - Not logged in'}
+        </span>
       </div>
     );
   }

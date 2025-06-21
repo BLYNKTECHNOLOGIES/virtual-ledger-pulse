@@ -8,6 +8,7 @@ import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, CheckCircle, XCircle
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { useAuth } from "@/hooks/useAuth";
+import { DatabaseUser } from "@/types/auth";
 
 // Mock data for pending users
 const mockPendingUsers = [
@@ -69,8 +70,8 @@ export default function UserManagement() {
   console.log('Is loading:', isLoading);
   console.log('=== END DEBUG ===');
 
-  // Filter users for active users tab - show all users
-  const filteredUsers = users.filter(user =>
+  // Filter users - show all users
+  const filteredUsers = users.filter((user: DatabaseUser) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -181,7 +182,7 @@ export default function UserManagement() {
             <div>
               {filteredUsers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((user: DatabaseUser) => (
                     <Card key={user.id} className="hover:shadow-lg transition-shadow">
                       <CardContent className="p-4">
                         <div className="space-y-3">

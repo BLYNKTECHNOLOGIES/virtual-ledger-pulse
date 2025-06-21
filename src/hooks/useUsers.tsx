@@ -3,26 +3,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-  status: string;
-  created_at: string;
-  role_id?: string;
-  role?: {
-    id: string;
-    name: string;
-    description?: string;
-  };
-}
+import { DatabaseUser } from '@/types/auth';
 
 export function useUsers() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { user, isAdmin, hasRole } = useAuth();
@@ -42,72 +26,51 @@ export function useUsers() {
         return;
       }
 
-      // First, let's try to get the current Supabase session
+      // Check Supabase session
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       console.log('Supabase session:', sessionData.session);
       console.log('Session error:', sessionError);
 
-      // Try a simple query first to test database connectivity
-      console.log('Testing database connectivity...');
-      const { data: testData, error: testError } = await supabase
-        .from('users')
-        .select('count(*)')
-        .limit(1);
-      
-      console.log('Test query result:', testData);
-      console.log('Test query error:', testError);
-
-      if (testError) {
-        console.error('Database connectivity test failed:', testError);
-        throw new Error(`Database connection failed: ${testError.message}`);
-      }
-
-      // Now try to fetch all users
+      // Try to fetch all users with their roles
       console.log('Fetching all users from database...');
       
       const { data: allUsers, error: usersError } = await supabase
         .from('users')
-        .select('*')
+        .select(`
+          id,
+          username,
+          email,
+          first_name,
+          last_name,
+          phone,
+          avatar_url,
+          status,
+          email_verified,
+          last_login,
+          failed_login_attempts,
+          account_locked_until,
+          created_at,
+          updated_at,
+          password_hash,
+          role_id,
+          role:roles(
+            id,
+            name,
+            description
+          )
+        `)
         .order('created_at', { ascending: false });
 
-      console.log('All users query result:', allUsers);
-      console.log('All users query error:', usersError);
+      console.log('Users query result:', allUsers);
+      console.log('Users query error:', usersError);
 
       if (usersError) {
         console.error('Error fetching users:', usersError);
         throw usersError;
       }
 
-      // If we have users, try to get them with roles
-      if (allUsers && allUsers.length > 0) {
-        console.log(`Found ${allUsers.length} users, now fetching with roles...`);
-        
-        const { data: usersWithRoles, error: rolesError } = await supabase
-          .from('users')
-          .select(`
-            *,
-            role:roles(
-              id,
-              name,
-              description
-            )
-          `)
-          .order('created_at', { ascending: false });
-
-        console.log('Users with roles query result:', usersWithRoles);
-        console.log('Users with roles query error:', rolesError);
-
-        if (rolesError) {
-          console.warn('Error fetching users with roles, using basic user data:', rolesError);
-          setUsers(allUsers || []);
-        } else {
-          console.log(`Successfully fetched ${usersWithRoles?.length || 0} users with roles`);
-          setUsers(usersWithRoles || []);
-        }
-      } else {
-        console.log('No users found in database');
-        setUsers([]);
-      }
+      console.log(`Successfully fetched ${allUsers?.length || 0} users`);
+      setUsers(allUsers || []);
 
     } catch (error: any) {
       console.error('Error in fetchUsers:', error);
@@ -171,7 +134,9 @@ export function useUsers() {
           status: 'ACTIVE',
           email_verified: false,
           failed_login_attempts: 0,
-          role_id: roleId
+          role_id: roleId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }])
         .select()
         .single();
@@ -207,7 +172,10 @@ export function useUsers() {
 
       const { error } = await supabase
         .from('users')
-        .update({ status: 'INACTIVE' })
+        .update({ 
+          status: 'INACTIVE',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', userId);
 
       if (error) {

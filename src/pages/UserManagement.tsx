@@ -1,74 +1,44 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, CheckCircle, XCircle } from "lucide-react";
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
+import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock data for pending users
-const mockPendingUsers = [
-  {
-    id: 1,
-    username: "newuser1",
-    email: "newuser1@gmail.com",
-    firstName: "John",
-    lastName: "Doe",
-    requested: "20/6/2025",
-    status: "Pending"
-  },
-  {
-    id: 2,
-    username: "newuser2",
-    email: "newuser2@gmail.com",
-    firstName: "Jane",
-    lastName: "Smith",
-    requested: "19/6/2025",
-    status: "Pending"
-  }
-];
+interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  user_count: number;
+}
 
-// Mock data for roles
-const mockRoles = [
-  {
-    id: 1,
-    name: "Admin",
-    description: "Full system access with all permissions",
-    userCount: 3,
-    permissions: ["CREATE", "READ", "UPDATE", "DELETE", "MANAGE_USERS"]
-  },
-  {
-    id: 2,
-    name: "User",
-    description: "Standard user with limited permissions",
-    userCount: 8,
-    permissions: ["READ", "UPDATE_OWN"]
-  },
-  {
-    id: 3,
-    name: "Manager",
-    description: "Department manager with elevated permissions",
-    userCount: 2,
-    permissions: ["CREATE", "READ", "UPDATE", "MANAGE_DEPARTMENT"]
-  }
-];
+interface OnlineUser {
+  id: string;
+  username: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  last_seen: string;
+  status: string;
+}
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [isLoadingOnlineUsers, setIsLoadingOnlineUsers] = useState(true);
   const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
   const { user: currentUser, isAdmin } = useAuth();
-
-  console.log('=== USER MANAGEMENT DEBUG ===');
-  console.log('Current authenticated user:', currentUser);
-  console.log('Is admin:', isAdmin);
-  console.log('All users from hook:', users);
-  console.log('Users array length:', users.length);
-  console.log('Is loading:', isLoading);
-  console.log('=== END DEBUG ===');
 
   // Filter users - show all users
   const filteredUsers = users.filter((user: DatabaseUser) =>
@@ -78,26 +48,146 @@ export default function UserManagement() {
     (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  console.log('Filtered users:', filteredUsers);
+  const fetchRoles = async () => {
+    try {
+      setIsLoadingRoles(true);
+      
+      // Fetch roles with user count
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('roles')
+        .select(`
+          id,
+          name,
+          description,
+          user_roles(count)
+        `);
+
+      if (rolesError) {
+        console.error('Error fetching roles:', rolesError);
+        return;
+      }
+
+      // Transform the data to include user count
+      const rolesWithCount = rolesData?.map(role => ({
+        id: role.id,
+        name: role.name,
+        description: role.description || '',
+        permissions: [], // We'll add permissions later if needed
+        user_count: role.user_roles?.length || 0
+      })) || [];
+
+      setRoles(rolesWithCount);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  };
+
+  const fetchOnlineUsers = async () => {
+    try {
+      setIsLoadingOnlineUsers(true);
+      
+      // For now, we'll simulate online users based on recent activity
+      // In a real app, you'd track this with presence or last_seen timestamps
+      const recentThreshold = new Date();
+      recentThreshold.setMinutes(recentThreshold.getMinutes() - 30); // Consider users online if active in last 30 minutes
+      
+      const { data: activeUsers, error } = await supabase
+        .from('users')
+        .select('id, username, email, first_name, last_name, last_login, status')
+        .eq('status', 'ACTIVE')
+        .not('last_login', 'is', null)
+        .gte('last_login', recentThreshold.toISOString())
+        .order('last_login', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching online users:', error);
+        return;
+      }
+
+      const onlineUsersData = activeUsers?.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        last_seen: user.last_login || new Date().toISOString(),
+        status: 'Online'
+      })) || [];
+
+      setOnlineUsers(onlineUsersData);
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+    } finally {
+      setIsLoadingOnlineUsers(false);
+    }
+  };
+
+  const createRole = async (roleData: { name: string; description: string; permissions: string[] }) => {
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .insert({
+          name: roleData.name,
+          description: roleData.description,
+          is_system_role: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating role:', error);
+        return { success: false, error };
+      }
+
+      // Refresh roles list
+      await fetchRoles();
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error creating role:', error);
+      return { success: false, error };
+    }
+  };
+
+  const deleteRole = async (roleId: string) => {
+    if (window.confirm('Are you sure you want to delete this role?')) {
+      try {
+        const { error } = await supabase
+          .from('roles')
+          .delete()
+          .eq('id', roleId);
+
+        if (error) {
+          console.error('Error deleting role:', error);
+          return;
+        }
+
+        // Refresh roles list
+        await fetchRoles();
+      } catch (error) {
+        console.error('Error deleting role:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchRoles();
+    fetchOnlineUsers();
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB');
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-GB');
   };
 
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to deactivate this user?')) {
       await deleteUser(userId);
     }
-  };
-
-  const handleApproveUser = (userId: number) => {
-    console.log("Approving user:", userId);
-    // Add approval logic here
-  };
-
-  const handleRejectUser = (userId: number) => {
-    console.log("Rejecting user:", userId);
-    // Add rejection logic here
   };
 
   const getRoleBadgeVariant = (roleName?: string) => {
@@ -117,27 +207,27 @@ export default function UserManagement() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-600 mt-1">Manage system users, approvals, and roles</p>
+        <p className="text-gray-600 mt-1">Manage system users, online activity, and roles</p>
       </div>
 
-      <Tabs defaultValue="active-users" className="space-y-6">
+      <Tabs defaultValue="all-users" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active-users" className="flex items-center gap-2">
+          <TabsTrigger value="all-users" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
             All Users ({users.length})
           </TabsTrigger>
-          <TabsTrigger value="approve-users" className="flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
-            Approve Users
+          <TabsTrigger value="active-users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Active Users ({onlineUsers.length})
           </TabsTrigger>
           <TabsTrigger value="manage-roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            Manage Roles
+            Manage Roles ({roles.length})
           </TabsTrigger>
         </TabsList>
 
-        {/* Active Users Tab */}
-        <TabsContent value="active-users" className="space-y-4">
+        {/* All Users Tab */}
+        <TabsContent value="all-users" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -159,16 +249,6 @@ export default function UserManagement() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="max-w-sm"
                 />
-              </div>
-              
-              {/* Debug information */}
-              <div className="mb-4 p-3 bg-gray-100 rounded text-sm">
-                <div>Debug Info:</div>
-                <div>• Auth User: {currentUser ? `${currentUser.username} (${currentUser.email})` : 'Not logged in'}</div>
-                <div>• Is Admin: {isAdmin ? 'Yes' : 'No'}</div>
-                <div>• Loading: {isLoading ? 'Yes' : 'No'}</div>
-                <div>• Total Users: {users.length}</div>
-                <div>• Filtered Users: {filteredUsers.length}</div>
               </div>
             </CardContent>
           </Card>
@@ -246,16 +326,9 @@ export default function UserManagement() {
                         <p className="text-sm">
                           {searchTerm 
                             ? "No users match your search criteria. Try a different search term."
-                            : "There are no users in the database yet. This could be due to database permissions or the users table being empty."
+                            : "There are no users in the database yet."
                           }
                         </p>
-                        
-                        {!searchTerm && (
-                          <div className="mt-4 text-xs text-gray-400">
-                            <p>Check the browser console for detailed debugging information.</p>
-                            <p>Make sure you have proper database access permissions.</p>
-                          </div>
-                        )}
                       </div>
                       {!searchTerm && (
                         <div className="space-y-2">
@@ -271,55 +344,56 @@ export default function UserManagement() {
           )}
         </TabsContent>
 
-        {/* Approve Users Tab */}
-        <TabsContent value="approve-users" className="space-y-4">
+        {/* Active Users Tab */}
+        <TabsContent value="active-users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Pending User Approvals ({mockPendingUsers.length})</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Active Users ({onlineUsers.length})</CardTitle>
+                <Button variant="outline" size="sm" onClick={fetchOnlineUsers}>
+                  🔄 Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockPendingUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{user.firstName} {user.lastName}</h3>
-                        <Badge variant="outline" className="text-orange-600 border-orange-200">
-                          Pending
-                        </Badge>
+              {isLoadingOnlineUsers ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                  <span className="ml-2">Loading active users...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {onlineUsers.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <h3 className="font-semibold">
+                            {user.first_name && user.last_name 
+                              ? `${user.first_name} ${user.last_name}`
+                              : user.username
+                            }
+                          </h3>
+                          <Badge variant="outline" className="text-green-600 border-green-200">
+                            Online
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">@{user.username}</p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-xs text-gray-500">Last seen: {formatTime(user.last_seen)}</p>
                       </div>
-                      <p className="text-sm text-gray-600">@{user.username}</p>
-                      <p className="text-sm text-gray-600">{user.email}</p>
-                      <p className="text-xs text-gray-500">Requested: {user.requested}</p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleApproveUser(user.id)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-red-600 hover:text-red-700 border-red-200"
-                        onClick={() => handleRejectUser(user.id)}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
+                  ))}
+                  
+                  {onlineUsers.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <h3 className="text-lg font-medium">No Active Users</h3>
+                      <p className="text-sm">No users are currently online or recently active.</p>
                     </div>
-                  </div>
-                ))}
-                
-                {mockPendingUsers.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    No pending user approvals at this time.
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -329,51 +403,61 @@ export default function UserManagement() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>System Roles ({mockRoles.length})</CardTitle>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Role
-                </Button>
+                <CardTitle>System Roles ({roles.length})</CardTitle>
+                <AddRoleDialog onAddRole={createRole} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4">
-                {mockRoles.map((role) => (
-                  <div key={role.id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{role.name}</h3>
-                        <p className="text-gray-600 text-sm">{role.description}</p>
+              {isLoadingRoles ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2">Loading roles...</span>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {roles.map((role) => (
+                    <div key={role.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 className="font-semibold text-lg">{role.name}</h3>
+                          <p className="text-gray-600 text-sm">{role.description}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => deleteRole(role.id)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-700">
-                          Users: <span className="text-blue-600">{role.userCount}</span>
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {role.permissions.map((permission) => (
-                            <Badge key={permission} variant="secondary" className="text-xs">
-                              {permission}
-                            </Badge>
-                          ))}
+                      
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">
+                            Users: <span className="text-blue-600">{role.user_count}</span>
+                          </p>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                  
+                  {roles.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <h3 className="text-lg font-medium">No Roles Found</h3>
+                      <p className="text-sm">Get started by creating your first role.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

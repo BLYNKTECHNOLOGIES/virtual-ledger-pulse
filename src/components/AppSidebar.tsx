@@ -20,6 +20,7 @@ import {
   Shield,
   BarChart3,
 } from "lucide-react"
+import { Link, useLocation } from "react-router-dom"
 
 import {
   Sidebar,
@@ -132,6 +133,7 @@ const items = [
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar()
+  const location = useLocation()
   const isCollapsed = state === "collapsed"
 
   return (
@@ -153,16 +155,24 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-slate-400 font-medium">Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="hover:bg-slate-700/50 data-[active=true]:bg-slate-600 text-slate-200 hover:text-white transition-colors">
-                    <a href={item.url} className="flex items-center gap-3">
-                      <item.icon className={`h-5 w-5 ${item.color}`} />
-                      {!isCollapsed && <span className="font-medium">{item.title}</span>}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items.map((item) => {
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild 
+                      className={`hover:bg-slate-700/50 text-slate-200 hover:text-white transition-colors ${
+                        isActive ? 'bg-slate-600 text-white font-medium' : ''
+                      }`}
+                    >
+                      <Link to={item.url} className="flex items-center gap-3">
+                        <item.icon className={`h-5 w-5 ${item.color}`} />
+                        {!isCollapsed && <span className="font-medium">{item.title}</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

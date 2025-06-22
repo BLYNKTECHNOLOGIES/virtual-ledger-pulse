@@ -30,14 +30,24 @@ export function ScreenShareManager({ userId, username, onStreamStart, onStreamEn
           height: { ideal: 1080, max: 1080 },
           frameRate: { ideal: 30, max: 30 }
         },
-        audio: false
+        audio: true // Enable audio for better experience
       });
 
       setStream(displayStream);
       setIsSharing(true);
       
+      // Set up video element properly
       if (videoRef.current) {
         videoRef.current.srcObject = displayStream;
+        videoRef.current.muted = true; // Prevent audio feedback
+        videoRef.current.playsInline = true;
+        
+        // Ensure video plays
+        try {
+          await videoRef.current.play();
+        } catch (playError) {
+          console.error('Video play failed:', playError);
+        }
       }
 
       // Handle stream end when user stops sharing
@@ -82,6 +92,32 @@ export function ScreenShareManager({ userId, username, onStreamStart, onStreamEn
       description: `Stopped monitoring ${username}'s screen`,
     });
   };
+
+  // Effect to handle video stream changes
+  useEffect(() => {
+    if (stream && videoRef.current) {
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      
+      const playVideo = async () => {
+        try {
+          await video.play();
+          console.log('Video is now playing');
+        } catch (error) {
+          console.error('Failed to play video:', error);
+        }
+      };
+      
+      // Wait for metadata to load before playing
+      video.addEventListener('loadedmetadata', playVideo);
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', playVideo);
+      };
+    }
+  }, [stream]);
 
   useEffect(() => {
     return () => {
@@ -133,16 +169,30 @@ export function ScreenShareManager({ userId, username, onStreamStart, onStreamEn
               ref={videoRef}
               autoPlay
               muted
-              className="w-full h-32 bg-black rounded border object-contain"
-              onLoadedMetadata={() => {
-                if (videoRef.current) {
-                  videoRef.current.play();
-                }
+              playsInline
+              className="w-full h-40 bg-gray-900 rounded border object-contain"
+              style={{ 
+                backgroundColor: '#1a1a1a',
+                minHeight: '160px'
+              }}
+              onError={(e) => {
+                console.error('Video error:', e);
+              }}
+              onLoadStart={() => {
+                console.log('Video load started');
+              }}
+              onCanPlay={() => {
+                console.log('Video can play');
               }}
             />
             <p className="text-xs text-gray-500">
               Live screen feed from {username}
             </p>
+            {stream && (
+              <p className="text-xs text-green-600">
+                Stream active • {stream.getVideoTracks().length} video track(s)
+              </p>
+            )}
           </div>
         )}
       </CardContent>

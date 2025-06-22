@@ -2224,6 +2224,7 @@ export type Database = {
           failed_login_attempts: number | null
           first_name: string | null
           id: string
+          last_activity: string | null
           last_login: string | null
           last_name: string | null
           password_hash: string
@@ -2242,6 +2243,7 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           id?: string
+          last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
           password_hash: string
@@ -2260,6 +2262,7 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           id?: string
+          last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
           password_hash?: string
@@ -2384,6 +2387,18 @@ export type Database = {
         Args: { dept: string; designation: string }
         Returns: string
       }
+      get_active_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          username: string
+          email: string
+          first_name: string
+          last_name: string
+          last_activity: string
+          status: string
+        }[]
+      }
       get_default_risk_level: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2411,6 +2426,10 @@ export type Database = {
       reject_registration: {
         Args: { registration_id: string; reason?: string }
         Returns: boolean
+      }
+      update_user_activity: {
+        Args: { user_uuid: string }
+        Returns: undefined
       }
       user_has_permission: {
         Args:

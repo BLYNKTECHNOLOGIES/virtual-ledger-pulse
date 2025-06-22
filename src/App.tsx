@@ -1,4 +1,3 @@
-
 import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,6 +9,7 @@ import { Layout } from "./components/Layout";
 import { AuthProvider } from "./components/AuthProvider";
 import { lazyLoad } from "./utils/lazyLoad";
 import { usePerformance } from "./hooks/usePerformance";
+import { useUserActivity } from '@/hooks/useUserActivity';
 
 // Lazy load pages for better code splitting
 const Index = lazyLoad(() => import("./pages/Index"));
@@ -48,8 +48,9 @@ const LoadingFallback = () => (
   </div>
 );
 
-const App = () => {
+function App() {
   usePerformance();
+  useUserActivity();
 
   return (
     <QueryClientProvider client={queryClient}>

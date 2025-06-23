@@ -26,9 +26,7 @@ export function useScreenShareService() {
   const [incomingRequests, setIncomingRequests] = useState<ScreenShareRequest[]>([]);
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
   
-  // Use refs to track subscription state and prevent duplicates
-  const isRequestsSubscribedRef = useRef(false);
-  const isResponsesSubscribedRef = useRef(false);
+  // Use refs to track subscription state
   const requestsChannelRef = useRef<any>(null);
   const responsesChannelRef = useRef<any>(null);
 
@@ -41,7 +39,6 @@ export function useScreenShareService() {
         console.log('Channel cleanup error (safe to ignore):', error);
       }
       requestsChannelRef.current = null;
-      isRequestsSubscribedRef.current = false;
     }
 
     if (responsesChannelRef.current) {
@@ -51,18 +48,14 @@ export function useScreenShareService() {
         console.log('Channel cleanup error (safe to ignore):', error);
       }
       responsesChannelRef.current = null;
-      isResponsesSubscribedRef.current = false;
     }
   }, []);
 
   // Listen for incoming screen share requests (for employees)
   useEffect(() => {
-    if (!user || isRequestsSubscribedRef.current) return;
+    if (!user) return;
 
-    // Clean up any existing channel first
-    if (requestsChannelRef.current) {
-      supabase.removeChannel(requestsChannelRef.current);
-    }
+    cleanupChannels();
 
     try {
       const channel = supabase
@@ -105,9 +98,6 @@ export function useScreenShareService() {
         )
         .subscribe((status) => {
           console.log('Requests channel subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            isRequestsSubscribedRef.current = true;
-          }
         });
 
       requestsChannelRef.current = channel;
@@ -115,23 +105,12 @@ export function useScreenShareService() {
       console.error('Error setting up requests channel:', error);
     }
 
-    return () => {
-      if (requestsChannelRef.current && isRequestsSubscribedRef.current) {
-        supabase.removeChannel(requestsChannelRef.current);
-        requestsChannelRef.current = null;
-        isRequestsSubscribedRef.current = false;
-      }
-    };
-  }, [user?.id, toast]); // Only depend on user.id and toast
+    return cleanupChannels;
+  }, [user?.id, toast, cleanupChannels]);
 
   // Listen for screen share responses (for admins)
   useEffect(() => {
-    if (!user || isResponsesSubscribedRef.current) return;
-
-    // Clean up any existing channel first
-    if (responsesChannelRef.current) {
-      supabase.removeChannel(responsesChannelRef.current);
-    }
+    if (!user) return;
 
     try {
       const channel = supabase
@@ -164,57 +143,53 @@ export function useScreenShareService() {
         )
         .subscribe((status) => {
           console.log('Responses channel subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            isResponsesSubscribedRef.current = true;
-          }
         });
 
       responsesChannelRef.current = channel;
     } catch (error) {
       console.error('Error setting up responses channel:', error);
     }
-
-    return () => {
-      if (responsesChannelRef.current && isResponsesSubscribedRef.current) {
-        supabase.removeChannel(responsesChannelRef.current);
-        responsesChannelRef.current = null;
-        isResponsesSubscribedRef.current = false;
-      }
-    };
-  }, [user?.id, toast]); // Only depend on user.id and toast
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      cleanupChannels();
-    };
-  }, [cleanupChannels]);
+  }, [user?.id, toast]);
 
   // Request screen share from a user (admin function)
   const requestScreenShare = useCallback(async (targetUserId: string, targetUsername: string) => {
-    if (!user) return;
+    if (!user) {
+      console.error('No user found for screen share request');
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      console.log('Requesting screen share from:', targetUserId, 'by:', user.id);
+      
+      const { data, error } = await supabase
         .from('screen_share_requests')
         .insert({
           admin_id: user.id,
           target_user_id: targetUserId,
           admin_username: user.username || user.email || 'Admin',
           status: 'pending'
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
+
+      console.log('Screen share request created:', data);
 
       toast({
         title: "Request Sent",
         description: `Screen share request sent to ${targetUsername}`,
       });
+      
+      return data.id;
     } catch (error) {
       console.error('Error requesting screen share:', error);
       toast({
         title: "Request Failed",
-        description: "Failed to send screen share request",
+        description: "Failed to send screen share request. Please try again.",
         variant: "destructive",
       });
     }

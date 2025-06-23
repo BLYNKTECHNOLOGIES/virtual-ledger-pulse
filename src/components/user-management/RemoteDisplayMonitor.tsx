@@ -30,7 +30,6 @@ export function RemoteDisplayMonitor({
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
-  const isSubscribedRef = useRef(false);
   const { toast } = useToast();
   const { requestScreenShare, endScreenShare } = useScreenShareService();
 
@@ -49,7 +48,6 @@ export function RemoteDisplayMonitor({
         console.log('Channel cleanup error (safe to ignore):', error);
       }
       channelRef.current = null;
-      isSubscribedRef.current = false;
     }
   };
 
@@ -57,11 +55,6 @@ export function RemoteDisplayMonitor({
   useEffect(() => {
     if (!currentRequestId) {
       cleanupChannel();
-      return;
-    }
-
-    // Only create new subscription if we don't have one
-    if (channelRef.current && isSubscribedRef.current) {
       return;
     }
 
@@ -103,9 +96,6 @@ export function RemoteDisplayMonitor({
         )
         .subscribe((status) => {
           console.log('Channel subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            isSubscribedRef.current = true;
-          }
         });
 
       channelRef.current = channel;
@@ -115,10 +105,8 @@ export function RemoteDisplayMonitor({
       setMonitoringState('error');
     }
 
-    return () => {
-      cleanupChannel();
-    };
-  }, [currentRequestId, userId]);
+    return cleanupChannel;
+  }, [currentRequestId, userId, onMonitoringStart]);
 
   const simulateStreamConnection = () => {
     // In a real app, this would be the actual WebRTC stream from the employee
@@ -192,12 +180,13 @@ export function RemoteDisplayMonitor({
         description: `Requesting screen access from ${username}...`,
       });
 
-      await requestScreenShare(userId, username);
-      setMonitoringState('pending');
-
-      // Generate a unique request ID for this session
-      const requestId = `request-${userId}-${Date.now()}`;
-      setCurrentRequestId(requestId);
+      const requestId = await requestScreenShare(userId, username);
+      if (requestId) {
+        setCurrentRequestId(requestId);
+        setMonitoringState('pending');
+      } else {
+        setMonitoringState('error');
+      }
 
     } catch (error) {
       console.error('Screen share request failed:', error);

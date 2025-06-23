@@ -117,11 +117,14 @@ export function useScreenShareService() {
     if (!user) return;
 
     try {
-      const { error } = await supabase.rpc('create_screen_share_request', {
-        p_admin_id: user.id,
-        p_target_user_id: targetUserId,
-        p_admin_username: user.username || user.email || 'Admin'
-      });
+      const { error } = await supabase
+        .from('screen_share_requests')
+        .insert({
+          admin_id: user.id,
+          target_user_id: targetUserId,
+          admin_username: user.username || user.email || 'Admin',
+          status: 'pending'
+        });
 
       if (error) throw error;
 
@@ -155,10 +158,10 @@ export function useScreenShareService() {
       setCurrentStream(stream);
 
       // Update request status
-      const { error } = await supabase.rpc('update_screen_share_status', {
-        p_request_id: requestId,
-        p_status: 'accepted'
-      });
+      const { error } = await supabase
+        .from('screen_share_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
 
       if (error) throw error;
 
@@ -179,10 +182,10 @@ export function useScreenShareService() {
       console.error('Screen share failed:', error);
       
       // Update request status to declined
-      await supabase.rpc('update_screen_share_status', {
-        p_request_id: requestId,
-        p_status: 'declined'
-      });
+      await supabase
+        .from('screen_share_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId);
 
       setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
 
@@ -197,10 +200,10 @@ export function useScreenShareService() {
   // Decline screen share request (employee function)
   const declineScreenShare = useCallback(async (requestId: string) => {
     try {
-      await supabase.rpc('update_screen_share_status', {
-        p_request_id: requestId,
-        p_status: 'declined'
-      });
+      await supabase
+        .from('screen_share_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId);
 
       setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
 
@@ -221,10 +224,10 @@ export function useScreenShareService() {
     }
 
     if (requestId) {
-      await supabase.rpc('update_screen_share_status', {
-        p_request_id: requestId,
-        p_status: 'ended'
-      });
+      await supabase
+        .from('screen_share_requests')
+        .update({ status: 'ended' })
+        .eq('id', requestId);
     }
 
     toast({
@@ -236,10 +239,10 @@ export function useScreenShareService() {
   // End screen share session (admin function)
   const endScreenShare = useCallback(async (requestId: string) => {
     try {
-      await supabase.rpc('update_screen_share_status', {
-        p_request_id: requestId,
-        p_status: 'ended'
-      });
+      await supabase
+        .from('screen_share_requests')
+        .update({ status: 'ended' })
+        .eq('id', requestId);
 
       toast({
         title: "Screen Share Ended",

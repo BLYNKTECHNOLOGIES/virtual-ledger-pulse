@@ -2,7 +2,6 @@
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TopHeader } from '@/components/TopHeader';
-import { ScreenShareRequestHandler } from './user-management/ScreenShareRequestHandler';
 import { ErrorBoundary } from './ErrorBoundary';
 
 interface LayoutProps {
@@ -21,9 +20,6 @@ export function Layout({ children }: LayoutProps) {
               {children}
             </ErrorBoundary>
           </div>
-          
-          {/* Add screen share request handler for all users */}
-          <ScreenShareRequestHandler />
         </main>
       </div>
     </SidebarProvider>

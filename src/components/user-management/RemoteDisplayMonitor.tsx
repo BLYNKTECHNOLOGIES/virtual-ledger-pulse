@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,70 +30,93 @@ export function RemoteDisplayMonitor({
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
   const { toast } = useToast();
   const { requestScreenShare, endScreenShare } = useScreenShareService();
 
   // Clean up channel on unmount
   useEffect(() => {
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      cleanupChannel();
     };
   }, []);
 
+  const cleanupChannel = () => {
+    if (channelRef.current) {
+      try {
+        supabase.removeChannel(channelRef.current);
+      } catch (error) {
+        console.log('Channel cleanup error (safe to ignore):', error);
+      }
+      channelRef.current = null;
+      isSubscribedRef.current = false;
+    }
+  };
+
   // Listen for screen share request updates
   useEffect(() => {
-    if (!currentRequestId) return;
-
-    // Clean up existing channel
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
+    if (!currentRequestId) {
+      cleanupChannel();
+      return;
     }
 
-    // Create new channel with unique name
-    const channel = supabase
-      .channel(`screen-share-monitor-${userId}-${currentRequestId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'screen_share_requests',
-          filter: `id=eq.${currentRequestId}`
-        },
-        (payload) => {
-          const request = payload.new as any;
-          
-          if (request.status === 'accepted') {
-            setMonitoringState('connected');
-            setConnectionTime(new Date());
-            onMonitoringStart?.();
-            
-            // In a real implementation, you would establish WebRTC connection here
-            // For now, we'll simulate with a placeholder
-            simulateStreamConnection();
-            
-          } else if (request.status === 'declined') {
-            setMonitoringState('declined');
-            setCurrentRequestId(null);
-            
-          } else if (request.status === 'ended') {
-            handleStreamEnd();
-          }
-        }
-      )
-      .subscribe();
+    // Only create new subscription if we don't have one
+    if (channelRef.current && isSubscribedRef.current) {
+      return;
+    }
 
-    channelRef.current = channel;
+    // Clean up any existing channel first
+    cleanupChannel();
+
+    try {
+      // Create new channel with unique name
+      const channelName = `screen-share-monitor-${userId}-${currentRequestId}-${Date.now()}`;
+      const channel = supabase.channel(channelName);
+      
+      channel
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'screen_share_requests',
+            filter: `id=eq.${currentRequestId}`
+          },
+          (payload) => {
+            console.log('Screen share request update:', payload);
+            const request = payload.new as any;
+            
+            if (request.status === 'accepted') {
+              setMonitoringState('connected');
+              setConnectionTime(new Date());
+              onMonitoringStart?.();
+              simulateStreamConnection();
+              
+            } else if (request.status === 'declined') {
+              setMonitoringState('declined');
+              setCurrentRequestId(null);
+              
+            } else if (request.status === 'ended') {
+              handleStreamEnd();
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Channel subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            isSubscribedRef.current = true;
+          }
+        });
+
+      channelRef.current = channel;
+
+    } catch (error) {
+      console.error('Error setting up channel subscription:', error);
+      setMonitoringState('error');
+    }
 
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
+      cleanupChannel();
     };
   }, [currentRequestId, userId]);
 
@@ -148,7 +170,7 @@ export function RemoteDisplayMonitor({
     const stream = canvas.captureStream(30);
     if (videoRef.current) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play();
+      videoRef.current.play().catch(console.error);
     }
   };
 
@@ -208,7 +230,11 @@ export function RemoteDisplayMonitor({
 
   const stopMonitoring = async () => {
     if (currentRequestId) {
-      await endScreenShare(currentRequestId);
+      try {
+        await endScreenShare(currentRequestId);
+      } catch (error) {
+        console.error('Error ending screen share:', error);
+      }
     }
     handleStreamEnd();
   };

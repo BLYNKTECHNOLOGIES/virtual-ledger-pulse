@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,15 +30,33 @@ export function RemoteDisplayMonitor({
   const [connectionTime, setConnectionTime] = useState<Date | null>(null);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const channelRef = useRef<any>(null);
   const { toast } = useToast();
   const { requestScreenShare, endScreenShare } = useScreenShareService();
+
+  // Clean up channel on unmount
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, []);
 
   // Listen for screen share request updates
   useEffect(() => {
     if (!currentRequestId) return;
 
+    // Clean up existing channel
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    // Create new channel with unique name
     const channel = supabase
-      .channel(`screen-share-${currentRequestId}`)
+      .channel(`screen-share-monitor-${userId}-${currentRequestId}`)
       .on(
         'postgres_changes',
         {
@@ -69,10 +88,15 @@ export function RemoteDisplayMonitor({
       )
       .subscribe();
 
+    channelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [currentRequestId]);
+  }, [currentRequestId, userId]);
 
   const simulateStreamConnection = () => {
     // In a real app, this would be the actual WebRTC stream from the employee
@@ -149,9 +173,9 @@ export function RemoteDisplayMonitor({
       await requestScreenShare(userId, username);
       setMonitoringState('pending');
 
-      // The request ID would be returned from the service in a real implementation
-      // For now, we'll simulate it
-      setCurrentRequestId('temp-request-id');
+      // Generate a unique request ID for this session
+      const requestId = `request-${userId}-${Date.now()}`;
+      setCurrentRequestId(requestId);
 
     } catch (error) {
       console.error('Screen share request failed:', error);

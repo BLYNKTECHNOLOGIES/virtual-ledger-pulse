@@ -1,7 +1,8 @@
-
-import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { TopHeader } from "./TopHeader";
+import { ErrorBoundary } from 'react-error-boundary';
+import { SidebarProvider } from '@/components/SidebarProvider';
+import { AppSidebar } from '@/components/AppSidebar';
+import { TopHeader } from '@/components/TopHeader';
+import { ScreenShareRequestHandler } from './user-management/ScreenShareRequestHandler';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,15 +10,20 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-full">
+    <SidebarProvider defaultOpen={false}>
+      <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col relative">
           <TopHeader />
-          <main className="flex-1 overflow-auto bg-gray-50">
-            {children}
-          </main>
-        </SidebarInset>
+          <div className="flex-1 overflow-auto">
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </div>
+          
+          {/* Add screen share request handler for all users */}
+          <ScreenShareRequestHandler />
+        </main>
       </div>
     </SidebarProvider>
   );

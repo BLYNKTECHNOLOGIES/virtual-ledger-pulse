@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, Monitor, Eye, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { RemoteMonitoringManager } from './RemoteMonitoringManager';
+import { RemoteDisplayMonitor } from './RemoteDisplayMonitor';
 import { useToast } from '@/hooks/use-toast';
 
 interface ActiveUser {
@@ -145,19 +145,20 @@ export function ActiveUsersDisplay() {
                     className="flex items-center gap-2"
                   >
                     <Eye className="h-4 w-4" />
-                    {monitoringUsers.has(user.id) ? "Stop Monitoring" : "Monitor User"}
+                    {monitoringUsers.has(user.id) ? "Hide Display" : "View Display"}
                   </Button>
                 </div>
 
                 {monitoringUsers.has(user.id) && (
-                  <RemoteMonitoringManager
+                  <RemoteDisplayMonitor
                     userId={user.id}
                     username={user.username}
-                    onStreamStart={(stream) => {
-                      console.log('Remote monitoring started for user:', user.username);
+                    isActive={true}
+                    onMonitoringStart={() => {
+                      console.log('Display monitoring started for user:', user.username);
                     }}
-                    onStreamEnd={() => {
-                      console.log('Remote monitoring ended for user:', user.username);
+                    onMonitoringStop={() => {
+                      console.log('Display monitoring stopped for user:', user.username);
                     }}
                   />
                 )}

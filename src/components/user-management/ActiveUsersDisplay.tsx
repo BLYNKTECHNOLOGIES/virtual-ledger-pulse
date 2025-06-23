@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, Monitor, Eye, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { ScreenShareManager } from './ScreenShareManager';
+import { RemoteMonitoringManager } from './RemoteMonitoringManager';
 import { useToast } from '@/hooks/use-toast';
 
 interface ActiveUser {
@@ -150,14 +150,14 @@ export function ActiveUsersDisplay() {
                 </div>
 
                 {monitoringUsers.has(user.id) && (
-                  <ScreenShareManager
+                  <RemoteMonitoringManager
                     userId={user.id}
                     username={user.username}
                     onStreamStart={(stream) => {
-                      console.log('Screen share started for user:', user.username);
+                      console.log('Remote monitoring started for user:', user.username);
                     }}
                     onStreamEnd={() => {
-                      console.log('Screen share ended for user:', user.username);
+                      console.log('Remote monitoring ended for user:', user.username);
                     }}
                   />
                 )}

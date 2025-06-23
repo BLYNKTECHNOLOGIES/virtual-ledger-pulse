@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,8 +28,10 @@ export function RemoteDisplayMonitor({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [connectionTime, setConnectionTime] = useState<Date | null>(null);
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+  const [isRequesting, setIsRequesting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<any>(null);
+  const isChannelSetupRef = useRef(false);
   const { toast } = useToast();
   const { requestScreenShare, endScreenShare } = useScreenShareService();
 
@@ -40,75 +42,85 @@ export function RemoteDisplayMonitor({
     };
   }, []);
 
-  const cleanupChannel = () => {
+  const cleanupChannel = useCallback(async () => {
     if (channelRef.current) {
       try {
-        supabase.removeChannel(channelRef.current);
+        await supabase.removeChannel(channelRef.current);
+        console.log('Monitor channel cleaned up');
       } catch (error) {
         console.log('Channel cleanup error (safe to ignore):', error);
       }
       channelRef.current = null;
     }
-  };
+    isChannelSetupRef.current = false;
+  }, []);
 
   // Listen for screen share request updates
   useEffect(() => {
-    if (!currentRequestId) {
-      cleanupChannel();
+    if (!currentRequestId || isChannelSetupRef.current) {
       return;
     }
 
-    // Clean up any existing channel first
-    cleanupChannel();
+    const setupChannel = async () => {
+      // Clean up any existing channel first
+      await cleanupChannel();
 
-    try {
-      // Create new channel with unique name
-      const channelName = `screen-share-monitor-${userId}-${currentRequestId}-${Date.now()}`;
-      const channel = supabase.channel(channelName);
-      
-      channel
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'screen_share_requests',
-            filter: `id=eq.${currentRequestId}`
-          },
-          (payload) => {
-            console.log('Screen share request update:', payload);
-            const request = payload.new as any;
-            
-            if (request.status === 'accepted') {
-              setMonitoringState('connected');
-              setConnectionTime(new Date());
-              onMonitoringStart?.();
-              simulateStreamConnection();
+      try {
+        // Create new channel with unique name
+        const channelName = `screen-share-monitor-${userId}-${currentRequestId}-${Date.now()}`;
+        const channel = supabase.channel(channelName);
+        
+        channel
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'screen_share_requests',
+              filter: `id=eq.${currentRequestId}`
+            },
+            (payload) => {
+              console.log('Screen share request update:', payload);
+              const request = payload.new as any;
               
-            } else if (request.status === 'declined') {
-              setMonitoringState('declined');
-              setCurrentRequestId(null);
-              
-            } else if (request.status === 'ended') {
-              handleStreamEnd();
+              if (request.status === 'accepted') {
+                setMonitoringState('connected');
+                setConnectionTime(new Date());
+                onMonitoringStart?.();
+                simulateStreamConnection();
+                
+              } else if (request.status === 'declined') {
+                setMonitoringState('declined');
+                setCurrentRequestId(null);
+                setIsRequesting(false);
+                
+              } else if (request.status === 'ended') {
+                handleStreamEnd();
+              }
             }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Channel subscription status:', status);
-        });
+          )
+          .subscribe((status) => {
+            console.log('Monitor channel subscription status:', status);
+          });
 
-      channelRef.current = channel;
+        channelRef.current = channel;
+        isChannelSetupRef.current = true;
 
-    } catch (error) {
-      console.error('Error setting up channel subscription:', error);
-      setMonitoringState('error');
-    }
+      } catch (error) {
+        console.error('Error setting up monitor channel:', error);
+        setMonitoringState('error');
+        setIsRequesting(false);
+      }
+    };
 
-    return cleanupChannel;
-  }, [currentRequestId, userId, onMonitoringStart]);
+    setupChannel();
 
-  const simulateStreamConnection = () => {
+    return () => {
+      cleanupChannel();
+    };
+  }, [currentRequestId, userId, onMonitoringStart, cleanupChannel]);
+
+  const simulateStreamConnection = useCallback(() => {
     // In a real app, this would be the actual WebRTC stream from the employee
     // For demo purposes, we'll create a simulated feed
     const canvas = document.createElement('canvas');
@@ -160,9 +172,9 @@ export function RemoteDisplayMonitor({
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(console.error);
     }
-  };
+  }, [monitoringState, username]);
 
-  const startScreenShare = async () => {
+  const startScreenShare = useCallback(async () => {
     if (!isActive) {
       toast({
         title: "User Not Active",
@@ -172,7 +184,13 @@ export function RemoteDisplayMonitor({
       return;
     }
 
+    if (isRequesting) {
+      console.log('Request already in progress');
+      return;
+    }
+
     try {
+      setIsRequesting(true);
       setMonitoringState('requesting');
       
       toast({
@@ -186,11 +204,13 @@ export function RemoteDisplayMonitor({
         setMonitoringState('pending');
       } else {
         setMonitoringState('error');
+        setIsRequesting(false);
       }
 
     } catch (error) {
       console.error('Screen share request failed:', error);
       setMonitoringState('error');
+      setIsRequesting(false);
       
       toast({
         title: "Request Failed",
@@ -198,9 +218,9 @@ export function RemoteDisplayMonitor({
         variant: "destructive",
       });
     }
-  };
+  }, [isActive, username, userId, requestScreenShare, toast, isRequesting]);
 
-  const handleStreamEnd = () => {
+  const handleStreamEnd = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
@@ -209,15 +229,16 @@ export function RemoteDisplayMonitor({
     setConnectionTime(null);
     setIsFullscreen(false);
     setCurrentRequestId(null);
+    setIsRequesting(false);
     onMonitoringStop?.();
 
     toast({
       title: "Screen Sharing Ended",
       description: `Stopped viewing ${username}'s display`,
     });
-  };
+  }, [onMonitoringStop, toast, username]);
 
-  const stopMonitoring = async () => {
+  const stopMonitoring = useCallback(async () => {
     if (currentRequestId) {
       try {
         await endScreenShare(currentRequestId);
@@ -226,11 +247,11 @@ export function RemoteDisplayMonitor({
       }
     }
     handleStreamEnd();
-  };
+  }, [currentRequestId, endScreenShare, handleStreamEnd]);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = useCallback(() => {
     setIsFullscreen(!isFullscreen);
-  };
+  }, [isFullscreen]);
 
   const getStatusBadge = () => {
     switch (monitoringState) {
@@ -302,7 +323,7 @@ export function RemoteDisplayMonitor({
               size="sm"
               variant="outline"
               onClick={startScreenShare}
-              disabled={!isActive}
+              disabled={!isActive || isRequesting}
               className="flex items-center gap-2"
             >
               <Eye className="h-4 w-4" />

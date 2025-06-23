@@ -1,8 +1,9 @@
-import { ErrorBoundary } from 'react-error-boundary';
-import { SidebarProvider } from '@/components/SidebarProvider';
+
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TopHeader } from '@/components/TopHeader';
 import { ScreenShareRequestHandler } from './user-management/ScreenShareRequestHandler';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface LayoutProps {
   children: React.ReactNode;

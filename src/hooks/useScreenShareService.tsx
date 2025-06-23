@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -25,13 +25,23 @@ export function useScreenShareService() {
   const [activeStreams, setActiveStreams] = useState<Map<string, ScreenShareStream>>(new Map());
   const [incomingRequests, setIncomingRequests] = useState<ScreenShareRequest[]>([]);
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
+  
+  // Use refs to track channels and prevent multiple subscriptions
+  const requestsChannelRef = useRef<any>(null);
+  const responsesChannelRef = useRef<any>(null);
 
   // Listen for incoming screen share requests (for employees)
   useEffect(() => {
     if (!user) return;
 
+    // Clean up existing channel if it exists
+    if (requestsChannelRef.current) {
+      supabase.removeChannel(requestsChannelRef.current);
+      requestsChannelRef.current = null;
+    }
+
     const channel = supabase
-      .channel('screen-share-requests')
+      .channel(`screen-share-requests-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -62,24 +72,34 @@ export function useScreenShareService() {
         (payload) => {
           const request = payload.new as ScreenShareRequest;
           if (request.status === 'ended') {
-            // Stop sharing screen
             stopScreenShare();
           }
         }
       )
       .subscribe();
 
+    requestsChannelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (requestsChannelRef.current) {
+        supabase.removeChannel(requestsChannelRef.current);
+        requestsChannelRef.current = null;
+      }
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
 
   // Listen for screen share responses (for admins)
   useEffect(() => {
     if (!user) return;
 
+    // Clean up existing channel if it exists
+    if (responsesChannelRef.current) {
+      supabase.removeChannel(responsesChannelRef.current);
+      responsesChannelRef.current = null;
+    }
+
     const channel = supabase
-      .channel('screen-share-responses')
+      .channel(`screen-share-responses-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -107,10 +127,15 @@ export function useScreenShareService() {
       )
       .subscribe();
 
+    responsesChannelRef.current = channel;
+
     return () => {
-      supabase.removeChannel(channel);
+      if (responsesChannelRef.current) {
+        supabase.removeChannel(responsesChannelRef.current);
+        responsesChannelRef.current = null;
+      }
     };
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
 
   // Request screen share from a user (admin function)
   const requestScreenShare = useCallback(async (targetUserId: string, targetUsername: string) => {

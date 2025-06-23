@@ -26,116 +26,169 @@ export function useScreenShareService() {
   const [incomingRequests, setIncomingRequests] = useState<ScreenShareRequest[]>([]);
   const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
   
-  // Use refs to track channels and prevent multiple subscriptions
+  // Use refs to track subscription state and prevent duplicates
+  const isRequestsSubscribedRef = useRef(false);
+  const isResponsesSubscribedRef = useRef(false);
   const requestsChannelRef = useRef<any>(null);
   const responsesChannelRef = useRef<any>(null);
 
-  // Listen for incoming screen share requests (for employees)
-  useEffect(() => {
-    if (!user) return;
-
-    // Clean up existing channel if it exists
+  // Clean up function for channels
+  const cleanupChannels = useCallback(() => {
     if (requestsChannelRef.current) {
-      supabase.removeChannel(requestsChannelRef.current);
+      try {
+        supabase.removeChannel(requestsChannelRef.current);
+      } catch (error) {
+        console.log('Channel cleanup error (safe to ignore):', error);
+      }
       requestsChannelRef.current = null;
+      isRequestsSubscribedRef.current = false;
     }
 
-    const channel = supabase
-      .channel(`screen-share-requests-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'screen_share_requests',
-          filter: `target_user_id=eq.${user.id}`
-        },
-        (payload) => {
-          const request = payload.new as ScreenShareRequest;
-          setIncomingRequests(prev => [...prev, request]);
-          
-          toast({
-            title: "Screen Share Request",
-            description: `${request.admin_username} is requesting to view your screen`,
-            duration: 10000,
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'screen_share_requests',
-          filter: `target_user_id=eq.${user.id}`
-        },
-        (payload) => {
-          const request = payload.new as ScreenShareRequest;
-          if (request.status === 'ended') {
-            stopScreenShare();
-          }
-        }
-      )
-      .subscribe();
+    if (responsesChannelRef.current) {
+      try {
+        supabase.removeChannel(responsesChannelRef.current);
+      } catch (error) {
+        console.log('Channel cleanup error (safe to ignore):', error);
+      }
+      responsesChannelRef.current = null;
+      isResponsesSubscribedRef.current = false;
+    }
+  }, []);
 
-    requestsChannelRef.current = channel;
+  // Listen for incoming screen share requests (for employees)
+  useEffect(() => {
+    if (!user || isRequestsSubscribedRef.current) return;
+
+    // Clean up any existing channel first
+    if (requestsChannelRef.current) {
+      supabase.removeChannel(requestsChannelRef.current);
+    }
+
+    try {
+      const channel = supabase
+        .channel(`screen-share-requests-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'screen_share_requests',
+            filter: `target_user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('New screen share request received:', payload);
+            const request = payload.new as ScreenShareRequest;
+            setIncomingRequests(prev => [...prev, request]);
+            
+            toast({
+              title: "Screen Share Request",
+              description: `${request.admin_username} is requesting to view your screen`,
+              duration: 10000,
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'screen_share_requests',
+            filter: `target_user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Screen share request updated:', payload);
+            const request = payload.new as ScreenShareRequest;
+            if (request.status === 'ended') {
+              stopScreenShare();
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log('Requests channel subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            isRequestsSubscribedRef.current = true;
+          }
+        });
+
+      requestsChannelRef.current = channel;
+    } catch (error) {
+      console.error('Error setting up requests channel:', error);
+    }
 
     return () => {
-      if (requestsChannelRef.current) {
+      if (requestsChannelRef.current && isRequestsSubscribedRef.current) {
         supabase.removeChannel(requestsChannelRef.current);
         requestsChannelRef.current = null;
+        isRequestsSubscribedRef.current = false;
       }
     };
-  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
+  }, [user?.id, toast]); // Only depend on user.id and toast
 
   // Listen for screen share responses (for admins)
   useEffect(() => {
-    if (!user) return;
+    if (!user || isResponsesSubscribedRef.current) return;
 
-    // Clean up existing channel if it exists
+    // Clean up any existing channel first
     if (responsesChannelRef.current) {
       supabase.removeChannel(responsesChannelRef.current);
-      responsesChannelRef.current = null;
     }
 
-    const channel = supabase
-      .channel(`screen-share-responses-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'screen_share_requests',
-          filter: `admin_id=eq.${user.id}`
-        },
-        (payload) => {
-          const request = payload.new as ScreenShareRequest;
-          
-          if (request.status === 'accepted') {
-            toast({
-              title: "Screen Share Accepted",
-              description: "User accepted your screen share request",
-            });
-          } else if (request.status === 'declined') {
-            toast({
-              title: "Screen Share Declined",
-              description: "User declined your screen share request",
-              variant: "destructive",
-            });
+    try {
+      const channel = supabase
+        .channel(`screen-share-responses-${user.id}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'screen_share_requests',
+            filter: `admin_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Screen share response received:', payload);
+            const request = payload.new as ScreenShareRequest;
+            
+            if (request.status === 'accepted') {
+              toast({
+                title: "Screen Share Accepted",
+                description: "User accepted your screen share request",
+              });
+            } else if (request.status === 'declined') {
+              toast({
+                title: "Screen Share Declined",
+                description: "User declined your screen share request",
+                variant: "destructive",
+              });
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          console.log('Responses channel subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            isResponsesSubscribedRef.current = true;
+          }
+        });
 
-    responsesChannelRef.current = channel;
+      responsesChannelRef.current = channel;
+    } catch (error) {
+      console.error('Error setting up responses channel:', error);
+    }
 
     return () => {
-      if (responsesChannelRef.current) {
+      if (responsesChannelRef.current && isResponsesSubscribedRef.current) {
         supabase.removeChannel(responsesChannelRef.current);
         responsesChannelRef.current = null;
+        isResponsesSubscribedRef.current = false;
       }
     };
-  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-subscriptions
+  }, [user?.id, toast]); // Only depend on user.id and toast
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupChannels();
+    };
+  }, [cleanupChannels]);
 
   // Request screen share from a user (admin function)
   const requestScreenShare = useCallback(async (targetUserId: string, targetUsername: string) => {

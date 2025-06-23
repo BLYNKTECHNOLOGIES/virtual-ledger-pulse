@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Square, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Monitor, Square, Play, Pause, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface RemoteMonitoringManagerProps {
@@ -19,117 +19,10 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
   const [status, setStatus] = useState<MonitoringStatus>('idle');
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [connectionTime, setConnectionTime] = useState<Date | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const animationFrameRef = useRef<number>();
   const { toast } = useToast();
 
-  // Create a persistent simulated desktop stream
-  const createSimulatedDesktopStream = (): MediaStream => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1280;
-    canvas.height = 720;
-    const ctx = canvas.getContext('2d')!;
-    
-    let frame = 0;
-    let mouseX = 100;
-    let mouseY = 100;
-    let mouseDirectionX = 1;
-    let mouseDirectionY = 1;
-    
-    const animate = () => {
-      // Clear canvas with desktop background
-      ctx.fillStyle = '#2563eb';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw desktop wallpaper pattern
-      ctx.fillStyle = '#1e40af';
-      for (let i = 0; i < canvas.width; i += 100) {
-        for (let j = 0; j < canvas.height; j += 100) {
-          if ((i + j) % 200 === 0) {
-            ctx.fillRect(i, j, 50, 50);
-          }
-        }
-      }
-      
-      // Draw taskbar
-      ctx.fillStyle = '#1f2937';
-      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
-      
-      // Draw start button
-      ctx.fillStyle = '#3b82f6';
-      ctx.fillRect(10, canvas.height - 50, 80, 40);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '16px Arial';
-      ctx.fillText('Start', 25, canvas.height - 25);
-      
-      // Draw window
-      const windowX = 200 + Math.sin(frame * 0.01) * 50;
-      const windowY = 150 + Math.cos(frame * 0.01) * 30;
-      
-      // Window background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(windowX, windowY, 400, 300);
-      
-      // Window title bar
-      ctx.fillStyle = '#6b7280';
-      ctx.fillRect(windowX, windowY, 400, 30);
-      
-      // Window title
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '14px Arial';
-      ctx.fillText(`${username}'s Application`, windowX + 10, windowY + 20);
-      
-      // Window close button
-      ctx.fillStyle = '#ef4444';
-      ctx.fillRect(windowX + 370, windowY + 5, 20, 20);
-      
-      // Window content
-      ctx.fillStyle = '#f3f4f6';
-      ctx.fillRect(windowX + 10, windowY + 40, 380, 250);
-      
-      // Simulate text content
-      ctx.fillStyle = '#1f2937';
-      ctx.font = '12px Arial';
-      ctx.fillText('Document Content...', windowX + 20, windowY + 60);
-      ctx.fillText(`User: ${username}`, windowX + 20, windowY + 80);
-      ctx.fillText(`Time: ${new Date().toLocaleTimeString()}`, windowX + 20, windowY + 100);
-      
-      // Animated cursor
-      mouseX += mouseDirectionX * 2;
-      mouseY += mouseDirectionY * 1.5;
-      
-      if (mouseX > canvas.width - 20 || mouseX < 20) mouseDirectionX *= -1;
-      if (mouseY > canvas.height - 80 || mouseY < 20) mouseDirectionY *= -1;
-      
-      // Draw cursor
-      ctx.fillStyle = '#000000';
-      ctx.beginPath();
-      ctx.moveTo(mouseX, mouseY);
-      ctx.lineTo(mouseX + 12, mouseY + 4);
-      ctx.lineTo(mouseX + 4, mouseY + 12);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Draw cursor outline
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      
-      // Activity indicator
-      const activityText = `Live Activity - Frame ${Math.floor(frame / 60)}`;
-      ctx.fillStyle = '#10b981';
-      ctx.font = '14px Arial';
-      ctx.fillText(activityText, 20, 30);
-      
-      frame++;
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-    
-    animate();
-    return canvas.captureStream(30);
-  };
-
+  // Simulate sending a monitoring request to the remote user
   const sendMonitoringRequest = async () => {
     try {
       setStatus('requesting');
@@ -139,15 +32,15 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
         description: `Requesting screen access from ${username}...`,
       });
 
-      // Simulate network request
+      // Simulate network request to notify the remote user
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       setStatus('pending');
       
-      // Auto-accept after 2 seconds for demo
+      // Simulate user response (in real app, this would be handled by the remote user)
       setTimeout(() => {
-        acceptMonitoringRequest();
-      }, 2000);
+        simulateUserResponse();
+      }, 3000);
 
     } catch (error) {
       console.error('Failed to send monitoring request:', error);
@@ -160,13 +53,26 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
     }
   };
 
+  // Simulate the remote user's response (accept/decline)
+  const simulateUserResponse = () => {
+    // In a real application, this would be determined by the actual user's action
+    const userAccepted = Math.random() > 0.3; // 70% chance of acceptance for demo
+    
+    if (userAccepted) {
+      acceptMonitoringRequest();
+    } else {
+      declineMonitoringRequest();
+    }
+  };
+
   const acceptMonitoringRequest = async () => {
     try {
       setStatus('connected');
       setConnectionTime(new Date());
       
-      // Create the simulated stream
-      const simulatedStream = createSimulatedDesktopStream();
+      // In a real scenario, this would establish a WebRTC connection to the remote user's screen
+      // For demo purposes, we'll create a simulated stream
+      const simulatedStream = await createSimulatedStream();
       setStream(simulatedStream);
       
       if (videoRef.current) {
@@ -187,14 +93,60 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
     }
   };
 
+  const declineMonitoringRequest = () => {
+    setStatus('declined');
+    toast({
+      title: "Request Declined",
+      description: `${username} declined the monitoring request`,
+      variant: "destructive",
+    });
+  };
+
+  // Create a simulated stream for demo purposes
+  const createSimulatedStream = async (): Promise<MediaStream> => {
+    // In a real app, this would be the remote user's actual screen stream
+    // For demo, we'll create a canvas-based stream with some content
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Draw simulated desktop content
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#3b82f6';
+    ctx.fillRect(50, 50, 200, 150);
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px Arial';
+    ctx.fillText(`${username}'s Desktop`, 70, 130);
+    ctx.fillText('Simulated Remote Screen', 70, 160);
+    
+    // Add some animated content
+    let frame = 0;
+    const animate = () => {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(300, 50, 200, 150);
+      
+      ctx.fillStyle = '#ef4444';
+      ctx.fillRect(320 + Math.sin(frame * 0.1) * 20, 70, 160, 110);
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Live Activity', 340, 130);
+      
+      frame++;
+      requestAnimationFrame(animate);
+    };
+    animate();
+    
+    return canvas.captureStream(30);
+  };
+
   const stopMonitoring = () => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
-    }
-    
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
     }
     
     if (videoRef.current) {
@@ -282,9 +234,6 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
   }, [stream]);
 
@@ -330,7 +279,7 @@ export function RemoteMonitoringManager({ userId, username, onStreamStart, onStr
               autoPlay
               muted
               playsInline
-              className="w-full h-40 bg-gray-900 rounded border object-cover"
+              className="w-full h-40 bg-gray-900 rounded border object-contain"
               style={{ 
                 backgroundColor: '#1a1a1a',
                 minHeight: '160px'

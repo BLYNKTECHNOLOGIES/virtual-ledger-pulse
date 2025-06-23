@@ -1883,6 +1883,36 @@ export type Database = {
           },
         ]
       }
+      screen_share_requests: {
+        Row: {
+          admin_id: string
+          admin_username: string
+          created_at: string | null
+          id: string
+          status: string
+          target_user_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          admin_id: string
+          admin_username: string
+          created_at?: string | null
+          id?: string
+          status?: string
+          target_user_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          admin_id?: string
+          admin_username?: string
+          created_at?: string | null
+          id?: string
+          status?: string
+          target_user_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stock_adjustments: {
         Row: {
           adjustment_date: string

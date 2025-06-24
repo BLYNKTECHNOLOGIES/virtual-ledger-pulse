@@ -198,15 +198,15 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-full w-full overflow-auto">
-      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="h-full w-full">
+      <div className="space-y-6 p-6 max-w-7xl mx-auto">
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
               Dashboard
             </h1>
-            <p className="text-gray-600 mt-2 text-sm sm:text-lg">Welcome back! Here's what's happening with your business today.</p>
+            <p className="text-gray-600 mt-2 text-lg">Welcome back! Here's what's happening with your business today.</p>
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">

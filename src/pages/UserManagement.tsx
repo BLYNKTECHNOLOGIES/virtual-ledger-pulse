@@ -11,7 +11,7 @@ import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
 import { EditUserDialog } from "@/components/user-management/EditUserDialog";
 import { EditRoleDialog } from "@/components/user-management/EditRoleDialog";
 import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
-import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -37,15 +37,13 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isLoadingOnlineUsers, setIsLoadingOnlineUsers] = useState(true);
-  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [viewingRoleUsers, setViewingRoleUsers] = useState<Role | null>(null);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
-  const { user: currentUser } = useAuth();
+  const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
 
   // Filter users - show all users
   const filteredUsers = users.filter((user: DatabaseUser) =>
@@ -54,31 +52,6 @@ export default function UserManagement() {
     (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  // Fetch user permissions from database
-  const fetchUserPermissions = async () => {
-    if (!currentUser?.id) return;
-    
-    try {
-      setIsLoadingPermissions(true);
-      const { data, error } = await supabase.rpc('get_user_permissions', {
-        user_uuid: currentUser.id
-      });
-
-      if (error) {
-        console.error('Error fetching user permissions:', error);
-        return;
-      }
-
-      const permissions = data?.map((item: any) => item.permission) || [];
-      console.log('User permissions from database:', permissions);
-      setUserPermissions(permissions);
-    } catch (error) {
-      console.error('Error fetching user permissions:', error);
-    } finally {
-      setIsLoadingPermissions(false);
-    }
-  };
 
   const fetchRoles = async () => {
     try {
@@ -200,10 +173,10 @@ export default function UserManagement() {
       console.log('Updating role with permissions:', roleData);
       
       const { data, error } = await supabase.rpc('update_role_permissions', {
-        role_id: roleId,
-        role_name: roleData.name,
-        role_description: roleData.description,
-        permissions: roleData.permissions
+        p_role_id: roleId,
+        p_role_name: roleData.name,
+        p_role_description: roleData.description,
+        p_permissions: roleData.permissions
       });
 
       if (error) {
@@ -240,19 +213,14 @@ export default function UserManagement() {
     }
   };
 
-  // Check if current user has specific permission
-  const hasPermission = (permission: string): boolean => {
-    return userPermissions.includes(permission);
-  };
-
   // Check if current user should see a tab based on permissions
   const shouldShowTab = (tabName: string) => {
-    if (!currentUser || isLoadingPermissions) {
+    if (isLoadingPermissions) {
       return false;
     }
     
     console.log('Checking tab access for:', tabName);
-    console.log('User permissions:', userPermissions);
+    console.log('User permissions:', permissions);
     
     switch (tabName) {
       case 'all-users':
@@ -290,7 +258,6 @@ export default function UserManagement() {
   const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : null;
 
   useEffect(() => {
-    fetchUserPermissions();
     fetchRoles();
     fetchOnlineUsers();
     
@@ -298,7 +265,7 @@ export default function UserManagement() {
     const interval = setInterval(fetchOnlineUsers, 30000);
     
     return () => clearInterval(interval);
-  }, [currentUser?.id]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -328,7 +295,7 @@ export default function UserManagement() {
   };
 
   // If user has no permissions to see any tabs, show access denied
-  if (!currentUser || (visibleTabs.length === 0 && !isLoadingPermissions)) {
+  if (visibleTabs.length === 0 && !isLoadingPermissions) {
     return (
       <div className="space-y-6 p-6">
         <div>
@@ -342,11 +309,9 @@ export default function UserManagement() {
                 <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <h3 className="text-lg font-medium">Access Denied</h3>
                 <p className="text-sm">You don't have permission to access the User Management module.</p>
-                {currentUser && (
-                  <p className="text-xs mt-2 text-gray-400">
-                    Your permissions: {userPermissions.join(', ') || 'No permissions assigned'}
-                  </p>
-                )}
+                <p className="text-xs mt-2 text-gray-400">
+                  Your permissions: {permissions.join(', ') || 'No permissions assigned'}
+                </p>
               </div>
             </div>
           </CardContent>

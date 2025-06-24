@@ -2467,10 +2467,10 @@ export type Database = {
       }
       update_role_permissions: {
         Args: {
-          role_id: string
-          role_name: string
-          role_description: string
-          permissions: string[]
+          p_role_id: string
+          p_role_name: string
+          p_role_description: string
+          p_permissions: string[]
         }
         Returns: boolean
       }

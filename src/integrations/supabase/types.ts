@@ -2552,6 +2552,34 @@ export type Database = {
         | "MANAGE_PAYROLL"
         | "MANAGE_COMPLIANCE"
         | "dashboard_view"
+        | "sales_view"
+        | "sales_manage"
+        | "purchase_view"
+        | "purchase_manage"
+        | "bams_view"
+        | "bams_manage"
+        | "clients_view"
+        | "clients_manage"
+        | "leads_view"
+        | "leads_manage"
+        | "user_management_view"
+        | "user_management_manage"
+        | "hrms_view"
+        | "hrms_manage"
+        | "payroll_view"
+        | "payroll_manage"
+        | "compliance_view"
+        | "compliance_manage"
+        | "stock_view"
+        | "stock_manage"
+        | "accounting_view"
+        | "accounting_manage"
+        | "video_kyc_view"
+        | "video_kyc_manage"
+        | "kyc_approvals_view"
+        | "kyc_approvals_manage"
+        | "statistics_view"
+        | "statistics_manage"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
     }
@@ -2717,6 +2745,34 @@ export const Constants = {
         "MANAGE_PAYROLL",
         "MANAGE_COMPLIANCE",
         "dashboard_view",
+        "sales_view",
+        "sales_manage",
+        "purchase_view",
+        "purchase_manage",
+        "bams_view",
+        "bams_manage",
+        "clients_view",
+        "clients_manage",
+        "leads_view",
+        "leads_manage",
+        "user_management_view",
+        "user_management_manage",
+        "hrms_view",
+        "hrms_manage",
+        "payroll_view",
+        "payroll_manage",
+        "compliance_view",
+        "compliance_manage",
+        "stock_view",
+        "stock_manage",
+        "accounting_view",
+        "accounting_manage",
+        "video_kyc_view",
+        "video_kyc_manage",
+        "kyc_approvals_view",
+        "kyc_approvals_manage",
+        "statistics_view",
+        "statistics_manage",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

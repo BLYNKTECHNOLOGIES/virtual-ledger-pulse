@@ -211,26 +211,49 @@ export default function UserManagement() {
   // Check if current user should see a tab based on their role
   const shouldShowTab = (tabName: string) => {
     if (!currentUser) return false;
-    if (isAdmin) return true; // Admin sees all tabs
+    
+    console.log('Current user for tab check:', currentUser);
+    console.log('Current user roles:', currentUser.roles);
+    console.log('Is admin?', isAdmin);
+    console.log('Checking tab:', tabName);
+    
+    // Admin sees all tabs
+    if (isAdmin) {
+      console.log('User is admin, showing all tabs');
+      return true;
+    }
     
     const userRoles = currentUser.roles || [];
-    console.log('Current user roles:', userRoles);
-    console.log('Checking tab:', tabName);
+    console.log('User roles array:', userRoles);
+    
+    // Convert roles to lowercase for comparison
+    const roleNames = userRoles.map(role => role.toLowerCase());
+    console.log('Role names for comparison:', roleNames);
     
     switch (tabName) {
       case 'all-users':
-        return userRoles.some(role => 
-          ['admin', 'hr', 'user_management'].includes(role.toLowerCase())
+        const canSeeAllUsers = roleNames.some(role => 
+          ['admin', 'hr', 'user_management', 'manager'].includes(role)
         );
+        console.log('Can see all users:', canSeeAllUsers);
+        return canSeeAllUsers;
+        
       case 'active-users':
-        return userRoles.some(role => 
-          ['admin', 'hr', 'manager', 'user_management'].includes(role.toLowerCase())
+        const canSeeActiveUsers = roleNames.some(role => 
+          ['admin', 'hr', 'manager', 'user_management', 'supervisor'].includes(role)
         );
+        console.log('Can see active users:', canSeeActiveUsers);
+        return canSeeActiveUsers;
+        
       case 'manage-roles':
-        return userRoles.some(role => 
-          ['admin', 'user_management'].includes(role.toLowerCase())
+        const canManageRoles = roleNames.some(role => 
+          ['admin', 'user_management'].includes(role)
         );
+        console.log('Can manage roles:', canManageRoles);
+        return canManageRoles;
+        
       default:
+        console.log('Unknown tab, denying access');
         return false;
     }
   };
@@ -238,20 +261,27 @@ export default function UserManagement() {
   // Get the list of visible tabs
   const getVisibleTabs = () => {
     const tabs = [];
+    console.log('Getting visible tabs...');
+    
     if (shouldShowTab('all-users')) {
       tabs.push('all-users');
+      console.log('Added all-users tab');
     }
     if (shouldShowTab('active-users')) {
       tabs.push('active-users');
+      console.log('Added active-users tab');
     }
     if (shouldShowTab('manage-roles')) {
       tabs.push('manage-roles');
+      console.log('Added manage-roles tab');
     }
+    
+    console.log('Final visible tabs:', tabs);
     return tabs;
   };
 
   const visibleTabs = getVisibleTabs();
-  const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : 'all-users';
+  const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : null;
 
   useEffect(() => {
     fetchRoles();
@@ -291,7 +321,7 @@ export default function UserManagement() {
   };
 
   // If user has no permissions to see any tabs, show access denied
-  if (visibleTabs.length === 0) {
+  if (!currentUser || visibleTabs.length === 0) {
     return (
       <div className="space-y-6 p-6">
         <div>
@@ -305,10 +335,26 @@ export default function UserManagement() {
                 <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <h3 className="text-lg font-medium">Access Denied</h3>
                 <p className="text-sm">You don't have permission to access the User Management module.</p>
+                {currentUser && (
+                  <p className="text-xs mt-2 text-gray-400">
+                    Your roles: {currentUser.roles?.join(', ') || 'No roles assigned'}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (!defaultTab) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">No accessible tabs</p>
+        </div>
       </div>
     );
   }
@@ -321,7 +367,7 @@ export default function UserManagement() {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className={`grid w-full grid-cols-${visibleTabs.length}`}>
+        <TabsList className={`grid w-full grid-cols-${Math.min(visibleTabs.length, 3)}`}>
           {shouldShowTab('all-users') && (
             <TabsTrigger value="all-users" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />

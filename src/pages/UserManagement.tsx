@@ -9,6 +9,9 @@ import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users } from "lucide
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
+import { EditUserDialog } from "@/components/user-management/EditUserDialog";
+import { EditRoleDialog } from "@/components/user-management/EditRoleDialog";
+import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +40,10 @@ export default function UserManagement() {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isLoadingOnlineUsers, setIsLoadingOnlineUsers] = useState(true);
-  const { users, isLoading, fetchUsers, createUser, deleteUser } = useUsers();
+  const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [viewingRoleUsers, setViewingRoleUsers] = useState<Role | null>(null);
+  const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { user: currentUser, isAdmin } = useAuth();
 
   // Filter users - show all users
@@ -72,7 +78,7 @@ export default function UserManagement() {
         id: role.id,
         name: role.name,
         description: role.description || '',
-        permissions: [], // We'll add permissions later if needed
+        permissions: [],
         user_count: role.user_roles?.length || 0
       })) || [];
 
@@ -88,18 +94,17 @@ export default function UserManagement() {
     try {
       setIsLoadingOnlineUsers(true);
       
-      // For now, we'll simulate online users based on recent activity
-      // In a real app, you'd track this with presence or last_seen timestamps
+      // Consider users online if they've been active in the last 5 minutes
       const recentThreshold = new Date();
-      recentThreshold.setMinutes(recentThreshold.getMinutes() - 30); // Consider users online if active in last 30 minutes
+      recentThreshold.setMinutes(recentThreshold.getMinutes() - 5);
       
       const { data: activeUsers, error } = await supabase
         .from('users')
-        .select('id, username, email, first_name, last_name, last_login, status')
+        .select('id, username, email, first_name, last_name, last_activity, status')
         .eq('status', 'ACTIVE')
-        .not('last_login', 'is', null)
-        .gte('last_login', recentThreshold.toISOString())
-        .order('last_login', { ascending: false });
+        .not('last_activity', 'is', null)
+        .gte('last_activity', recentThreshold.toISOString())
+        .order('last_activity', { ascending: false });
 
       if (error) {
         console.error('Error fetching online users:', error);
@@ -112,7 +117,7 @@ export default function UserManagement() {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        last_seen: user.last_login || new Date().toISOString(),
+        last_seen: user.last_activity || new Date().toISOString(),
         status: 'Online'
       })) || [];
 
@@ -141,11 +146,33 @@ export default function UserManagement() {
         return { success: false, error };
       }
 
-      // Refresh roles list
       await fetchRoles();
       return { success: true, data };
     } catch (error) {
       console.error('Error creating role:', error);
+      return { success: false, error };
+    }
+  };
+
+  const updateRole = async (roleId: string, roleData: { name: string; description: string; permissions: string[] }) => {
+    try {
+      const { error } = await supabase
+        .from('roles')
+        .update({
+          name: roleData.name,
+          description: roleData.description
+        })
+        .eq('id', roleId);
+
+      if (error) {
+        console.error('Error updating role:', error);
+        return { success: false, error };
+      }
+
+      await fetchRoles();
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating role:', error);
       return { success: false, error };
     }
   };
@@ -163,7 +190,6 @@ export default function UserManagement() {
           return;
         }
 
-        // Refresh roles list
         await fetchRoles();
       } catch (error) {
         console.error('Error deleting role:', error);
@@ -174,6 +200,11 @@ export default function UserManagement() {
   useEffect(() => {
     fetchRoles();
     fetchOnlineUsers();
+    
+    // Set up interval to refresh online users every 30 seconds
+    const interval = setInterval(fetchOnlineUsers, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -294,7 +325,12 @@ export default function UserManagement() {
 
                           <div className="flex justify-between items-center pt-2 border-t">
                             <div className="flex gap-1">
-                              <Button size="sm" variant="outline" className="h-8 px-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="h-8 px-2"
+                                onClick={() => setEditingUser(user)}
+                              >
                                 <Edit className="h-3 w-3 mr-1" />
                                 Edit
                               </Button>
@@ -423,7 +459,11 @@ export default function UserManagement() {
                           <p className="text-gray-600 text-sm">{role.description}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setEditingRole(role)}
+                          >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
@@ -441,9 +481,13 @@ export default function UserManagement() {
                       
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm font-medium text-gray-700">
-                            Users: <span className="text-blue-600">{role.user_count}</span>
-                          </p>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto text-blue-600 hover:text-blue-700"
+                            onClick={() => setViewingRoleUsers(role)}
+                          >
+                            Users: <span className="font-medium ml-1">{role.user_count}</span>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -462,6 +506,32 @@ export default function UserManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit User Dialog */}
+      {editingUser && (
+        <EditUserDialog
+          user={editingUser}
+          onSave={updateUser}
+          onClose={() => setEditingUser(null)}
+        />
+      )}
+
+      {/* Edit Role Dialog */}
+      {editingRole && (
+        <EditRoleDialog
+          role={editingRole}
+          onSave={updateRole}
+          onClose={() => setEditingRole(null)}
+        />
+      )}
+
+      {/* Role Users Dialog */}
+      {viewingRoleUsers && (
+        <RoleUsersDialog
+          role={viewingRoleUsers}
+          onClose={() => setViewingRoleUsers(null)}
+        />
+      )}
     </div>
   );
 }

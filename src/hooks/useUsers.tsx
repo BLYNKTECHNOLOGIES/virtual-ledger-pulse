@@ -170,6 +170,92 @@ export function useUsers() {
     }
   };
 
+  const updateUser = async (userId: string, userData: {
+    username?: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+    status?: ValidStatus;
+    role_id?: string;
+  }) => {
+    try {
+      console.log('Updating user:', userId, userData);
+
+      // Check if user is authenticated
+      if (!user) {
+        throw new Error('You must be logged in to update users');
+      }
+
+      // Check if user has admin permissions
+      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
+        throw new Error('You do not have permission to update users');
+      }
+
+      // Update user basic info
+      const { error: userError } = await supabase
+        .from('users')
+        .update({
+          username: userData.username,
+          email: userData.email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          phone: userData.phone,
+          status: userData.status,
+          role_id: userData.role_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (userError) {
+        console.error('Update user error:', userError);
+        throw userError;
+      }
+
+      // Handle role assignment if role_id is provided
+      if (userData.role_id !== undefined) {
+        // First, remove existing role assignments
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+        // Then add new role if specified
+        if (userData.role_id) {
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role_id: userData.role_id
+            });
+
+          if (roleError) {
+            console.warn('Role assignment failed:', roleError);
+            // Don't throw here, user was updated successfully
+          }
+        }
+      }
+
+      console.log('User updated successfully');
+
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+
+      fetchUsers(); // Refresh the users list
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
+        variant: "destructive",
+      });
+      return { success: false, error };
+    }
+  };
+
   const deleteUser = async (userId: string) => {
     try {
       console.log('Deactivating user:', userId);
@@ -217,6 +303,7 @@ export function useUsers() {
     isLoading,
     fetchUsers,
     createUser,
+    updateUser,
     deleteUser
   };
 }

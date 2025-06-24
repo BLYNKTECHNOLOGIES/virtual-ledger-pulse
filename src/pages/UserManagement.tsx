@@ -37,13 +37,15 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isLoadingOnlineUsers, setIsLoadingOnlineUsers] = useState(true);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [viewingRoleUsers, setViewingRoleUsers] = useState<Role | null>(null);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
-  const { user: currentUser, isAdmin } = useAuth();
+  const { user: currentUser } = useAuth();
 
   // Filter users - show all users
   const filteredUsers = users.filter((user: DatabaseUser) =>
@@ -53,17 +55,43 @@ export default function UserManagement() {
     (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Fetch user permissions from database
+  const fetchUserPermissions = async () => {
+    if (!currentUser?.id) return;
+    
+    try {
+      setIsLoadingPermissions(true);
+      const { data, error } = await supabase.rpc('get_user_permissions', {
+        user_uuid: currentUser.id
+      });
+
+      if (error) {
+        console.error('Error fetching user permissions:', error);
+        return;
+      }
+
+      const permissions = data?.map((item: any) => item.permission) || [];
+      console.log('User permissions from database:', permissions);
+      setUserPermissions(permissions);
+    } catch (error) {
+      console.error('Error fetching user permissions:', error);
+    } finally {
+      setIsLoadingPermissions(false);
+    }
+  };
+
   const fetchRoles = async () => {
     try {
       setIsLoadingRoles(true);
       
-      // Fetch roles with proper user count
+      // Fetch roles with their permissions
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select(`
           id,
           name,
-          description
+          description,
+          role_permissions!inner(permission)
         `);
 
       if (rolesError) {
@@ -71,7 +99,7 @@ export default function UserManagement() {
         return;
       }
 
-      // Get user count for each role
+      // Get user count for each role and format permissions
       const rolesWithCount = await Promise.all(
         (rolesData || []).map(async (role) => {
           const { data: userRoles, error: countError } = await supabase
@@ -83,11 +111,14 @@ export default function UserManagement() {
             console.error('Error counting users for role:', role.name, countError);
           }
 
+          // Extract permissions from the nested structure
+          const permissions = role.role_permissions?.map((rp: any) => rp.permission) || [];
+
           return {
             id: role.id,
             name: role.name,
             description: role.description || '',
-            permissions: [],
+            permissions,
             user_count: userRoles?.length || 0
           };
         })
@@ -142,21 +173,20 @@ export default function UserManagement() {
 
   const createRole = async (roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      const { data, error } = await supabase
-        .from('roles')
-        .insert({
-          name: roleData.name,
-          description: roleData.description,
-          is_system_role: false
-        })
-        .select()
-        .single();
+      console.log('Creating role with permissions:', roleData);
+      
+      const { data, error } = await supabase.rpc('create_role_with_permissions', {
+        role_name: roleData.name,
+        role_description: roleData.description,
+        permissions: roleData.permissions
+      });
 
       if (error) {
         console.error('Error creating role:', error);
         return { success: false, error };
       }
 
+      console.log('Role created successfully with ID:', data);
       await fetchRoles();
       return { success: true, data };
     } catch (error) {
@@ -167,19 +197,21 @@ export default function UserManagement() {
 
   const updateRole = async (roleId: string, roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      const { error } = await supabase
-        .from('roles')
-        .update({
-          name: roleData.name,
-          description: roleData.description
-        })
-        .eq('id', roleId);
+      console.log('Updating role with permissions:', roleData);
+      
+      const { data, error } = await supabase.rpc('update_role_permissions', {
+        role_id: roleId,
+        role_name: roleData.name,
+        role_description: roleData.description,
+        permissions: roleData.permissions
+      });
 
       if (error) {
         console.error('Error updating role:', error);
         return { success: false, error };
       }
 
+      console.log('Role updated successfully');
       await fetchRoles();
       return { success: true };
     } catch (error) {
@@ -208,49 +240,31 @@ export default function UserManagement() {
     }
   };
 
-  // Check if current user should see a tab based on their role
+  // Check if current user has specific permission
+  const hasPermission = (permission: string): boolean => {
+    return userPermissions.includes(permission);
+  };
+
+  // Check if current user should see a tab based on permissions
   const shouldShowTab = (tabName: string) => {
-    if (!currentUser) {
-      console.log('No current user found');
+    if (!currentUser || isLoadingPermissions) {
       return false;
     }
     
-    console.log('Current user for tab check:', currentUser);
-    console.log('Current user roles:', currentUser.roles);
-    console.log('Is admin?', isAdmin);
-    console.log('Checking tab:', tabName);
-    
-    const userRoles = currentUser.roles || [];
-    console.log('User roles array:', userRoles);
-    
-    // Convert roles to lowercase for comparison
-    const roleNames = userRoles.map(role => role.toLowerCase());
-    console.log('Role names for comparison:', roleNames);
+    console.log('Checking tab access for:', tabName);
+    console.log('User permissions:', userPermissions);
     
     switch (tabName) {
       case 'all-users':
-        const canSeeAllUsers = roleNames.some(role => 
-          ['admin', 'hr', 'user_management', 'manager'].includes(role)
-        );
-        console.log('Can see all users:', canSeeAllUsers);
-        return canSeeAllUsers;
+        return hasPermission('user_management_view') || hasPermission('user_management_manage');
         
       case 'active-users':
-        const canSeeActiveUsers = roleNames.some(role => 
-          ['admin', 'hr', 'manager', 'user_management', 'supervisor'].includes(role)
-        );
-        console.log('Can see active users:', canSeeActiveUsers);
-        return canSeeActiveUsers;
+        return hasPermission('user_management_view') || hasPermission('user_management_manage');
         
       case 'manage-roles':
-        const canManageRoles = roleNames.some(role => 
-          ['admin', 'user_management'].includes(role)
-        );
-        console.log('Can manage roles:', canManageRoles);
-        return canManageRoles;
+        return hasPermission('user_management_manage');
         
       default:
-        console.log('Unknown tab, denying access');
         return false;
     }
   };
@@ -258,22 +272,17 @@ export default function UserManagement() {
   // Get the list of visible tabs
   const getVisibleTabs = () => {
     const tabs = [];
-    console.log('Getting visible tabs...');
     
     if (shouldShowTab('all-users')) {
       tabs.push('all-users');
-      console.log('Added all-users tab');
     }
     if (shouldShowTab('active-users')) {
       tabs.push('active-users');
-      console.log('Added active-users tab');
     }
     if (shouldShowTab('manage-roles')) {
       tabs.push('manage-roles');
-      console.log('Added manage-roles tab');
     }
     
-    console.log('Final visible tabs:', tabs);
     return tabs;
   };
 
@@ -281,6 +290,7 @@ export default function UserManagement() {
   const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : null;
 
   useEffect(() => {
+    fetchUserPermissions();
     fetchRoles();
     fetchOnlineUsers();
     
@@ -288,7 +298,7 @@ export default function UserManagement() {
     const interval = setInterval(fetchOnlineUsers, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUser?.id]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB');
@@ -318,7 +328,7 @@ export default function UserManagement() {
   };
 
   // If user has no permissions to see any tabs, show access denied
-  if (!currentUser || visibleTabs.length === 0) {
+  if (!currentUser || (visibleTabs.length === 0 && !isLoadingPermissions)) {
     return (
       <div className="space-y-6 p-6">
         <div>
@@ -334,13 +344,28 @@ export default function UserManagement() {
                 <p className="text-sm">You don't have permission to access the User Management module.</p>
                 {currentUser && (
                   <p className="text-xs mt-2 text-gray-400">
-                    Your roles: {currentUser.roles?.join(', ') || 'No roles assigned'}
+                    Your permissions: {userPermissions.join(', ') || 'No permissions assigned'}
                   </p>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (isLoadingPermissions) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">Loading permissions...</p>
+        </div>
+        <div className="flex justify-center items-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2">Loading permissions...</span>
+        </div>
       </div>
     );
   }
@@ -396,7 +421,9 @@ export default function UserManagement() {
                     <Button variant="outline" size="sm" onClick={fetchUsers}>
                       🔄 Refresh
                     </Button>
-                    <AddUserDialog onAddUser={createUser} />
+                    {hasPermission('user_management_manage') && (
+                      <AddUserDialog onAddUser={createUser} />
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -452,28 +479,30 @@ export default function UserManagement() {
                               <p className="text-xs text-gray-500">📅 Created: {formatDate(user.created_at)}</p>
                             </div>
 
-                            <div className="flex justify-between items-center pt-2 border-t">
-                              <div className="flex gap-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-8 px-2"
-                                  onClick={() => setEditingUser(user)}
-                                >
-                                  <Edit className="h-3 w-3 mr-1" />
-                                  Edit
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-8 px-2 text-red-600 hover:text-red-700"
-                                  onClick={() => handleDeleteUser(user.id)}
-                                >
-                                  <Trash2 className="h-3 w-3 mr-1" />
-                                  Delete
-                                </Button>
+                            {hasPermission('user_management_manage') && (
+                              <div className="flex justify-between items-center pt-2 border-t">
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 px-2"
+                                    onClick={() => setEditingUser(user)}
+                                  >
+                                    <Edit className="h-3 w-3 mr-1" />
+                                    Edit
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 px-2 text-red-600 hover:text-red-700"
+                                    onClick={() => handleDeleteUser(user.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Delete
+                                  </Button>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -495,7 +524,7 @@ export default function UserManagement() {
                             }
                           </p>
                         </div>
-                        {!searchTerm && (
+                        {!searchTerm && hasPermission('user_management_manage') && (
                           <div className="space-y-2">
                             <p className="text-sm text-gray-600">Get started by adding your first user:</p>
                             <AddUserDialog onAddUser={createUser} />
@@ -590,6 +619,16 @@ export default function UserManagement() {
                           <div>
                             <h3 className="font-semibold text-lg">{role.name}</h3>
                             <p className="text-gray-600 text-sm">{role.description}</p>
+                            <div className="mt-2">
+                              <p className="text-xs text-gray-500 mb-1">Permissions:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {role.permissions.map((permission) => (
+                                  <Badge key={permission} variant="outline" className="text-xs">
+                                    {permission}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <Button 

@@ -13,23 +13,37 @@ interface AddRoleDialogProps {
   onAddRole: (roleData: { name: string; description: string; permissions: string[] }) => Promise<{ success: boolean; error?: any }>;
 }
 
-// Available pages/permissions that can be assigned to roles
-const availablePages = [
-  { id: "dashboard", name: "Dashboard", description: "View main dashboard" },
-  { id: "sales", name: "Sales", description: "Access sales module" },
-  { id: "purchase", name: "Purchase", description: "Access purchase module" },
-  { id: "bams", name: "BAMS", description: "Bank Account Management System" },
-  { id: "clients", name: "Clients", description: "Client management" },
-  { id: "leads", name: "Leads", description: "Lead management" },
-  { id: "user-management", name: "User Management", description: "Manage users and roles" },
-  { id: "hrms", name: "HRMS", description: "Human Resource Management" },
-  { id: "payroll", name: "Payroll", description: "Payroll management" },
-  { id: "compliance", name: "Compliance", description: "Compliance tracking" },
-  { id: "stock", name: "Stock Management", description: "Inventory management" },
-  { id: "accounting", name: "Accounting", description: "Financial accounting" },
-  { id: "video-kyc", name: "Video KYC", description: "Video KYC system" },
-  { id: "kyc-approvals", name: "KYC Approvals", description: "KYC approval process" },
-  { id: "statistics", name: "Statistics", description: "View statistics and reports" },
+// Available permissions that correspond to the app_permission enum
+const availablePermissions = [
+  { id: "dashboard_view", name: "Dashboard View", description: "View main dashboard" },
+  { id: "sales_view", name: "Sales View", description: "View sales data" },
+  { id: "sales_manage", name: "Sales Manage", description: "Manage sales orders and data" },
+  { id: "purchase_view", name: "Purchase View", description: "View purchase data" },
+  { id: "purchase_manage", name: "Purchase Manage", description: "Manage purchase orders" },
+  { id: "bams_view", name: "BAMS View", description: "View Bank Account Management System" },
+  { id: "bams_manage", name: "BAMS Manage", description: "Manage Bank Account Management System" },
+  { id: "clients_view", name: "Clients View", description: "View client information" },
+  { id: "clients_manage", name: "Clients Manage", description: "Manage clients" },
+  { id: "leads_view", name: "Leads View", description: "View leads" },
+  { id: "leads_manage", name: "Leads Manage", description: "Manage leads" },
+  { id: "user_management_view", name: "User Management View", description: "View users and roles" },
+  { id: "user_management_manage", name: "User Management Manage", description: "Manage users and roles" },
+  { id: "hrms_view", name: "HRMS View", description: "View Human Resource Management" },
+  { id: "hrms_manage", name: "HRMS Manage", description: "Manage Human Resources" },
+  { id: "payroll_view", name: "Payroll View", description: "View payroll data" },
+  { id: "payroll_manage", name: "Payroll Manage", description: "Manage payroll" },
+  { id: "compliance_view", name: "Compliance View", description: "View compliance data" },
+  { id: "compliance_manage", name: "Compliance Manage", description: "Manage compliance" },
+  { id: "stock_view", name: "Stock View", description: "View inventory" },
+  { id: "stock_manage", name: "Stock Manage", description: "Manage inventory" },
+  { id: "accounting_view", name: "Accounting View", description: "View financial data" },
+  { id: "accounting_manage", name: "Accounting Manage", description: "Manage accounting" },
+  { id: "video_kyc_view", name: "Video KYC View", description: "View Video KYC system" },
+  { id: "video_kyc_manage", name: "Video KYC Manage", description: "Manage Video KYC" },
+  { id: "kyc_approvals_view", name: "KYC Approvals View", description: "View KYC approvals" },
+  { id: "kyc_approvals_manage", name: "KYC Approvals Manage", description: "Manage KYC approvals" },
+  { id: "statistics_view", name: "Statistics View", description: "View statistics and reports" },
+  { id: "statistics_manage", name: "Statistics Manage", description: "Manage statistics" },
 ];
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
@@ -54,6 +68,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
       return;
     }
 
+    console.log('Submitting role with data:', formData);
     setIsLoading(true);
     
     try {
@@ -62,14 +77,14 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
       if (result.success) {
         toast({
           title: "Success",
-          description: "Role created successfully",
+          description: "Role created successfully with permissions",
         });
         setOpen(false);
         setFormData({ name: "", description: "", permissions: [] });
       } else {
         toast({
           title: "Error",
-          description: "Failed to create role",
+          description: result.error?.message || "Failed to create role",
           variant: "destructive",
         });
       }
@@ -85,12 +100,12 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
     }
   };
 
-  const handlePermissionChange = (pageId: string, checked: boolean) => {
+  const handlePermissionChange = (permissionId: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       permissions: checked 
-        ? [...prev.permissions, pageId]
-        : prev.permissions.filter(p => p !== pageId)
+        ? [...prev.permissions, permissionId]
+        : prev.permissions.filter(p => p !== permissionId)
     }));
   };
 
@@ -102,7 +117,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
           Add Role
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Role</DialogTitle>
         </DialogHeader>
@@ -132,31 +147,44 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
             </div>
 
             <div>
-              <Label className="text-base font-medium">Page Access Permissions</Label>
-              <p className="text-sm text-gray-600 mb-4">Select which pages users with this role can access</p>
+              <Label className="text-base font-medium">System Permissions</Label>
+              <p className="text-sm text-gray-600 mb-4">Select which permissions users with this role should have</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
-                {availablePages.map((page) => (
-                  <div key={page.id} className="flex items-start space-x-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
+                {availablePermissions.map((permission) => (
+                  <div key={permission.id} className="flex items-start space-x-3">
                     <Checkbox
-                      id={page.id}
-                      checked={formData.permissions.includes(page.id)}
-                      onCheckedChange={(checked) => handlePermissionChange(page.id, checked as boolean)}
+                      id={permission.id}
+                      checked={formData.permissions.includes(permission.id)}
+                      onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
                     />
                     <div className="grid gap-1.5 leading-none">
                       <Label
-                        htmlFor={page.id}
+                        htmlFor={permission.id}
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                       >
-                        {page.name}
+                        {permission.name}
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        {page.description}
+                        {permission.description}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
+              
+              {formData.permissions.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium">Selected permissions ({formData.permissions.length}):</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {formData.permissions.map((perm) => (
+                      <span key={perm} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        {perm}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

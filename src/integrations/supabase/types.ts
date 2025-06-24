@@ -2402,6 +2402,14 @@ export type Database = {
         Args: { registration_id: string }
         Returns: boolean
       }
+      create_role_with_permissions: {
+        Args: {
+          role_name: string
+          role_description: string
+          permissions: string[]
+        }
+        Returns: string
+      }
       create_user_with_password: {
         Args: {
           _username: string
@@ -2455,6 +2463,15 @@ export type Database = {
       }
       reject_registration: {
         Args: { registration_id: string; reason?: string }
+        Returns: boolean
+      }
+      update_role_permissions: {
+        Args: {
+          role_id: string
+          role_name: string
+          role_description: string
+          permissions: string[]
+        }
         Returns: boolean
       }
       update_user_activity: {

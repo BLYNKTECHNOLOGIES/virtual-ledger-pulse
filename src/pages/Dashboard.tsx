@@ -198,8 +198,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
-      <div className="space-y-8 p-6 max-w-7xl mx-auto">
+    <div className="h-full w-full p-6 overflow-auto">
+      <div className="space-y-6 max-w-7xl mx-auto">
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>

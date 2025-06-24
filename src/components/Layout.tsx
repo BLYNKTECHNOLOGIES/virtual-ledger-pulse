@@ -12,9 +12,9 @@ export function Layout({ children }: LayoutProps) {
     <SidebarProvider>
       <div className="flex h-screen w-full">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col">
+        <SidebarInset className="flex-1 flex flex-col h-full">
           <TopHeader />
-          <main className="flex-1 overflow-auto bg-gray-50">
+          <main className="flex-1 overflow-hidden h-full">
             {children}
           </main>
         </SidebarInset>

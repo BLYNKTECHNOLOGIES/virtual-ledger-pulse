@@ -202,10 +202,10 @@ export default function Dashboard() {
       {/* Enhanced Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+          <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
             Dashboard
           </h1>
-          <p className="text-gray-600 mt-2 text-lg">Welcome back! Here's what's happening with your business today.</p>
+          <p className="text-gray-600 mt-2 text-base lg:text-lg">Welcome back! Here's what's happening with your business today.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -295,7 +295,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
           {/* Placeholder for additional dashboard content */}
-          <Card className="h-64 bg-gradient-to-br from-white to-gray-50 border-0 shadow-sm">
+          <Card className="h-64 bg-gradient-to-br from-white to-gray-50 border-0 shadow-sm rounded-xl">
             <CardContent className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -308,8 +308,8 @@ export default function Dashboard() {
           </Card>
         </div>
         
-        <Card className="bg-white shadow-sm border-0">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
+        <Card className="bg-white shadow-sm border-0 rounded-xl">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-blue-600" />
               Recent Activity

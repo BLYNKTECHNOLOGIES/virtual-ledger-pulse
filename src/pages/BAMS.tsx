@@ -14,29 +14,33 @@ export default function BAMS() {
       <div className="flex items-center justify-start">
         <div className="flex items-center gap-3">
           <CreditCard className="h-8 w-8 text-blue-600" />
-          <h1 className="text-4xl font-bold text-gray-900">BAMS</h1>
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">BAMS</h1>
         </div>
       </div>
 
-      <Card className="shadow-lg h-[calc(100vh-200px)]">
-        <CardContent className="p-6 h-full">
+      <Card className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <CardContent className="p-4 sm:p-6 h-[calc(100vh-250px)]">
           <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-4 mb-6 h-auto">
-              <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-sm p-3">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
+              <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Building className="h-4 w-4" />
-                <span>Bank Accounts</span>
+                <span className="hidden sm:inline">Bank Accounts</span>
+                <span className="sm:hidden">Banks</span>
               </TabsTrigger>
-              <TabsTrigger value="payment-methods" className="flex items-center gap-2 text-sm p-3">
+              <TabsTrigger value="payment-methods" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <CreditCard className="h-4 w-4" />
-                <span>Payment Methods</span>
+                <span className="hidden sm:inline">Payment Methods</span>
+                <span className="sm:hidden">Payments</span>
               </TabsTrigger>
-              <TabsTrigger value="purchases" className="flex items-center gap-2 text-sm p-3">
+              <TabsTrigger value="purchases" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <ShoppingBag className="h-4 w-4" />
-                <span>Purchase Management</span>
+                <span className="hidden sm:inline">Purchase Management</span>
+                <span className="sm:hidden">Purchases</span>
               </TabsTrigger>
-              <TabsTrigger value="journal-entries" className="flex items-center gap-2 text-sm p-3">
+              <TabsTrigger value="journal-entries" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BookOpen className="h-4 w-4" />
-                <span>Bank Journal Entries</span>
+                <span className="hidden sm:inline">Bank Journal Entries</span>
+                <span className="sm:hidden">Journal</span>
               </TabsTrigger>
             </TabsList>
 

@@ -198,15 +198,15 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="h-full w-full p-6 overflow-auto">
-      <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="h-full w-full overflow-auto">
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
               Dashboard
             </h1>
-            <p className="text-gray-600 mt-2 text-lg">Welcome back! Here's what's happening with your business today.</p>
+            <p className="text-gray-600 mt-2 text-sm sm:text-lg">Welcome back! Here's what's happening with your business today.</p>
           </div>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -229,7 +229,7 @@ export default function Dashboard() {
             </div>
             
             {/* Dashboard Controls */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -263,7 +263,7 @@ export default function Dashboard() {
         {isEditMode && (
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-4 shadow-lg">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-white to-gray-50 rounded-lg flex items-center justify-center">
                 <Settings className="h-5 w-5" />
               </div>
               <div>

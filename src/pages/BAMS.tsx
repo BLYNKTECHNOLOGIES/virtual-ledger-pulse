@@ -10,9 +10,9 @@ import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
-    <div className="h-full w-full">
-      <div className="h-full w-full p-6">
-        <div className="h-full w-full space-y-6">
+    <div className="w-full h-full">
+      <div className="w-full h-full p-6">
+        <div className="w-full h-full space-y-6">
           <div className="flex items-center justify-start">
             <div className="flex items-center gap-3">
               <CreditCard className="h-8 w-8 text-blue-600" />

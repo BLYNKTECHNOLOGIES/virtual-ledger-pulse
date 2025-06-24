@@ -10,8 +10,8 @@ import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="h-full w-full p-6">
+      <div className="h-full w-full space-y-6">
         <div className="flex items-center justify-start">
           <div className="flex items-center gap-3">
             <CreditCard className="h-8 w-8 text-blue-600" />
@@ -19,46 +19,50 @@ export default function BAMS() {
           </div>
         </div>
 
-        <Card className="shadow-lg">
-          <CardContent className="p-6">
-            <Tabs defaultValue="bank-accounts" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="bank-accounts" className="flex items-center gap-2">
-                  <Building className="h-4 w-4" />
-                  Bank Accounts
-                </TabsTrigger>
-                <TabsTrigger value="payment-methods" className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Payment Methods
-                </TabsTrigger>
-                <TabsTrigger value="purchases" className="flex items-center gap-2">
-                  <ShoppingBag className="h-4 w-4" />
-                  Purchase Management
-                </TabsTrigger>
-                <TabsTrigger value="journal-entries" className="flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Bank Journal Entries
-                </TabsTrigger>
-              </TabsList>
+        <div className="h-[calc(100%-80px)]">
+          <Card className="shadow-lg h-full">
+            <CardContent className="p-6 h-full">
+              <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
+                <TabsList className="grid w-full grid-cols-4 mb-6">
+                  <TabsTrigger value="bank-accounts" className="flex items-center gap-2">
+                    <Building className="h-4 w-4" />
+                    Bank Accounts
+                  </TabsTrigger>
+                  <TabsTrigger value="payment-methods" className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Payment Methods
+                  </TabsTrigger>
+                  <TabsTrigger value="purchases" className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4" />
+                    Purchase Management
+                  </TabsTrigger>
+                  <TabsTrigger value="journal-entries" className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Bank Journal Entries
+                  </TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="bank-accounts">
-                <BankAccountManagement />
-              </TabsContent>
+                <div className="flex-1 overflow-auto">
+                  <TabsContent value="bank-accounts" className="h-full">
+                    <BankAccountManagement />
+                  </TabsContent>
 
-              <TabsContent value="payment-methods">
-                <PaymentMethodManagement />
-              </TabsContent>
+                  <TabsContent value="payment-methods" className="h-full">
+                    <PaymentMethodManagement />
+                  </TabsContent>
 
-              <TabsContent value="purchases">
-                <PurchaseManagement />
-              </TabsContent>
+                  <TabsContent value="purchases" className="h-full">
+                    <PurchaseManagement />
+                  </TabsContent>
 
-              <TabsContent value="journal-entries">
-                <BankJournalEntries />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                  <TabsContent value="journal-entries" className="h-full">
+                    <BankJournalEntries />
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

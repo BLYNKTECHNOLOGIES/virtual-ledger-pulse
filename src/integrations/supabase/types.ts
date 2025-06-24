@@ -2551,6 +2551,7 @@ export type Database = {
         | "MANAGE_HRMS"
         | "MANAGE_PAYROLL"
         | "MANAGE_COMPLIANCE"
+        | "dashboard_view"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
     }
@@ -2715,6 +2716,7 @@ export const Constants = {
         "MANAGE_HRMS",
         "MANAGE_PAYROLL",
         "MANAGE_COMPLIANCE",
+        "dashboard_view",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

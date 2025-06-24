@@ -1,92 +1,189 @@
 
-import { Suspense } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { Layout } from "./components/Layout";
-import { AuthProvider } from "./components/AuthProvider";
-import { lazyLoad } from "./utils/lazyLoad";
-import { usePerformance } from "./hooks/usePerformance";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from '@/components/ui/toaster';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AuthProvider } from '@/components/AuthProvider';
+import { Layout } from '@/components/Layout';
+import { PermissionGate } from '@/components/PermissionGate';
 
-// Lazy load pages for better code splitting
-const Index = lazyLoad(() => import("./pages/Index"));
-const Sales = lazyLoad(() => import("./pages/Sales"));
-const Purchase = lazyLoad(() => import("./pages/Purchase"));
-const BAMS = lazyLoad(() => import("./pages/BAMS"));
-const Clients = lazyLoad(() => import("./pages/Clients"));
-const ClientDetail = lazyLoad(() => import("./pages/ClientDetail"));
-const Leads = lazyLoad(() => import("./pages/Leads"));
-const UserManagement = lazyLoad(() => import("./pages/UserManagement"));
-const HRMS = lazyLoad(() => import("./pages/HRMS"));
-const Payroll = lazyLoad(() => import("./pages/Payroll"));
-const Compliance = lazyLoad(() => import("./pages/Compliance"));
-const StockManagement = lazyLoad(() => import("./pages/StockManagement"));
-const Accounting = lazyLoad(() => import("./pages/Accounting"));
-const VideoKYC = lazyLoad(() => import("./pages/VideoKYC"));
-const KYCApprovals = lazyLoad(() => import("./pages/KYCApprovals"));
-const Statistics = lazyLoad(() => import("./pages/Statistics"));
+// Import pages
+import Dashboard from '@/pages/Dashboard';
+import Sales from '@/pages/Sales';
+import Purchase from '@/pages/Purchase';
+import BAMS from '@/pages/BAMS';
+import Clients from '@/pages/Clients';
+import ClientDetail from '@/pages/ClientDetail';
+import Leads from '@/pages/Leads';
+import UserManagement from '@/pages/UserManagement';
+import HRMS from '@/pages/HRMS';
+import Payroll from '@/pages/Payroll';
+import Compliance from '@/pages/Compliance';
+import StockManagement from '@/pages/StockManagement';
+import Accounting from '@/pages/Accounting';
+import VideoKYC from '@/pages/VideoKYC';
+import KYCApprovals from '@/pages/KYCApprovals';
+import Statistics from '@/pages/Statistics';
+import NotFound from '@/pages/NotFound';
 
-// Optimize QueryClient with better defaults
+import './App.css';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes
+      staleTime: 1000 * 60 * 5, // 5 minutes
       retry: 1,
-      refetchOnWindowFocus: false,
     },
   },
 });
 
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-  </div>
-);
-
-const App = () => {
-  usePerformance();
-
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthProvider>
-          <BrowserRouter>
-            <SidebarProvider>
+      <AuthProvider>
+        <Router>
+          <SidebarProvider>
+            <div className="min-h-screen flex w-full">
               <Layout>
-                <Suspense fallback={<LoadingFallback />}>
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/sales" element={<Sales />} />
-                    <Route path="/purchase" element={<Purchase />} />
-                    <Route path="/bams" element={<BAMS />} />
-                    <Route path="/clients" element={<Clients />} />
-                    <Route path="/clients/:clientId" element={<ClientDetail />} />
-                    <Route path="/leads" element={<Leads />} />
-                    <Route path="/user-management" element={<UserManagement />} />
-                    <Route path="/hrms" element={<HRMS />} />
-                    <Route path="/payroll" element={<Payroll />} />
-                    <Route path="/compliance" element={<Compliance />} />
-                    <Route path="/stock" element={<StockManagement />} />
-                    <Route path="/accounting" element={<Accounting />} />
-                    <Route path="/video-kyc" element={<VideoKYC />} />
-                    <Route path="/kyc-approvals" element={<KYCApprovals />} />
-                    <Route path="/statistics" element={<Statistics />} />
-                  </Routes>
-                </Suspense>
+                <Routes>
+                  <Route 
+                    path="/" 
+                    element={
+                      <PermissionGate permissions={['dashboard_view']}>
+                        <Dashboard />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/sales" 
+                    element={
+                      <PermissionGate permissions={['sales_view', 'sales_manage']}>
+                        <Sales />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/purchase" 
+                    element={
+                      <PermissionGate permissions={['purchase_view', 'purchase_manage']}>
+                        <Purchase />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/bams" 
+                    element={
+                      <PermissionGate permissions={['bams_view', 'bams_manage']}>
+                        <BAMS />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/clients" 
+                    element={
+                      <PermissionGate permissions={['clients_view', 'clients_manage']}>
+                        <Clients />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/clients/:id" 
+                    element={
+                      <PermissionGate permissions={['clients_view', 'clients_manage']}>
+                        <ClientDetail />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/leads" 
+                    element={
+                      <PermissionGate permissions={['leads_view', 'leads_manage']}>
+                        <Leads />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/user-management" 
+                    element={
+                      <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+                        <UserManagement />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/hrms" 
+                    element={
+                      <PermissionGate permissions={['hrms_view', 'hrms_manage']}>
+                        <HRMS />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/payroll" 
+                    element={
+                      <PermissionGate permissions={['payroll_view', 'payroll_manage']}>
+                        <Payroll />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/compliance" 
+                    element={
+                      <PermissionGate permissions={['compliance_view', 'compliance_manage']}>
+                        <Compliance />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/stock" 
+                    element={
+                      <PermissionGate permissions={['stock_view', 'stock_manage']}>
+                        <StockManagement />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/accounting" 
+                    element={
+                      <PermissionGate permissions={['accounting_view', 'accounting_manage']}>
+                        <Accounting />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/video-kyc" 
+                    element={
+                      <PermissionGate permissions={['video_kyc_view', 'video_kyc_manage']}>
+                        <VideoKYC />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/kyc-approvals" 
+                    element={
+                      <PermissionGate permissions={['kyc_approvals_view', 'kyc_approvals_manage']}>
+                        <KYCApprovals />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route 
+                    path="/statistics" 
+                    element={
+                      <PermissionGate permissions={['statistics_view', 'statistics_manage']}>
+                        <Statistics />
+                      </PermissionGate>
+                    } 
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
               </Layout>
-            </SidebarProvider>
-          </BrowserRouter>
-        </AuthProvider>
-      </TooltipProvider>
+            </div>
+          </SidebarProvider>
+        </Router>
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;

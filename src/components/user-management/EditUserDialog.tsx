@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Role {
   id: string;
@@ -34,6 +35,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -47,7 +49,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         return;
       }
 
-      console.log('Fetched roles:', data); // Debug check
+      console.log('Fetched roles:', data);
       setRoles(data || []);
     };
 
@@ -72,6 +74,20 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
           title: "Success",
           description: "User updated successfully",
         });
+
+        // If the current user's role was changed, trigger a page reload to refresh permissions
+        if (currentUser?.id === user.id && formData.role_id !== user.role_id) {
+          toast({
+            title: "Role Updated",
+            description: "Your role has been updated. The page will refresh to apply new permissions.",
+          });
+          
+          // Small delay to let the user see the toast, then reload
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        }
+        
         onClose();
       } else {
         toast({

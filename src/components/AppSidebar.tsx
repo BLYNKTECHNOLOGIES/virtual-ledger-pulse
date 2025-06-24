@@ -36,105 +36,167 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
+import { usePermissions } from "@/hooks/usePermissions"
 
-// Menu items.
+// Menu items with required permissions
 const items = [
   {
     title: "Dashboard",
     url: "/",
     icon: Home,
-    color: "text-blue-600"
+    color: "text-blue-600",
+    permissions: ["dashboard_view"]
   },
   {
     title: "Sales",
     url: "/sales",
     icon: TrendingUp,
-    color: "text-green-600"
+    color: "text-green-600",
+    permissions: ["sales_view", "sales_manage"]
   },
   {
     title: "Purchase",
     url: "/purchase",
     icon: ShoppingCart,
-    color: "text-purple-600"
+    color: "text-purple-600",
+    permissions: ["purchase_view", "purchase_manage"]
   },
   {
     title: "BAMS",
     url: "/bams",
     icon: Building2,
-    color: "text-orange-600"
+    color: "text-orange-600",
+    permissions: ["bams_view", "bams_manage"]
   },
   {
     title: "Clients",
     url: "/clients",
     icon: Users,
-    color: "text-cyan-600"
+    color: "text-cyan-600",
+    permissions: ["clients_view", "clients_manage"]
   },
   {
     title: "Leads",
     url: "/leads",
     icon: UserPlus,
-    color: "text-emerald-600"
+    color: "text-emerald-600",
+    permissions: ["leads_view", "leads_manage"]
   },
   {
     title: "User Management",
     url: "/user-management",
     icon: Settings,
-    color: "text-indigo-600"
+    color: "text-indigo-600",
+    permissions: ["user_management_view", "user_management_manage"]
   },
   {
     title: "HRMS",
     url: "/hrms",
     icon: UserCheck,
-    color: "text-pink-600"
+    color: "text-pink-600",
+    permissions: ["hrms_view", "hrms_manage"]
   },
   {
     title: "Payroll",
     url: "/payroll",
     icon: Calculator,
-    color: "text-indigo-600"
+    color: "text-indigo-600",
+    permissions: ["payroll_view", "payroll_manage"]
   },
   {
     title: "Compliance",
     url: "/compliance",
     icon: Scale,
-    color: "text-red-600"
+    color: "text-red-600",
+    permissions: ["compliance_view", "compliance_manage"]
   },
   {
     title: "Stock Management",
     url: "/stock",
     icon: Package,
-    color: "text-teal-600"
+    color: "text-teal-600",
+    permissions: ["stock_view", "stock_manage"]
   },
   {
     title: "Accounting",
     url: "/accounting",
     icon: BookOpen,
-    color: "text-amber-600"
+    color: "text-amber-600",
+    permissions: ["accounting_view", "accounting_manage"]
   },
   {
     title: "Video KYC",
     url: "/video-kyc",
     icon: Video,
-    color: "text-purple-600"
+    color: "text-purple-600",
+    permissions: ["video_kyc_view", "video_kyc_manage"]
   },
   {
     title: "KYC Approvals",
     url: "/kyc-approvals",
     icon: Shield,
-    color: "text-blue-600"
+    color: "text-blue-600",
+    permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
   },
   {
     title: "Statistics",
     url: "/statistics",
     icon: BarChart3,
-    color: "text-green-600"
+    color: "text-green-600",
+    permissions: ["statistics_view", "statistics_manage"]
   },
 ]
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar()
   const location = useLocation()
+  const { hasAnyPermission, isLoading } = usePermissions()
   const isCollapsed = state === "collapsed"
+
+  // Filter items based on user permissions
+  const visibleItems = items.filter(item => 
+    !isLoading && hasAnyPermission(item.permissions)
+  )
+
+  if (isLoading) {
+    return (
+      <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 border-slate-700">
+        <SidebarHeader className="p-4 border-b border-slate-700">
+          <div className="flex items-center gap-3">
+            {!isCollapsed && (
+              <div>
+                <h2 className="text-lg font-bold text-white">BLYNK VIRTUAL</h2>
+                <h3 className="text-sm font-medium text-slate-300">TECHNOLOGIES</h3>
+                <p className="text-xs text-slate-400 mt-1">PRIVATE LIMITED</p>
+              </div>
+            )}
+          </div>
+        </SidebarHeader>
+        
+        <SidebarContent className="bg-gradient-to-b from-slate-900 to-slate-800">
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-slate-400 font-medium">Loading...</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="flex justify-center items-center h-20">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-300"></div>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        
+        <SidebarFooter className="p-4 border-t border-slate-700">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleSidebar}
+            className="text-slate-300 hover:bg-slate-700 hover:text-white ml-auto"
+          >
+            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </Button>
+        </SidebarFooter>
+      </Sidebar>
+    )
+  }
 
   return (
     <Sidebar className="bg-gradient-to-b from-slate-900 to-slate-800 border-slate-700">
@@ -155,7 +217,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="text-slate-400 font-medium">Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -176,6 +238,17 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        
+        {visibleItems.length === 0 && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="text-center py-8 text-slate-400">
+                <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No accessible modules</p>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       
       <SidebarFooter className="p-4 border-t border-slate-700">

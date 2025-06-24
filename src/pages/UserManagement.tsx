@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,6 @@ import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { ActiveUsersDisplay } from "@/components/user-management/ActiveUsersDisplay";
 
 interface Role {
   id: string;
@@ -84,6 +84,46 @@ export default function UserManagement() {
     }
   };
 
+  const fetchOnlineUsers = async () => {
+    try {
+      setIsLoadingOnlineUsers(true);
+      
+      // For now, we'll simulate online users based on recent activity
+      // In a real app, you'd track this with presence or last_seen timestamps
+      const recentThreshold = new Date();
+      recentThreshold.setMinutes(recentThreshold.getMinutes() - 30); // Consider users online if active in last 30 minutes
+      
+      const { data: activeUsers, error } = await supabase
+        .from('users')
+        .select('id, username, email, first_name, last_name, last_login, status')
+        .eq('status', 'ACTIVE')
+        .not('last_login', 'is', null)
+        .gte('last_login', recentThreshold.toISOString())
+        .order('last_login', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching online users:', error);
+        return;
+      }
+
+      const onlineUsersData = activeUsers?.map(user => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        last_seen: user.last_login || new Date().toISOString(),
+        status: 'Online'
+      })) || [];
+
+      setOnlineUsers(onlineUsersData);
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+    } finally {
+      setIsLoadingOnlineUsers(false);
+    }
+  };
+
   const createRole = async (roleData: { name: string; description: string; permissions: string[] }) => {
     try {
       const { data, error } = await supabase
@@ -133,7 +173,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchRoles();
-    // Remove fetchOnlineUsers() call since ActiveUsersDisplay handles its own data
+    fetchOnlineUsers();
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -167,7 +207,7 @@ export default function UserManagement() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-600 mt-1">Manage system users, monitor activity, and configure roles</p>
+        <p className="text-gray-600 mt-1">Manage system users, online activity, and roles</p>
       </div>
 
       <Tabs defaultValue="all-users" className="space-y-6">
@@ -178,7 +218,7 @@ export default function UserManagement() {
           </TabsTrigger>
           <TabsTrigger value="active-users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Active Users
+            Active Users ({onlineUsers.length})
           </TabsTrigger>
           <TabsTrigger value="manage-roles" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
@@ -304,17 +344,56 @@ export default function UserManagement() {
           )}
         </TabsContent>
 
-        {/* Active Users Tab - Updated */}
+        {/* Active Users Tab */}
         <TabsContent value="active-users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Active Users Monitoring</CardTitle>
-              <p className="text-sm text-gray-600">
-                Monitor currently active users and request screen access for live viewing
-              </p>
+              <div className="flex justify-between items-center">
+                <CardTitle>Active Users ({onlineUsers.length})</CardTitle>
+                <Button variant="outline" size="sm" onClick={fetchOnlineUsers}>
+                  🔄 Refresh
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <ActiveUsersDisplay />
+              {isLoadingOnlineUsers ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                  <span className="ml-2">Loading active users...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {onlineUsers.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <h3 className="font-semibold">
+                            {user.first_name && user.last_name 
+                              ? `${user.first_name} ${user.last_name}`
+                              : user.username
+                            }
+                          </h3>
+                          <Badge variant="outline" className="text-green-600 border-green-200">
+                            Online
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">@{user.username}</p>
+                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-xs text-gray-500">Last seen: {formatTime(user.last_seen)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {onlineUsers.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <h3 className="text-lg font-medium">No Active Users</h3>
+                      <p className="text-sm">No users are currently online or recently active.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

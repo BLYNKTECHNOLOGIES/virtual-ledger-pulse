@@ -1,8 +1,7 @@
 
-import { SidebarProvider } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/AppSidebar';
-import { TopHeader } from '@/components/TopHeader';
-import { ErrorBoundary } from './ErrorBoundary';
+import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { TopHeader } from "./TopHeader";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,17 +9,15 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <SidebarProvider defaultOpen={false}>
-      <div className="min-h-screen flex w-full">
+    <SidebarProvider>
+      <div className="flex h-screen w-full">
         <AppSidebar />
-        <main className="flex-1 flex flex-col relative">
+        <SidebarInset className="flex-1 flex flex-col">
           <TopHeader />
-          <div className="flex-1 overflow-auto">
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-          </div>
-        </main>
+          <main className="flex-1 overflow-auto bg-gray-50">
+            {children}
+          </main>
+        </SidebarInset>
       </div>
     </SidebarProvider>
   );

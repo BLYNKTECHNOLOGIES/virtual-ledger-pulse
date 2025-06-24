@@ -210,18 +210,15 @@ export default function UserManagement() {
 
   // Check if current user should see a tab based on their role
   const shouldShowTab = (tabName: string) => {
-    if (!currentUser) return false;
+    if (!currentUser) {
+      console.log('No current user found');
+      return false;
+    }
     
     console.log('Current user for tab check:', currentUser);
     console.log('Current user roles:', currentUser.roles);
     console.log('Is admin?', isAdmin);
     console.log('Checking tab:', tabName);
-    
-    // Admin sees all tabs
-    if (isAdmin) {
-      console.log('User is admin, showing all tabs');
-      return true;
-    }
     
     const userRoles = currentUser.roles || [];
     console.log('User roles array:', userRoles);

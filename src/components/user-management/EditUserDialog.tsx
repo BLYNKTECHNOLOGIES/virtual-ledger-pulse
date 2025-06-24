@@ -29,7 +29,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     last_name: user.last_name || "",
     phone: user.phone || "",
     status: user.status,
-    role_id: user.role_id || ""
+    role_id: user.role_id || "no_role"
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +47,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         return;
       }
 
+      console.log('Fetched roles:', data); // Debug check
       setRoles(data || []);
     };
 
@@ -58,7 +59,13 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     setIsLoading(true);
 
     try {
-      const result = await onSave(user.id, formData);
+      // Convert "no_role" back to empty string for the database
+      const submitData = {
+        ...formData,
+        role_id: formData.role_id === "no_role" ? "" : formData.role_id
+      };
+      
+      const result = await onSave(user.id, submitData);
       
       if (result?.success !== false) {
         toast({
@@ -153,7 +160,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No Role</SelectItem>
+                <SelectItem value="no_role">No Role</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
                     {role.name}

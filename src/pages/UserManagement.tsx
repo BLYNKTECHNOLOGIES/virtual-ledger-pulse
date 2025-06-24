@@ -210,9 +210,12 @@ export default function UserManagement() {
 
   // Check if current user should see a tab based on their role
   const shouldShowTab = (tabName: string) => {
-    if (!currentUser || isAdmin) return true; // Admin sees all tabs
+    if (!currentUser) return false;
+    if (isAdmin) return true; // Admin sees all tabs
     
     const userRoles = currentUser.roles || [];
+    console.log('Current user roles:', userRoles);
+    console.log('Checking tab:', tabName);
     
     switch (tabName) {
       case 'all-users':
@@ -228,9 +231,27 @@ export default function UserManagement() {
           ['admin', 'user_management'].includes(role.toLowerCase())
         );
       default:
-        return true;
+        return false;
     }
   };
+
+  // Get the list of visible tabs
+  const getVisibleTabs = () => {
+    const tabs = [];
+    if (shouldShowTab('all-users')) {
+      tabs.push('all-users');
+    }
+    if (shouldShowTab('active-users')) {
+      tabs.push('active-users');
+    }
+    if (shouldShowTab('manage-roles')) {
+      tabs.push('manage-roles');
+    }
+    return tabs;
+  };
+
+  const visibleTabs = getVisibleTabs();
+  const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : 'all-users';
 
   useEffect(() => {
     fetchRoles();
@@ -269,6 +290,29 @@ export default function UserManagement() {
     }
   };
 
+  // If user has no permissions to see any tabs, show access denied
+  if (visibleTabs.length === 0) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+          <p className="text-gray-600 mt-1">Access Denied</p>
+        </div>
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="space-y-4">
+              <div className="text-gray-500">
+                <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <h3 className="text-lg font-medium">Access Denied</h3>
+                <p className="text-sm">You don't have permission to access the User Management module.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -276,8 +320,8 @@ export default function UserManagement() {
         <p className="text-gray-600 mt-1">Manage system users, online activity, and roles</p>
       </div>
 
-      <Tabs defaultValue="all-users" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
+        <TabsList className={`grid w-full grid-cols-${visibleTabs.length}`}>
           {shouldShowTab('all-users') && (
             <TabsTrigger value="all-users" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />

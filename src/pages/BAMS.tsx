@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +9,8 @@ import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
-    <div className="w-full h-full space-y-6">
-      <div className="flex items-center justify-start">
+    <div className="w-screen max-w-none px-0 mx-0 h-full space-y-6">
+      <div className="flex items-center justify-start px-6 pt-6">
         <div className="flex items-center gap-3">
           <CreditCard className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">BAMS</h1>
@@ -19,7 +18,7 @@ export default function BAMS() {
       </div>
 
       <Card className="rounded-none border-none shadow-none w-full h-full bg-transparent p-0 m-0">
-        <CardContent className="p-0 h-[calc(100vh-150px)]">
+        <CardContent className="p-0 h-[calc(100vh-150px)] px-6">
           <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
               <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -199,9 +198,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full h-full space-y-6">
+    <div className="w-full h-full p-6 space-y-6">
       {/* Enhanced Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 page-header">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             Dashboard

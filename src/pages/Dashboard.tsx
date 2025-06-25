@@ -201,12 +201,12 @@ export default function Dashboard() {
   return (
     <div className="w-full h-full space-y-6">
       {/* Enhanced Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 page-header">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             Dashboard
           </h1>
-          <p className="text-gray-600 mt-1 text-sm lg:text-base">Welcome back! Here's what's happening with your business today.</p>
+          <p className="text-gray-600 mt-1 text-sm">Welcome back! Here's what's happening with your business today.</p>
         </div>
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -261,7 +261,7 @@ export default function Dashboard() {
 
       {/* Edit Mode Banner */}
       {isEditMode && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-800 rounded-xl p-4">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-800 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <Settings className="h-5 w-5 text-blue-600" />
@@ -296,10 +296,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
           {/* Placeholder for additional dashboard content */}
-          <Card className="h-64 bg-gradient-to-br from-white to-gray-50/50 border-gray-100 shadow-sm rounded-xl">
-            <CardContent className="h-full flex items-center justify-center">
+          <Card className="h-64 bg-gradient-to-br from-white to-gray-50/50 border-gray-200 shadow-sm rounded-lg">
+            <CardContent className="h-full flex items-center justify-center p-6">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Add More Widgets</h3>
@@ -309,9 +309,9 @@ export default function Dashboard() {
           </Card>
         </div>
         
-        <Card className="bg-white shadow-sm border-gray-100 rounded-xl">
-          <CardHeader className="bg-gray-50/50 rounded-t-xl border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2 text-gray-900">
+        <Card className="bg-white shadow-sm border-gray-200 rounded-lg">
+          <CardHeader className="bg-gray-50/50 rounded-t-lg border-b border-gray-100 p-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900 text-base">
               <Activity className="h-5 w-5 text-blue-600" />
               Recent Activity
             </CardTitle>

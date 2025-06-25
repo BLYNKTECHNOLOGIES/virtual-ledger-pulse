@@ -160,7 +160,7 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <Sidebar className="bg-white border-r border-gray-200 shadow-sm">
+      <Sidebar className="border-r border-gray-200 bg-white shadow-sm">
         <SidebarHeader className="p-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg animate-pulse"></div>
@@ -199,16 +199,20 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar className="bg-white border-r border-gray-200 shadow-sm">
+    <Sidebar className="border-r border-gray-200 bg-white shadow-sm" collapsible="icon">
       <SidebarHeader className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-            <div className="w-5 h-5 bg-white rounded-sm opacity-90"></div>
+          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <img 
+              src="/lovable-uploads/279e8ceb-7e74-40c2-8b1a-b4ff342356de.png" 
+              alt="Blynk Virtual Technologies" 
+              className="w-6 h-6 object-contain filter brightness-0 invert"
+            />
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col">
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight leading-tight">BLYNK VIRTUAL</h2>
-              <p className="text-xs text-gray-500 font-medium -mt-0.5">TECHNOLOGIES</p>
+            <div className="flex flex-col min-w-0">
+              <h2 className="text-base font-bold text-gray-900 tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-xs text-gray-500 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
             </div>
           )}
         </div>
@@ -228,13 +232,13 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       asChild 
                       className={`
-                        hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-lg
-                        ${isActive ? 'bg-blue-50 text-blue-700 font-medium border-l-3 border-blue-500 shadow-sm' : ''}
+                        hover:bg-gray-50 text-gray-700 hover:text-blue-600 transition-all duration-200 rounded-lg group
+                        ${isActive ? 'bg-blue-50 text-blue-700 font-medium shadow-sm border-l-3 border-blue-500' : ''}
                       `}
                     >
                       <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                        <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : item.color}`} />
-                        {!isCollapsed && <span className="font-medium text-sm">{item.title}</span>}
+                        <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-500 group-hover:text-blue-500'}`} />
+                        {!isCollapsed && <span className="font-medium text-sm truncate">{item.title}</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -256,10 +260,10 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className="p-4 border-t border-gray-100">
+      <SidebarFooter className="p-3 border-t border-gray-100">
         <div className="flex items-center justify-between">
           {!isCollapsed && (
-            <div className="text-xs text-gray-400 font-medium">
+            <div className="text-xs text-gray-400 font-medium truncate flex-1 mr-2">
               © 2025 BLYNK Virtual Technologies
             </div>
           )}
@@ -267,7 +271,7 @@ export function AppSidebar() {
             variant="ghost" 
             size="sm" 
             onClick={toggleSidebar}
-            className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 ml-auto rounded-lg"
+            className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg flex-shrink-0"
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>

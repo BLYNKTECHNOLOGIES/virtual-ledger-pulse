@@ -9,7 +9,7 @@ import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
-    <div className="w-full h-full px-4 sm:px-6 lg:px-8 py-4 space-y-6 overflow-x-auto">
+    <div className="w-full h-full px-4 sm:px-6 lg:px-8 py-4 space-y-6">
       <div className="flex items-center justify-start">
         <div className="flex items-center gap-3">
           <CreditCard className="h-8 w-8 text-blue-600" />
@@ -17,7 +17,7 @@ export default function BAMS() {
         </div>
       </div>
 
-      <div className="w-full h-[calc(100vh-200px)] flex flex-col overflow-x-auto">
+      <div className="w-full h-[calc(100vh-200px)] flex flex-col">
         <Tabs defaultValue="bank-accounts" className="flex-1 flex flex-col w-full">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
             <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -44,24 +44,16 @@ export default function BAMS() {
 
           <div className="flex-1 overflow-auto w-full">
             <TabsContent value="bank-accounts" className="h-full mt-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <BankAccountManagement />
-              </div>
+              <BankAccountManagement />
             </TabsContent>
             <TabsContent value="payment-methods" className="h-full mt-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <PaymentMethodManagement />
-              </div>
+              <PaymentMethodManagement />
             </TabsContent>
             <TabsContent value="purchases" className="h-full mt-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <PurchaseManagement />
-              </div>
+              <PurchaseManagement />
             </TabsContent>
             <TabsContent value="journal-entries" className="h-full mt-0 w-full">
-              <div className="w-full overflow-x-auto">
-                <BankJournalEntries />
-              </div>
+              <BankJournalEntries />
             </TabsContent>
           </div>
         </Tabs>

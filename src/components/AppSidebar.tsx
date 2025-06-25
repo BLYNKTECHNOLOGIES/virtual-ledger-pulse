@@ -153,13 +153,13 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-white">
+      <SidebarContent className="bg-zinc-100">
         <SidebarGroup>
           <SidebarGroupLabel className="text-gray-500 font-medium px-3 text-xs uppercase tracking-wider">
             Applications
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1 px-2">
+            <SidebarMenu className="space-y-1 px-0 py-px bg-zinc-100">
               {visibleItems.map(item => {
               const isActive = location.pathname === item.url;
               return <SidebarMenuItem key={item.title}>

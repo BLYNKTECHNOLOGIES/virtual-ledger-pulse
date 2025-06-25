@@ -14,7 +14,7 @@ export function Layout({ children }: LayoutProps) {
         <AppSidebar />
         <SidebarInset className="flex-1 flex flex-col min-w-0">
           <TopHeader />
-          <main className="flex-1 overflow-auto p-6 bg-white">
+          <main className="flex-1 overflow-auto p-0 bg-white">
             <div className="w-full h-full max-w-none">
               {children}
             </div>

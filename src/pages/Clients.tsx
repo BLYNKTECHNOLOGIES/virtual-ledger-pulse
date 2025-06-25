@@ -3,8 +3,8 @@ import { ClientDashboard } from "@/components/clients/ClientDashboard";
 
 export default function Clients() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="w-full h-full p-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-gray-900">
             Client Management
@@ -15,7 +15,7 @@ export default function Clients() {
         </div>
       </div>
       
-      <div className="modern-card">
+      <div className="w-full">
         <ClientDashboard />
       </div>
     </div>

@@ -296,7 +296,7 @@ export default function Sales() {
   );
 
   return (
-    <div className="space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="w-full h-full space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

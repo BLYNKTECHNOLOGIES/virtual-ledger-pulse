@@ -18,8 +18,8 @@ export default function BAMS() {
         </div>
       </div>
 
-      <Card className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <CardContent className="p-4 sm:p-6 h-[calc(100vh-250px)]">
+      <Card className="rounded-none border-none shadow-none w-full h-full bg-transparent p-0 m-0">
+        <CardContent className="p-0 h-[calc(100vh-150px)]">
           <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
               <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">

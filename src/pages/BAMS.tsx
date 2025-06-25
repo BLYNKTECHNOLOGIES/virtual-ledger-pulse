@@ -9,7 +9,7 @@ import { CreditCard, Building, ShoppingBag, BookOpen } from "lucide-react";
 
 export default function BAMS() {
   return (
-    <div className="w-full h-full px-4 sm:px-6 lg:px-8 py-4 space-y-6">
+    <div className="w-full h-full flex flex-col gap-6">
       <div className="flex items-center justify-start">
         <div className="flex items-center gap-3">
           <CreditCard className="h-8 w-8 text-blue-600" />
@@ -17,9 +17,9 @@ export default function BAMS() {
         </div>
       </div>
 
-      <div className="w-full h-[calc(100vh-200px)] flex flex-col">
-        <Tabs defaultValue="bank-accounts" className="flex-1 flex flex-col w-full">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
+      <div className="w-full h-full flex-1 overflow-auto bg-white rounded-lg shadow-sm p-4">
+        <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-100 rounded-lg p-1">
             <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Building className="h-4 w-4" />
               <span className="hidden sm:inline">Bank Accounts</span>
@@ -42,17 +42,17 @@ export default function BAMS() {
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex-1 overflow-auto w-full">
-            <TabsContent value="bank-accounts" className="h-full mt-0 w-full">
+          <div className="flex-1 w-full overflow-auto">
+            <TabsContent value="bank-accounts" className="w-full h-full">
               <BankAccountManagement />
             </TabsContent>
-            <TabsContent value="payment-methods" className="h-full mt-0 w-full">
+            <TabsContent value="payment-methods" className="w-full h-full">
               <PaymentMethodManagement />
             </TabsContent>
-            <TabsContent value="purchases" className="h-full mt-0 w-full">
+            <TabsContent value="purchases" className="w-full h-full">
               <PurchaseManagement />
             </TabsContent>
-            <TabsContent value="journal-entries" className="h-full mt-0 w-full">
+            <TabsContent value="journal-entries" className="w-full h-full">
               <BankJournalEntries />
             </TabsContent>
           </div>

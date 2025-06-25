@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,15 +203,15 @@ export default function Dashboard() {
       {/* Enhanced Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">
             Dashboard
           </h1>
-          <p className="text-gray-600 mt-2 text-base lg:text-lg">Welcome back! Here's what's happening with your business today.</p>
+          <p className="text-gray-600 mt-1 text-sm lg:text-base">Welcome back! Here's what's happening with your business today.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           {/* Period Filter */}
-          <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm border">
+          <div className="flex gap-1 p-1 bg-white rounded-lg shadow-sm border border-gray-200">
             {["24h", "7d", "30d", "90d"].map((period) => (
               <Button
                 key={period}
@@ -218,8 +219,8 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => setSelectedPeriod(period)}
                 className={selectedPeriod === period ? 
-                  "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-sm" : 
-                  "hover:bg-blue-50 text-gray-700"
+                  "bg-blue-600 text-white shadow-sm" : 
+                  "hover:bg-gray-50 text-gray-700"
                 }
               >
                 {period}
@@ -228,14 +229,14 @@ export default function Dashboard() {
           </div>
           
           {/* Dashboard Controls */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsEditMode(!isEditMode)}
               className={isEditMode ? 
                 "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" : 
-                "hover:bg-blue-50 border-gray-200"
+                "hover:bg-gray-50 border-gray-200"
               }
             >
               <Settings className="h-4 w-4 mr-2" />
@@ -260,14 +261,14 @@ export default function Dashboard() {
 
       {/* Edit Mode Banner */}
       {isEditMode && (
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-4 shadow-lg">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-800 rounded-xl p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-white to-gray-50 rounded-lg flex items-center justify-center">
-              <Settings className="h-5 w-5" />
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Settings className="h-5 w-5 text-blue-600" />
             </div>
             <div>
               <h3 className="font-semibold">Edit Mode Active</h3>
-              <p className="text-blue-100 text-sm">
+              <p className="text-blue-600 text-sm">
                 Use the three-dot menu on each widget to move or remove them. Add new widgets using the "Add Widget" button above.
               </p>
             </div>
@@ -279,7 +280,7 @@ export default function Dashboard() {
       <QuickLinksWidget onRemove={handleRemoveWidget} />
 
       {/* Dynamic Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {dashboardWidgets.map((widget) => (
           <DashboardWidget
             key={widget.id}
@@ -295,10 +296,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div className="xl:col-span-3">
           {/* Placeholder for additional dashboard content */}
-          <Card className="h-64 bg-gradient-to-br from-white to-gray-50 border-0 shadow-sm rounded-xl">
+          <Card className="h-64 bg-gradient-to-br from-white to-gray-50/50 border-gray-100 shadow-sm rounded-xl">
             <CardContent className="h-full flex items-center justify-center">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Add More Widgets</h3>
@@ -308,19 +309,19 @@ export default function Dashboard() {
           </Card>
         </div>
         
-        <Card className="bg-white shadow-sm border-0 rounded-xl">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
-            <CardTitle className="flex items-center gap-2">
+        <Card className="bg-white shadow-sm border-gray-100 rounded-xl">
+          <CardHeader className="bg-gray-50/50 rounded-t-xl border-b border-gray-100">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
               <Activity className="h-5 w-5 text-blue-600" />
               Recent Activity
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-3 p-4">
             {recentActivity?.slice(0, 6).map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+              <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${
-                    activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                  <div className={`p-2 rounded-lg ${
+                    activity.type === 'sale' ? 'bg-green-50' : 'bg-blue-50'
                   }`}>
                     {activity.type === 'sale' ? (
                       <ArrowUpIcon className="h-4 w-4 text-green-600" />
@@ -357,7 +358,7 @@ export default function Dashboard() {
 
       {/* Default Metrics for new users */}
       {dashboardWidgets.length === 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Total Revenue"
             value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}

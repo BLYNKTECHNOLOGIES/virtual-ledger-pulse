@@ -17,8 +17,8 @@ export default function BAMS() {
         </div>
       </div>
 
-      <div className="bg-transparent w-full h-[calc(100vh-200px)] flex flex-col">
-        <Tabs defaultValue="bank-accounts" className="flex-1 flex flex-col">
+      <div className="w-full h-[calc(100vh-200px)] flex flex-col overflow-x-auto">
+        <Tabs defaultValue="bank-accounts" className="flex-1 flex flex-col w-full">
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6 h-auto bg-gray-50 rounded-lg p-1">
             <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Building className="h-4 w-4" />
@@ -43,17 +43,25 @@ export default function BAMS() {
           </TabsList>
 
           <div className="flex-1 overflow-auto w-full">
-            <TabsContent value="bank-accounts" className="h-full mt-0">
-              <BankAccountManagement />
+            <TabsContent value="bank-accounts" className="h-full mt-0 w-full">
+              <div className="w-full overflow-x-auto">
+                <BankAccountManagement />
+              </div>
             </TabsContent>
-            <TabsContent value="payment-methods" className="h-full mt-0">
-              <PaymentMethodManagement />
+            <TabsContent value="payment-methods" className="h-full mt-0 w-full">
+              <div className="w-full overflow-x-auto">
+                <PaymentMethodManagement />
+              </div>
             </TabsContent>
-            <TabsContent value="purchases" className="h-full mt-0">
-              <PurchaseManagement />
+            <TabsContent value="purchases" className="h-full mt-0 w-full">
+              <div className="w-full overflow-x-auto">
+                <PurchaseManagement />
+              </div>
             </TabsContent>
-            <TabsContent value="journal-entries" className="h-full mt-0">
-              <BankJournalEntries />
+            <TabsContent value="journal-entries" className="h-full mt-0 w-full">
+              <div className="w-full overflow-x-auto">
+                <BankJournalEntries />
+              </div>
             </TabsContent>
           </div>
         </Tabs>

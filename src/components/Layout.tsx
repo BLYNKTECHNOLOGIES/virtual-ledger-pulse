@@ -10,11 +10,11 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <SidebarProvider>
-      <div className="flex w-screen max-w-none min-h-screen bg-gray-50 overflow-x-hidden">
+      <div className="flex w-screen max-w-none min-h-screen bg-gray-50 overflow-hidden">
         <AppSidebar />
-        <SidebarInset className="flex-1 flex flex-col min-w-0">
+        <SidebarInset className="flex-1 flex flex-col w-full">
           <TopHeader />
-          <main className="flex-1 overflow-auto p-0">
+          <main className="flex-1 overflow-auto w-full">
             <div className="w-full h-full">
               {children}
             </div>

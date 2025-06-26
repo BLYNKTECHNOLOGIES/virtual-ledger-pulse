@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Linkedin, Twitter, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +11,7 @@ export function Footer() {
           {/* Company Info */}
           <div className="space-y-4">
             <div className="text-2xl font-bold text-blue-400">
-              Blynk Technologies
+              Blynk Virtual Technologies
             </div>
             <p className="text-gray-300 text-sm">
               Leading IT services company specializing in web development, mobile apps, 
@@ -93,7 +92,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-          <p>&copy; 2024 Blynk Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>&copy; 2024 Blynk Virtual Technologies Pvt. Ltd. All rights reserved.</p>
         </div>
       </div>
     </footer>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Shield, Users, FileCheck, Globe, CheckCircle, ArrowRight, Download, Phone, Mail, MessageCircle, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -110,7 +109,7 @@ export function VASPHomePage() {
               India's Trusted Virtual Asset Service Provider
             </h1>
             <p className="text-xl md:text-2xl text-orange-100 mb-10 max-w-4xl mx-auto">
-              KYC-powered, AML-compliant P2P and Digital Asset Services
+              KYC-powered, AML-compliant P2P and Digital Asset Services by Blynk Virtual Technologies
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Button 

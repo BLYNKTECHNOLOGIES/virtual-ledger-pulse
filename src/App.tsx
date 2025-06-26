@@ -38,6 +38,9 @@ import { AboutPage } from '@/components/website/pages/AboutPage';
 import { AppDevelopmentPage } from '@/components/website/pages/AppDevelopmentPage';
 import { PrivacyPolicyPage } from '@/components/website/pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from '@/components/website/pages/TermsOfServicePage';
+import { P2PTradingPage } from '@/components/website/pages/P2PTradingPage';
+import { KYCServicesPage } from '@/components/website/pages/KYCServicesPage';
+import { VASPCompliancePage } from '@/components/website/pages/VASPCompliancePage';
 
 import './App.css';
 
@@ -64,6 +67,10 @@ function App() {
             <Route path="/website/cloud-hosting" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Cloud Hosting - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/software-development" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Software Development - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/vasp" element={<WebsiteLayout><VASPPage /></WebsiteLayout>} />
+            <Route path="/website/vasp/p2p-trading" element={<WebsiteLayout><P2PTradingPage /></WebsiteLayout>} />
+            <Route path="/website/vasp/kyc" element={<WebsiteLayout><KYCServicesPage /></WebsiteLayout>} />
+            <Route path="/website/vasp/compliance" element={<WebsiteLayout><VASPCompliancePage /></WebsiteLayout>} />
+            <Route path="/website/vasp/api-docs" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">API Documentation - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/about" element={<WebsiteLayout><AboutPage /></WebsiteLayout>} />
             <Route path="/website/portfolio" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Portfolio - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/contact" element={<WebsiteLayout><ContactPage /></WebsiteLayout>} />

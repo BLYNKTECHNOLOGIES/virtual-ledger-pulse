@@ -97,20 +97,18 @@
   }
 }
 
-/* Global override for width constraints */
+/* Remove global override for width constraints */
 @layer utilities {
-  .container,
-  .max-w-7xl,
-  .max-w-6xl,
-  .max-w-screen-xl {
-    max-width: 100% !important;
+  .modern-card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
   }
-}
 
-.modern-card {
-  @apply bg-white rounded-xl border border-gray-200 shadow-sm;
-}
+  .modern-card:hover {
+    @apply shadow-md transition-shadow duration-200;
+  }
 
-.modern-card:hover {
-  @apply shadow-md transition-shadow duration-200;
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/70 backdrop-blur-lg border border-white/20;
+  }
 }

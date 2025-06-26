@@ -8,9 +8,9 @@ interface WebsiteLayoutProps {
 
 export function WebsiteLayout({ children }: WebsiteLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen w-full">
       <Navbar />
-      <main className="flex-1">
+      <main className="w-full">
         {children}
       </main>
       <Footer />

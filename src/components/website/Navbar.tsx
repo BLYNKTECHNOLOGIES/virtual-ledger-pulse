@@ -57,23 +57,19 @@ export function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/website" className="flex-shrink-0 flex items-center">
-              <div className="flex items-center space-x-2">
-                {/* Logo Icon - Blue Squares similar to uploaded image */}
-                <div className="flex flex-col space-y-0.5">
-                  <div className="flex space-x-0.5">
-                    <div className="w-2 h-2 bg-blue-500 rounded-sm"></div>
-                    <div className="w-2 h-2 bg-blue-400 rounded-sm"></div>
-                  </div>
-                  <div className="flex space-x-0.5">
-                    <div className="w-2 h-2 bg-blue-600 rounded-sm"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-sm"></div>
-                  </div>
-                </div>
+              <div className="flex items-center space-x-3">
+                {/* Company Logo */}
+                <img 
+                  src="/lovable-uploads/9ec01d49-d248-4f08-87d2-5b0608859e0c.png" 
+                  alt="Blynk Virtual Technologies Logo" 
+                  className="w-8 h-8"
+                />
                 
-                {/* Company Name with BharatCX-style branding */}
+                {/* Company Name with proper spacing */}
                 <div className="text-xl font-bold">
-                  <span className="text-gray-900">BLYNK</span>
-                  <span className="text-blue-600">VIRTUAL</span>
+                  <span className="text-gray-900">BLYNK </span>
+                  <span className="text-blue-600">VIRTUAL </span>
+                  <span className="text-gray-900">TECHNOLOGIES</span>
                 </div>
               </div>
             </Link>

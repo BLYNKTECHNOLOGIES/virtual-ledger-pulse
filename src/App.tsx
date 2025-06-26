@@ -33,6 +33,9 @@ import { VASPPage } from '@/components/website/pages/VASPPage';
 import { LoginPage } from '@/components/website/pages/LoginPage';
 import { CRMDashboard } from '@/components/website/pages/CRMDashboard';
 import { ContactPage } from '@/components/website/pages/ContactPage';
+import { SEOServicesPage } from '@/components/website/pages/SEOServicesPage';
+import { AboutPage } from '@/components/website/pages/AboutPage';
+import { AppDevelopmentPage } from '@/components/website/pages/AppDevelopmentPage';
 
 import './App.css';
 
@@ -54,12 +57,12 @@ function App() {
             {/* Website Routes */}
             <Route path="/website" element={<WebsiteLayout><HomePage /></WebsiteLayout>} />
             <Route path="/website/web-development" element={<WebsiteLayout><WebDevelopmentPage /></WebsiteLayout>} />
-            <Route path="/website/seo-services" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">SEO Services - Coming Soon</h1></div></WebsiteLayout>} />
-            <Route path="/website/app-development" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">App Development - Coming Soon</h1></div></WebsiteLayout>} />
+            <Route path="/website/seo-services" element={<WebsiteLayout><SEOServicesPage /></WebsiteLayout>} />
+            <Route path="/website/app-development" element={<WebsiteLayout><AppDevelopmentPage /></WebsiteLayout>} />
             <Route path="/website/cloud-hosting" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Cloud Hosting - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/software-development" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Software Development - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/vasp" element={<WebsiteLayout><VASPPage /></WebsiteLayout>} />
-            <Route path="/website/about" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">About Us - Coming Soon</h1></div></WebsiteLayout>} />
+            <Route path="/website/about" element={<WebsiteLayout><AboutPage /></WebsiteLayout>} />
             <Route path="/website/portfolio" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Portfolio - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/contact" element={<WebsiteLayout><ContactPage /></WebsiteLayout>} />
             <Route path="/website/login" element={<LoginPage />} />

@@ -1,3 +1,4 @@
+
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -249,7 +250,10 @@ export function KYCFormPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => document.getElementById('document')?.click()}
+                      onClick={() => {
+                        const element = document.getElementById('document');
+                        element?.click();
+                      }}
                       className="w-full flex items-center justify-center space-x-2"
                     >
                       <Upload className="h-4 w-4" />

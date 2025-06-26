@@ -51,14 +51,14 @@ export function Navbar() {
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50 w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-20">
           <div className="flex items-center">
             <Link to="/website" className="flex-shrink-0 flex items-center">
-              {/* Complete Logo Image */}
+              {/* Complete Logo Image - Made larger */}
               <img 
                 src="/lovable-uploads/95dfb015-8a6a-4ff4-b8e5-b77bb62d6d08.png" 
                 alt="Blynk Virtual Technologies Logo" 
-                className="h-8 w-auto"
+                className="h-16 w-auto max-w-none"
               />
             </Link>
           </div>

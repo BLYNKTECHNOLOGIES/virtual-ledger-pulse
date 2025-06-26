@@ -73,12 +73,12 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-8">
-            {/* Section Toggle - Orange for VASP */}
-            <div className="flex items-center bg-gray-50 rounded-lg p-1 mr-8 border">
+          <div className="hidden lg:flex items-center space-x-6">
+            {/* Section Toggle - Orange for VASP with better spacing */}
+            <div className="flex items-center bg-gray-50 rounded-lg p-1 border">
               <button
                 onClick={() => setIsVASPSection(false)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   !isVASPSection 
                     ? 'bg-blue-600 text-white shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white'
@@ -88,7 +88,7 @@ export function Navbar() {
               </button>
               <button
                 onClick={() => setIsVASPSection(true)}
-                className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   isVASPSection 
                     ? 'bg-orange-600 text-white shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white'
@@ -98,8 +98,8 @@ export function Navbar() {
               </button>
             </div>
 
-            {/* Navigation Items - Better spacing */}
-            <div className="flex items-center space-x-8">
+            {/* Navigation Items with improved spacing */}
+            <div className="flex items-center space-x-6">
               {navItems.map((item) => (
                 <div key={item.name} className="relative">
                   {item.dropdown ? (
@@ -109,7 +109,7 @@ export function Navbar() {
                       onMouseLeave={() => setActiveDropdown(null)}
                     >
                       <button
-                        className={`flex items-center px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                        className={`flex items-center px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
                           isActive(item.path)
                             ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
                             : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
@@ -135,7 +135,7 @@ export function Navbar() {
                   ) : (
                     <Link
                       to={item.path}
-                      className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
+                      className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
                         isActive(item.path)
                           ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
                           : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
@@ -149,7 +149,7 @@ export function Navbar() {
             </div>
 
             <Link to="/website/login">
-              <Button className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 ml-6 rounded-lg font-medium`}>
+              <Button className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 rounded-lg font-medium`}>
                 Sign In
               </Button>
             </Link>

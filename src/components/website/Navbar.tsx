@@ -45,8 +45,6 @@ export function Navbar() {
     { name: 'KYC Services', path: '/website/vasp/kyc' },
     { name: 'Security', path: '/website/vasp/security' },
     { name: 'Compliance', path: '/website/vasp/compliance' },
-    { name: 'API Documentation', path: '/website/vasp/api-docs' },
-    { name: 'Contact', path: '/website/contact' },
   ];
 
   const navItems = isVASPSection ? vaspNavItems : itNavItems;
@@ -76,9 +74,9 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-4">
+          <div className="hidden lg:flex items-center space-x-6">
             {/* Section Toggle - Cleaner Design */}
-            <div className="flex items-center bg-gray-50 rounded-lg p-1 mr-6 border">
+            <div className="flex items-center bg-gray-50 rounded-lg p-1 mr-8 border">
               <button
                 onClick={() => setIsVASPSection(false)}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
@@ -101,8 +99,8 @@ export function Navbar() {
               </button>
             </div>
 
-            {/* Navigation Items - Better Layout */}
-            <div className="flex items-center space-x-1">
+            {/* Navigation Items - Better Layout with proper spacing */}
+            <div className="flex items-center space-x-6">
               {navItems.map((item) => (
                 <div key={item.name} className="relative">
                   {item.dropdown ? (
@@ -138,7 +136,7 @@ export function Navbar() {
                   ) : (
                     <Link
                       to={item.path}
-                      className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                      className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
                         isActive(item.path)
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
@@ -152,7 +150,7 @@ export function Navbar() {
             </div>
 
             <Link to="/website/login">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 ml-4 rounded-lg font-medium">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 ml-6 rounded-lg font-medium">
                 Sign In
               </Button>
             </Link>

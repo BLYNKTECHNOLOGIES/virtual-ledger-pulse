@@ -1,9 +1,31 @@
-import { Link } from 'react-router-dom';
+
+import { Link, useLocation } from 'react-router-dom';
 import { Mail, Phone, MapPin, Linkedin, Twitter, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export function Footer() {
+  const location = useLocation();
+  const isVASPSection = location.pathname.includes('/vasp');
+
+  const itServices = [
+    { name: 'Web Development', path: '/website/web-development' },
+    { name: 'App Development', path: '/website/app-development' },
+    { name: 'SEO Services', path: '/website/seo-services' },
+    { name: 'Cloud Hosting', path: '/website/cloud-hosting' },
+    { name: 'Custom Software', path: '/website/software-development' },
+  ];
+
+  const vaspServices = [
+    { name: 'P2P Trading', path: '/website/vasp/p2p-trading' },
+    { name: 'KYC Services', path: '/website/vasp/kyc' },
+    { name: 'Security', path: '/website/vasp/security' },
+    { name: 'Compliance', path: '/website/vasp/compliance' },
+    { name: 'VASP Home', path: '/website/vasp-home' },
+  ];
+
+  const services = isVASPSection ? vaspServices : itServices;
+
   return (
     <footer className="bg-gray-900 text-white w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
@@ -32,14 +54,17 @@ export function Footer() {
 
           {/* Services */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Services</h3>
+            <h3 className="text-lg font-semibold">
+              {isVASPSection ? 'VASP Services' : 'IT Services'}
+            </h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li><Link to="/website/web-development" className="hover:text-blue-400 transition-colors">Web Development</Link></li>
-              <li><Link to="/website/app-development" className="hover:text-blue-400 transition-colors">App Development</Link></li>
-              <li><Link to="/website/seo-services" className="hover:text-blue-400 transition-colors">SEO Services</Link></li>
-              <li><Link to="/website/cloud-hosting" className="hover:text-blue-400 transition-colors">Cloud Hosting</Link></li>
-              <li><Link to="/website/software-development" className="hover:text-blue-400 transition-colors">Custom Software</Link></li>
-              <li><Link to="/website/vasp" className="hover:text-blue-400 transition-colors">VASP Services</Link></li>
+              {services.map((service) => (
+                <li key={service.name}>
+                  <Link to={service.path} className="hover:text-blue-400 transition-colors">
+                    {service.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

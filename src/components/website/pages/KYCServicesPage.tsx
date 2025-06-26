@@ -55,20 +55,34 @@ export function KYCServicesPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-orange-600 to-red-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <Shield className="h-20 w-20 mx-auto mb-6 text-orange-200" />
-            <h1 className="text-6xl font-bold mb-6">KYC Services</h1>
-            <p className="text-2xl text-orange-100 mb-8 max-w-3xl mx-auto">
-              Complete your Know Your Customer verification to access our VASP services
-            </p>
+      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white py-20 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="mb-8">
+            <Shield className="h-20 w-20 mx-auto mb-6 text-blue-200" />
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+            KYC Services by Blynk Virtual Technologies
+          </h1>
+          <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-4xl mx-auto">
+            Secure, compliant, and efficient Know Your Customer verification services for cryptocurrency trading and financial services.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Button 
               size="lg" 
-              className="bg-white text-orange-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
-              onClick={() => navigate('/website/login')}
+              className="bg-white text-blue-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
+              onClick={() => navigate('/website/vasp/kyc-form')}
             >
-              Start KYC Process
+              Begin KYC Process
+              <ArrowRight className="ml-2 h-6 w-6" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="border-white text-white hover:bg-white hover:text-blue-600 px-10 py-4 text-xl rounded-full"
+              onClick={() => navigate('/website/contact')}
+            >
+              Contact Support
             </Button>
           </div>
         </div>
@@ -189,19 +203,29 @@ export function KYCServicesPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-orange-600 to-red-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Complete Your KYC?</h2>
-          <p className="text-xl text-orange-100 mb-8 max-w-3xl mx-auto">
-            Start your verification process today and gain access to our full range of VASP services.
+          <p className="text-xl mb-10">
+            Start your verification process today and gain access to secure cryptocurrency trading.
           </p>
-          <Button 
-            size="lg" 
-            className="bg-white text-orange-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
-            onClick={() => navigate('/website/login')}
-          >
-            Begin KYC Verification
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <Button 
+              size="lg" 
+              className="bg-white text-blue-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
+              onClick={() => navigate('/website/vasp/kyc-form')}
+            >
+              Start KYC Verification
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              className="border-white text-white hover:bg-white hover:text-blue-600 px-10 py-4 text-xl rounded-full"
+              onClick={() => navigate('/website/contact')}
+            >
+              Get Help
+            </Button>
+          </div>
         </div>
       </section>
     </div>

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './components/website/pages/HomePage';
@@ -17,6 +18,7 @@ import { KYCServicesPage } from './components/website/pages/KYCServicesPage';
 import { VASPCompliancePage } from './components/website/pages/VASPCompliancePage';
 import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
+import { KYCFormPage } from './components/website/pages/KYCFormPage';
 
 const router = createBrowserRouter([
   {
@@ -74,6 +76,10 @@ const router = createBrowserRouter([
   {
     path: "/website/vasp/kyc",
     element: <WebsiteLayout><KYCServicesPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/vasp/kyc-form",
+    element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
   },
   {
     path: "/website/vasp/compliance",

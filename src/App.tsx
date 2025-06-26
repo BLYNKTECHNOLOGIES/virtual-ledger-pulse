@@ -22,6 +22,10 @@ import { KYCFormPage } from './components/website/pages/KYCFormPage';
 
 const router = createBrowserRouter([
   {
+    path: "/",
+    element: <WebsiteLayout><HomePage /></WebsiteLayout>,
+  },
+  {
     path: "/website",
     element: <WebsiteLayout><HomePage /></WebsiteLayout>,
   },

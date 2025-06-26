@@ -1,9 +1,17 @@
-
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Toggle } from '@/components/ui/toggle';
+
+type NavItem = {
+  name: string;
+  path: string;
+  dropdown?: {
+    name: string;
+    path: string;
+  }[];
+};
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +21,7 @@ export function Navbar() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const itNavItems = [
+  const itNavItems: NavItem[] = [
     { name: 'Home', path: '/website' },
     { 
       name: 'Services', 
@@ -31,7 +39,7 @@ export function Navbar() {
     { name: 'Contact', path: '/website/contact' },
   ];
 
-  const vaspNavItems = [
+  const vaspNavItems: NavItem[] = [
     { name: 'VASP Home', path: '/website/vasp' },
     { name: 'P2P Trading', path: '/website/vasp/p2p-trading' },
     { name: 'KYC Services', path: '/website/vasp/kyc' },

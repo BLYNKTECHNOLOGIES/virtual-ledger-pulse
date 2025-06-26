@@ -54,6 +54,7 @@ export function KYCFormPage() {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startCamera = async () => {
     try {
@@ -241,6 +242,7 @@ export function KYCFormPage() {
                   <Label htmlFor="document">Attach Document *</Label>
                   <div className="mt-2">
                     <input
+                      ref={fileInputRef}
                       id="document"
                       type="file"
                       onChange={handleDocumentUpload}
@@ -250,9 +252,7 @@ export function KYCFormPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => {
-                        document.getElementById('document')?.click();
-                      }}
+                      onClick={() => fileInputRef.current?.click()}
                       className="w-full flex items-center justify-center space-x-2"
                     >
                       <Upload className="h-4 w-4" />

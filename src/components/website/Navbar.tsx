@@ -54,21 +54,12 @@ export function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/website" className="flex-shrink-0 flex items-center">
-              <div className="flex items-center space-x-3">
-                {/* Company Logo */}
-                <img 
-                  src="/lovable-uploads/9ec01d49-d248-4f08-87d2-5b0608859e0c.png" 
-                  alt="Blynk Virtual Technologies Logo" 
-                  className="w-8 h-8"
-                />
-                
-                {/* Company Name with proper spacing */}
-                <div className="text-xl font-bold">
-                  <span className="text-gray-900">BLYNK </span>
-                  <span className="text-blue-600">VIRTUAL </span>
-                  <span className="text-gray-900">TECHNOLOGIES</span>
-                </div>
-              </div>
+              {/* Complete Logo Image */}
+              <img 
+                src="/lovable-uploads/95dfb015-8a6a-4ff4-b8e5-b77bb62d6d08.png" 
+                alt="Blynk Virtual Technologies Logo" 
+                className="h-8 w-auto"
+              />
             </Link>
           </div>
 

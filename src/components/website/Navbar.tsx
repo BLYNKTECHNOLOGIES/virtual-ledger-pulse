@@ -40,7 +40,7 @@ export function Navbar() {
   ];
 
   const vaspNavItems: NavItem[] = [
-    { name: 'VASP Home', path: '/website/vasp' },
+    { name: 'VASP Home', path: '/website/vasp-home' },
     { name: 'P2P Trading', path: '/website/vasp/p2p-trading' },
     { name: 'KYC Services', path: '/website/vasp/kyc' },
     { name: 'Compliance', path: '/website/vasp/compliance' },

@@ -251,8 +251,7 @@ export function KYCFormPage() {
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        const element = document.getElementById('document');
-                        element?.click();
+                        document.getElementById('document')?.click();
                       }}
                       className="w-full flex items-center justify-center space-x-2"
                     >

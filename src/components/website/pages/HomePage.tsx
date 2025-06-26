@@ -68,7 +68,7 @@ export function HomePage() {
     {
       name: 'Sarah Johnson',
       company: 'Tech Startup Inc.',
-      content: 'TechFlow transformed our digital presence. Their expertise in web development and SEO helped us achieve 300% growth.',
+      content: 'Blynk Virtual Technologies transformed our digital presence. Their expertise in web development and SEO helped us achieve 300% growth.',
       rating: 5
     },
     {
@@ -178,7 +178,7 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-              Why Choose TechFlow?
+              Why Choose Blynk Virtual Technologies?
             </h2>
           </div>
 

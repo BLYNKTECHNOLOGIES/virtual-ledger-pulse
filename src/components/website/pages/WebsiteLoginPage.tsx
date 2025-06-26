@@ -30,7 +30,7 @@ export function WebsiteLoginPage() {
           description: "Logged in successfully! Redirecting to dashboard...",
         });
         // Redirect to main CRM dashboard
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (error) {
       toast({
@@ -53,21 +53,21 @@ export function WebsiteLoginPage() {
               <Code2 className="h-8 w-8 text-white" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              TechFlow
+              Blynk Virtual Technologies
             </span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">
-            Welcome back
+            Staff Portal
           </h2>
           <p className="mt-2 text-gray-600">
-            Sign in to access your CRM dashboard
+            Sign in to access the CRM system
           </p>
         </div>
 
         {/* Login Form */}
         <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
           <CardHeader>
-            <CardTitle className="text-center text-gray-900">Sign In</CardTitle>
+            <CardTitle className="text-center text-gray-900">Staff Login</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -80,7 +80,7 @@ export function WebsiteLoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="mt-1"
-                  placeholder="Enter your email"
+                  placeholder="Enter your work email"
                 />
               </div>
 
@@ -122,15 +122,15 @@ export function WebsiteLoginPage() {
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 disabled={isLoading}
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? 'Signing in...' : 'Sign in to CRM'}
               </Button>
             </form>
 
             <div className="mt-6 text-center text-sm text-gray-600">
-              Don't have an account?{' '}
-              <a href="#" className="text-blue-600 hover:text-blue-500 font-medium">
-                Contact us for access
-              </a>
+              Not a staff member?{' '}
+              <Link to="/website" className="text-blue-600 hover:text-blue-500 font-medium">
+                Return to website
+              </Link>
             </div>
           </CardContent>
         </Card>

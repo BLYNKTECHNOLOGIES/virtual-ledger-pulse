@@ -6,17 +6,29 @@ import { Menu, X, Code2 } from 'lucide-react';
 
 const navItems = [
   { name: 'Home', path: '/website' },
+  { name: 'About Us', path: '/website/about' },
   { name: 'Web Design', path: '/website/web-design' },
   { name: 'SEO Services', path: '/website/seo-services' },
   { name: 'App Development', path: '/website/app-development' },
   { name: 'Cloud & Hosting', path: '/website/cloud-hosting' },
   { name: 'Custom Software', path: '/website/custom-software' },
   { name: 'VASP', path: '/website/vasp' },
+  { name: 'Portfolio', path: '/website/portfolio' },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+
+  const handleLoginClick = () => {
+    const confirmLogin = window.confirm(
+      'This login is only for staff of Blynk Virtual Technologies Private Limited. Do you want to continue?'
+    );
+    
+    if (confirmLogin) {
+      window.location.href = '/website/login';
+    }
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-gray-200/50">
@@ -28,7 +40,7 @@ export function Navbar() {
               <Code2 className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              TechFlow
+              Blynk Virtual Technologies
             </span>
           </Link>
 
@@ -51,11 +63,12 @@ export function Navbar() {
 
           {/* Login Button */}
           <div className="hidden md:flex items-center">
-            <Link to="/website/login">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                Login
-              </Button>
-            </Link>
+            <Button 
+              onClick={handleLoginClick}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+            >
+              Staff Login
+            </Button>
           </div>
 
           {/* Mobile menu button */}
@@ -88,11 +101,12 @@ export function Navbar() {
                 </Link>
               ))}
               <div className="pt-2 border-t border-gray-200">
-                <Link to="/website/login" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
-                    Login
-                  </Button>
-                </Link>
+                <Button 
+                  onClick={handleLoginClick}
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                >
+                  Staff Login
+                </Button>
               </div>
             </div>
           </div>

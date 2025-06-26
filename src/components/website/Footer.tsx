@@ -13,7 +13,7 @@ export function Footer() {
               <div className="p-2 bg-blue-600 rounded-lg">
                 <Code2 className="h-6 w-6 text-white" />
               </div>
-              <span className="text-xl font-bold">TechFlow</span>
+              <span className="text-xl font-bold">Blynk Virtual Technologies</span>
             </div>
             <p className="text-gray-400 text-sm">
               Empowering your business with digital excellence through cutting-edge technology solutions.
@@ -60,12 +60,12 @@ export function Footer() {
           <div>
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <div className="space-y-2">
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              <Link to="/website/about" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 About Us
-              </a>
-              <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
+              </Link>
+              <Link to="/website/portfolio" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Portfolio
-              </a>
+              </Link>
               <a href="#" className="block text-gray-400 hover:text-white transition-colors text-sm">
                 Blog
               </a>
@@ -87,22 +87,27 @@ export function Footer() {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <Mail className="h-4 w-4 text-blue-400" />
-                <span className="text-gray-400 text-sm">contact@techflow.com</span>
+                <span className="text-gray-400 text-sm">support@blynkex.com</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-4 w-4 text-blue-400" />
-                <span className="text-gray-400 text-sm">+1 (555) 123-4567</span>
+                <span className="text-gray-400 text-sm">+91 9266712788</span>
               </div>
-              <div className="flex items-center space-x-3">
-                <MapPin className="h-4 w-4 text-blue-400" />
-                <span className="text-gray-400 text-sm">123 Tech Street, Digital City</span>
+              <div className="flex items-start space-x-3">
+                <MapPin className="h-4 w-4 text-blue-400 mt-1" />
+                <span className="text-gray-400 text-sm">
+                  First Floor Balwant Arcade, Plot No. 15<br />
+                  Maharana Pratap Nagar, Zone II<br />
+                  Bhopal, 462011<br />
+                  Madhya Pradesh, India
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>&copy; 2024 TechFlow. All rights reserved.</p>
+          <p>&copy; 2024 Blynk Virtual Technologies Private Limited. All rights reserved.</p>
         </div>
       </div>
     </footer>

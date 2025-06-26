@@ -1,5 +1,3 @@
-
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,6 +38,8 @@ import { CloudHostingPage } from '@/components/website/pages/CloudHostingPage';
 import { CustomSoftwarePage } from '@/components/website/pages/CustomSoftwarePage';
 import { VASPPage } from '@/components/website/pages/VASPPage';
 import { WebsiteLoginPage } from '@/components/website/pages/WebsiteLoginPage';
+import { AboutPage } from '@/components/website/pages/AboutPage';
+import { PortfolioPage } from '@/components/website/pages/PortfolioPage';
 
 const queryClient = new QueryClient();
 
@@ -60,6 +60,8 @@ const App = () => {
                     <main className="pt-16">
                       <Routes>
                         <Route index element={<HomePage />} />
+                        <Route path="about" element={<AboutPage />} />
+                        <Route path="portfolio" element={<PortfolioPage />} />
                         <Route path="web-design" element={<WebDesignPage />} />
                         <Route path="seo-services" element={<SEOServicesPage />} />
                         <Route path="app-development" element={<AppDevelopmentPage />} />
@@ -103,4 +105,3 @@ const App = () => {
 };
 
 export default App;
-

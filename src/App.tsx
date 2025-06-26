@@ -27,7 +27,7 @@ import Statistics from '@/pages/Statistics';
 import NotFound from '@/pages/NotFound';
 
 // Import Website pages
-import { HomePage } from '@/components/website/pages/HomePage';
+import { ModernHomePage } from '@/components/website/pages/ModernHomePage';
 import { WebDevelopmentPage } from '@/components/website/pages/WebDevelopmentPage';
 import { VASPPage } from '@/components/website/pages/VASPPage';
 import { LoginPage } from '@/components/website/pages/LoginPage';
@@ -55,7 +55,7 @@ function App() {
         <Router>
           <Routes>
             {/* Website Routes */}
-            <Route path="/website" element={<WebsiteLayout><HomePage /></WebsiteLayout>} />
+            <Route path="/website" element={<WebsiteLayout><ModernHomePage /></WebsiteLayout>} />
             <Route path="/website/web-development" element={<WebsiteLayout><WebDevelopmentPage /></WebsiteLayout>} />
             <Route path="/website/seo-services" element={<WebsiteLayout><SEOServicesPage /></WebsiteLayout>} />
             <Route path="/website/app-development" element={<WebsiteLayout><AppDevelopmentPage /></WebsiteLayout>} />

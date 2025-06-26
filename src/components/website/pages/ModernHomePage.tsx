@@ -1,24 +1,13 @@
 
-import { ArrowRight, Play, Users, Globe, Award, TrendingUp, CheckCircle, Star, Code, Smartphone, Cloud, Shield, Zap, Target } from 'lucide-react';
+import { ArrowRight, Users, Award, TrendingUp, CheckCircle, Star, Code, Smartphone, Cloud, Shield, Zap, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export function ModernHomePage() {
-  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const navigate = useNavigate();
-
-  const handleLoginClick = () => {
-    setIsLoginDialogOpen(true);
-  };
-
-  const handleProceedToLogin = () => {
-    setIsLoginDialogOpen(false);
-    navigate('/website/login');
-  };
 
   // Hero slideshow content
   const heroSlides = [
@@ -133,7 +122,7 @@ export function ModernHomePage() {
           <p className="text-2xl lg:text-3xl mb-8 text-gray-200 animate-fade-in-up">
             {heroSlides[currentSlide].subtitle}
           </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center animate-fade-in-up">
+          <div className="flex justify-center animate-fade-in-up">
             <Button 
               size="lg" 
               className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 text-xl rounded-full"
@@ -142,42 +131,6 @@ export function ModernHomePage() {
               Get Started
               <ArrowRight className="ml-2 h-6 w-6" />
             </Button>
-            <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-2 border-white text-white hover:bg-white hover:text-black px-10 py-4 text-xl rounded-full"
-                  onClick={handleLoginClick}
-                >
-                  Staff Login
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="text-center text-xl font-semibold">Staff Access Only</DialogTitle>
-                  <DialogDescription className="text-center pt-4">
-                    This login portal is restricted to authorized staff members only. 
-                    Please ensure you have proper credentials before proceeding.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-col gap-3 pt-4">
-                  <Button 
-                    onClick={handleProceedToLogin}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    Proceed to Login
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setIsLoginDialogOpen(false)}
-                    className="w-full"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         </div>
 
@@ -192,56 +145,6 @@ export function ModernHomePage() {
               }`}
             />
           ))}
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-5xl font-bold text-gray-900 mb-6">About Blynk Technologies</h2>
-            <p className="text-xl text-gray-600 max-w-4xl mx-auto">
-              Founded in 2025, Blynk Virtual Technologies Private Limited is a cutting-edge technology company 
-              registered under the Ministry of Corporate Affairs with CIN: U62099MP2025PTC074915. We specialize 
-              in fintech solutions, blockchain technology, and enterprise software development.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h3 className="text-3xl font-bold mb-6">Innovation at Our Core</h3>
-              <p className="text-lg text-gray-600 mb-6">
-                At Blynk, we believe technology is the great equalizer. Our diverse portfolio ranges from 
-                financial technology services to full-stack software development, all designed to empower 
-                individuals and businesses in a fast-changing digital world.
-              </p>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="text-lg">Transparency in all dealings</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="text-lg">Security by design</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="text-lg">Customer-first innovation</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <span className="text-lg">Compliance-led architecture</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <img 
-                src="https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&h=400&fit=crop" 
-                alt="Team collaboration"
-                className="rounded-lg shadow-lg"
-              />
-            </div>
-          </div>
         </div>
       </section>
 
@@ -360,37 +263,6 @@ export function ModernHomePage() {
           </div>
         </div>
       </section>
-
-      {/* Fixed CSS without jsx prop */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @keyframes blob {
-              0% {
-                transform: translate(0px, 0px) scale(1);
-              }
-              33% {
-                transform: translate(30px, -50px) scale(1.1);
-              }
-              66% {
-                transform: translate(-20px, 20px) scale(0.9);
-              }
-              100% {
-                transform: translate(0px, 0px) scale(1);
-              }
-            }
-            .animate-blob {
-              animation: blob 7s infinite;
-            }
-            .animation-delay-2000 {
-              animation-delay: 2s;
-            }
-            .animation-delay-4000 {
-              animation-delay: 4s;
-            }
-          `
-        }}
-      />
     </div>
   );
 }

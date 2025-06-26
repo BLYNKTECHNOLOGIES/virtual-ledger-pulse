@@ -36,6 +36,8 @@ import { ContactPage } from '@/components/website/pages/ContactPage';
 import { SEOServicesPage } from '@/components/website/pages/SEOServicesPage';
 import { AboutPage } from '@/components/website/pages/AboutPage';
 import { AppDevelopmentPage } from '@/components/website/pages/AppDevelopmentPage';
+import { PrivacyPolicyPage } from '@/components/website/pages/PrivacyPolicyPage';
+import { TermsOfServicePage } from '@/components/website/pages/TermsOfServicePage';
 
 import './App.css';
 
@@ -65,6 +67,8 @@ function App() {
             <Route path="/website/about" element={<WebsiteLayout><AboutPage /></WebsiteLayout>} />
             <Route path="/website/portfolio" element={<WebsiteLayout><div className="py-20 text-center"><h1 className="text-4xl font-bold">Portfolio - Coming Soon</h1></div></WebsiteLayout>} />
             <Route path="/website/contact" element={<WebsiteLayout><ContactPage /></WebsiteLayout>} />
+            <Route path="/website/privacy" element={<WebsiteLayout><PrivacyPolicyPage /></WebsiteLayout>} />
+            <Route path="/website/terms" element={<WebsiteLayout><TermsOfServicePage /></WebsiteLayout>} />
             <Route path="/website/login" element={<LoginPage />} />
             <Route path="/website/crm" element={<CRMDashboard />} />
 

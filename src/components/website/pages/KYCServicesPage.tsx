@@ -1,5 +1,5 @@
 
-import { Shield, FileCheck, Users, Clock, CheckCircle, AlertTriangle, Zap } from 'lucide-react';
+import { Shield, FileCheck, Users, Clock, CheckCircle, AlertTriangle, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
@@ -55,22 +55,22 @@ export function KYCServicesPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 text-white py-20 relative overflow-hidden">
+      <section className="bg-gradient-to-br from-orange-600 via-orange-700 to-red-600 text-white py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
-            <Shield className="h-20 w-20 mx-auto mb-6 text-blue-200" />
+            <Shield className="h-20 w-20 mx-auto mb-6 text-orange-200" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             KYC Services by Blynk Virtual Technologies
           </h1>
-          <p className="text-xl md:text-2xl text-blue-100 mb-10 max-w-4xl mx-auto">
+          <p className="text-xl md:text-2xl text-orange-100 mb-10 max-w-4xl mx-auto">
             Secure, compliant, and efficient Know Your Customer verification services for cryptocurrency trading and financial services.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Button 
               size="lg" 
-              className="bg-white text-blue-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
+              className="bg-white text-orange-600 hover:bg-gray-100 px-10 py-4 text-xl rounded-full"
               onClick={() => navigate('/website/vasp/kyc-form')}
             >
               Begin KYC Process
@@ -79,7 +79,7 @@ export function KYCServicesPage() {
             <Button 
               size="lg" 
               variant="outline" 
-              className="border-white text-white hover:bg-white hover:text-blue-600 px-10 py-4 text-xl rounded-full"
+              className="border-white text-white hover:bg-white hover:text-orange-600 px-10 py-4 text-xl rounded-full"
               onClick={() => navigate('/website/contact')}
             >
               Contact Support

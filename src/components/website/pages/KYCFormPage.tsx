@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -138,7 +137,7 @@ export function KYCFormPage() {
             <p className="text-gray-600 font-medium">Thank you!</p>
             <Button 
               onClick={() => navigate('/website/vasp-home')}
-              className="w-full bg-blue-600 hover:bg-blue-700"
+              className="w-full bg-orange-600 hover:bg-orange-700"
             >
               Back to VASP Home
             </Button>
@@ -367,7 +366,7 @@ export function KYCFormPage() {
               <div className="pt-6">
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-medium"
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 text-lg font-medium"
                 >
                   Submit KYC Application
                 </Button>

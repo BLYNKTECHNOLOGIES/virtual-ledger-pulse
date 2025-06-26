@@ -36,7 +36,6 @@ export function Navbar() {
     },
     { name: 'About', path: '/website/about' },
     { name: 'Portfolio', path: '/website/portfolio' },
-    { name: 'Contact', path: '/website/contact' },
   ];
 
   const vaspNavItems: NavItem[] = [
@@ -74,8 +73,8 @@ export function Navbar() {
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-6">
-            {/* Section Toggle - Cleaner Design */}
+          <div className="hidden lg:flex items-center space-x-8">
+            {/* Section Toggle - Orange for VASP */}
             <div className="flex items-center bg-gray-50 rounded-lg p-1 mr-8 border">
               <button
                 onClick={() => setIsVASPSection(false)}
@@ -91,7 +90,7 @@ export function Navbar() {
                 onClick={() => setIsVASPSection(true)}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   isVASPSection 
-                    ? 'bg-blue-600 text-white shadow-sm' 
+                    ? 'bg-orange-600 text-white shadow-sm' 
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white'
                 }`}
               >
@@ -99,8 +98,8 @@ export function Navbar() {
               </button>
             </div>
 
-            {/* Navigation Items - Better Layout with proper spacing */}
-            <div className="flex items-center space-x-6">
+            {/* Navigation Items - Better spacing */}
+            <div className="flex items-center space-x-8">
               {navItems.map((item) => (
                 <div key={item.name} className="relative">
                   {item.dropdown ? (
@@ -112,8 +111,8 @@ export function Navbar() {
                       <button
                         className={`flex items-center px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
                           isActive(item.path)
-                            ? 'text-blue-600 bg-blue-50'
-                            : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                            ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                            : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
                         }`}
                       >
                         {item.name}
@@ -125,7 +124,7 @@ export function Navbar() {
                             <Link
                               key={subItem.name}
                               to={subItem.path}
-                              className="block px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors border-l-2 border-transparent hover:border-blue-600"
+                              className={`block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} transition-colors border-l-2 border-transparent hover:border-${isVASPSection ? 'orange' : 'blue'}-600`}
                             >
                               {subItem.name}
                             </Link>
@@ -138,8 +137,8 @@ export function Navbar() {
                       to={item.path}
                       className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
                         isActive(item.path)
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                          ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                          : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
                       }`}
                     >
                       {item.name}
@@ -150,7 +149,7 @@ export function Navbar() {
             </div>
 
             <Link to="/website/login">
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 ml-6 rounded-lg font-medium">
+              <Button className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 ml-6 rounded-lg font-medium`}>
                 Sign In
               </Button>
             </Link>
@@ -187,7 +186,7 @@ export function Navbar() {
                   onClick={() => setIsVASPSection(true)}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     isVASPSection 
-                      ? 'bg-blue-600 text-white' 
+                      ? 'bg-orange-600 text-white' 
                       : 'text-gray-600'
                   }`}
                 >
@@ -201,8 +200,8 @@ export function Navbar() {
                     to={item.path}
                     className={`block px-3 py-2 text-base font-medium transition-colors rounded-md ${
                       isActive(item.path)
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-gray-700 hover:text-blue-600 hover:bg-gray-50'
+                        ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                        : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
                     }`}
                     onClick={() => setIsOpen(false)}
                   >
@@ -214,7 +213,7 @@ export function Navbar() {
                         <Link
                           key={subItem.name}
                           to={subItem.path}
-                          className="block px-3 py-2 text-sm text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors rounded-md"
+                          className={`block px-3 py-2 text-sm text-gray-600 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50 transition-colors rounded-md`}
                           onClick={() => setIsOpen(false)}
                         >
                           {subItem.name}
@@ -226,7 +225,7 @@ export function Navbar() {
               ))}
               <div className="pt-4">
                 <Link to="/website/login" onClick={() => setIsOpen(false)}>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button className={`w-full ${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
                     Sign In
                   </Button>
                 </Link>

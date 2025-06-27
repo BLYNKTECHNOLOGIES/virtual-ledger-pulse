@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -53,7 +54,7 @@ export function useUsers() {
           updated_at,
           password_hash,
           role_id,
-          role:roles(
+          roles!role_id(
             id,
             name,
             description
@@ -139,6 +140,7 @@ export function useUsers() {
       const validatedUsers = allUsers.map((user) => ({
         ...user,
         status: isValidStatus(user.status) ? user.status : "INACTIVE" as ValidStatus,
+        role: user.roles || null
       })) as DatabaseUser[];
 
       setUsers(validatedUsers);
@@ -357,7 +359,7 @@ export function useUsers() {
         throw new Error('You do not have permission to delete users');
       }
 
-      // Delete user from all related tables first
+      // Define tables that need cleanup - using only tables that exist in the database
       const tablesToCleanup = [
         'user_roles',
         'user_preferences', 
@@ -375,18 +377,18 @@ export function useUsers() {
       ];
 
       // Clean up related data
-      for (const table of tablesToCleanup) {
+      for (const tableName of tablesToCleanup) {
         try {
           const { error } = await supabase
-            .from(table)
+            .from(tableName as any)
             .delete()
             .eq('user_id', userId);
           
           if (error) {
-            console.warn(`Warning: Could not delete from ${table}:`, error);
+            console.warn(`Warning: Could not delete from ${tableName}:`, error);
           }
         } catch (error) {
-          console.warn(`Warning: Could not access table ${table}:`, error);
+          console.warn(`Warning: Could not access table ${tableName}:`, error);
         }
       }
 

@@ -45,6 +45,11 @@ export default function UserManagement() {
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
 
+  // Scroll to top when component mounts or tab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Filter users - show all users
   const filteredUsers = users.filter((user: DatabaseUser) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -276,7 +281,7 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm('Are you sure you want to deactivate this user?')) {
+    if (window.confirm('Are you sure you want to permanently delete this user and all related data? This action cannot be undone.')) {
       await deleteUser(userId);
     }
   };
@@ -292,6 +297,11 @@ export default function UserManagement() {
       default:
         return 'outline';
     }
+  };
+
+  // Handle tab change - scroll to top
+  const handleTabChange = (value: string) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // If user has no permissions to see any tabs, show access denied
@@ -353,7 +363,7 @@ export default function UserManagement() {
         <p className="text-gray-600 mt-1">Manage system users, online activity, and roles</p>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6" onValueChange={handleTabChange}>
         <TabsList className={`grid w-full grid-cols-${Math.min(visibleTabs.length, 3)}`}>
           {shouldShowTab('all-users') && (
             <TabsTrigger value="all-users" className="flex items-center gap-2">
@@ -458,8 +468,8 @@ export default function UserManagement() {
                                   </Button>
                                   <Button 
                                     size="sm" 
-                                    variant="outline" 
-                                    className="h-8 px-2 text-red-600 hover:text-red-700"
+                                    variant="destructive" 
+                                    className="h-8 px-2 bg-red-600 hover:bg-red-700 text-white"
                                     onClick={() => handleDeleteUser(user.id)}
                                   >
                                     <Trash2 className="h-3 w-3 mr-1" />

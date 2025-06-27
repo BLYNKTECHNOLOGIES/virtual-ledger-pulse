@@ -1,11 +1,17 @@
 
-import { Shield, Users, TrendingUp, CheckCircle, ArrowRight, Zap, Lock, Globe, CreditCard } from 'lucide-react';
+import { Shield, Users, TrendingUp, CheckCircle, ArrowRight, Zap, Lock, Globe, CreditCard, Star, Building, Award, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export function VASPHomePage() {
   const navigate = useNavigate();
+
+  // Scroll to top when component loads
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   const stats = [
     {
@@ -65,27 +71,30 @@ export function VASPHomePage() {
     }
   ];
 
-  const testimonials = [
+  const achievements = [
     {
-      name: "Rajesh Kumar",
-      role: "Crypto Trader",
-      company: "IndiaTrading Co.",
-      content: "The P2P platform is incredibly secure and user-friendly. I've completed over 200 trades without any issues.",
-      rating: 5
+      icon: Award,
+      title: "Industry Recognition",
+      description: "Recognized as a leading VASP service provider in India's growing cryptocurrency ecosystem.",
+      highlight: "Excellence Award"
     },
     {
-      name: "Priya Sharma",
-      role: "Compliance Officer",
-      company: "FinTech Solutions",
-      content: "Their KYC verification process is thorough and efficient. It helped us achieve full regulatory compliance.",
-      rating: 5
+      icon: Target,
+      title: "Precision & Accuracy",
+      description: "Our advanced algorithms ensure 99.9% accuracy in transaction processing and verification.",
+      highlight: "99.9% Accuracy"
     },
     {
-      name: "Amit Patel",
-      role: "Business Owner",
-      company: "Digital Assets Ltd.",
-      content: "Outstanding service and support. The team is knowledgeable and always available when needed.",
-      rating: 5
+      icon: Building,
+      title: "Enterprise Grade",
+      description: "Built for scale with enterprise-grade infrastructure supporting millions of transactions.",
+      highlight: "Enterprise Ready"
+    },
+    {
+      icon: Star,
+      title: "Customer Satisfaction",
+      description: "Maintaining highest customer satisfaction rates with 24/7 dedicated support.",
+      highlight: "5-Star Service"
     }
   ];
 
@@ -183,28 +192,25 @@ export function VASPHomePage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Achievements Section */}
       <section className="py-20 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-6">Client Success Stories</h2>
-            <p className="text-xl text-slate-300">See what our clients say about our VASP services</p>
+            <h2 className="text-4xl font-bold text-white mb-6">Our Achievements</h2>
+            <p className="text-xl text-slate-300">Excellence in every aspect of our VASP services</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="bg-slate-800 border-0">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {achievements.map((achievement, index) => (
+              <Card key={index} className="bg-slate-800 border-0 text-center">
                 <CardContent className="p-6">
-                  <div className="flex items-center mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <div key={i} className="text-yellow-400 text-xl">★</div>
-                    ))}
+                  <div className="bg-gradient-to-r from-orange-600 to-red-600 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <achievement.icon className="h-8 w-8 text-white" />
                   </div>
-                  <p className="text-slate-300 mb-4 italic">"{testimonial.content}"</p>
-                  <div className="border-t border-slate-600 pt-4">
-                    <div className="font-semibold text-white">{testimonial.name}</div>
-                    <div className="text-slate-400 text-sm">{testimonial.role}</div>
-                    <div className="text-slate-500 text-sm">{testimonial.company}</div>
+                  <h3 className="text-xl font-bold text-white mb-2">{achievement.title}</h3>
+                  <p className="text-slate-300 mb-4">{achievement.description}</p>
+                  <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                    {achievement.highlight}
                   </div>
                 </CardContent>
               </Card>

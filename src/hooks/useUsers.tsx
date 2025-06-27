@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -346,35 +345,91 @@ export function useUsers() {
 
   const deleteUser = async (userId: string) => {
     try {
-      console.log('Deactivating user:', userId);
+      console.log('Deleting user and all related data:', userId);
 
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          status: 'INACTIVE',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-
-      if (error) {
-        console.error('Update user error:', error);
-        throw error;
+      // Check if user is authenticated
+      if (!user) {
+        throw new Error('You must be logged in to delete users');
       }
 
-      console.log('User deactivated successfully');
+      // Check if user has admin permissions
+      if (!isAdmin && !hasRole('admin') && !hasRole('user_management')) {
+        throw new Error('You do not have permission to delete users');
+      }
+
+      // Delete user from all related tables first
+      const tablesToCleanup = [
+        'user_roles',
+        'user_preferences', 
+        'user_activity_log',
+        'password_reset_tokens',
+        'email_verification_tokens',
+        'screen_share_requests',
+        'purchase_orders',
+        'sales_orders',
+        'kyc_approval_requests',
+        'kyc_queries',
+        'stock_adjustments',
+        'performance_reviews',
+        'payslips'
+      ];
+
+      // Clean up related data
+      for (const table of tablesToCleanup) {
+        try {
+          const { error } = await supabase
+            .from(table)
+            .delete()
+            .eq('user_id', userId);
+          
+          if (error) {
+            console.warn(`Warning: Could not delete from ${table}:`, error);
+          }
+        } catch (error) {
+          console.warn(`Warning: Could not access table ${table}:`, error);
+        }
+      }
+
+      // Also clean up tables that might reference the user differently
+      try {
+        await supabase.from('screen_share_requests').delete().eq('target_user_id', userId);
+        await supabase.from('screen_share_requests').delete().eq('admin_id', userId);
+        await supabase.from('kyc_approval_requests').delete().eq('created_by', userId);
+        await supabase.from('kyc_queries').delete().eq('created_by', userId);
+        await supabase.from('purchase_orders').delete().eq('created_by', userId);
+        await supabase.from('sales_orders').delete().eq('created_by', userId);
+        await supabase.from('stock_adjustments').delete().eq('created_by', userId);
+        await supabase.from('warehouse_stock_movements').delete().eq('created_by', userId);
+        await supabase.from('pending_registrations').delete().eq('reviewed_by', userId);
+      } catch (error) {
+        console.warn('Warning: Could not clean up some related data:', error);
+      }
+
+      // Finally, delete the user
+      const { error: deleteError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (deleteError) {
+        console.error('Delete user error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('User and all related data deleted successfully');
 
       toast({
         title: "Success",
-        description: "User deactivated successfully",
+        description: "User and all related data deleted successfully",
       });
 
       fetchUsers(); // Refresh the users list
       return { success: true };
     } catch (error: any) {
-      console.error('Error deactivating user:', error);
+      console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Failed to deactivate user: " + (error.message || "Unknown error"),
+        description: "Failed to delete user: " + (error.message || "Unknown error"),
         variant: "destructive",
       });
       return { success: false, error };

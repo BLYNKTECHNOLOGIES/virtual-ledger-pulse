@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function LoginPage() {
   const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
@@ -14,6 +15,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,42 +23,16 @@ export function LoginPage() {
     setError('');
     
     try {
-      // Simple validation for demo credentials
-      if (email === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
-        // Store session data
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userRole', 'admin');
-        
-        // Set admin permissions
-        const adminPermissions = [
-          'dashboard_view',
-          'sales_view', 'sales_manage',
-          'purchase_view', 'purchase_manage',
-          'bams_view', 'bams_manage',
-          'clients_view', 'clients_manage',
-          'leads_view', 'leads_manage',
-          'user_management_view', 'user_management_manage',
-          'hrms_view', 'hrms_manage',
-          'payroll_view', 'payroll_manage',
-          'compliance_view', 'compliance_manage',
-          'stock_view', 'stock_manage',
-          'accounting_view', 'accounting_manage',
-          'video_kyc_view', 'video_kyc_manage',
-          'kyc_approvals_view', 'kyc_approvals_manage',
-          'statistics_view', 'statistics_manage'
-        ];
-        
-        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
-        
-        console.log('Login successful - stored permissions:', adminPermissions);
-        
-        // Redirect to dashboard
+      const success = await login({ email, password });
+      
+      if (success) {
+        // Redirect to dashboard on successful login
         navigate('/dashboard');
       } else {
-        setError('Invalid credentials. Please use the demo credentials provided.');
+        setError('Invalid email or password. Please check your credentials and try again.');
       }
     } catch (error) {
+      console.error('Login error:', error);
       setError('Login failed. Please try again.');
     } finally {
       setIsLoading(false);

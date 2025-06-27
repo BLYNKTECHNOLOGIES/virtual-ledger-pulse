@@ -61,7 +61,7 @@ export function NewVideoKYCTab() {
     fetchVideoKYCRequests();
   }, []);
 
-  const handleStartVideoKYC = (kyc: VideoKYCRequest) => {
+  const handleViewKYC = (kyc: VideoKYCRequest) => {
     setSelectedKYC(kyc);
     setSessionDialogOpen(true);
   };
@@ -148,11 +148,11 @@ export function NewVideoKYCTab() {
                 
                 <div className="flex gap-2">
                   <Button 
-                    onClick={() => handleStartVideoKYC(kyc)} 
+                    onClick={() => handleViewKYC(kyc)} 
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                   >
                     <Video className="h-4 w-4" />
-                    Start Video KYC Session
+                    Conduct Video KYC
                   </Button>
                 </div>
               </CardContent>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -44,17 +43,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       // For other users, try database authentication
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from('users')
-        .select('id, username, email, status, password_hash')
-        .eq('email', email.trim().toLowerCase())
-        .single();
-
-      if (userCheckError || !existingUser) {
-        console.log('User not found in database');
-        return null;
-      }
-
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
           input_username: email.trim().toLowerCase(),
@@ -62,7 +50,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
 
       if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
-        console.log('Invalid credentials');
+        console.log('Invalid credentials or user not found');
         return null;
       }
 
@@ -73,6 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return null;
       }
 
+      // Get user with roles using the RPC function
       const { data: userWithRoles, error: userRolesError } = await supabase
         .rpc('get_user_with_roles', {
           user_uuid: validationData.user_id
@@ -81,15 +70,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       let roles: string[] = [];
       if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
         const userRoleData = userWithRoles[0] as UserWithRoles;
-        if (userRoleData.roles) {
-          if (Array.isArray(userRoleData.roles)) {
-            roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
-          }
+        if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
+          roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+        }
+      }
+
+      // If no roles found, try to get from users table role_id
+      if (roles.length === 0) {
+        console.log('No roles found via user_roles, checking users.role_id...');
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select(`
+            *,
+            roles!role_id(id, name, description)
+          `)
+          .eq('id', validationData.user_id)
+          .single();
+
+        if (!userError && userData?.roles) {
+          roles = [userData.roles.name];
         }
       }
 
       if (roles.length === 0) {
-        roles = ['user'];
+        roles = ['user']; // Default role
       }
 
       const authenticatedUser: User = {
@@ -102,6 +106,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
 
       console.log('User authenticated successfully:', authenticatedUser);
+      console.log('User roles:', roles);
       return authenticatedUser;
     } catch (error) {
       console.error('Authentication error:', error);
@@ -191,33 +196,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('userEmail', authenticatedUser.email);
         localStorage.setItem('userRole', authenticatedUser.roles?.includes('admin') ? 'admin' : 'user');
         
-        // Store permissions
-        if (authenticatedUser.roles?.some(role => role.toLowerCase() === 'admin')) {
-          const adminPermissions = [
-            'dashboard_view',
-            'sales_view', 'sales_manage',
-            'purchase_view', 'purchase_manage',
-            'bams_view', 'bams_manage',
-            'clients_view', 'clients_manage',
-            'leads_view', 'leads_manage',
-            'user_management_view', 'user_management_manage',
-            'hrms_view', 'hrms_manage',
-            'payroll_view', 'payroll_manage',
-            'compliance_view', 'compliance_manage',
-            'stock_view', 'stock_manage',
-            'accounting_view', 'accounting_manage',
-            'video_kyc_view', 'video_kyc_manage',
-            'kyc_approvals_view', 'kyc_approvals_manage',
-            'statistics_view', 'statistics_manage'
-          ];
-          localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
-        }
-        
         console.log('Session stored successfully');
         
         toast({
           title: "Success",
-          description: `Logged in successfully as ${authenticatedUser.roles?.includes('admin') ? 'Administrator' : 'User'}`,
+          description: `Logged in successfully as ${authenticatedUser.roles?.join(', ') || 'User'}`,
         });
         
         return true;

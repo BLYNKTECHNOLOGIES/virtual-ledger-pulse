@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, Upload, FileText, Video, User, X, Plus, Eye } from "lucide-react";
+import { Star, Upload, FileText, User, X, Plus, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -103,6 +103,39 @@ export function VideoKYCSessionDialog({ open, onOpenChange, kycRequest, onSucces
     setShowSuccessForm(false);
   };
 
+  const uploadVideoFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `vkyc-videos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-documents')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('kyc-documents')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading video:', error);
+      toast({
+        title: "Upload Error",
+        description: "Failed to upload video file.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const handleSuccessSubmit = async () => {
     if (rating === 0) {
       toast({
@@ -116,12 +149,29 @@ export function VideoKYCSessionDialog({ open, onOpenChange, kycRequest, onSucces
     setIsSubmitting(true);
     
     try {
+      let videoUrl = null;
+      
+      // Upload video if provided
+      if (kycVideoFile) {
+        videoUrl = await uploadVideoFile(kycVideoFile);
+        if (!videoUrl) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       // Update KYC request status to PENDING with Video KYC completion details
+      const additionalInfo = `${kycRequest.additional_info || ''}\n\nVideo KYC Completed Successfully\nRating: ${rating}/10\nNotes: ${notes}${videoUrl ? `\nVideo URL: ${videoUrl}` : ''}`;
+      
       const { error } = await supabase
         .from('kyc_approval_requests')
         .update({ 
           status: 'PENDING',
-          additional_info: `${kycRequest.additional_info || ''}\n\nVideo KYC Completed Successfully\nRating: ${rating}/10\nNotes: ${notes}`
+          additional_info: additionalInfo,
+          // Store video URL in verified_feedback_url if no video exists there, otherwise use negative_feedback_url
+          ...(videoUrl && {
+            [kycRequest.verified_feedback_url ? 'negative_feedback_url' : 'verified_feedback_url']: videoUrl
+          })
         })
         .eq('id', kycRequest.id);
 
@@ -234,7 +284,7 @@ export function VideoKYCSessionDialog({ open, onOpenChange, kycRequest, onSucces
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5 text-blue-600" />
+            <User className="h-5 w-5 text-blue-600" />
             Video KYC Session - {kycRequest.counterparty_name}
           </DialogTitle>
         </DialogHeader>
@@ -401,6 +451,11 @@ export function VideoKYCSessionDialog({ open, onOpenChange, kycRequest, onSucces
                         onChange={(e) => setKycVideoFile(e.target.files?.[0] || null)}
                         className="mt-1"
                       />
+                      {kycVideoFile && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Selected: {kycVideoFile.name}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex gap-2">

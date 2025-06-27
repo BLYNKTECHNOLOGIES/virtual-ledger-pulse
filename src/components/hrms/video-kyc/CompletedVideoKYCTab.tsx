@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +75,27 @@ export function CompletedVideoKYCTab() {
     // For now, we'll use the created_at date as completion date
     // In a real scenario, you might want to add a completed_at field
     return new Date(createdAt).toLocaleDateString();
+  };
+
+  const getVKYCVideoUrl = (kyc: CompletedVideoKYC) => {
+    if (!kyc.additional_info) return null;
+    
+    // First check if there's a video URL in additional_info
+    const videoUrlMatch = kyc.additional_info.match(/Video URL: (https?:\/\/[^\s]+)/);
+    if (videoUrlMatch) {
+      return videoUrlMatch[1];
+    }
+    
+    // Fallback: check if verified_feedback_url or negative_feedback_url contains a video
+    if (kyc.verified_feedback_url && kyc.verified_feedback_url.includes('vkyc-videos')) {
+      return kyc.verified_feedback_url;
+    }
+    
+    if (kyc.negative_feedback_url && kyc.negative_feedback_url.includes('vkyc-videos')) {
+      return kyc.negative_feedback_url;
+    }
+    
+    return null;
   };
 
   if (loading) {
@@ -188,11 +208,11 @@ export function CompletedVideoKYCTab() {
             </DialogTitle>
           </DialogHeader>
           <div className="p-4">
-            {selectedKYC?.binance_id_screenshot_url ? (
+            {selectedKYC && getVKYCVideoUrl(selectedKYC) ? (
               <video 
                 controls 
                 className="w-full max-h-96"
-                src={selectedKYC.binance_id_screenshot_url}
+                src={getVKYCVideoUrl(selectedKYC)}
               >
                 Your browser does not support the video tag.
               </video>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,6 +188,27 @@ export function PendingKYCTab() {
     return kyc.additional_info?.includes('Video KYC Completed Successfully');
   };
 
+  const getVKYCVideoUrl = (kyc: KYCRequest) => {
+    if (!kyc.additional_info) return null;
+    
+    // First check if there's a video URL in additional_info
+    const videoUrlMatch = kyc.additional_info.match(/Video URL: (https?:\/\/[^\s]+)/);
+    if (videoUrlMatch) {
+      return videoUrlMatch[1];
+    }
+    
+    // Fallback: check if verified_feedback_url or negative_feedback_url contains a video
+    if (kyc.verified_feedback_url && kyc.verified_feedback_url.includes('vkyc-videos')) {
+      return kyc.verified_feedback_url;
+    }
+    
+    if (kyc.negative_feedback_url && kyc.negative_feedback_url.includes('vkyc-videos')) {
+      return kyc.negative_feedback_url;
+    }
+    
+    return null;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -309,7 +329,7 @@ export function PendingKYCTab() {
                     <Eye className="h-4 w-4" />
                     View Details
                   </Button>
-                  {isVideoKYCCompleted(kyc) && (
+                  {isVideoKYCCompleted(kyc) && getVKYCVideoUrl(kyc) && (
                     <Button variant="outline" size="sm" onClick={() => handleViewVideo(kyc)} className="flex items-center gap-2">
                       <Play className="h-4 w-4" />
                       View VKYC Video
@@ -368,11 +388,11 @@ export function PendingKYCTab() {
             </DialogTitle>
           </DialogHeader>
           <div className="p-4">
-            {selectedKYC?.binance_id_screenshot_url ? (
+            {selectedKYC && getVKYCVideoUrl(selectedKYC) ? (
               <video 
                 controls 
                 className="w-full max-h-96"
-                src={selectedKYC.binance_id_screenshot_url}
+                src={getVKYCVideoUrl(selectedKYC)}
               >
                 Your browser does not support the video tag.
               </video>

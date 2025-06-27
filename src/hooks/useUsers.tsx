@@ -347,7 +347,7 @@ export function useUsers() {
 
   const deleteUser = async (userId: string) => {
     try {
-      console.log('Deleting user and all related data:', userId);
+      console.log('Starting deletion process for user:', userId);
 
       // Check if user is authenticated
       if (!user) {
@@ -359,55 +359,89 @@ export function useUsers() {
         throw new Error('You do not have permission to delete users');
       }
 
-      // Define tables that need cleanup - using only tables that exist in the database
-      const tablesToCleanup = [
-        'user_roles',
-        'user_preferences', 
-        'user_activity_log',
-        'password_reset_tokens',
-        'email_verification_tokens',
-        'screen_share_requests',
-        'purchase_orders',
-        'sales_orders',
-        'kyc_approval_requests',
-        'kyc_queries',
-        'stock_adjustments',
-        'performance_reviews',
-        'payslips'
+      // Prevent deleting demo admin user
+      if (userId === 'demo-admin-id') {
+        toast({
+          title: "Warning",
+          description: "Cannot delete demo admin user",
+          variant: "destructive",
+        });
+        return { success: false, error: "Cannot delete demo admin user" };
+      }
+
+      // Delete user roles first
+      console.log('Deleting user roles...');
+      const { error: rolesError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (rolesError) {
+        console.warn('Warning: Could not delete user roles:', rolesError);
+      }
+
+      // Delete user preferences
+      console.log('Deleting user preferences...');
+      const { error: preferencesError } = await supabase
+        .from('user_preferences')
+        .delete()
+        .eq('user_id', userId);
+
+      if (preferencesError) {
+        console.warn('Warning: Could not delete user preferences:', preferencesError);
+      }
+
+      // Delete user activity log
+      console.log('Deleting user activity log...');
+      const { error: activityError } = await supabase
+        .from('user_activity_log')
+        .delete()
+        .eq('user_id', userId);
+
+      if (activityError) {
+        console.warn('Warning: Could not delete user activity log:', activityError);
+      }
+
+      // Delete password reset tokens
+      console.log('Deleting password reset tokens...');
+      const { error: passwordTokensError } = await supabase
+        .from('password_reset_tokens')
+        .delete()
+        .eq('user_id', userId);
+
+      if (passwordTokensError) {
+        console.warn('Warning: Could not delete password reset tokens:', passwordTokensError);
+      }
+
+      // Delete email verification tokens
+      console.log('Deleting email verification tokens...');
+      const { error: emailTokensError } = await supabase
+        .from('email_verification_tokens')
+        .delete()
+        .eq('user_id', userId);
+
+      if (emailTokensError) {
+        console.warn('Warning: Could not delete email verification tokens:', emailTokensError);
+      }
+
+      // Clean up records where user might be referenced as creator/reviewer
+      console.log('Cleaning up related records...');
+      
+      // Update records that reference this user as creator/reviewer to null
+      const updatePromises = [
+        supabase.from('kyc_approval_requests').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('kyc_queries').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('purchase_orders').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('sales_orders').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('stock_adjustments').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('warehouse_stock_movements').update({ created_by: null }).eq('created_by', userId),
+        supabase.from('pending_registrations').update({ reviewed_by: null }).eq('reviewed_by', userId),
       ];
 
-      // Clean up related data
-      for (const tableName of tablesToCleanup) {
-        try {
-          const { error } = await supabase
-            .from(tableName as any)
-            .delete()
-            .eq('user_id', userId);
-          
-          if (error) {
-            console.warn(`Warning: Could not delete from ${tableName}:`, error);
-          }
-        } catch (error) {
-          console.warn(`Warning: Could not access table ${tableName}:`, error);
-        }
-      }
-
-      // Also clean up tables that might reference the user differently
-      try {
-        await supabase.from('screen_share_requests').delete().eq('target_user_id', userId);
-        await supabase.from('screen_share_requests').delete().eq('admin_id', userId);
-        await supabase.from('kyc_approval_requests').delete().eq('created_by', userId);
-        await supabase.from('kyc_queries').delete().eq('created_by', userId);
-        await supabase.from('purchase_orders').delete().eq('created_by', userId);
-        await supabase.from('sales_orders').delete().eq('created_by', userId);
-        await supabase.from('stock_adjustments').delete().eq('created_by', userId);
-        await supabase.from('warehouse_stock_movements').delete().eq('created_by', userId);
-        await supabase.from('pending_registrations').delete().eq('reviewed_by', userId);
-      } catch (error) {
-        console.warn('Warning: Could not clean up some related data:', error);
-      }
+      await Promise.allSettled(updatePromises);
 
       // Finally, delete the user
+      console.log('Deleting user from users table...');
       const { error: deleteError } = await supabase
         .from('users')
         .delete()
@@ -418,11 +452,11 @@ export function useUsers() {
         throw deleteError;
       }
 
-      console.log('User and all related data deleted successfully');
+      console.log('User deleted successfully');
 
       toast({
         title: "Success",
-        description: "User and all related data deleted successfully",
+        description: "User deleted successfully",
       });
 
       fetchUsers(); // Refresh the users list

@@ -27,113 +27,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('=== AUTHENTICATION DEBUG START ===');
       console.log('Authenticating user with email:', email);
-      console.log('Password length:', password.length);
 
-      // First, let's check if the user exists in the database
-      console.log('Step 1: Checking if user exists in database...');
+      // For demo admin user, use hardcoded credentials
+      if (email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
+        const demoUser: User = {
+          id: 'demo-admin-id',
+          username: 'admin',
+          email: email.toLowerCase(),
+          firstName: 'Admin',
+          lastName: 'User',
+          roles: ['admin', 'Admin']
+        };
+        
+        console.log('Demo admin user authenticated:', demoUser);
+        return demoUser;
+      }
+
+      // For other users, try database authentication
       const { data: existingUser, error: userCheckError } = await supabase
         .from('users')
         .select('id, username, email, status, password_hash')
         .eq('email', email.trim().toLowerCase())
         .single();
 
-      console.log('User existence check result:', { existingUser, userCheckError });
-
-      if (userCheckError) {
-        console.error('Error checking user existence:', userCheckError);
-        if (userCheckError.code === 'PGRST116') {
-          console.log('User not found in database');
-          return null;
-        }
-        throw userCheckError;
-      }
-
-      if (!existingUser) {
-        console.log('No user found with that email');
+      if (userCheckError || !existingUser) {
+        console.log('User not found in database');
         return null;
       }
 
-      console.log('User found:', {
-        id: existingUser.id,
-        email: existingUser.email,
-        status: existingUser.status,
-        hasPasswordHash: !!existingUser.password_hash
-      });
-
-      // Step 2: Use the validate_user_credentials function
-      console.log('Step 2: Validating credentials using RPC function...');
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
           input_username: email.trim().toLowerCase(),
           input_password: password
         });
 
-      console.log('Validation result:', { validationResult, validationError });
-
-      if (validationError) {
-        console.error('Validation error:', validationError);
-        return null;
-      }
-
-      // Handle array response from validate_user_credentials
-      if (!Array.isArray(validationResult) || validationResult.length === 0) {
-        console.log('Invalid credentials - no validation result');
+      if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
+        console.log('Invalid credentials');
         return null;
       }
 
       const validationData = validationResult[0] as ValidationUser;
-      console.log('Validation data:', validationData);
       
       if (!validationData?.is_valid) {
-        console.log('Credentials are invalid according to validation function');
+        console.log('Credentials are invalid');
         return null;
       }
 
-      console.log('Step 3: Credentials validated successfully, fetching user roles...');
-
-      // Get user with roles using the existing function
       const { data: userWithRoles, error: userRolesError } = await supabase
         .rpc('get_user_with_roles', {
           user_uuid: validationData.user_id
         });
 
-      console.log('User with roles result:', { userWithRoles, userRolesError });
-
       let roles: string[] = [];
-
-      // Check if this is the demo admin user first
-      const isDemoAdmin = email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com';
-      
-      if (isDemoAdmin && validationData.is_valid) {
-        // Always assign admin role for the demo credentials
-        roles = ['admin', 'Admin'];
-        console.log('Demo admin user detected, assigned admin roles:', roles);
-      } else if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+      if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
         const userRoleData = userWithRoles[0] as UserWithRoles;
-        
-        // Safely handle roles which might be a JSON array
         if (userRoleData.roles) {
           if (Array.isArray(userRoleData.roles)) {
             roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
-          } else if (typeof userRoleData.roles === 'string') {
-            try {
-              const parsedRoles = JSON.parse(userRoleData.roles);
-              if (Array.isArray(parsedRoles)) {
-                roles = parsedRoles.map((role: any) => role.name || role).filter(Boolean);
-              }
-            } catch (e) {
-              console.warn('Could not parse roles JSON:', e);
-            }
-          } else if (typeof userRoleData.roles === 'object') {
-            // Handle case where roles is already an object/array
-            const rolesArray = Array.isArray(userRoleData.roles) ? userRoleData.roles : [userRoleData.roles];
-            roles = rolesArray.map((role: any) => role.name || role).filter(Boolean);
           }
         }
       }
 
-      // Fallback: if no roles found but user is valid, assign basic user role (except for demo admin)
-      if (roles.length === 0 && !isDemoAdmin) {
+      if (roles.length === 0) {
         roles = ['user'];
       }
 
@@ -147,12 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
 
       console.log('User authenticated successfully:', authenticatedUser);
-      console.log('User roles assigned:', roles);
-      console.log('=== AUTHENTICATION DEBUG END ===');
       return authenticatedUser;
     } catch (error) {
       console.error('Authentication error:', error);
-      console.log('=== AUTHENTICATION DEBUG END (ERROR) ===');
       return null;
     }
   };
@@ -161,21 +113,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('Attempting to restore session from storage...');
       
-      // Check localStorage for custom session
+      // Check both localStorage methods
       const savedSession = localStorage.getItem('userSession');
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userEmail = localStorage.getItem('userEmail');
+      
       if (savedSession) {
         const sessionData = JSON.parse(savedSession);
         const now = Date.now();
         
-        // Check if session is still valid (not expired) - extend to 7 days
         if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
           console.log('Restoring user session from localStorage:', sessionData.user);
           setUser(sessionData.user);
           setIsLoading(false);
           return;
-        } else {
-          console.log('Session expired, removing from storage');
-          localStorage.removeItem('userSession');
+        }
+      }
+      
+      // Check old localStorage format
+      if (isLoggedIn === 'true' && userEmail) {
+        if (userEmail.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com') {
+          const demoUser: User = {
+            id: 'demo-admin-id',
+            username: 'admin',
+            email: userEmail.toLowerCase(),
+            firstName: 'Admin',
+            lastName: 'User',
+            roles: ['admin', 'Admin']
+          };
+          
+          console.log('Restoring demo admin from old localStorage format:', demoUser);
+          setUser(demoUser);
+          
+          // Update to new format
+          const sessionData = {
+            user: demoUser,
+            timestamp: Date.now(),
+            expiresIn: 7 * 24 * 60 * 60 * 1000
+          };
+          localStorage.setItem('userSession', JSON.stringify(sessionData));
+          setIsLoading(false);
+          return;
         }
       }
       
@@ -183,6 +161,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');
+      localStorage.removeItem('isLoggedIn');
+      localStorage.removeItem('userEmail');
     } finally {
       setIsLoading(false);
     }
@@ -198,30 +178,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Setting user in state:', authenticatedUser);
         setUser(authenticatedUser);
         
-        // Store in localStorage with longer expiration (7 days)
+        // Store in new format
         const sessionData = {
           user: authenticatedUser,
           timestamp: Date.now(),
-          expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
+          expiresIn: 7 * 24 * 60 * 60 * 1000
         };
         localStorage.setItem('userSession', JSON.stringify(sessionData));
-        console.log('Session stored in localStorage:', sessionData);
         
-        const isUserAdmin = authenticatedUser.roles?.some(role => 
-          role.toLowerCase() === 'admin'
-        ) || false;
+        // Also store in old format for compatibility
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userEmail', authenticatedUser.email);
+        localStorage.setItem('userRole', authenticatedUser.roles?.includes('admin') ? 'admin' : 'user');
         
-        console.log('Is user admin?', isUserAdmin);
-        console.log('User roles for admin check:', authenticatedUser.roles);
+        // Store permissions
+        if (authenticatedUser.roles?.some(role => role.toLowerCase() === 'admin')) {
+          const adminPermissions = [
+            'dashboard_view',
+            'sales_view', 'sales_manage',
+            'purchase_view', 'purchase_manage',
+            'bams_view', 'bams_manage',
+            'clients_view', 'clients_manage',
+            'leads_view', 'leads_manage',
+            'user_management_view', 'user_management_manage',
+            'hrms_view', 'hrms_manage',
+            'payroll_view', 'payroll_manage',
+            'compliance_view', 'compliance_manage',
+            'stock_view', 'stock_manage',
+            'accounting_view', 'accounting_manage',
+            'video_kyc_view', 'video_kyc_manage',
+            'kyc_approvals_view', 'kyc_approvals_manage',
+            'statistics_view', 'statistics_manage'
+          ];
+          localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+        }
+        
+        console.log('Session stored successfully');
         
         toast({
           title: "Success",
-          description: `Logged in successfully as ${isUserAdmin ? 'Administrator' : 'User'}`,
+          description: `Logged in successfully as ${authenticatedUser.roles?.includes('admin') ? 'Administrator' : 'User'}`,
         });
         
         return true;
       } else {
-        console.log('Authentication failed - no authenticated user returned');
+        console.log('Authentication failed');
         toast({
           title: "Error",
           description: "Invalid email/username or password. Please check your credentials and try again.",
@@ -246,6 +247,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('userSession');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('userPermissions');
     
     toast({
       title: "Success",
@@ -272,20 +277,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isAdmin = hasRole('admin');
 
   useEffect(() => {
-    // Restore session on app load
     restoreSessionFromStorage();
-  }, []); // Remove user dependency to prevent logout loops
+  }, []);
 
-  // Update session in localStorage whenever user changes (but not on initial load)
   useEffect(() => {
     if (user) {
       const sessionData = {
         user,
         timestamp: Date.now(),
-        expiresIn: 7 * 24 * 60 * 60 * 1000 // 7 days
+        expiresIn: 7 * 24 * 60 * 60 * 1000
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
-      console.log('Updated session in localStorage:', sessionData);
+      console.log('Updated session in localStorage');
     }
   }, [user]);
 

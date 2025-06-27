@@ -1,56 +1,71 @@
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 export function usePermissions() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading: authLoading } = useAuth();
 
   const fetchPermissions = () => {
     try {
       setIsLoading(true);
       
-      // Check if user is logged in
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      const userEmail = localStorage.getItem('userEmail');
-      const storedPermissions = localStorage.getItem('userPermissions');
+      console.log('usePermissions - fetchPermissions called');
+      console.log('usePermissions - user:', user);
+      console.log('usePermissions - authLoading:', authLoading);
       
-      console.log('usePermissions - isLoggedIn:', isLoggedIn);
-      console.log('usePermissions - userEmail:', userEmail);
-      console.log('usePermissions - storedPermissions:', storedPermissions);
+      if (authLoading) {
+        console.log('usePermissions - still loading auth, waiting...');
+        return;
+      }
       
-      if (isLoggedIn === 'true' && userEmail) {
+      if (!user) {
+        console.log('usePermissions - no user found');
+        setPermissions([]);
+        return;
+      }
+      
+      // Check if user is admin
+      const isAdmin = user.roles?.some(role => role.toLowerCase() === 'admin');
+      console.log('usePermissions - isAdmin:', isAdmin);
+      
+      if (isAdmin) {
+        const adminPermissions = [
+          'dashboard_view',
+          'sales_view', 'sales_manage',
+          'purchase_view', 'purchase_manage',
+          'bams_view', 'bams_manage',
+          'clients_view', 'clients_manage',
+          'leads_view', 'leads_manage',
+          'user_management_view', 'user_management_manage',
+          'hrms_view', 'hrms_manage',
+          'payroll_view', 'payroll_manage',
+          'compliance_view', 'compliance_manage',
+          'stock_view', 'stock_manage',
+          'accounting_view', 'accounting_manage',
+          'video_kyc_view', 'video_kyc_manage',
+          'kyc_approvals_view', 'kyc_approvals_manage',
+          'statistics_view', 'statistics_manage'
+        ];
+        console.log('usePermissions - setting admin permissions:', adminPermissions);
+        setPermissions(adminPermissions);
+        
+        // Also store in localStorage for compatibility
+        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+      } else {
+        // For non-admin users, try to get from localStorage or set basic permissions
+        const storedPermissions = localStorage.getItem('userPermissions');
         if (storedPermissions) {
           const parsedPermissions = JSON.parse(storedPermissions);
-          console.log('usePermissions - parsed permissions:', parsedPermissions);
+          console.log('usePermissions - using stored permissions:', parsedPermissions);
           setPermissions(parsedPermissions);
         } else {
-          // Fallback for admin user
-          const isAdmin = userEmail === 'blynkvirtualtechnologiespvtld@gmail.com';
-          if (isAdmin) {
-            const adminPermissions = [
-              'dashboard_view',
-              'sales_view', 'sales_manage',
-              'purchase_view', 'purchase_manage',
-              'bams_view', 'bams_manage',
-              'clients_view', 'clients_manage',
-              'leads_view', 'leads_manage',
-              'user_management_view', 'user_management_manage',
-              'hrms_view', 'hrms_manage',
-              'payroll_view', 'payroll_manage',
-              'compliance_view', 'compliance_manage',
-              'stock_view', 'stock_manage',
-              'accounting_view', 'accounting_manage',
-              'video_kyc_view', 'video_kyc_manage',
-              'kyc_approvals_view', 'kyc_approvals_manage',
-              'statistics_view', 'statistics_manage'
-            ];
-            setPermissions(adminPermissions);
-            // Store for future use
-            localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
-          }
+          // Basic user permissions
+          const basicPermissions = ['dashboard_view'];
+          console.log('usePermissions - setting basic permissions:', basicPermissions);
+          setPermissions(basicPermissions);
         }
-      } else {
-        setPermissions([]);
       }
     } catch (error) {
       console.error('Error fetching permissions:', error);
@@ -79,8 +94,9 @@ export function usePermissions() {
   };
 
   useEffect(() => {
+    console.log('usePermissions - useEffect triggered, user changed:', user);
     fetchPermissions();
-  }, []);
+  }, [user, authLoading]);
 
   console.log('usePermissions - current permissions:', permissions);
   console.log('usePermissions - isLoading:', isLoading);

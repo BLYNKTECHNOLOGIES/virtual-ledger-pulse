@@ -63,7 +63,7 @@ export function ContactPage() {
                   />
                 </div>
                 
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-3">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-3 text-white">
                   Send Message
                 </Button>
               </form>
@@ -125,10 +125,20 @@ export function ContactPage() {
                 </div>
               </div>
 
-              {/* Map */}
+              {/* Interactive Map */}
               <div className="mt-12">
-                <div className="bg-gray-200 rounded-lg h-64 flex items-center justify-center">
-                  <p className="text-gray-600">Interactive Map Coming Soon</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Find Us Here</h3>
+                <div className="rounded-lg overflow-hidden shadow-lg">
+                  <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3665.4989775!2d77.43186!3d23.23053!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjPCsDEzJzUwLjAiTiA3N8KwMjYnMDIuMCJF!5e0!3m2!1sen!2sin!4v1640000000000!5m2!1sen!2sin"
+                    width="100%"
+                    height="300"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    className="w-full"
+                  ></iframe>
                 </div>
               </div>
             </div>

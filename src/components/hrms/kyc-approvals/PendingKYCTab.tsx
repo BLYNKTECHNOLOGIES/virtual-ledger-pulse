@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus } from "lucide-react";
+import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus, FileText } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
 import { CreateKYCRequestDialog } from "./CreateKYCRequestDialog";
 import { CreateQueryDialog } from "./CreateQueryDialog";
@@ -25,6 +24,14 @@ interface KYCRequest {
   status: string;
   created_at: string;
   created_by: string | null;
+  kyc_queries?: Array<{
+    id: string;
+    resolved: boolean;
+    response_text: string | null;
+    resolved_at: string | null;
+    manual_query: string | null;
+    vkyc_required: boolean;
+  }>;
 }
 
 export function PendingKYCTab() {
@@ -40,7 +47,17 @@ export function PendingKYCTab() {
     try {
       const { data, error } = await supabase
         .from('kyc_approval_requests')
-        .select('*')
+        .select(`
+          *,
+          kyc_queries (
+            id,
+            resolved,
+            response_text,
+            resolved_at,
+            manual_query,
+            vkyc_required
+          )
+        `)
         .eq('status', 'PENDING')
         .order('created_at', { ascending: false });
 
@@ -204,6 +221,42 @@ export function PendingKYCTab() {
                   <div className="mb-4 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
                     <p className="text-sm font-medium text-blue-800">Additional Info:</p>
                     <p className="text-sm text-blue-700">{kyc.additional_info}</p>
+                  </div>
+                )}
+                
+                {kyc.kyc_queries && kyc.kyc_queries.length > 0 && (
+                  <div className="mb-4">
+                    {kyc.kyc_queries.map((query) => (
+                      query.resolved && (
+                        <div key={query.id} className="p-3 bg-green-50 rounded border-l-4 border-green-400 mb-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-green-800 flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                Query Resolution
+                                {query.resolved_at && (
+                                  <span className="text-xs text-green-600 font-normal">
+                                    • Resolved {new Date(query.resolved_at).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </p>
+                              {query.response_text && (
+                                <p className="text-sm text-green-700 mt-1">{query.response_text}</p>
+                              )}
+                              {query.manual_query && (
+                                <div className="mt-2 text-xs text-green-600">
+                                  <span className="font-medium">Original Query: </span>
+                                  {query.manual_query}
+                                </div>
+                              )}
+                            </div>
+                            <Badge variant="outline" className="text-green-600 border-green-600">
+                              RESOLVED
+                            </Badge>
+                          </div>
+                        </div>
+                      )
+                    ))}
                   </div>
                 )}
                 

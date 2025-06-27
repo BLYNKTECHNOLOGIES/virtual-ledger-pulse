@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus, FileText, Video } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus, FileText, Video, Play } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
 import { CreateKYCRequestDialog } from "./CreateKYCRequestDialog";
 import { CreateQueryDialog } from "./CreateQueryDialog";
@@ -39,6 +40,7 @@ export function PendingKYCTab() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [createRequestOpen, setCreateRequestOpen] = useState(false);
   const [createQueryOpen, setCreateQueryOpen] = useState(false);
+  const [videoViewerOpen, setVideoViewerOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<KYCRequest | null>(null);
   const [kycRequests, setKycRequests] = useState<KYCRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,6 +88,11 @@ export function PendingKYCTab() {
   const handleViewDetails = (kyc: KYCRequest) => {
     setSelectedKYC(kyc);
     setDetailsDialogOpen(true);
+  };
+
+  const handleViewVideo = (kyc: KYCRequest) => {
+    setSelectedKYC(kyc);
+    setVideoViewerOpen(true);
   };
 
   const handleApprove = async (kycId: string) => {
@@ -178,6 +185,10 @@ export function PendingKYCTab() {
     await fetchKYCRequests();
   };
 
+  const isVideoKYCCompleted = (kyc: KYCRequest) => {
+    return kyc.additional_info?.includes('Video KYC Completed Successfully');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -214,6 +225,11 @@ export function PendingKYCTab() {
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
                     {kyc.counterparty_name}
+                    {isVideoKYCCompleted(kyc) && (
+                      <Badge variant="outline" className="text-blue-600 border-blue-600">
+                        VKYC COMPLETED
+                      </Badge>
+                    )}
                   </CardTitle>
                   <Badge variant="secondary">PENDING</Badge>
                 </div>
@@ -293,6 +309,12 @@ export function PendingKYCTab() {
                     <Eye className="h-4 w-4" />
                     View Details
                   </Button>
+                  {isVideoKYCCompleted(kyc) && (
+                    <Button variant="outline" size="sm" onClick={() => handleViewVideo(kyc)} className="flex items-center gap-2">
+                      <Play className="h-4 w-4" />
+                      View VKYC Video
+                    </Button>
+                  )}
                   <Button size="sm" onClick={() => handleApprove(kyc.id)} className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
                     <CheckCircle className="h-4 w-4" />
                     Approve
@@ -305,10 +327,12 @@ export function PendingKYCTab() {
                     <MessageSquare className="h-4 w-4" />
                     Query
                   </Button>
-                  <Button size="sm" onClick={() => handleStartVideoKYC(kyc.id)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
-                    <Video className="h-4 w-4" />
-                    Start Video KYC
-                  </Button>
+                  {!isVideoKYCCompleted(kyc) && (
+                    <Button size="sm" onClick={() => handleStartVideoKYC(kyc.id)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+                      <Video className="h-4 w-4" />
+                      Start Video KYC
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -334,6 +358,33 @@ export function PendingKYCTab() {
         kycRequest={selectedKYC}
         onSuccess={handleQueryCreated}
       />
+
+      {/* Video Viewer Dialog */}
+      <Dialog open={videoViewerOpen} onOpenChange={setVideoViewerOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>
+              VKYC Recording - {selectedKYC?.counterparty_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-4">
+            {selectedKYC?.binance_id_screenshot_url ? (
+              <video 
+                controls 
+                className="w-full max-h-96"
+                src={selectedKYC.binance_id_screenshot_url}
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="text-center p-8 text-gray-500">
+                <Video className="h-12 w-12 mx-auto mb-4" />
+                <p>No VKYC recording available for this request.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './components/website/pages/HomePage';
@@ -22,6 +21,7 @@ import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import Dashboard from './pages/Dashboard';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
+import { AuthProvider } from './hooks/useAuth';
 import { AuthCheck } from './components/AuthCheck';
 
 const router = createBrowserRouter([
@@ -101,11 +101,13 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <QueryProvider>
-        <AuthCheck>
-          <Layout>
-            <Dashboard />
-          </Layout>
-        </AuthCheck>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Dashboard />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
       </QueryProvider>
     ),
   },

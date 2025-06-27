@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Eye, Calendar } from "lucide-react";
+import { User, Eye, Calendar, CreditCard } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
+import { KYCTimelineDialog } from "./KYCTimelineDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,12 +24,22 @@ interface KYCRequest {
   status: string;
   created_at: string;
   updated_at: string;
+  kyc_queries?: Array<{
+    id: string;
+    resolved: boolean;
+    response_text: string | null;
+    resolved_at: string | null;
+    manual_query: string | null;
+    vkyc_required: boolean;
+    created_at: string;
+  }>;
 }
 
 export function AcceptedKYCTab() {
   const [kycRequests, setKycRequests] = useState<KYCRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<KYCRequest | null>(null);
   const { toast } = useToast();
 
@@ -36,7 +47,18 @@ export function AcceptedKYCTab() {
     try {
       const { data, error } = await supabase
         .from('kyc_approval_requests')
-        .select('*')
+        .select(`
+          *,
+          kyc_queries (
+            id,
+            resolved,
+            response_text,
+            resolved_at,
+            manual_query,
+            vkyc_required,
+            created_at
+          )
+        `)
         .eq('status', 'APPROVED')
         .order('updated_at', { ascending: false });
 
@@ -64,6 +86,26 @@ export function AcceptedKYCTab() {
   const handleViewDetails = (kyc: KYCRequest) => {
     setSelectedKYC(kyc);
     setDetailsDialogOpen(true);
+  };
+
+  const handleViewTimeline = (kyc: KYCRequest) => {
+    setSelectedKYC(kyc);
+    setTimelineDialogOpen(true);
+  };
+
+  const handleProceedPayment = (kyc: KYCRequest) => {
+    // This could navigate to a payment processing page or open a payment dialog
+    toast({
+      title: "Payment Processing",
+      description: `Proceeding with payment for ${kyc.counterparty_name} - ₹${kyc.order_amount.toLocaleString()}`,
+    });
+    
+    // You can implement actual payment logic here
+    console.log('Proceeding with payment for:', kyc);
+  };
+
+  const isVideoKYCCompleted = (kyc: KYCRequest) => {
+    return kyc.additional_info?.includes('Video KYC Completed Successfully');
   };
 
   if (loading) {
@@ -101,6 +143,11 @@ export function AcceptedKYCTab() {
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
                     {kyc.counterparty_name}
+                    {isVideoKYCCompleted(kyc) && (
+                      <Badge variant="outline" className="text-purple-600 border-purple-600">
+                        VKYC COMPLETED
+                      </Badge>
+                    )}
                   </CardTitle>
                   <Badge className="bg-green-100 text-green-800">APPROVED</Badge>
                 </div>
@@ -129,12 +176,13 @@ export function AcceptedKYCTab() {
                   {kyc.aadhar_front_url && <Badge variant="outline" className="text-green-600">Aadhar Front</Badge>}
                   {kyc.aadhar_back_url && <Badge variant="outline" className="text-green-600">Aadhar Back</Badge>}
                   <Badge variant="outline" className="text-blue-600">Binance ID</Badge>
-                  {kyc.verified_feedback_url && <Badge variant="outline" className="text-green-600">Verified Feedback</Badge>}
-                  {kyc.negative_feedback_url && <Badge variant="outline" className="text-red-600">Negative Feedback</Badge>}
+                  {kyc.verified_feedback_url && !kyc.verified_feedback_url.includes('vkyc-videos') && <Badge variant="outline" className="text-green-600">Verified Feedback</Badge>}
+                  {kyc.negative_feedback_url && !kyc.negative_feedback_url.includes('vkyc-videos') && <Badge variant="outline" className="text-red-600">Negative Feedback</Badge>}
                   {kyc.additional_documents_url && <Badge variant="outline" className="text-purple-600">Additional Docs</Badge>}
+                  {isVideoKYCCompleted(kyc) && <Badge variant="outline" className="text-purple-600">VKYC Recording</Badge>}
                 </div>
 
-                {kyc.additional_info && (
+                {kyc.additional_info && !isVideoKYCCompleted(kyc) && (
                   <div className="mb-4 p-2 bg-blue-50 rounded border-l-4 border-blue-400">
                     <p className="text-sm font-medium text-blue-800">Additional Info:</p>
                     <p className="text-sm text-blue-700">{kyc.additional_info}</p>
@@ -146,9 +194,17 @@ export function AcceptedKYCTab() {
                     <Eye className="h-4 w-4" />
                     View Details
                   </Button>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleViewTimeline(kyc)} className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     View Timeline
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleProceedPayment(kyc)} 
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Proceed for Payment
                   </Button>
                 </div>
               </CardContent>
@@ -160,6 +216,12 @@ export function AcceptedKYCTab() {
       <KYCDetailsDialog
         open={detailsDialogOpen}
         onOpenChange={setDetailsDialogOpen}
+        kycRequest={selectedKYC}
+      />
+
+      <KYCTimelineDialog
+        open={timelineDialogOpen}
+        onOpenChange={setTimelineDialogOpen}
         kycRequest={selectedKYC}
       />
     </div>

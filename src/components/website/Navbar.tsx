@@ -65,7 +65,7 @@ export function Navbar() {
   };
 
   const handleLoginClick = () => {
-    navigate('/dashboard');
+    navigate('/website/login');
   };
 
   return (

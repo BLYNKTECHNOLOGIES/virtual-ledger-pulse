@@ -13,9 +13,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { User, LogOut, Settings, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function UserMenu() {
   const { user, logout, isAdmin, hasRole } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -29,8 +31,19 @@ export function UserMenu() {
     return 'U';
   };
 
-  const handleLogout = () => {
-    logout();
+  const getDisplayName = () => {
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.firstName) {
+      return user.firstName;
+    }
+    return user.username || user.email;
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/website/vasp-home');
   };
 
   return (
@@ -54,9 +67,7 @@ export function UserMenu() {
           <div className="flex flex-col space-y-1">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium leading-none">
-                {user.firstName && user.lastName 
-                  ? `${user.firstName} ${user.lastName}` 
-                  : user.username}
+                {getDisplayName()}
               </p>
               {isAdmin && (
                 <Badge variant="destructive" className="text-xs">

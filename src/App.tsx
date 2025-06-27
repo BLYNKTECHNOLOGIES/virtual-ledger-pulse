@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './components/website/pages/HomePage';
@@ -19,6 +20,23 @@ import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import Dashboard from './pages/Dashboard';
+import Sales from './pages/Sales';
+import Purchase from './pages/Purchase';
+import BAMS from './pages/BAMS';
+import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
+import Leads from './pages/Leads';
+import UserManagement from './pages/UserManagement';
+import HRMS from './pages/HRMS';
+import Payroll from './pages/Payroll';
+import Compliance from './pages/Compliance';
+import StockManagement from './pages/StockManagement';
+import Accounting from './pages/Accounting';
+import VideoKYC from './pages/VideoKYC';
+import KYCApprovals from './pages/KYCApprovals';
+import Statistics from './pages/Statistics';
+import Banking from './pages/Banking';
+import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './hooks/useAuth';
@@ -97,6 +115,7 @@ const router = createBrowserRouter([
     path: "/website/vasp/security",
     element: <WebsiteLayout><VASPSecurityPage /></WebsiteLayout>,
   },
+  // ERP System Routes - All protected with authentication
   {
     path: "/dashboard",
     element: (
@@ -110,6 +129,235 @@ const router = createBrowserRouter([
         </AuthProvider>
       </QueryProvider>
     ),
+  },
+  {
+    path: "/sales",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Sales />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/purchase",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Purchase />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/bams",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <BAMS />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/clients",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Clients />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/clients/:id",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <ClientDetail />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/leads",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Leads />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/user-management",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <UserManagement />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/hrms",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <HRMS />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/payroll",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Payroll />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/compliance",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Compliance />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/stock",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <StockManagement />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/accounting",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Accounting />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/video-kyc",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <VideoKYC />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/kyc-approvals",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <KYCApprovals />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/statistics",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Statistics />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/banking",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Banking />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  // Catch-all route for 404 errors
+  {
+    path: "*",
+    element: <NotFound />,
   },
 ]);
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export function LoginPage() {
   const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
@@ -15,7 +15,6 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,14 +22,156 @@ export function LoginPage() {
     setError('');
     
     try {
-      const success = await login({ email, password });
-      
-      if (success) {
-        // Redirect to dashboard on successful login
+      // Check demo admin credentials first
+      if (email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
+        // Store session data for demo admin
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userEmail', email.toLowerCase());
+        localStorage.setItem('userRole', 'admin');
+        
+        // Set admin permissions
+        const adminPermissions = [
+          'dashboard_view',
+          'sales_view', 'sales_manage',
+          'purchase_view', 'purchase_manage',
+          'bams_view', 'bams_manage',
+          'clients_view', 'clients_manage',
+          'leads_view', 'leads_manage',
+          'user_management_view', 'user_management_manage',
+          'hrms_view', 'hrms_manage',
+          'payroll_view', 'payroll_manage',
+          'compliance_view', 'compliance_manage',
+          'stock_view', 'stock_manage',
+          'accounting_view', 'accounting_manage',
+          'video_kyc_view', 'video_kyc_manage',
+          'kyc_approvals_view', 'kyc_approvals_manage',
+          'statistics_view', 'statistics_manage'
+        ];
+        
+        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+        
+        // Store user session in new format
+        const sessionData = {
+          user: {
+            id: 'demo-admin-id',
+            username: 'admin',
+            email: email.toLowerCase(),
+            firstName: 'Admin',
+            lastName: 'User',
+            roles: ['admin', 'Admin']
+          },
+          timestamp: Date.now(),
+          expiresIn: 7 * 24 * 60 * 60 * 1000
+        };
+        localStorage.setItem('userSession', JSON.stringify(sessionData));
+        
+        console.log('Demo admin login successful');
         navigate('/dashboard');
-      } else {
-        setError('Invalid email or password. Please check your credentials and try again.');
+        return;
       }
+
+      // Try database authentication for other users
+      console.log('Attempting database authentication for:', email);
+      
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, username, email, status, password_hash')
+        .eq('email', email.trim().toLowerCase())
+        .single();
+
+      if (userCheckError || !existingUser) {
+        console.log('User not found in database');
+        setError('Invalid email or password. Please check your credentials and try again.');
+        return;
+      }
+
+      const { data: validationResult, error: validationError } = await supabase
+        .rpc('validate_user_credentials', {
+          input_username: email.trim().toLowerCase(),
+          input_password: password
+        });
+
+      if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
+        console.log('Invalid credentials');
+        setError('Invalid email or password. Please check your credentials and try again.');
+        return;
+      }
+
+      const validationData = validationResult[0];
+      
+      if (!validationData?.is_valid) {
+        console.log('Credentials are invalid');
+        setError('Invalid email or password. Please check your credentials and try again.');
+        return;
+      }
+
+      // Get user roles
+      const { data: userWithRoles, error: userRolesError } = await supabase
+        .rpc('get_user_with_roles', {
+          user_uuid: validationData.user_id
+        });
+
+      let roles: string[] = [];
+      if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+        const userRoleData = userWithRoles[0];
+        if (userRoleData.roles) {
+          if (Array.isArray(userRoleData.roles)) {
+            roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+          }
+        }
+      }
+
+      if (roles.length === 0) {
+        roles = ['user'];
+      }
+
+      const authenticatedUser = {
+        id: validationData.user_id,
+        username: validationData.username || email,
+        email: validationData.email || email,
+        firstName: validationData.first_name || undefined,
+        lastName: validationData.last_name || undefined,
+        roles
+      };
+
+      // Store session data
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userEmail', authenticatedUser.email);
+      localStorage.setItem('userRole', authenticatedUser.roles?.includes('admin') ? 'admin' : 'user');
+      
+      // Store user session in new format
+      const sessionData = {
+        user: authenticatedUser,
+        timestamp: Date.now(),
+        expiresIn: 7 * 24 * 60 * 60 * 1000
+      };
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+      
+      // Store permissions
+      if (authenticatedUser.roles?.some(role => role.toLowerCase() === 'admin')) {
+        const adminPermissions = [
+          'dashboard_view',
+          'sales_view', 'sales_manage',
+          'purchase_view', 'purchase_manage',
+          'bams_view', 'bams_manage',
+          'clients_view', 'clients_manage',
+          'leads_view', 'leads_manage',
+          'user_management_view', 'user_management_manage',
+          'hrms_view', 'hrms_manage',
+          'payroll_view', 'payroll_manage',
+          'compliance_view', 'compliance_manage',
+          'stock_view', 'stock_manage',
+          'accounting_view', 'accounting_manage',
+          'video_kyc_view', 'video_kyc_manage',
+          'kyc_approvals_view', 'kyc_approvals_manage',
+          'statistics_view', 'statistics_manage'
+        ];
+        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+      }
+
+      console.log('User authenticated successfully:', authenticatedUser);
+      navigate('/dashboard');
+      
     } catch (error) {
       console.error('Login error:', error);
       setError('Login failed. Please try again.');

@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus, FileText } from "lucide-react";
+import { User, Eye, CheckCircle, XCircle, MessageSquare, Plus, FileText, Video } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
 import { CreateKYCRequestDialog } from "./CreateKYCRequestDialog";
 import { CreateQueryDialog } from "./CreateQueryDialog";
@@ -146,6 +147,33 @@ export function PendingKYCTab() {
     setCreateQueryOpen(true);
   };
 
+  const handleStartVideoKYC = async (kycId: string) => {
+    try {
+      const { error } = await supabase
+        .from('kyc_approval_requests')
+        .update({ status: 'VIDEO_KYC' })
+        .eq('id', kycId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Video KYC Started",
+        description: "KYC request has been moved to Video KYC tab.",
+      });
+
+      fetchKYCRequests();
+    } catch (error) {
+      console.error('Error starting Video KYC:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start Video KYC.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleQueryCreated = async () => {
     await fetchKYCRequests();
   };
@@ -276,6 +304,10 @@ export function PendingKYCTab() {
                   <Button variant="outline" size="sm" onClick={() => handleQuery(kyc)} className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Query
+                  </Button>
+                  <Button size="sm" onClick={() => handleStartVideoKYC(kyc.id)} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700">
+                    <Video className="h-4 w-4" />
+                    Start Video KYC
                   </Button>
                 </div>
               </CardContent>

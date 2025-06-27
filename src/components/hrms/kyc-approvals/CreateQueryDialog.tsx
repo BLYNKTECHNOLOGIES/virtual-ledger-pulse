@@ -35,33 +35,51 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest, onSuccess }:
     setIsSubmitting(true);
     
     try {
-      // Create the query
-      const { error: queryError } = await supabase
-        .from('kyc_queries')
-        .insert({
-          kyc_request_id: kycRequest?.id,
-          vkyc_required: vkycRequired,
-          manual_query: manualQuery.trim() || null,
+      // If VKYC is required, move to Video KYC tab
+      if (vkycRequired) {
+        // Update the KYC request status to VIDEO_KYC
+        const { error: updateError } = await supabase
+          .from('kyc_approval_requests')
+          .update({ status: 'VIDEO_KYC' })
+          .eq('id', kycRequest?.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        toast({
+          title: "Moved to Video KYC",
+          description: "KYC request has been moved to Video KYC tab for video verification.",
         });
+      } else {
+        // Only manual query - create query and move to QUERIED
+        const { error: queryError } = await supabase
+          .from('kyc_queries')
+          .insert({
+            kyc_request_id: kycRequest?.id,
+            vkyc_required: false,
+            manual_query: manualQuery.trim(),
+          });
 
-      if (queryError) {
-        throw queryError;
+        if (queryError) {
+          throw queryError;
+        }
+
+        // Update the KYC request status to QUERIED
+        const { error: updateError } = await supabase
+          .from('kyc_approval_requests')
+          .update({ status: 'QUERIED' })
+          .eq('id', kycRequest?.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        toast({
+          title: "Query Raised",
+          description: "Query has been raised successfully for this KYC request.",
+        });
       }
-
-      // Update the KYC request status to QUERIED
-      const { error: updateError } = await supabase
-        .from('kyc_approval_requests')
-        .update({ status: 'QUERIED' })
-        .eq('id', kycRequest?.id);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      toast({
-        title: "Query Raised",
-        description: "Query has been raised successfully for this KYC request.",
-      });
 
       // Reset form
       setVkycRequired(false);
@@ -73,7 +91,7 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest, onSuccess }:
       console.error('Error creating query:', error);
       toast({
         title: "Error",
-        description: "Failed to raise query. Please try again.",
+        description: "Failed to process request. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -138,7 +156,7 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest, onSuccess }:
               className="flex-1"
               disabled={(!vkycRequired && !manualQuery.trim()) || isSubmitting}
             >
-              {isSubmitting ? "Raising Query..." : "Raise Query"}
+              {isSubmitting ? "Processing..." : "Submit"}
             </Button>
           </div>
         </div>

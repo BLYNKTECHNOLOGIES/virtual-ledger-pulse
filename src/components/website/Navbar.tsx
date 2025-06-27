@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -18,8 +18,14 @@ export function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [isVASPSection, setIsVASPSection] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Auto-scroll to top when route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const itNavItems: NavItem[] = [
     { name: 'Home', path: '/website' },
@@ -35,7 +41,7 @@ export function Navbar() {
       ]
     },
     { name: 'About', path: '/website/about' },
-    { name: 'Portfolio', path: '/website/portfolio' },
+    { name: 'Contact Us', path: '/website/contact' },
   ];
 
   const vaspNavItems: NavItem[] = [
@@ -47,6 +53,20 @@ export function Navbar() {
   ];
 
   const navItems = isVASPSection ? vaspNavItems : itNavItems;
+
+  const handleSectionToggle = (isVasp: boolean) => {
+    setIsVASPSection(isVasp);
+    // Auto-navigate to section home page
+    if (isVasp) {
+      navigate('/website/vasp-home');
+    } else {
+      navigate('/website');
+    }
+  };
+
+  const handleLoginClick = () => {
+    navigate('/dashboard');
+  };
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50 w-full">
@@ -68,7 +88,7 @@ export function Navbar() {
             {/* Section Toggle - Orange for VASP with better spacing */}
             <div className="flex items-center bg-gray-50 rounded-lg p-1 border">
               <button
-                onClick={() => setIsVASPSection(false)}
+                onClick={() => handleSectionToggle(false)}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   !isVASPSection 
                     ? 'bg-blue-600 text-white shadow-sm' 
@@ -78,7 +98,7 @@ export function Navbar() {
                 IT Services
               </button>
               <button
-                onClick={() => setIsVASPSection(true)}
+                onClick={() => handleSectionToggle(true)}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                   isVASPSection 
                     ? 'bg-orange-600 text-white shadow-sm' 
@@ -139,11 +159,12 @@ export function Navbar() {
               ))}
             </div>
 
-            <Link to="/website/login">
-              <Button className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 rounded-lg font-medium`}>
-                Sign In
-              </Button>
-            </Link>
+            <Button 
+              onClick={handleLoginClick}
+              className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 rounded-lg font-medium`}
+            >
+              Sign In
+            </Button>
           </div>
 
           {/* Mobile menu button */}
@@ -164,7 +185,7 @@ export function Navbar() {
               {/* Mobile Section Toggle */}
               <div className="flex space-x-2 mb-4 bg-gray-50 rounded-lg p-1">
                 <button
-                  onClick={() => setIsVASPSection(false)}
+                  onClick={() => handleSectionToggle(false)}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     !isVASPSection 
                       ? 'bg-blue-600 text-white' 
@@ -174,7 +195,7 @@ export function Navbar() {
                   IT Services
                 </button>
                 <button
-                  onClick={() => setIsVASPSection(true)}
+                  onClick={() => handleSectionToggle(true)}
                   className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     isVASPSection 
                       ? 'bg-orange-600 text-white' 
@@ -215,11 +236,15 @@ export function Navbar() {
                 </div>
               ))}
               <div className="pt-4">
-                <Link to="/website/login" onClick={() => setIsOpen(false)}>
-                  <Button className={`w-full ${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
-                    Sign In
-                  </Button>
-                </Link>
+                <Button 
+                  onClick={() => {
+                    handleLoginClick();
+                    setIsOpen(false);
+                  }}
+                  className={`w-full ${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
+                >
+                  Sign In
+                </Button>
               </div>
             </div>
           </div>

@@ -1,37 +1,59 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 
 export function usePermissions() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
 
-  const fetchPermissions = async () => {
-    if (!user?.id) {
-      setPermissions([]);
-      setIsLoading(false);
-      return;
-    }
-    
+  const fetchPermissions = () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase.rpc('get_user_permissions', {
-        user_uuid: user.id
-      });
-
-      if (error) {
-        console.error('Error fetching user permissions:', error);
+      
+      // Check if user is logged in
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userEmail = localStorage.getItem('userEmail');
+      const storedPermissions = localStorage.getItem('userPermissions');
+      
+      console.log('usePermissions - isLoggedIn:', isLoggedIn);
+      console.log('usePermissions - userEmail:', userEmail);
+      console.log('usePermissions - storedPermissions:', storedPermissions);
+      
+      if (isLoggedIn === 'true' && userEmail) {
+        if (storedPermissions) {
+          const parsedPermissions = JSON.parse(storedPermissions);
+          console.log('usePermissions - parsed permissions:', parsedPermissions);
+          setPermissions(parsedPermissions);
+        } else {
+          // Fallback for admin user
+          const isAdmin = userEmail === 'blynkvirtualtechnologiespvtld@gmail.com';
+          if (isAdmin) {
+            const adminPermissions = [
+              'dashboard_view',
+              'sales_view', 'sales_manage',
+              'purchase_view', 'purchase_manage',
+              'bams_view', 'bams_manage',
+              'clients_view', 'clients_manage',
+              'leads_view', 'leads_manage',
+              'user_management_view', 'user_management_manage',
+              'hrms_view', 'hrms_manage',
+              'payroll_view', 'payroll_manage',
+              'compliance_view', 'compliance_manage',
+              'stock_view', 'stock_manage',
+              'accounting_view', 'accounting_manage',
+              'video_kyc_view', 'video_kyc_manage',
+              'kyc_approvals_view', 'kyc_approvals_manage',
+              'statistics_view', 'statistics_manage'
+            ];
+            setPermissions(adminPermissions);
+            // Store for future use
+            localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
+          }
+        }
+      } else {
         setPermissions([]);
-        return;
       }
-
-      const userPermissions = data?.map((item: any) => item.permission) || [];
-      console.log('User permissions from database:', userPermissions);
-      setPermissions(userPermissions);
     } catch (error) {
-      console.error('Error fetching user permissions:', error);
+      console.error('Error fetching permissions:', error);
       setPermissions([]);
     } finally {
       setIsLoading(false);
@@ -39,20 +61,29 @@ export function usePermissions() {
   };
 
   const hasPermission = (permission: string): boolean => {
-    return permissions.includes(permission);
+    const result = permissions.includes(permission);
+    console.log(`hasPermission(${permission}):`, result);
+    return result;
   };
 
   const hasAnyPermission = (permissionList: string[]): boolean => {
-    return permissionList.some(permission => permissions.includes(permission));
+    const result = permissionList.some(permission => permissions.includes(permission));
+    console.log(`hasAnyPermission([${permissionList.join(', ')}]):`, result);
+    return result;
   };
 
   const hasAllPermissions = (permissionList: string[]): boolean => {
-    return permissionList.every(permission => permissions.includes(permission));
+    const result = permissionList.every(permission => permissions.includes(permission));
+    console.log(`hasAllPermissions([${permissionList.join(', ')}]):`, result);
+    return result;
   };
 
   useEffect(() => {
     fetchPermissions();
-  }, [user?.id]);
+  }, []);
+
+  console.log('usePermissions - current permissions:', permissions);
+  console.log('usePermissions - isLoading:', isLoading);
 
   return {
     permissions,

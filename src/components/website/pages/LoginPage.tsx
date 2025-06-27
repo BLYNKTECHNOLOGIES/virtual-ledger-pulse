@@ -8,21 +8,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
+  const [password, setPassword] = useState('Blynk@0717');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    // Simulate login process
-    setTimeout(() => {
+    try {
+      // Simple validation for demo credentials
+      if (email === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
+        // Store a simple session flag
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userEmail', email);
+        
+        // Redirect to dashboard
+        navigate('/dashboard');
+      } else {
+        setError('Invalid credentials. Please use the demo credentials provided.');
+      }
+    } catch (error) {
+      setError('Login failed. Please try again.');
+    } finally {
       setIsLoading(false);
-      navigate('/website/crm');
-    }, 1000);
+    }
   };
 
   return (
@@ -36,6 +50,12 @@ export function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -96,6 +116,12 @@ export function LoginPage() {
               )}
             </Button>
           </form>
+          
+          <div className="mt-6 text-center text-sm text-gray-600">
+            <p>Demo Credentials:</p>
+            <p>Email: blynkvirtualtechnologiespvtld@gmail.com</p>
+            <p>Password: Blynk@0717</p>
+          </div>
         </CardContent>
       </Card>
     </div>

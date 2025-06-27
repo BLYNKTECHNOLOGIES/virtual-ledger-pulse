@@ -20,6 +20,7 @@ import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import Dashboard from './pages/Dashboard';
+import { QueryProvider } from './components/QueryProvider';
 
 const router = createBrowserRouter([
   {
@@ -96,7 +97,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <Dashboard />,
+    element: <QueryProvider><Dashboard /></QueryProvider>,
   },
 ]);
 

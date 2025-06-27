@@ -44,8 +44,7 @@ export function usePermissions() {
           'accounting_view', 'accounting_manage',
           'video_kyc_view', 'video_kyc_manage',
           'kyc_approvals_view', 'kyc_approvals_manage',
-          'statistics_view', 'statistics_manage',
-          'sheets_view', 'sheets_manage'
+          'statistics_view', 'statistics_manage'
         ];
         console.log('usePermissions - setting demo admin permissions:', adminPermissions);
         setPermissions(adminPermissions);
@@ -80,8 +79,7 @@ export function usePermissions() {
             'accounting_view', 'accounting_manage',
             'video_kyc_view', 'video_kyc_manage',
             'kyc_approvals_view', 'kyc_approvals_manage',
-            'statistics_view', 'statistics_manage',
-            'sheets_view', 'sheets_manage'
+            'statistics_view', 'statistics_manage'
           ];
           setPermissions(adminPermissions);
           localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));

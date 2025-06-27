@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './components/website/pages/HomePage';
@@ -35,7 +36,6 @@ import VideoKYC from './pages/VideoKYC';
 import KYCApprovals from './pages/KYCApprovals';
 import Statistics from './pages/Statistics';
 import Banking from './pages/Banking';
-import Sheets from './pages/Sheets';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
@@ -348,20 +348,6 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Banking />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/sheets",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <Sheets />
             </Layout>
           </AuthCheck>
         </AuthProvider>

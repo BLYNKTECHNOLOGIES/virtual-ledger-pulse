@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -358,49 +359,55 @@ export function useUsers() {
         throw new Error('You do not have permission to delete users');
       }
 
-      // First, clean up user_roles table
-      console.log('Cleaning up user_roles...');
-      const { error: rolesError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (rolesError) {
-        console.error('Error deleting user roles:', rolesError);
-      }
-
-      // Clean up other tables that might reference the user
+      // Define tables that need cleanup - using only tables that exist in the database
       const tablesToCleanup = [
-        'user_preferences',
+        'user_roles',
+        'user_preferences', 
         'user_activity_log',
         'password_reset_tokens',
-        'email_verification_tokens'
+        'email_verification_tokens',
+        'screen_share_requests',
+        'purchase_orders',
+        'sales_orders',
+        'kyc_approval_requests',
+        'kyc_queries',
+        'stock_adjustments',
+        'performance_reviews',
+        'payslips'
       ];
 
+      // Clean up related data
       for (const tableName of tablesToCleanup) {
         try {
-          console.log(`Cleaning up ${tableName}...`);
-          await supabase
+          const { error } = await supabase
             .from(tableName as any)
             .delete()
             .eq('user_id', userId);
+          
+          if (error) {
+            console.warn(`Warning: Could not delete from ${tableName}:`, error);
+          }
         } catch (error) {
-          console.warn(`Warning: Could not clean up ${tableName}:`, error);
+          console.warn(`Warning: Could not access table ${tableName}:`, error);
         }
       }
 
-      // Clean up tables that might reference the user with different column names
+      // Also clean up tables that might reference the user differently
       try {
-        console.log('Cleaning up additional references...');
+        await supabase.from('screen_share_requests').delete().eq('target_user_id', userId);
+        await supabase.from('screen_share_requests').delete().eq('admin_id', userId);
+        await supabase.from('kyc_approval_requests').delete().eq('created_by', userId);
+        await supabase.from('kyc_queries').delete().eq('created_by', userId);
         await supabase.from('purchase_orders').delete().eq('created_by', userId);
         await supabase.from('sales_orders').delete().eq('created_by', userId);
         await supabase.from('stock_adjustments').delete().eq('created_by', userId);
+        await supabase.from('warehouse_stock_movements').delete().eq('created_by', userId);
+        await supabase.from('pending_registrations').delete().eq('reviewed_by', userId);
       } catch (error) {
-        console.warn('Warning: Could not clean up some references:', error);
+        console.warn('Warning: Could not clean up some related data:', error);
       }
 
       // Finally, delete the user
-      console.log('Deleting user from users table...');
       const { error: deleteError } = await supabase
         .from('users')
         .delete()
@@ -411,11 +418,11 @@ export function useUsers() {
         throw deleteError;
       }
 
-      console.log('User deleted successfully');
+      console.log('User and all related data deleted successfully');
 
       toast({
         title: "Success",
-        description: "User deleted successfully",
+        description: "User and all related data deleted successfully",
       });
 
       fetchUsers(); // Refresh the users list

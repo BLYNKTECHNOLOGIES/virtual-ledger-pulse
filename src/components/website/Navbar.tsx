@@ -1,262 +1,255 @@
 
 import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate, useLocation } from 'react-router-dom';
+
+type NavItem = {
+  name: string;
+  path: string;
+  dropdown?: {
+    name: string;
+    path: string;
+  }[];
+};
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isServicesOpen, setIsServicesOpen] = useState(false);
-  const [isVASPMode, setIsVASPMode] = useState(false);
-  const navigate = useNavigate();
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [isVASPSection, setIsVASPSection] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
+  const isActive = (path: string) => location.pathname === path;
+
+  // Auto-scroll to top when route changes
   useEffect(() => {
-    const isVASPPath = location.pathname.includes('/website/vasp');
-    setIsVASPMode(isVASPPath);
+    window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const toggleMode = () => {
-    const newMode = !isVASPMode;
-    setIsVASPMode(newMode);
-    if (newMode) {
-      navigate('/website/vasp');
+  const itNavItems: NavItem[] = [
+    { name: 'Home', path: '/website' },
+    { 
+      name: 'Services', 
+      path: '/services',
+      dropdown: [
+        { name: 'Web Design & Development', path: '/website/web-development' },
+        { name: 'SEO Services', path: '/website/seo-services' },
+        { name: 'App Development', path: '/website/app-development' },
+        { name: 'Cloud Hosting & DevOps', path: '/website/cloud-hosting' },
+        { name: 'Custom Software Development', path: '/website/software-development' },
+      ]
+    },
+    { name: 'About', path: '/website/about' },
+    { name: 'Contact Us', path: '/website/contact' },
+  ];
+
+  const vaspNavItems: NavItem[] = [
+    { name: 'VASP Home', path: '/website/vasp-home' },
+    { name: 'P2P Trading', path: '/website/vasp/p2p-trading' },
+    { name: 'KYC Services', path: '/website/vasp/kyc' },
+    { name: 'Security', path: '/website/vasp/security' },
+    { name: 'Compliance', path: '/website/vasp/compliance' },
+  ];
+
+  const navItems = isVASPSection ? vaspNavItems : itNavItems;
+
+  const handleSectionToggle = (isVasp: boolean) => {
+    setIsVASPSection(isVasp);
+    // Auto-navigate to section home page
+    if (isVasp) {
+      navigate('/website/vasp-home');
     } else {
       navigate('/website');
     }
   };
 
-  const itServices = [
-    { name: 'Web Development', href: '/website/web-development' },
-    { name: 'App Development', href: '/website/app-development' },
-    { name: 'SEO Services', href: '/website/seo-services' },
-  ];
-
-  const vaspServices = [
-    { name: 'P2P Trading', href: '/website/vasp/p2p-trading' },
-    { name: 'KYC Services', href: '/website/vasp/kyc' },
-    { name: 'Security & Compliance', href: '/website/vasp/security' },
-    { name: 'Digital Asset Management', href: '/website/vasp/compliance' },
-  ];
-
-  const currentServices = isVASPMode ? vaspServices : itServices;
-
-  const quickLinks = [
-    { name: 'About', href: '/website/about' },
-    { name: 'Contact Us', href: '/website/contact' },
-    { name: 'Privacy Policy', href: '/website/privacy-policy' },
-    { name: 'Terms of Service', href: '/website/terms-of-service' },
-  ];
+  const handleLoginClick = () => {
+    navigate('/dashboard');
+  };
 
   return (
-    <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className="bg-white shadow-lg sticky top-0 z-50 w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-20">
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <span 
-                className="text-2xl font-bold text-blue-600 cursor-pointer"
-                onClick={() => navigate(isVASPMode ? '/website/vasp' : '/website')}
-              >
-                Blynk{isVASPMode ? 'VASP' : 'Tech'}
-              </span>
-            </div>
+            <Link to="/website" className="flex-shrink-0 flex items-center">
+              {/* Complete Logo Image - Made larger */}
+              <img 
+                src="/lovable-uploads/95dfb015-8a6a-4ff4-b8e5-b77bb62d6d08.png" 
+                alt="Blynk Virtual Technologies Logo" 
+                className="h-16 w-auto max-w-none"
+              />
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <button
-              onClick={() => navigate(isVASPMode ? '/website/vasp' : '/website')}
-              className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
-            >
-              Home
-            </button>
-            
-            <div className="relative group">
+          <div className="hidden lg:flex items-center space-x-6">
+            {/* Section Toggle - Orange for VASP with better spacing */}
+            <div className="flex items-center bg-gray-50 rounded-lg p-1 border">
               <button
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium flex items-center transition-colors"
-                onMouseEnter={() => setIsServicesOpen(true)}
-                onMouseLeave={() => setIsServicesOpen(false)}
-              >
-                Services
-                <ChevronDown className="ml-1 h-4 w-4" />
-              </button>
-              
-              {isServicesOpen && (
-                <div 
-                  className="absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50"
-                  onMouseEnter={() => setIsServicesOpen(true)}
-                  onMouseLeave={() => setIsServicesOpen(false)}
-                >
-                  {currentServices.map((service) => (
-                    <button
-                      key={service.name}
-                      onClick={() => {
-                        navigate(service.href);
-                        setIsServicesOpen(false);
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
-                    >
-                      {service.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {quickLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => navigate(link.href)}
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                {link.name}
-              </button>
-            ))}
-
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center bg-gray-100 rounded-full p-1">
-                <button
-                  onClick={toggleMode}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    !isVASPMode
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-gray-600 hover:text-blue-600'
-                  }`}
-                >
-                  IT Services
-                </button>
-                <button
-                  onClick={toggleMode}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    isVASPMode
-                      ? 'bg-orange-600 text-white shadow-md'
-                      : 'text-gray-600 hover:text-orange-600'
-                  }`}
-                >
-                  VASP Services
-                </button>
-              </div>
-
-              <Button 
-                className={`${
-                  isVASPMode 
-                    ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                onClick={() => handleSectionToggle(false)}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  !isVASPSection 
+                    ? 'bg-blue-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white'
                 }`}
-                onClick={() => navigate('/website/contact')}
               >
-                Get Started
-              </Button>
+                IT Services
+              </button>
+              <button
+                onClick={() => handleSectionToggle(true)}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                  isVASPSection 
+                    ? 'bg-orange-600 text-white shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+                }`}
+              >
+                VASP
+              </button>
             </div>
+
+            {/* Navigation Items with improved spacing */}
+            <div className="flex items-center space-x-6">
+              {navItems.map((item) => (
+                <div key={item.name} className="relative">
+                  {item.dropdown ? (
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setActiveDropdown(item.name)}
+                      onMouseLeave={() => setActiveDropdown(null)}
+                    >
+                      <button
+                        className={`flex items-center px-3 py-2 text-sm font-medium transition-colors rounded-lg ${
+                          isActive(item.path)
+                            ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                            : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
+                        }`}
+                      >
+                        {item.name}
+                        <ChevronDown className="ml-1 h-4 w-4" />
+                      </button>
+                      {activeDropdown === item.name && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border py-2 z-50">
+                          {item.dropdown.map((subItem) => (
+                            <Link
+                              key={subItem.name}
+                              to={subItem.path}
+                              className={`block px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} transition-colors border-l-2 border-transparent hover:border-${isVASPSection ? 'orange' : 'blue'}-600`}
+                            >
+                              {subItem.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`px-3 py-2 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
+                        isActive(item.path)
+                          ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                          : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
+                      }`}
+                    >
+                      {item.name}
+                    </Link>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <Button 
+              onClick={handleLoginClick}
+              className={`${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-2 rounded-lg font-medium`}
+            >
+              Sign In
+            </Button>
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="lg:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-700 hover:text-blue-600 focus:outline-none"
+              className="text-gray-700 hover:text-blue-600 focus:outline-none p-2"
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Mobile Navigation */}
-      {isOpen && (
-        <div className="md:hidden bg-white border-t">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            <button
-              onClick={() => {
-                navigate(isVASPMode ? '/website/vasp' : '/website');
-                setIsOpen(false);
-              }}
-              className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
-            >
-              Home
-            </button>
-            
-            <div className="space-y-1">
-              <div className="px-3 py-2 text-base font-medium text-gray-500">Services</div>
-              {currentServices.map((service) => (
+        {/* Mobile Navigation */}
+        {isOpen && (
+          <div className="lg:hidden">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
+              {/* Mobile Section Toggle */}
+              <div className="flex space-x-2 mb-4 bg-gray-50 rounded-lg p-1">
                 <button
-                  key={service.name}
-                  onClick={() => {
-                    navigate(service.href);
-                    setIsOpen(false);
-                  }}
-                  className="block w-full text-left px-6 py-2 text-sm text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
-                >
-                  {service.name}
-                </button>
-              ))}
-            </div>
-
-            {quickLinks.map((link) => (
-              <button
-                key={link.name}
-                onClick={() => {
-                  navigate(link.href);
-                  setIsOpen(false);
-                }}
-                className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md transition-colors"
-              >
-                {link.name}
-              </button>
-            ))}
-
-            <div className="px-3 py-4 border-t">
-              <div className="flex flex-col space-y-3">
-                <div className="flex bg-gray-100 rounded-full p-1">
-                  <button
-                    onClick={() => {
-                      setIsVASPMode(false);
-                      navigate('/website');
-                      setIsOpen(false);
-                    }}
-                    className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      !isVASPMode
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'text-gray-600'
-                    }`}
-                  >
-                    IT Services
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsVASPMode(true);
-                      navigate('/website/vasp');
-                      setIsOpen(false);
-                    }}
-                    className={`flex-1 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      isVASPMode
-                        ? 'bg-orange-600 text-white shadow-md'
-                        : 'text-gray-600'
-                    }`}
-                  >
-                    VASP Services
-                  </button>
-                </div>
-                
-                <Button 
-                  className={`w-full ${
-                    isVASPMode 
-                      ? 'bg-orange-600 hover:bg-orange-700 text-white' 
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  onClick={() => handleSectionToggle(false)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    !isVASPSection 
+                      ? 'bg-blue-600 text-white' 
+                      : 'text-gray-600'
                   }`}
+                >
+                  IT Services
+                </button>
+                <button
+                  onClick={() => handleSectionToggle(true)}
+                  className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    isVASPSection 
+                      ? 'bg-orange-600 text-white' 
+                      : 'text-gray-600'
+                  }`}
+                >
+                  VASP
+                </button>
+              </div>
+
+              {navItems.map((item) => (
+                <div key={item.name}>
+                  <Link
+                    to={item.path}
+                    className={`block px-3 py-2 text-base font-medium transition-colors rounded-md ${
+                      isActive(item.path)
+                        ? `${isVASPSection ? 'text-orange-600 bg-orange-50' : 'text-blue-600 bg-blue-50'}`
+                        : `text-gray-700 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50`
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {item.name}
+                  </Link>
+                  {item.dropdown && (
+                    <div className="pl-6 space-y-1">
+                      {item.dropdown.map((subItem) => (
+                        <Link
+                          key={subItem.name}
+                          to={subItem.path}
+                          className={`block px-3 py-2 text-sm text-gray-600 hover:${isVASPSection ? 'text-orange-600' : 'text-blue-600'} hover:bg-gray-50 transition-colors rounded-md`}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          {subItem.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div className="pt-4">
+                <Button 
                   onClick={() => {
-                    navigate('/website/contact');
+                    handleLoginClick();
                     setIsOpen(false);
                   }}
+                  className={`w-full ${isVASPSection ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
                 >
-                  Get Started
+                  Sign In
                 </Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </nav>
   );
 }

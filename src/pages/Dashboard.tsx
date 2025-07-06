@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RotateCcw, BarChart3, Activity, Zap, Target, Award, Calendar } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
@@ -48,10 +49,10 @@ export default function Dashboard() {
       size: 'small' as const
     },
     {
-      id: 'revenue-chart',
-      name: 'Revenue Chart',
-      description: 'Period revenue trends and analytics',
-      icon: TrendingUp,
+      id: 'stock-inventory',
+      name: 'Stock Inventory',
+      description: 'Warehouse stock overview',
+      icon: Package,
       category: 'Analytics',
       size: 'large' as const
     }
@@ -94,7 +95,7 @@ export default function Dashboard() {
   const { start: startDate, end: endDate } = getDateRange();
 
   // Fetch dashboard metrics with period filtering
-  const { data: metrics } = useQuery({
+  const { data: metrics, refetch: refetchMetrics } = useQuery({
     queryKey: ['dashboard_metrics', selectedPeriod],
     queryFn: async () => {
       // Get sales orders within date range
@@ -111,22 +112,22 @@ export default function Dashboard() {
         .gte('created_at', startOfDay(startDate).toISOString())
         .lte('created_at', endOfDay(endDate).toISOString());
 
-      // Get total active clients (not filtered by period as client status is persistent)
+      // Get verified clients only
       const { data: clientsData } = await supabase
         .from('clients')
         .select('id')
-        .eq('kyc_status', 'APPROVED');
+        .eq('kyc_status', 'VERIFIED');
 
-      // Get bank accounts and their balances
+      // Get active bank accounts and their balances
       const { data: bankData } = await supabase
         .from('bank_accounts')
         .select('balance')
         .eq('status', 'ACTIVE');
 
-      // Get stock inventory data (using correct column names)
+      // Get stock inventory data using average_buying_price
       const { data: stockData } = await supabase
         .from('products')
-        .select('id, cost_price, current_stock_quantity');
+        .select('id, average_buying_price, current_stock_quantity');
 
       const totalSalesOrders = salesData?.length || 0;
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
@@ -134,10 +135,10 @@ export default function Dashboard() {
       const totalSpending = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const activeClients = clientsData?.length || 0;
       
-      // Calculate total cash (sum of bank balances + stock value using cost_price)
+      // Calculate total cash (sum of active bank balances + stock value using average_buying_price)
       const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
       const stockValue = stockData?.reduce((sum, product) => {
-        return sum + (Number(product.cost_price) * Number(product.current_stock_quantity));
+        return sum + (Number(product.average_buying_price || 0) * Number(product.current_stock_quantity));
       }, 0) || 0;
       const totalCash = bankBalance + stockValue;
 
@@ -154,8 +155,38 @@ export default function Dashboard() {
     },
   });
 
+  // Fetch warehouse stock data
+  const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
+    queryKey: ['warehouse_stock'],
+    queryFn: async () => {
+      const { data: warehouses } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('is_active', true);
+
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, code, current_stock_quantity, warehouse_id');
+
+      // Group products by warehouse
+      const warehouseStockMap = new Map();
+      warehouses?.forEach(warehouse => {
+        warehouseStockMap.set(warehouse.id, {
+          name: warehouse.name,
+          location: warehouse.location,
+          products: products?.filter(p => p.warehouse_id === warehouse.id) || [],
+          totalProducts: products?.filter(p => p.warehouse_id === warehouse.id).length || 0,
+          totalQuantity: products?.filter(p => p.warehouse_id === warehouse.id)
+            .reduce((sum, p) => sum + Number(p.current_stock_quantity), 0) || 0
+        });
+      });
+
+      return Array.from(warehouseStockMap.values());
+    },
+  });
+
   // Fetch recent transactions for activity feed with period filtering
-  const { data: recentActivity } = useQuery({
+  const { data: recentActivity, refetch: refetchActivity } = useQuery({
     queryKey: ['recent_activity', selectedPeriod],
     queryFn: async () => {
       // Get recent sales orders within period
@@ -240,22 +271,32 @@ export default function Dashboard() {
     });
   };
 
+  const handleRefreshDashboard = () => {
+    refetchMetrics();
+    refetchWarehouseStock();
+    refetchActivity();
+    toast({
+      title: "Dashboard Refreshed",
+      description: "All dashboard data has been refreshed.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Header with Flat Design */}
-      <div className="relative overflow-hidden bg-slate-800 text-white">
+      {/* Hero Header with Blue Background */}
+      <div className="relative overflow-hidden bg-blue-600 text-white">
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-slate-700 rounded-xl shadow-lg">
+                <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-white">
                     Welcome to Dashboard
                   </h1>
-                  <p className="text-slate-200 text-lg">
+                  <p className="text-blue-100 text-lg">
                     Monitor your business performance in real-time
                   </p>
                 </div>
@@ -263,7 +304,7 @@ export default function Dashboard() {
               
               {/* Quick Stats in Header */}
               <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-slate-700 rounded-lg px-4 py-2 border-2 border-slate-600 shadow-md">
+                <div className="bg-blue-500 rounded-lg px-4 py-2 border-2 border-blue-400 shadow-md">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
@@ -281,7 +322,7 @@ export default function Dashboard() {
             {/* Enhanced Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               {/* Period Filter with Flat Design */}
-              <div className="flex gap-1 p-1 bg-slate-700 rounded-lg border-2 border-slate-600">
+              <div className="flex gap-1 p-1 bg-blue-500 rounded-lg border-2 border-blue-400">
                 {["24h", "7d", "30d", "90d"].map((period) => (
                   <Button
                     key={period}
@@ -289,8 +330,8 @@ export default function Dashboard() {
                     size="sm"
                     onClick={() => setSelectedPeriod(period)}
                     className={selectedPeriod === period ? 
-                      "bg-white text-slate-800 shadow-md hover:bg-gray-50 border-2 border-white" : 
-                      "text-white hover:bg-slate-600 border-2 border-transparent"
+                      "bg-white text-blue-800 shadow-md hover:bg-gray-50 border-2 border-white" : 
+                      "text-white hover:bg-blue-400 border-2 border-transparent"
                     }
                   >
                     {period}
@@ -306,7 +347,7 @@ export default function Dashboard() {
                   onClick={() => setIsEditMode(!isEditMode)}
                   className={isEditMode ? 
                     "bg-orange-500 border-2 border-orange-400 text-white hover:bg-orange-600 shadow-md" : 
-                    "bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 shadow-md"
+                    "bg-white border-2 border-blue-300 text-blue-700 hover:bg-blue-50 shadow-md"
                   }
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -319,11 +360,11 @@ export default function Dashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleResetDashboard}
-                  className="bg-white border-2 border-red-300 text-red-600 hover:bg-red-50 shadow-md"
+                  onClick={handleRefreshDashboard}
+                  className="bg-white border-2 border-blue-300 text-blue-600 hover:bg-blue-50 shadow-md"
                 >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
                 </Button>
               </div>
             </div>
@@ -389,7 +430,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Active Clients Card */}
+          {/* Active Clients Card - Updated to show verified clients */}
           <Card className="bg-purple-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -398,7 +439,7 @@ export default function Dashboard() {
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.activeClients || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">KYC Approved</span>
+                    <span className="text-sm font-medium">Verified Status</span>
                   </div>
                 </div>
                 <div className="bg-purple-600 p-3 rounded-xl shadow-lg flex-shrink-0">
@@ -408,13 +449,15 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Total Cash Card - Fixed Layout */}
+          {/* Total Cash Card - Updated calculation */}
           <Card className="bg-orange-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-orange-100 text-sm font-medium">Total Cash</p>
-                  <p className="text-xl xl:text-2xl font-bold mt-2 break-words">₹{(metrics?.totalCash || 0).toLocaleString()}</p>
+                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight">
+                    ₹{(metrics?.totalCash || 0).toLocaleString()}
+                  </div>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Banks + Stock</span>
@@ -490,6 +533,77 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Stock Inventory Section - Replaced Revenue Chart */}
+        <Card className="bg-white border-2 border-gray-200 shadow-xl">
+          <CardHeader className="bg-green-600 text-white rounded-t-lg">
+            <CardTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 bg-green-700 rounded-lg shadow-md">
+                <Package className="h-6 w-6" />
+              </div>
+              Stock Inventory
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {warehouseStock?.map((warehouse, index) => (
+                <Card key={index} className="border-2 border-gray-200 hover:shadow-lg transition-all duration-300">
+                  <CardHeader className="bg-gray-50 border-b">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Building className="h-5 w-5 text-gray-600" />
+                        {warehouse.name}
+                      </CardTitle>
+                      <Badge className="bg-blue-100 text-blue-800">{warehouse.totalProducts} Products</Badge>
+                    </div>
+                    {warehouse.location && (
+                      <p className="text-sm text-gray-600">{warehouse.location}</p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Total Quantity</span>
+                        <Badge className="bg-green-100 text-green-800 font-bold">
+                          {warehouse.totalQuantity.toLocaleString()}
+                        </Badge>
+                      </div>
+                      
+                      <div className="border-t pt-3">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Top Products</h4>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {warehouse.products.slice(0, 5).map((product: any, idx: number) => (
+                            <div key={idx} className="flex justify-between text-xs">
+                              <span className="text-gray-600 truncate pr-2">{product.name}</span>
+                              <span className="font-medium text-gray-800 whitespace-nowrap">
+                                {Number(product.current_stock_quantity).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                          {warehouse.products.length > 5 && (
+                            <div className="text-xs text-gray-500 italic">
+                              +{warehouse.products.length - 5} more products
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {(!warehouseStock || warehouseStock.length === 0) && (
+                <div className="col-span-full text-center py-12 text-gray-500">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Package className="h-8 w-8 opacity-50" />
+                  </div>
+                  <p className="font-medium">No warehouse data available</p>
+                  <p className="text-sm">Stock information will appear here</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Dynamic Widgets Grid */}
         {dashboardWidgets.length > 0 && (

@@ -59,7 +59,7 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
             <div className="p-2 bg-indigo-700 rounded-lg shadow-md">
               <BarChart3 className="h-6 w-6" />
             </div>
-            Performance Analytics Heatmap
+            Performance Analytics
           </CardTitle>
           <Select value={selectedMetric} onValueChange={setSelectedMetric}>
             <SelectTrigger className="w-40 bg-white text-gray-900">
@@ -209,18 +209,6 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
               <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
             </div>
           ))}
-        </div>
-        
-        <div className="mt-8 text-center">
-          <div className="inline-flex items-center gap-4 bg-gray-50 rounded-lg px-6 py-3 border">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">Live Analytics</span>
-            </div>
-            <div className="text-sm text-gray-600">
-              Data filtered for: <span className="font-semibold text-indigo-600">{selectedPeriod}</span>
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>

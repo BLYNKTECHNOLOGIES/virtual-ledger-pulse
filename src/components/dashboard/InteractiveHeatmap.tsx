@@ -1,15 +1,18 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart3, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
 
-interface HeatmapData {
-  label: string;
-  value: number;
-  color: string;
-  trend: number;
-  change: string;
+interface SalesData {
+  date: string;
+  currentSales: number;
+  averageSales: number;
+  yesterdaySales: number;
 }
 
 interface InteractiveHeatmapProps {
@@ -19,44 +22,96 @@ interface InteractiveHeatmapProps {
 export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) {
   const [selectedMetric, setSelectedMetric] = useState("sales");
 
-  // Mock data - in real app, this would come from your analytics
-  const generateHeatmapData = (metric: string, period: string): HeatmapData[] => {
-    const baseData = {
-      "All Time Avg": { sales: 125000, revenue: 2500000, orders: 45 },
-      "Yesterday": { sales: 98000, revenue: 1960000, orders: 38 },
-      "Same Day Last Month": { sales: 110000, revenue: 2200000, orders: 42 }
-    };
-
-    const periodMultiplier = period === "24h" ? 0.8 : period === "7d" ? 1.2 : period === "30d" ? 1.5 : 1;
-
-    return Object.entries(baseData).map(([key, values], index) => {
-      const value = Math.round(values[metric as keyof typeof values] * periodMultiplier);
-      const intensity = value / Math.max(...Object.values(baseData).map(v => v[metric as keyof typeof v]));
-      
-      // Calculate trend and change percentage
-      const baseValue = values[metric as keyof typeof values];
-      const trend = Math.random() > 0.5 ? 1 : -1;
-      const changePercent = Math.round((Math.random() * 20 + 5) * trend);
-      
-      return {
-        label: key,
-        value,
-        color: `rgba(59, 130, 246, ${0.3 + intensity * 0.7})`,
-        trend,
-        change: `${changePercent > 0 ? '+' : ''}${changePercent}%`
-      };
-    });
+  // Calculate date range based on selected period
+  const getDateRange = () => {
+    const now = new Date();
+    switch (selectedPeriod) {
+      case "24h":
+        return { start: subDays(now, 1), end: now };
+      case "7d":
+        return { start: subDays(now, 7), end: now };
+      case "30d":
+        return { start: subDays(now, 30), end: now };
+      case "90d":
+        return { start: subDays(now, 90), end: now };
+      default:
+        return { start: subDays(now, 7), end: now };
+    }
   };
 
-  const heatmapData = generateHeatmapData(selectedMetric, selectedPeriod);
-  const maxValue = Math.max(...heatmapData.map(d => d.value));
+  const { start: startDate, end: endDate } = getDateRange();
+
+  // Fetch sales data for chart
+  const { data: salesChartData } = useQuery({
+    queryKey: ['sales_chart_data', selectedPeriod],
+    queryFn: async () => {
+      // Get all sales data
+      const { data: allSalesData } = await supabase
+        .from('sales_orders')
+        .select('total_amount, created_at, order_date')
+        .order('order_date', { ascending: true });
+
+      // Get sales for current period
+      const { data: currentPeriodSales } = await supabase
+        .from('sales_orders')
+        .select('total_amount, created_at, order_date')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString())
+        .order('order_date', { ascending: true });
+
+      // Get yesterday's sales
+      const yesterday = subDays(new Date(), 1);
+      const { data: yesterdaySalesData } = await supabase
+        .from('sales_orders')
+        .select('total_amount, created_at, order_date')
+        .gte('created_at', startOfDay(yesterday).toISOString())
+        .lte('created_at', endOfDay(yesterday).toISOString());
+
+      // Calculate all-time average daily sales
+      const totalAllTimeSales = allSalesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const totalDaysWithSales = new Set(allSalesData?.map(order => order.order_date) || []).size || 1;
+      const allTimeAverageDailySales = totalAllTimeSales / totalDaysWithSales;
+
+      // Calculate yesterday's total sales
+      const yesterdayTotal = yesterdaySalesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+
+      // Create date range for chart
+      const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
+      
+      // Group current period sales by date
+      const salesByDate = new Map();
+      currentPeriodSales?.forEach(order => {
+        const date = order.order_date;
+        if (!salesByDate.has(date)) {
+          salesByDate.set(date, 0);
+        }
+        salesByDate.set(date, salesByDate.get(date) + Number(order.total_amount));
+      });
+
+      // Create chart data
+      const chartData: SalesData[] = dateRange.map(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        return {
+          date: format(date, 'MMM dd'),
+          currentSales: salesByDate.get(dateStr) || 0,
+          averageSales: allTimeAverageDailySales,
+          yesterdaySales: format(date, 'yyyy-MM-dd') === format(yesterday, 'yyyy-MM-dd') ? yesterdayTotal : 0
+        };
+      });
+
+      return chartData;
+    },
+  });
+
+  const totalCurrentSales = salesChartData?.reduce((sum, day) => sum + day.currentSales, 0) || 0;
+  const averageCurrentSales = salesChartData?.length ? totalCurrentSales / salesChartData.length : 0;
 
   return (
     <Card className="bg-white border-2 border-gray-200 shadow-xl">
-      <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
+      <CardHeader className="bg-slate-600 text-white rounded-t-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 bg-indigo-700 rounded-lg shadow-md">
+            <div className="p-2 bg-slate-700 rounded-lg shadow-md">
               <BarChart3 className="h-6 w-6" />
             </div>
             Performance Analytics
@@ -74,141 +129,133 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
         </div>
       </CardHeader>
       <CardContent className="p-8">
-        {/* Interactive Data Visualization */}
-        <div className="mb-8">
-          <div className="relative h-32 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 overflow-hidden">
-            {/* Animated background lines */}
-            <div className="absolute inset-0 opacity-20">
-              <svg className="w-full h-full" viewBox="0 0 400 100">
+        {/* Sales Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card className="border-2 border-emerald-200 bg-emerald-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-emerald-700">Current Period Sales</p>
+                  <p className="text-2xl font-bold text-emerald-800">₹{totalCurrentSales.toLocaleString()}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-emerald-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-slate-200 bg-slate-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">All-Time Avg Daily</p>
+                  <p className="text-2xl font-bold text-slate-800">₹{Math.round(salesChartData?.[0]?.averageSales || 0).toLocaleString()}</p>
+                </div>
+                <Activity className="h-8 w-8 text-slate-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-indigo-200 bg-indigo-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-indigo-700">Period Avg Daily</p>
+                  <p className="text-2xl font-bold text-indigo-800">₹{Math.round(averageCurrentSales).toLocaleString()}</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-indigo-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sales Timeline Chart */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Sales Timeline Comparison</h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={salesChartData}>
                 <defs>
-                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
-                    <stop offset="50%" stopColor="#6366F1" stopOpacity="0.6" />
-                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.3" />
+                  <linearGradient id="currentSalesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#059669" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#059669" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="averageSalesGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#475569" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#475569" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                
-                {/* Interactive trend lines */}
-                <path 
-                  d={`M 0 ${60 + Math.sin(0) * 20} ${heatmapData.map((_, i) => 
-                    `L ${(i + 1) * (400 / heatmapData.length)} ${60 + Math.sin(i * 0.5) * 15}`
-                  ).join(' ')}`}
-                  stroke="url(#lineGradient)" 
-                  strokeWidth="3" 
-                  fill="none"
-                  className="animate-pulse"
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis 
+                  dataKey="date" 
+                  stroke="#64748b"
+                  fontSize={12}
                 />
-                
-                {/* Data points */}
-                {heatmapData.map((item, index) => (
-                  <circle
-                    key={index}
-                    cx={(index + 1) * (400 / heatmapData.length)}
-                    cy={80 - (item.value / maxValue) * 40}
-                    r="4"
-                    fill="#6366F1"
-                    className="animate-bounce"
-                    style={{ animationDelay: `${index * 0.2}s` }}
-                  />
-                ))}
-              </svg>
-            </div>
-            
-            {/* Overlay stats */}
-            <div className="relative z-10 flex items-center justify-between h-full">
-              <div className="text-indigo-800">
-                <div className="text-2xl font-bold">
-                  {selectedMetric === "sales" || selectedMetric === "revenue" 
-                    ? `₹${Math.round(heatmapData.reduce((sum, item) => sum + item.value, 0) / heatmapData.length).toLocaleString()}` 
-                    : Math.round(heatmapData.reduce((sum, item) => sum + item.value, 0) / heatmapData.length)}
-                </div>
-                <div className="text-sm opacity-75">Average {selectedMetric}</div>
-              </div>
-              <div className="flex items-center gap-2 text-indigo-700">
-                <Activity className="h-5 w-5" />
-                <span className="text-sm font-medium">Live Data</span>
-              </div>
-            </div>
+                <YAxis 
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                />
+                <Tooltip 
+                  formatter={(value: number, name: string) => [
+                    `₹${value.toLocaleString()}`,
+                    name === 'currentSales' ? 'Current Sales' : 
+                    name === 'averageSales' ? 'All-Time Average' : 
+                    'Yesterday Sales'
+                  ]}
+                  labelFormatter={(label) => `Date: ${label}`}
+                  contentStyle={{
+                    backgroundColor: 'white',
+                    border: '2px solid #e2e8f0',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                  }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="currentSales"
+                  stroke="#059669"
+                  fillOpacity={1}
+                  fill="url(#currentSalesGradient)"
+                  strokeWidth={3}
+                  name="Current Sales"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="averageSales"
+                  stroke="#475569"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="All-Time Average"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="yesterdaySales"
+                  stroke="#4f46e5"
+                  fillOpacity={0.3}
+                  fill="#4f46e5"
+                  strokeWidth={2}
+                  name="Yesterday Sales"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Enhanced Heatmap Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {heatmapData.map((item, index) => (
-            <div
-              key={item.label}
-              className="relative p-6 rounded-xl border-2 border-gray-200 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group overflow-hidden"
-              style={{ backgroundColor: item.color }}
-            >
-              {/* Animated background pattern */}
-              <div className="absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white to-transparent"></div>
-                <div className="absolute bottom-0 right-0 w-1 h-full bg-gradient-to-t from-transparent via-white to-transparent"></div>
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-bold text-gray-900">{item.label}</h3>
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                    item.trend > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {item.trend > 0 ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {item.change}
-                  </div>
-                </div>
-                
-                <div className="text-3xl font-bold text-gray-900 mb-3">
-                  {selectedMetric === "sales" || selectedMetric === "revenue" 
-                    ? `₹${item.value.toLocaleString()}` 
-                    : item.value.toLocaleString()}
-                </div>
-                
-                {/* Interactive progress bar */}
-                <div className="mb-3">
-                  <div className="flex justify-between text-xs text-gray-700 mb-1">
-                    <span>Performance</span>
-                    <span>{((item.value / maxValue) * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-1000 ease-out"
-                      style={{ 
-                        width: `${(item.value / maxValue) * 100}%`,
-                        animationDelay: `${index * 0.2}s`
-                      }}
-                    ></div>
-                  </div>
-                </div>
-                
-                <div className="text-sm text-gray-700 flex items-center justify-between">
-                  <span>Peak comparison</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
-                    <span className="text-xs">Active</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Visual intensity indicator with animation */}
-              <div className="absolute top-3 right-3">
-                <div 
-                  className="w-6 h-6 rounded-full border-2 border-white shadow-md animate-pulse"
-                  style={{ 
-                    backgroundColor: item.color, 
-                    opacity: 0.8,
-                    boxShadow: `0 0 10px ${item.color}50`
-                  }}
-                />
-              </div>
-              
-              {/* Hover effect overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+        {/* Performance Insights */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <h4 className="font-semibold text-gray-800 mb-2">Performance Insights</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+              <span className="text-gray-700">Current period performance vs all-time average</span>
             </div>
-          ))}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
+              <span className="text-gray-700">Historical average baseline for comparison</span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,6 +117,11 @@ export default function Dashboard() {
         .select('id')
         .eq('kyc_status', 'VERIFIED');
 
+      // Get total clients count
+      const { data: totalClientsData } = await supabase
+        .from('clients')
+        .select('id');
+
       // Get active bank accounts and their balances
       const { data: bankData } = await supabase
         .from('bank_accounts')
@@ -130,10 +134,11 @@ export default function Dashboard() {
         .select('id, average_buying_price, current_stock_quantity');
 
       const totalSalesOrders = salesData?.length || 0;
-      const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const totalSales = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const totalPurchases = purchaseData?.length || 0;
       const totalSpending = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const activeClients = clientsData?.length || 0;
+      const verifiedClients = clientsData?.length || 0;
+      const totalClients = totalClientsData?.length || 0;
       
       // Calculate total cash (sum of active bank balances + stock value using average_buying_price)
       const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
@@ -144,10 +149,11 @@ export default function Dashboard() {
 
       return {
         totalSalesOrders,
-        totalRevenue,
+        totalSales,
         totalPurchases,
         totalSpending,
-        activeClients,
+        verifiedClients,
+        totalClients,
         totalCash,
         bankBalance,
         stockValue
@@ -283,20 +289,20 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Header with Blue Background */}
-      <div className="relative overflow-hidden bg-blue-600 text-white">
+      {/* Hero Header with Professional Blue Background */}
+      <div className="relative overflow-hidden bg-slate-700 text-white">
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
+                <div className="p-3 bg-slate-600 rounded-xl shadow-lg">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-white">
                     Welcome to Dashboard
                   </h1>
-                  <p className="text-blue-100 text-lg">
+                  <p className="text-slate-300 text-lg">
                     Monitor your business performance in real-time
                   </p>
                 </div>
@@ -304,13 +310,13 @@ export default function Dashboard() {
               
               {/* Quick Stats in Header */}
               <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-blue-500 rounded-lg px-4 py-2 border-2 border-blue-400 shadow-md">
+                <div className="bg-slate-600 rounded-lg px-4 py-2 border-2 border-slate-500 shadow-md">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
                   </div>
                 </div>
-                <div className="bg-green-600 rounded-lg px-4 py-2 border-2 border-green-500 shadow-md">
+                <div className="bg-emerald-700 rounded-lg px-4 py-2 border-2 border-emerald-600 shadow-md">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4" />
                     <span className="text-sm font-medium">System Active</span>
@@ -321,8 +327,8 @@ export default function Dashboard() {
             
             {/* Enhanced Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Period Filter with Flat Design */}
-              <div className="flex gap-1 p-1 bg-blue-500 rounded-lg border-2 border-blue-400">
+              {/* Period Filter with Professional Design */}
+              <div className="flex gap-1 p-1 bg-slate-600 rounded-lg border-2 border-slate-500">
                 {["24h", "7d", "30d", "90d"].map((period) => (
                   <Button
                     key={period}
@@ -330,8 +336,8 @@ export default function Dashboard() {
                     size="sm"
                     onClick={() => setSelectedPeriod(period)}
                     className={selectedPeriod === period ? 
-                      "bg-white text-blue-800 shadow-md hover:bg-gray-50 border-2 border-white" : 
-                      "text-white hover:bg-blue-400 border-2 border-transparent"
+                      "bg-white text-slate-800 shadow-md hover:bg-gray-50 border-2 border-white" : 
+                      "text-white hover:bg-slate-500 border-2 border-transparent"
                     }
                   >
                     {period}
@@ -346,8 +352,8 @@ export default function Dashboard() {
                   size="sm"
                   onClick={() => setIsEditMode(!isEditMode)}
                   className={isEditMode ? 
-                    "bg-orange-500 border-2 border-orange-400 text-white hover:bg-orange-600 shadow-md" : 
-                    "bg-white border-2 border-blue-300 text-blue-700 hover:bg-blue-50 shadow-md"
+                    "bg-amber-600 border-2 border-amber-500 text-white hover:bg-amber-700 shadow-md" : 
+                    "bg-white border-2 border-slate-400 text-slate-700 hover:bg-slate-50 shadow-md"
                   }
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -361,7 +367,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleRefreshDashboard}
-                  className="bg-white border-2 border-blue-300 text-blue-600 hover:bg-blue-50 shadow-md"
+                  className="bg-white border-2 border-slate-400 text-slate-600 hover:bg-slate-50 shadow-md"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh
@@ -375,14 +381,14 @@ export default function Dashboard() {
       <div className="p-6 space-y-8">
         {/* Edit Mode Banner */}
         {isEditMode && (
-          <div className="bg-orange-50 border-2 border-orange-200 text-orange-800 rounded-xl p-6 shadow-md">
+          <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-6 shadow-md">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-md">
+              <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md">
                 <Settings className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="text-lg font-bold">🎨 Edit Mode Active</h3>
-                <p className="text-orange-700 mt-1">
+                <p className="text-amber-700 mt-1">
                   Customize your dashboard by moving, removing, or adding widgets. Use the three-dot menu on each widget for options.
                 </p>
               </div>
@@ -390,21 +396,21 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Enhanced Metrics Cards Grid with Flat Design */}
+        {/* Enhanced Metrics Cards Grid with Professional Colors */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Revenue Card */}
-          <Card className="bg-green-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          {/* Total Sales Card */}
+          <Card className="bg-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">₹{(metrics?.totalRevenue || 0).toLocaleString()}</p>
+                  <p className="text-emerald-100 text-sm font-medium">Total Sales</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">₹{(metrics?.totalSales || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-green-600 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-emerald-700 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <DollarSign className="h-8 w-8" />
                 </div>
               </div>
@@ -412,49 +418,49 @@ export default function Dashboard() {
           </Card>
 
           {/* Sales Orders Card */}
-          <Card className="bg-blue-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-slate-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-blue-100 text-sm font-medium">Sales Orders</p>
+                  <p className="text-slate-200 text-sm font-medium">Sales Orders</p>
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-blue-600 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-slate-700 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <TrendingUp className="h-8 w-8" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Active Clients Card - Updated to show verified clients */}
-          <Card className="bg-purple-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          {/* Total Clients Card */}
+          <Card className="bg-indigo-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-purple-100 text-sm font-medium">Active Clients</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.activeClients || 0}</p>
+                  <p className="text-indigo-100 text-sm font-medium">Total Clients</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.totalClients || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">Verified Status</span>
+                    <span className="text-sm font-medium">Verified: {metrics?.verifiedClients || 0}</span>
                   </div>
                 </div>
-                <div className="bg-purple-600 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-indigo-700 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <Users className="h-8 w-8" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Total Cash Card - Updated calculation */}
-          <Card className="bg-orange-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          {/* Total Cash Card */}
+          <Card className="bg-amber-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-orange-100 text-sm font-medium">Total Cash</p>
+                  <p className="text-amber-100 text-sm font-medium">Total Cash</p>
                   <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight">
                     ₹{(metrics?.totalCash || 0).toLocaleString()}
                   </div>
@@ -463,7 +469,7 @@ export default function Dashboard() {
                     <span className="text-sm font-medium">Banks + Stock</span>
                   </div>
                 </div>
-                <div className="bg-orange-600 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-amber-700 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <Wallet className="h-8 w-8" />
                 </div>
               </div>
@@ -476,16 +482,16 @@ export default function Dashboard() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Interactive Heatmap Section */}
+          {/* Performance Analytics Section */}
           <div className="xl:col-span-2 space-y-6">
             <InteractiveHeatmap selectedPeriod={selectedPeriod} />
           </div>
           
           {/* Activity Feed */}
           <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-blue-600 text-white rounded-t-lg">
+            <CardHeader className="bg-slate-600 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-blue-700 rounded-lg shadow-md">
+                <div className="p-2 bg-slate-700 rounded-lg shadow-md">
                   <Activity className="h-5 w-5" />
                 </div>
                 Recent Activity ({selectedPeriod})
@@ -496,12 +502,12 @@ export default function Dashboard() {
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border-2 border-gray-100 hover:shadow-md transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
-                      activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                      activity.type === 'sale' ? 'bg-emerald-100' : 'bg-slate-100'
                     }`}>
                       {activity.type === 'sale' ? (
-                        <ArrowUpIcon className="h-4 w-4 text-green-600" />
+                        <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
                       ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-blue-600" />
+                        <ArrowDownIcon className="h-4 w-4 text-slate-600" />
                       )}
                     </div>
                     <div>
@@ -513,7 +519,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className={`font-bold text-sm ${
-                      activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
+                      activity.type === 'sale' ? 'text-emerald-600' : 'text-slate-600'
                     }`}>
                       {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
                     </p>
@@ -534,11 +540,11 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Stock Inventory Section - Replaced Revenue Chart */}
+        {/* Stock Inventory Section */}
         <Card className="bg-white border-2 border-gray-200 shadow-xl">
-          <CardHeader className="bg-green-600 text-white rounded-t-lg">
+          <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-green-700 rounded-lg shadow-md">
+              <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
                 <Package className="h-6 w-6" />
               </div>
               Stock Inventory
@@ -554,7 +560,7 @@ export default function Dashboard() {
                         <Building className="h-5 w-5 text-gray-600" />
                         {warehouse.name}
                       </CardTitle>
-                      <Badge className="bg-blue-100 text-blue-800">{warehouse.totalProducts} Products</Badge>
+                      <Badge className="bg-slate-100 text-slate-800">{warehouse.totalProducts} Products</Badge>
                     </div>
                     {warehouse.location && (
                       <p className="text-sm text-gray-600">{warehouse.location}</p>
@@ -564,7 +570,7 @@ export default function Dashboard() {
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-700">Total Quantity</span>
-                        <Badge className="bg-green-100 text-green-800 font-bold">
+                        <Badge className="bg-emerald-100 text-emerald-800 font-bold">
                           {warehouse.totalQuantity.toLocaleString()}
                         </Badge>
                       </div>

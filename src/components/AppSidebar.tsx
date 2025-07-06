@@ -132,20 +132,13 @@ export function AppSidebar() {
     return (
       <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg">
         <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center">
             <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse"></div>
-            {!isCollapsed && (
-              <div className="flex flex-col">
-                <div className="h-4 bg-white/20 rounded animate-pulse mb-1"></div>
-                <div className="h-3 bg-white/20 rounded animate-pulse w-20"></div>
-              </div>
-            )}
           </div>
         </SidebarHeader>
         
         <SidebarContent className="bg-white">
           <SidebarGroup>
-            <SidebarGroupLabel className="text-gray-500 font-medium px-3">Loading...</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="flex justify-center items-center h-20">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -166,14 +159,14 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
       <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center">
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
             className="h-8 w-auto flex-shrink-0 bg-white/10 p-1 rounded-lg"
           />
           {!isCollapsed && (
-            <div className="flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0 ml-3">
               <h2 className="text-base font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
               <p className="text-xs text-blue-100 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
             </div>
@@ -183,9 +176,6 @@ export function AppSidebar() {
       
       <SidebarContent className="bg-white">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-600 font-semibold px-3 text-xs uppercase tracking-wider bg-gray-100 py-2 mx-2 rounded-lg">
-            Applications
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-2 px-2">
               {visibleItems.map(item => {

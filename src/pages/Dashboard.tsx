@@ -1,16 +1,18 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw, BarChart3, Activity, Zap, Target, Award, Calendar } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RotateCcw, BarChart3, Activity, Zap, Target, Award, Calendar } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
 import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
+import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
 interface Widget {
@@ -33,7 +35,7 @@ export default function Dashboard() {
     {
       id: 'total-revenue',
       name: 'Total Revenue',
-      description: 'Current month revenue',
+      description: 'Current period revenue',
       icon: DollarSign,
       category: 'Metrics',
       size: 'small' as const
@@ -49,7 +51,7 @@ export default function Dashboard() {
     {
       id: 'revenue-chart',
       name: 'Revenue Chart',
-      description: 'Monthly revenue trends and analytics',
+      description: 'Period revenue trends and analytics',
       icon: TrendingUp,
       category: 'Analytics',
       size: 'large' as const
@@ -73,63 +75,105 @@ export default function Dashboard() {
     }
   }, [dashboardWidgets]);
 
-  // Fetch dashboard metrics
+  // Calculate date range based on selected period
+  const getDateRange = () => {
+    const now = new Date();
+    switch (selectedPeriod) {
+      case "24h":
+        return { start: subDays(now, 1), end: now };
+      case "7d":
+        return { start: subDays(now, 7), end: now };
+      case "30d":
+        return { start: subDays(now, 30), end: now };
+      case "90d":
+        return { start: subDays(now, 90), end: now };
+      default:
+        return { start: subDays(now, 7), end: now };
+    }
+  };
+
+  const { start: startDate, end: endDate } = getDateRange();
+
+  // Fetch dashboard metrics with period filtering
   const { data: metrics } = useQuery({
-    queryKey: ['dashboard_metrics'],
+    queryKey: ['dashboard_metrics', selectedPeriod],
     queryFn: async () => {
-      // Get total sales orders count and revenue
+      // Get sales orders within date range
       const { data: salesData } = await supabase
         .from('sales_orders')
-        .select('total_amount, created_at');
+        .select('total_amount, created_at')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString());
 
-      // Get total purchase orders count and spending
+      // Get purchase orders within date range
       const { data: purchaseData } = await supabase
         .from('purchase_orders')
-        .select('total_amount, created_at');
+        .select('total_amount, created_at')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString());
 
-      // Get total clients count
+      // Get total active clients (not filtered by period as client status is persistent)
       const { data: clientsData } = await supabase
         .from('clients')
-        .select('id');
+        .select('id')
+        .eq('kyc_status', 'APPROVED');
 
-      // Get total products count
-      const { data: productsData } = await supabase
+      // Get bank accounts and their balances
+      const { data: bankData } = await supabase
+        .from('bank_accounts')
+        .select('balance')
+        .eq('status', 'ACTIVE');
+
+      // Get stock inventory data (mock calculation based on purchases)
+      const { data: stockData } = await supabase
         .from('products')
-        .select('id');
+        .select('id, purchase_price, stock_quantity');
 
-      const totalSales = salesData?.length || 0;
+      const totalSalesOrders = salesData?.length || 0;
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const totalPurchases = purchaseData?.length || 0;
       const totalSpending = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalClients = clientsData?.length || 0;
-      const totalProducts = productsData?.length || 0;
+      const activeClients = clientsData?.length || 0;
+      
+      // Calculate total cash (sum of bank balances + stock value)
+      const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
+      const stockValue = stockData?.reduce((sum, product) => {
+        return sum + (Number(product.purchase_price) * Number(product.stock_quantity));
+      }, 0) || 0;
+      const totalCash = bankBalance + stockValue;
 
       return {
-        totalSales,
+        totalSalesOrders,
         totalRevenue,
         totalPurchases,
         totalSpending,
-        totalClients,
-        totalProducts
+        activeClients,
+        totalCash,
+        bankBalance,
+        stockValue
       };
     },
   });
 
-  // Fetch recent transactions for activity feed
+  // Fetch recent transactions for activity feed with period filtering
   const { data: recentActivity } = useQuery({
-    queryKey: ['recent_activity'],
+    queryKey: ['recent_activity', selectedPeriod],
     queryFn: async () => {
-      // Get recent sales orders
+      // Get recent sales orders within period
       const { data: salesOrders } = await supabase
         .from('sales_orders')
         .select('id, order_number, client_name, total_amount, created_at')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString())
         .order('created_at', { ascending: false })
         .limit(5);
 
-      // Get recent purchase orders
+      // Get recent purchase orders within period
       const { data: purchaseOrders } = await supabase
         .from('purchase_orders')
         .select('id, order_number, supplier_name, total_amount, created_at')
+        .gte('created_at', startOfDay(startDate).toISOString())
+        .lte('created_at', endOfDay(endDate).toISOString())
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -200,19 +244,19 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header with Flat Design */}
-      <div className="relative overflow-hidden bg-blue-600 text-white">
+      <div className="relative overflow-hidden bg-slate-800 text-white">
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-700 rounded-xl shadow-lg">
+                <div className="p-3 bg-slate-700 rounded-xl shadow-lg">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
                     Welcome to Dashboard
                   </h1>
-                  <p className="text-blue-100 text-lg">
+                  <p className="text-slate-200 text-lg">
                     Monitor your business performance in real-time
                   </p>
                 </div>
@@ -220,7 +264,7 @@ export default function Dashboard() {
               
               {/* Quick Stats in Header */}
               <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-blue-700 rounded-lg px-4 py-2 border-2 border-blue-500 shadow-md">
+                <div className="bg-slate-700 rounded-lg px-4 py-2 border-2 border-slate-600 shadow-md">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
@@ -238,7 +282,7 @@ export default function Dashboard() {
             {/* Enhanced Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               {/* Period Filter with Flat Design */}
-              <div className="flex gap-1 p-1 bg-blue-700 rounded-lg border-2 border-blue-500">
+              <div className="flex gap-1 p-1 bg-slate-700 rounded-lg border-2 border-slate-600">
                 {["24h", "7d", "30d", "90d"].map((period) => (
                   <Button
                     key={period}
@@ -246,8 +290,8 @@ export default function Dashboard() {
                     size="sm"
                     onClick={() => setSelectedPeriod(period)}
                     className={selectedPeriod === period ? 
-                      "bg-white text-blue-600 shadow-md hover:bg-gray-50 border-2 border-white" : 
-                      "text-white hover:bg-blue-600 border-2 border-transparent"
+                      "bg-white text-slate-800 shadow-md hover:bg-gray-50 border-2 border-white" : 
+                      "text-white hover:bg-slate-600 border-2 border-transparent"
                     }
                   >
                     {period}
@@ -263,7 +307,7 @@ export default function Dashboard() {
                   onClick={() => setIsEditMode(!isEditMode)}
                   className={isEditMode ? 
                     "bg-orange-500 border-2 border-orange-400 text-white hover:bg-orange-600 shadow-md" : 
-                    "bg-white border-2 border-blue-300 text-blue-700 hover:bg-blue-50 shadow-md"
+                    "bg-white border-2 border-slate-300 text-slate-700 hover:bg-slate-50 shadow-md"
                   }
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -317,7 +361,7 @@ export default function Dashboard() {
                   <p className="text-3xl font-bold mt-2">₹{(metrics?.totalRevenue || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">+12.5% from last month</span>
+                    <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
                 <div className="bg-green-600 p-3 rounded-xl shadow-lg">
@@ -333,10 +377,10 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">Sales Orders</p>
-                  <p className="text-3xl font-bold mt-2">{metrics?.totalSales || 0}</p>
+                  <p className="text-3xl font-bold mt-2">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">+8.2% this week</span>
+                    <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
                 <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
@@ -352,10 +396,10 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm font-medium">Active Clients</p>
-                  <p className="text-3xl font-bold mt-2">{metrics?.totalClients || 0}</p>
+                  <p className="text-3xl font-bold mt-2">{metrics?.activeClients || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">+3.1% growth</span>
+                    <span className="text-sm font-medium">KYC Approved</span>
                   </div>
                 </div>
                 <div className="bg-purple-600 p-3 rounded-xl shadow-lg">
@@ -365,20 +409,20 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Products Card */}
+          {/* Total Cash Card */}
           <Card className="bg-orange-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-orange-100 text-sm font-medium">Products</p>
-                  <p className="text-3xl font-bold mt-2">{metrics?.totalProducts || 0}</p>
+                  <p className="text-orange-100 text-sm font-medium">Total Cash</p>
+                  <p className="text-3xl font-bold mt-2">₹{(metrics?.totalCash || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">+1.2% inventory</span>
+                    <span className="text-sm font-medium">Banks + Stock</span>
                   </div>
                 </div>
                 <div className="bg-orange-600 p-3 rounded-xl shadow-lg">
-                  <Package className="h-8 w-8" />
+                  <Wallet className="h-8 w-8" />
                 </div>
               </div>
             </CardContent>
@@ -390,31 +434,9 @@ export default function Dashboard() {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Chart Section */}
+          {/* Interactive Heatmap Section */}
           <div className="xl:col-span-2 space-y-6">
-            <Card className="bg-white border-2 border-gray-200 shadow-xl">
-              <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-indigo-700 rounded-lg shadow-md">
-                    <BarChart3 className="h-6 w-6" />
-                  </div>
-                  Performance Analytics
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                <div className="h-80 flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                      <BarChart3 className="h-10 w-10 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">Analytics Coming Soon</h3>
-                      <p className="text-gray-600">Advanced charts and insights will be available here</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <InteractiveHeatmap selectedPeriod={selectedPeriod} />
           </div>
           
           {/* Activity Feed */}
@@ -424,7 +446,7 @@ export default function Dashboard() {
                 <div className="p-2 bg-blue-700 rounded-lg shadow-md">
                   <Activity className="h-5 w-5" />
                 </div>
-                Recent Activity
+                Recent Activity ({selectedPeriod})
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4 max-h-96 overflow-y-auto">
@@ -462,8 +484,8 @@ export default function Dashboard() {
                   <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Activity className="h-8 w-8 opacity-50" />
                   </div>
-                  <p className="font-medium">No recent activity</p>
-                  <p className="text-sm">Activity will appear here as you use the system</p>
+                  <p className="font-medium">No activity in {selectedPeriod}</p>
+                  <p className="text-sm">Activity will appear here for the selected period</p>
                 </div>
               )}
             </CardContent>

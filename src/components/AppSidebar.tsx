@@ -8,7 +8,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 // Menu items with required permissions
 const items = [{
   title: "Dashboard",
-  url: "/",
+  url: "/dashboard",
   icon: Home,
   color: "text-blue-500",
   permissions: ["dashboard_view"]
@@ -112,21 +112,25 @@ export function AppSidebar() {
 
   // Filter items based on user permissions
   const visibleItems = items.filter(item => !isLoading && hasAnyPermission(item.permissions));
+  
   if (isLoading) {
-    return <Sidebar className="border-r border-gray-200 bg-white shadow-sm">
-        <SidebarHeader className="p-4 border-b border-gray-100">
+    return (
+      <Sidebar className="border-r border-gray-200 bg-gradient-to-b from-slate-50 to-blue-50 shadow-xl">
+        <SidebarHeader className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-500 to-purple-600">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg animate-pulse"></div>
-            {!isCollapsed && <div className="flex flex-col">
-                <div className="h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded animate-pulse w-20"></div>
-              </div>}
+            <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse"></div>
+            {!isCollapsed && (
+              <div className="flex flex-col">
+                <div className="h-4 bg-white/20 rounded animate-pulse mb-1"></div>
+                <div className="h-3 bg-white/20 rounded animate-pulse w-20"></div>
+              </div>
+            )}
           </div>
         </SidebarHeader>
         
-        <SidebarContent className="bg-white">
+        <SidebarContent className="bg-gradient-to-b from-slate-50 to-blue-50">
           <SidebarGroup>
-            <SidebarGroupLabel className="text-gray-400 font-medium px-3">Loading...</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-gray-500 font-medium px-3">Loading...</SidebarGroupLabel>
             <SidebarGroupContent>
               <div className="flex justify-center items-center h-20">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -135,72 +139,97 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
         
-        <SidebarFooter className="p-4 border-t border-gray-100">
-          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 ml-auto">
+        <SidebarFooter className="p-4 border-t border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
+          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-gray-600 hover:bg-white/60 hover:text-gray-800 ml-auto rounded-lg">
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </SidebarFooter>
-      </Sidebar>;
+      </Sidebar>
+    );
   }
-  return <Sidebar className="border-r border-gray-200 bg-white shadow-sm" collapsible="icon">
-      <SidebarHeader className="p-4 border-b border-gray-100">
+
+  return (
+    <Sidebar className="border-r border-white/20 bg-gradient-to-b from-slate-50 via-blue-50 to-indigo-100 shadow-xl" collapsible="icon">
+      <SidebarHeader className="p-4 border-b border-white/20 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700">
         <div className="flex items-center gap-3">
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
-            className="h-8 w-auto flex-shrink-0"
+            className="h-8 w-auto flex-shrink-0 bg-white/10 p-1 rounded-lg backdrop-blur-sm"
           />
-          {!isCollapsed && <div className="flex flex-col min-w-0">
-              <h2 className="text-base font-bold text-gray-900 tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-xs text-gray-500 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
-            </div>}
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0">
+              <h2 className="text-base font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-xs text-blue-100 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
+            </div>
+          )}
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-white">
+      <SidebarContent className="bg-gradient-to-b from-slate-50 via-blue-50 to-indigo-100">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-gray-500 font-medium px-3 text-xs uppercase tracking-wider">
+          <SidebarGroupLabel className="text-gray-600 font-semibold px-3 text-xs uppercase tracking-wider bg-gradient-to-r from-blue-100 to-purple-100 py-2 mx-2 rounded-lg">
             Applications
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1 px-0">
+            <SidebarMenu className="space-y-2 px-2">
               {visibleItems.map(item => {
-              const isActive = location.pathname === item.url;
-              return <SidebarMenuItem key={item.title}>
+                const isActive = location.pathname === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild className={`
-                        hover:bg-gray-50 text-gray-700 hover:text-blue-600 transition-all duration-200 rounded-lg group
-                        ${isActive ? 'bg-blue-50 text-blue-700 font-medium shadow-sm border-l-3 border-blue-500' : ''}
+                        hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 text-gray-700 hover:text-blue-700 transition-all duration-300 rounded-xl group border border-transparent hover:border-blue-200 shadow-sm hover:shadow-md
+                        ${isActive ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow-lg border-blue-300 transform translate-x-1' : ''}
                       `}>
-                      <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
-                        <item.icon className={`h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-500 group-hover:text-blue-500'}`} />
-                        {!isCollapsed && <span className="font-medium text-sm truncate">{item.title}</span>}
+                      <Link to={item.url} className="flex items-center gap-3 px-3 py-3">
+                        <div className={`p-1.5 rounded-lg ${isActive ? 'bg-white/20' : 'bg-white/50 group-hover:bg-white'} transition-all duration-300`}>
+                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-white' : item.color + ' group-hover:text-blue-600'} transition-colors duration-300`} />
+                        </div>
+                        {!isCollapsed && (
+                          <span className="font-medium text-sm truncate transition-all duration-300">
+                            {item.title}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
-                  </SidebarMenuItem>;
-            })}
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
         
-        {visibleItems.length === 0 && <SidebarGroup>
+        {visibleItems.length === 0 && (
+          <SidebarGroup>
             <SidebarGroupContent>
-              <div className="text-center py-8 text-gray-400">
-                <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No accessible modules</p>
+              <div className="text-center py-8 text-gray-500">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <Shield className="h-8 w-8 text-blue-500 opacity-70" />
+                </div>
+                <p className="text-sm font-medium">No accessible modules</p>
               </div>
             </SidebarGroupContent>
-          </SidebarGroup>}
+          </SidebarGroup>
+        )}
       </SidebarContent>
       
-      <SidebarFooter className="p-3 border-t border-gray-100">
+      <SidebarFooter className="p-3 border-t border-white/20 bg-gradient-to-r from-blue-50 via-purple-50 to-indigo-50">
         <div className="flex items-center justify-between">
-          {!isCollapsed && <div className="text-xs text-gray-400 font-medium truncate flex-1 mr-2">
+          {!isCollapsed && (
+            <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white/50 px-2 py-1 rounded-lg">
               © 2025 BLYNK Virtual Technologies
-            </div>}
-          <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-gray-500 hover:bg-gray-100 hover:text-gray-700 rounded-lg flex-shrink-0">
+            </div>
+          )}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={toggleSidebar} 
+            className="text-gray-600 hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 hover:text-blue-700 rounded-lg flex-shrink-0 border border-transparent hover:border-blue-200 transition-all duration-300"
+          >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </div>
       </SidebarFooter>
-    </Sidebar>;
+    </Sidebar>
+  );
 }

@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw, BarChart3, Activity } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Package, Settings, RotateCcw, BarChart3, Activity, Zap, Target, Award, Calendar } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
@@ -198,196 +199,294 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="w-full h-full p-6 space-y-6">
-      {/* Enhanced Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-gray-600 mt-1 text-sm">Welcome back! Here's what's happening with your business today.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          {/* Period Filter */}
-          <div className="flex gap-1 p-1 bg-white rounded-lg shadow-sm border border-gray-200">
-            {["24h", "7d", "30d", "90d"].map((period) => (
-              <Button
-                key={period}
-                variant={selectedPeriod === period ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedPeriod(period)}
-                className={selectedPeriod === period ? 
-                  "bg-blue-600 text-white shadow-sm" : 
-                  "hover:bg-gray-50 text-gray-700"
-                }
-              >
-                {period}
-              </Button>
-            ))}
-          </div>
-          
-          {/* Dashboard Controls */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditMode(!isEditMode)}
-              className={isEditMode ? 
-                "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" : 
-                "hover:bg-gray-50 border-gray-200"
-              }
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              {isEditMode ? 'Exit Edit' : 'Edit Mode'}
-            </Button>
-            <AddWidgetDialog 
-              onAddWidget={handleAddWidget}
-              existingWidgets={dashboardWidgets.map(w => w.id)}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetDashboard}
-              className="hover:bg-red-50 hover:border-red-200 hover:text-red-700"
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Edit Mode Banner */}
-      {isEditMode && (
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 text-blue-800 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Settings className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Edit Mode Active</h3>
-              <p className="text-blue-600 text-sm">
-                Use the three-dot menu on each widget to move or remove them. Add new widgets using the "Add Widget" button above.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Links Widget */}
-      <QuickLinksWidget onRemove={handleRemoveWidget} />
-
-      {/* Dynamic Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {dashboardWidgets.map((widget) => (
-          <DashboardWidget
-            key={widget.id}
-            widget={widget}
-            onRemove={handleRemoveWidget}
-            onMove={handleMoveWidget}
-            metrics={metrics}
-          />
-        ))}
-      </div>
-
-      {/* Enhanced Recent Activity */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3">
-          {/* Placeholder for additional dashboard content */}
-          <Card className="h-64 bg-gradient-to-br from-white to-gray-50/50 border-gray-200 shadow-sm rounded-lg">
-            <CardContent className="h-full flex items-center justify-center p-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Hero Header with Gradient Background */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 text-white">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
                   <BarChart3 className="h-8 w-8 text-white" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Add More Widgets</h3>
-                <p className="text-gray-600 text-sm">Click "Add Widget" to customize your dashboard with more analytics and metrics.</p>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    Welcome to Dashboard
+                  </h1>
+                  <p className="text-blue-100 text-lg">
+                    Monitor your business performance in real-time
+                  </p>
+                </div>
+              </div>
+              
+              {/* Quick Stats in Header */}
+              <div className="flex flex-wrap gap-4 mt-6">
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
+                  </div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    <span className="text-sm font-medium">System Active</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Enhanced Controls */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              {/* Period Filter with Glass Effect */}
+              <div className="flex gap-1 p-1 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                {["24h", "7d", "30d", "90d"].map((period) => (
+                  <Button
+                    key={period}
+                    variant={selectedPeriod === period ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSelectedPeriod(period)}
+                    className={selectedPeriod === period ? 
+                      "bg-white text-blue-600 shadow-lg hover:bg-white/90" : 
+                      "text-white hover:bg-white/20 border-transparent"
+                    }
+                  >
+                    {period}
+                  </Button>
+                ))}
+              </div>
+              
+              {/* Dashboard Controls */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={isEditMode ? 
+                    "bg-orange-500 border-orange-400 text-white hover:bg-orange-600" : 
+                    "bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
+                  }
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  {isEditMode ? 'Exit Edit' : 'Edit Mode'}
+                </Button>
+                <AddWidgetDialog 
+                  onAddWidget={handleAddWidget}
+                  existingWidgets={dashboardWidgets.map(w => w.id)}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetDashboard}
+                  className="bg-white/10 border-white/20 text-white hover:bg-red-500/20 backdrop-blur-sm"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-8">
+        {/* Edit Mode Banner */}
+        {isEditMode && (
+          <div className="bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 border-2 border-orange-200 text-orange-800 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-amber-500 rounded-xl flex items-center justify-center shadow-lg">
+                <Settings className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold">🎨 Edit Mode Active</h3>
+                <p className="text-orange-700 mt-1">
+                  Customize your dashboard by moving, removing, or adding widgets. Use the three-dot menu on each widget for options.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Metrics Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Total Revenue Card */}
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">Total Revenue</p>
+                  <p className="text-3xl font-bold mt-2">₹{(metrics?.totalRevenue || 0).toLocaleString()}</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <ArrowUpIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">+12.5% from last month</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <DollarSign className="h-8 w-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sales Orders Card */}
+          <Card className="bg-gradient-to-br from-blue-500 to-cyan-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Sales Orders</p>
+                  <p className="text-3xl font-bold mt-2">{metrics?.totalSales || 0}</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <ArrowUpIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">+8.2% this week</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <TrendingUp className="h-8 w-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Active Clients Card */}
+          <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">Active Clients</p>
+                  <p className="text-3xl font-bold mt-2">{metrics?.totalClients || 0}</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <ArrowUpIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">+3.1% growth</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Users className="h-8 w-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Products Card */}
+          <Card className="bg-gradient-to-br from-orange-500 to-red-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm font-medium">Products</p>
+                  <p className="text-3xl font-bold mt-2">{metrics?.totalProducts || 0}</p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <ArrowUpIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">+1.2% inventory</span>
+                  </div>
+                </div>
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Package className="h-8 w-8" />
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
-        
-        <Card className="bg-white shadow-sm border-gray-200 rounded-lg">
-          <CardHeader className="bg-gray-50/50 rounded-t-lg border-b border-gray-100 p-4">
-            <CardTitle className="flex items-center gap-2 text-gray-900 text-base">
-              <Activity className="h-5 w-5 text-blue-600" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 p-4">
-            {recentActivity?.slice(0, 6).map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    activity.type === 'sale' ? 'bg-green-50' : 'bg-blue-50'
-                  }`}>
-                    {activity.type === 'sale' ? (
-                      <ArrowUpIcon className="h-4 w-4 text-green-600" />
-                    ) : (
-                      <ArrowDownIcon className="h-4 w-4 text-blue-600" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-gray-900">{activity.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className={`font-semibold text-sm ${
-                    activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
-                  }`}>
-                    {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-gray-500">{activity.reference}</p>
-                </div>
-              </div>
-            ))}
-            {(!recentActivity || recentActivity.length === 0) && (
-              <div className="text-center py-8 text-gray-500">
-                <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No recent activity</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
-      {/* Default Metrics for new users */}
-      {dashboardWidgets.length === 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard
-            title="Total Revenue"
-            value={`₹${(metrics?.totalRevenue || 0).toLocaleString()}`}
-            change="+12.5%"
-            trend="up"
-            icon={DollarSign}
-          />
-          <MetricCard
-            title="Sales Orders"
-            value={metrics?.totalSales?.toString() || "0"}
-            change="+8.2%"
-            trend="up"
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Active Clients"
-            value={metrics?.totalClients?.toString() || "0"}
-            change="+3.1%"
-            trend="up"
-            icon={Users}
-          />
-          <MetricCard
-            title="Products"
-            value={metrics?.totalProducts?.toString() || "0"}
-            change="+1.2%"
-            trend="up"
-            icon={Package}
-          />
+        {/* Enhanced Quick Links Widget */}
+        <QuickLinksWidget onRemove={handleRemoveWidget} />
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Chart Section */}
+          <div className="xl:col-span-2 space-y-6">
+            <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-xl">
+              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
+                <CardTitle className="flex items-center gap-3 text-xl">
+                  <div className="p-2 bg-white/20 rounded-lg">
+                    <BarChart3 className="h-6 w-6" />
+                  </div>
+                  Performance Analytics
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div className="h-80 flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+                      <BarChart3 className="h-10 w-10 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Analytics Coming Soon</h3>
+                      <p className="text-gray-600">Advanced charts and insights will be available here</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Activity Feed */}
+          <Card className="bg-gradient-to-br from-white to-blue-50 border-0 shadow-xl">
+            <CardHeader className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Activity className="h-5 w-5" />
+                </div>
+                Recent Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 max-h-96 overflow-y-auto">
+              {recentActivity?.slice(0, 8).map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      activity.type === 'sale' ? 'bg-green-100' : 'bg-blue-100'
+                    }`}>
+                      {activity.type === 'sale' ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900">{activity.title}</p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-sm ${
+                      activity.type === 'sale' ? 'text-green-600' : 'text-blue-600'
+                    }`}>
+                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-gray-500">{activity.reference}</p>
+                  </div>
+                </div>
+              ))}
+              {(!recentActivity || recentActivity.length === 0) && (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Activity className="h-8 w-8 opacity-50" />
+                  </div>
+                  <p className="font-medium">No recent activity</p>
+                  <p className="text-sm">Activity will appear here as you use the system</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      )}
+
+        {/* Dynamic Widgets Grid */}
+        {dashboardWidgets.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {dashboardWidgets.map((widget) => (
+              <DashboardWidget
+                key={widget.id}
+                widget={widget}
+                onRemove={handleRemoveWidget}
+                onMove={handleMoveWidget}
+                metrics={metrics}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
@@ -96,6 +97,7 @@ const items = [{
   color: "text-green-500",
   permissions: ["statistics_view", "statistics_manage"]
 }];
+
 export function AppSidebar() {
   const {
     state,
@@ -143,7 +145,11 @@ export function AppSidebar() {
   return <Sidebar className="border-r border-gray-200 bg-white shadow-sm" collapsible="icon">
       <SidebarHeader className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          
+          <img 
+            src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
+            alt="Blynk Virtual Technologies Logo" 
+            className="h-8 w-auto flex-shrink-0"
+          />
           {!isCollapsed && <div className="flex flex-col min-w-0">
               <h2 className="text-base font-bold text-gray-900 tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
               <p className="text-xs text-gray-500 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>

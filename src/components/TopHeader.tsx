@@ -43,6 +43,11 @@ export function TopHeader() {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
+        <img 
+          src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
+          alt="Blynk Virtual Technologies Logo" 
+          className="h-8 w-auto"
+        />
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
       </div>
       

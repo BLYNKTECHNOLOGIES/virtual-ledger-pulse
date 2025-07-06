@@ -355,15 +355,15 @@ export default function Dashboard() {
           <Card className="bg-green-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-green-100 text-sm font-medium">Total Revenue</p>
-                  <p className="text-3xl font-bold mt-2">₹{(metrics?.totalRevenue || 0).toLocaleString()}</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">₹{(metrics?.totalRevenue || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-green-600 p-3 rounded-xl shadow-lg">
+                <div className="bg-green-600 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <DollarSign className="h-8 w-8" />
                 </div>
               </div>
@@ -374,15 +374,15 @@ export default function Dashboard() {
           <Card className="bg-blue-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-blue-100 text-sm font-medium">Sales Orders</p>
-                  <p className="text-3xl font-bold mt-2">{metrics?.totalSalesOrders || 0}</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-blue-600 p-3 rounded-xl shadow-lg">
+                <div className="bg-blue-600 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <TrendingUp className="h-8 w-8" />
                 </div>
               </div>
@@ -393,34 +393,34 @@ export default function Dashboard() {
           <Card className="bg-purple-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-purple-100 text-sm font-medium">Active Clients</p>
-                  <p className="text-3xl font-bold mt-2">{metrics?.activeClients || 0}</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.activeClients || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">KYC Approved</span>
                   </div>
                 </div>
-                <div className="bg-purple-600 p-3 rounded-xl shadow-lg">
+                <div className="bg-purple-600 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <Users className="h-8 w-8" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Total Cash Card */}
+          {/* Total Cash Card - Fixed Layout */}
           <Card className="bg-orange-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-orange-100 text-sm font-medium">Total Cash</p>
-                  <p className="text-3xl font-bold mt-2">₹{(metrics?.totalCash || 0).toLocaleString()}</p>
+                  <p className="text-xl xl:text-2xl font-bold mt-2 break-words">₹{(metrics?.totalCash || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Banks + Stock</span>
                   </div>
                 </div>
-                <div className="bg-orange-600 p-3 rounded-xl shadow-lg">
+                <div className="bg-orange-600 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <Wallet className="h-8 w-8" />
                 </div>
               </div>

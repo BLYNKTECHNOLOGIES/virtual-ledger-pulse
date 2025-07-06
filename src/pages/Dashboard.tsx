@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -124,10 +123,10 @@ export default function Dashboard() {
         .select('balance')
         .eq('status', 'ACTIVE');
 
-      // Get stock inventory data (mock calculation based on purchases)
+      // Get stock inventory data (using correct column names)
       const { data: stockData } = await supabase
         .from('products')
-        .select('id, purchase_price, stock_quantity');
+        .select('id, cost_price, current_stock_quantity');
 
       const totalSalesOrders = salesData?.length || 0;
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
@@ -135,10 +134,10 @@ export default function Dashboard() {
       const totalSpending = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const activeClients = clientsData?.length || 0;
       
-      // Calculate total cash (sum of bank balances + stock value)
+      // Calculate total cash (sum of bank balances + stock value using cost_price)
       const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
       const stockValue = stockData?.reduce((sum, product) => {
-        return sum + (Number(product.purchase_price) * Number(product.stock_quantity));
+        return sum + (Number(product.cost_price) * Number(product.current_stock_quantity));
       }, 0) || 0;
       const totalCash = bankBalance + stockValue;
 

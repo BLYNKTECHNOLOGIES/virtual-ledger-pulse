@@ -143,9 +143,7 @@ export function AppSidebar() {
   return <Sidebar className="border-r border-gray-200 bg-white shadow-sm" collapsible="icon">
       <SidebarHeader className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-            <img alt="Blynk Virtual Technologies" className="w-6 h-6 object-contain filter brightness-0 invert" src="/lovable-uploads/dfd56ea7-599e-4392-adb4-bf5e0c8cac61.jpg" />
-          </div>
+          
           {!isCollapsed && <div className="flex flex-col min-w-0">
               <h2 className="text-base font-bold text-gray-900 tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
               <p className="text-xs text-gray-500 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
@@ -159,7 +157,7 @@ export function AppSidebar() {
             Applications
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1 px-2">
+            <SidebarMenu className="space-y-1 px-0">
               {visibleItems.map(item => {
               const isActive = location.pathname === item.url;
               return <SidebarMenuItem key={item.title}>

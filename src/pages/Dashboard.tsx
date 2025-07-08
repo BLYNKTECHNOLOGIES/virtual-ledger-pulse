@@ -290,7 +290,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Hero Header with Professional Blue Background */}
-      <div className="relative overflow-hidden bg-slate-700 text-white">
+      <div className="relative overflow-hidden bg-blue-600 text-white">
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">

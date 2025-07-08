@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -12,14 +11,12 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { User, LogOut, Settings, Shield } from 'lucide-react';
+import { User, LogOut, Shield } from 'lucide-react';
 import { EmployeeProfileDialog } from '@/components/employee/EmployeeProfileDialog';
 
 export function UserMenu() {
   const { user, logout, isAdmin, hasRole } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-
-  console.log('UserMenu render - profileDialogOpen:', profileDialogOpen);
 
   if (!user) return null;
 
@@ -35,6 +32,11 @@ export function UserMenu() {
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleProfileClick = () => {
+    console.log('Profile clicked - opening dialog');
+    setProfileDialogOpen(true);
   };
 
   return (
@@ -54,7 +56,7 @@ export function UserMenu() {
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64 bg-white border shadow-lg" align="end" forceMount>
+        <DropdownMenuContent className="w-64 bg-white border shadow-lg z-50" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <div className="flex items-center gap-2">
@@ -86,13 +88,12 @@ export function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
-          <div className="py-1">
+          {/* User Profile Button */}
+          <div className="p-1">
             <button 
-              className="flex items-center w-full px-2 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-              onClick={() => {
-                console.log('User Profile clicked directly');
-                setProfileDialogOpen(true);
-              }}
+              className="flex items-center w-full px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
+              onClick={handleProfileClick}
+              type="button"
             >
               <User className="mr-2 h-4 w-4" />
               <span>User Profile</span>
@@ -101,13 +102,17 @@ export function UserMenu() {
           
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem 
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log out</span>
-          </DropdownMenuItem>
+          {/* Logout Button */}
+          <div className="p-1">
+            <button 
+              className="flex items-center w-full px-2 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+              onClick={handleLogout}
+              type="button"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </button>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
 

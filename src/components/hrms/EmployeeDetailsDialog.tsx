@@ -88,7 +88,26 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
     }
   };
 
-  if (!employee) return null;
+  if (!employee) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-center">
+            <p className="text-gray-600 mb-4">No employee record found for this user.</p>
+            <p className="text-sm text-gray-500">Please contact your administrator to set up your employee profile.</p>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

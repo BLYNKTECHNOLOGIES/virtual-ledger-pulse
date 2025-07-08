@@ -108,7 +108,6 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           onClick={() => setProfileDialogOpen(true)}
-          disabled={!employeeData}
         >
           <User className="mr-2 h-4 w-4" />
           <span>User Profile</span>

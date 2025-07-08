@@ -91,12 +91,11 @@ export function UserMenu() {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log('User Settings clicked');
               setProfileDialogOpen(true);
             }}
           >
             <User className="mr-2 h-4 w-4" />
-            <span>User Settings</span>
+            <span>User Profile</span>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />

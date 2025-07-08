@@ -87,7 +87,10 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           
           <DropdownMenuItem 
-            onClick={() => {
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
               console.log('User Settings clicked');
               setProfileDialogOpen(true);
             }}

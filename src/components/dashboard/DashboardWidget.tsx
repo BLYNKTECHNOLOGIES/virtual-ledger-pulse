@@ -83,7 +83,7 @@ const iconMap = {
   'expense-trends': TrendingDown
 };
 
-export function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetProps) {
+function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetProps) {
   const IconComponent = iconMap[widget.id as keyof typeof iconMap] || widget.icon;
 
   const getSizeClasses = (size: string) => {
@@ -417,3 +417,5 @@ export function DashboardWidget({ widget, onRemove, onMove, metrics }: Dashboard
     </div>
   );
 }
+
+export default DashboardWidget;

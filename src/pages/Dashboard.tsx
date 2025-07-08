@@ -6,7 +6,7 @@ import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Sett
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
-import { DashboardWidget } from "@/components/dashboard/DashboardWidget";
+import DashboardWidget from "@/components/dashboard/DashboardWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { useQuery } from "@tanstack/react-query";

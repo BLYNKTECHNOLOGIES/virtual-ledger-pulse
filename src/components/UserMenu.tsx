@@ -19,6 +19,8 @@ export function UserMenu() {
   const { user, logout, isAdmin, hasRole } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
+  console.log('UserMenu render - profileDialogOpen:', profileDialogOpen);
+
   if (!user) return null;
 
   const getInitials = (firstName?: string, lastName?: string, email?: string) => {
@@ -84,7 +86,12 @@ export function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
+          <DropdownMenuItem 
+            onClick={() => {
+              console.log('User Settings clicked');
+              setProfileDialogOpen(true);
+            }}
+          >
             <User className="mr-2 h-4 w-4" />
             <span>User Settings</span>
           </DropdownMenuItem>

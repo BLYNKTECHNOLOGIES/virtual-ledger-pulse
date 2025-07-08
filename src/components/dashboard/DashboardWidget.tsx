@@ -84,7 +84,11 @@ const iconMap = {
 };
 
 function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetProps) {
-  const IconComponent = iconMap[widget.id as keyof typeof iconMap] || widget.icon;
+  // Ensure we have a valid icon component
+  const IconComponent = iconMap[widget.id as keyof typeof iconMap] || widget.icon || Package;
+  
+  // Safeguard: if IconComponent is not a valid React component, use a fallback
+  const SafeIconComponent = typeof IconComponent === 'function' ? IconComponent : Package;
 
   const getSizeClasses = (size: string) => {
     switch (size) {
@@ -365,7 +369,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
         return (
           <div className="p-6 text-center">
             <div className={`w-16 h-16 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg`}>
-              <IconComponent className="h-8 w-8 text-white" />
+              <SafeIconComponent className="h-8 w-8 text-white" />
             </div>
             <h4 className="font-semibold text-gray-900 mb-2">{widget.name}</h4>
             <p className="text-sm text-gray-600">{widget.description}</p>
@@ -380,7 +384,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-gray-50 to-gray-100">
           <div className="flex items-center gap-2">
             <div className={`p-1.5 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-lg shadow-sm`}>
-              <IconComponent className="h-4 w-4 text-white" />
+              <SafeIconComponent className="h-4 w-4 text-white" />
             </div>
             <CardTitle className="text-sm font-semibold text-gray-900">{widget.name}</CardTitle>
           </div>

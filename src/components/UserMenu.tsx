@@ -84,47 +84,9 @@ export function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
-          {/* Employee Profile Section */}
           <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <UserCircle className="mr-2 h-4 w-4" />
-            <span>My Profile</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <DollarSign className="mr-2 h-4 w-4" />
-            <span>Salary & Benefits</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Bank Details</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <TrendingUp className="mr-2 h-4 w-4" />
-            <span>Apply for Hike</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <Receipt className="mr-2 h-4 w-4" />
-            <span>PF Details</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <Calendar className="mr-2 h-4 w-4" />
-            <span>Apply for Leave</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
-            <Clock className="mr-2 h-4 w-4" />
-            <span>Attendance</span>
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem disabled>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <User className="mr-2 h-4 w-4" />
+            <span>User Settings</span>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />

@@ -105,6 +105,13 @@ const items = [{
   bgColor: "bg-blue-100",
   permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
 }, {
+  title: "P&L",
+  url: "/profit-loss",
+  icon: TrendingUp,
+  color: "text-teal-600",
+  bgColor: "bg-teal-100",
+  permissions: ["accounting_view", "accounting_manage"]
+}, {
   title: "Statistics",
   url: "/statistics",
   icon: BarChart3,

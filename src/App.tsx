@@ -35,6 +35,7 @@ import Accounting from './pages/Accounting';
 import VideoKYC from './pages/VideoKYC';
 import KYCApprovals from './pages/KYCApprovals';
 import Statistics from './pages/Statistics';
+import ProfitLoss from './pages/ProfitLoss';
 import Banking from './pages/Banking';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
@@ -334,6 +335,20 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Statistics />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/profit-loss",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <ProfitLoss />
             </Layout>
           </AuthCheck>
         </AuthProvider>

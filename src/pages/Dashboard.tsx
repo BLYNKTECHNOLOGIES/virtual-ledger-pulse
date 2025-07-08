@@ -289,8 +289,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Header with Professional Blue Background */}
-      <div className="relative overflow-hidden bg-blue-600 text-white">
+      {/* Hero Header with Professional Gradient Background */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white">
+        <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">

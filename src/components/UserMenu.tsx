@@ -13,9 +13,35 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { User, LogOut, Settings, Shield } from 'lucide-react';
+import { EmployeeDetailsDialog } from '@/components/hrms/EmployeeDetailsDialog';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 export function UserMenu() {
   const { user, logout, isAdmin, hasRole } = useAuth();
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  // Fetch employee data for the current user
+  const { data: employeeData } = useQuery({
+    queryKey: ['employee_profile', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('email', user.email)
+        .single();
+      
+      if (error) {
+        console.log('No employee record found for user');
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.email,
+  });
 
   if (!user) return null;
 
@@ -80,9 +106,12 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
+        <DropdownMenuItem 
+          onClick={() => setProfileDialogOpen(true)}
+          disabled={!employeeData}
+        >
           <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+          <span>User Profile</span>
         </DropdownMenuItem>
         <DropdownMenuItem disabled>
           <Settings className="mr-2 h-4 w-4" />
@@ -97,6 +126,13 @@ export function UserMenu() {
           <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
+      
+      <EmployeeDetailsDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        employee={employeeData}
+        isEditMode={false}
+      />
     </DropdownMenu>
   );
 }

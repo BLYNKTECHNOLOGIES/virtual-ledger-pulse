@@ -87,15 +87,20 @@ export function UserMenu() {
           <DropdownMenuSeparator />
           
           <DropdownMenuItem 
-            className="cursor-pointer"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setProfileDialogOpen(true);
-            }}
+            asChild
           >
-            <User className="mr-2 h-4 w-4" />
-            <span>User Profile</span>
+            <button 
+              className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100 rounded-sm"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('User Profile button clicked');
+                setProfileDialogOpen(true);
+              }}
+            >
+              <User className="mr-2 h-4 w-4" />
+              <span>User Profile</span>
+            </button>
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />

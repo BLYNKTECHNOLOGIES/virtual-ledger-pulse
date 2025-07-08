@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3 } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,13 @@ const items = [{
   color: "text-teal-600",
   bgColor: "bg-teal-100",
   permissions: ["leads_view", "leads_manage"]
+}, {
+  title: "Management",
+  url: "/management",
+  icon: Network,
+  color: "text-slate-600",
+  bgColor: "bg-slate-100",
+  permissions: ["hrms_view", "hrms_manage", "user_management_view"]
 }, {
   title: "User Management",
   url: "/user-management",

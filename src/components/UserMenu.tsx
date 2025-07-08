@@ -21,16 +21,16 @@ export function UserMenu() {
   const { user, logout, isAdmin, hasRole } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
-  // Fetch employee data for the current user
+  // Fetch employee data for the current user based on user_id
   const { data: employeeData } = useQuery({
-    queryKey: ['employee_profile', user?.email],
+    queryKey: ['employee_profile', user?.id],
     queryFn: async () => {
-      if (!user?.email) return null;
+      if (!user?.id) return null;
       
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .eq('email', user.email)
+        .eq('user_id', user.id)
         .single();
       
       if (error) {
@@ -40,7 +40,7 @@ export function UserMenu() {
       
       return data;
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
   });
 
   if (!user) return null;

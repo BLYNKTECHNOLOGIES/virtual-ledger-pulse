@@ -38,6 +38,7 @@ import Statistics from './pages/Statistics';
 import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
 import EMS from './pages/EMS';
+import Management from './pages/Management';
 import Banking from './pages/Banking';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
@@ -211,6 +212,20 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Leads />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/management",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Management />
             </Layout>
           </AuthCheck>
         </AuthProvider>

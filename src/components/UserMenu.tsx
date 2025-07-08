@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { User, LogOut, Settings, Shield, UserCircle, CreditCard, TrendingUp, Receipt, Calendar, Clock, DollarSign } from 'lucide-react';
+import { User, LogOut, Settings, Shield } from 'lucide-react';
 import { EmployeeProfileDialog } from '@/components/employee/EmployeeProfileDialog';
 
 export function UserMenu() {

@@ -48,8 +48,8 @@ export default function Dashboard() {
       size: 'small' as const
     },
     {
-      id: 'stock-inventory',
-      name: 'Stock Inventory',
+      id: 'inventory-status',
+      name: 'Inventory Status',
       description: 'Warehouse stock overview',
       icon: Package,
       category: 'Analytics',

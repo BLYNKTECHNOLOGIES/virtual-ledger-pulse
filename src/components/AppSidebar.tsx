@@ -112,6 +112,20 @@ const items = [{
   bgColor: "bg-teal-100",
   permissions: ["accounting_view", "accounting_manage"]
 }, {
+  title: "Financials",
+  url: "/financials",
+  icon: Calculator,
+  color: "text-emerald-600",
+  bgColor: "bg-emerald-100",
+  permissions: ["accounting_view", "accounting_manage"]
+}, {
+  title: "EMS",
+  url: "/ems",
+  icon: UserCheck,
+  color: "text-indigo-600",
+  bgColor: "bg-indigo-100",
+  permissions: ["hrms_view", "hrms_manage"]
+}, {
   title: "Statistics",
   url: "/statistics",
   icon: BarChart3,

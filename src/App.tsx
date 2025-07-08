@@ -36,6 +36,8 @@ import VideoKYC from './pages/VideoKYC';
 import KYCApprovals from './pages/KYCApprovals';
 import Statistics from './pages/Statistics';
 import ProfitLoss from './pages/ProfitLoss';
+import Financials from './pages/Financials';
+import EMS from './pages/EMS';
 import Banking from './pages/Banking';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
@@ -349,6 +351,34 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <ProfitLoss />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/financials",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <Financials />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/ems",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <EMS />
             </Layout>
           </AuthCheck>
         </AuthProvider>

@@ -54,7 +54,7 @@ export function UserMenu() {
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-64" align="end" forceMount>
+        <DropdownMenuContent className="w-64 bg-white border shadow-lg" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <div className="flex items-center gap-2">
@@ -86,22 +86,18 @@ export function UserMenu() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem 
-            asChild
-          >
+          <div className="py-1">
             <button 
-              className="flex items-center w-full px-2 py-1.5 text-sm cursor-pointer hover:bg-gray-100 rounded-sm"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('User Profile button clicked');
+              className="flex items-center w-full px-2 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+              onClick={() => {
+                console.log('User Profile clicked directly');
                 setProfileDialogOpen(true);
               }}
             >
               <User className="mr-2 h-4 w-4" />
               <span>User Profile</span>
             </button>
-          </DropdownMenuItem>
+          </div>
           
           <DropdownMenuSeparator />
           

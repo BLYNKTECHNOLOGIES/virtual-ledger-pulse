@@ -371,10 +371,13 @@ export type Database = {
           designation: string
           email: string
           employee_id: string
+          has_payment_rights: boolean | null
+          hierarchy_level: number | null
           id: string
           name: string
           onboarding_completed: boolean | null
           phone: string | null
+          reports_to: string | null
           salary: number
           shift: string | null
           status: string
@@ -389,10 +392,13 @@ export type Database = {
           designation: string
           email: string
           employee_id: string
+          has_payment_rights?: boolean | null
+          hierarchy_level?: number | null
           id?: string
           name: string
           onboarding_completed?: boolean | null
           phone?: string | null
+          reports_to?: string | null
           salary: number
           shift?: string | null
           status?: string
@@ -407,17 +413,28 @@ export type Database = {
           designation?: string
           email?: string
           employee_id?: string
+          has_payment_rights?: boolean | null
+          hierarchy_level?: number | null
           id?: string
           name?: string
           onboarding_completed?: boolean | null
           phone?: string | null
+          reports_to?: string | null
           salary?: number
           shift?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_reports_to_fkey"
+            columns: ["reports_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interview_schedules: {
         Row: {

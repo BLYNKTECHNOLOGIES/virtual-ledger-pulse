@@ -18,7 +18,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Crown,
   User,
   Network,
   TreePine,
@@ -87,7 +86,7 @@ export default function Management() {
 
   const getDepartmentIcon = (department: string) => {
     switch (department) {
-      case 'Board': return '👑';
+      case 'Board': return '📋';
       case 'Executive': return '🎯';
       case 'Finance': return '💰';
       case 'Operations': return '⚙️';
@@ -191,10 +190,10 @@ export default function Management() {
       <div className="flex items-start gap-3">
         <Avatar className="h-12 w-12">
           <AvatarFallback className={`text-white font-medium ${
-            employee.hierarchy_level === 1 ? 'bg-gradient-to-br from-purple-600 to-purple-700' :
-            employee.hierarchy_level === 2 ? 'bg-gradient-to-br from-blue-600 to-blue-700' :
-            employee.hierarchy_level === 3 ? 'bg-gradient-to-br from-green-600 to-green-700' :
-            'bg-gradient-to-br from-gray-600 to-gray-700'
+            employee.hierarchy_level === 1 ? 'bg-purple-600' :
+            employee.hierarchy_level === 2 ? 'bg-blue-600' :
+            employee.hierarchy_level === 3 ? 'bg-green-600' :
+            'bg-gray-600'
           }`}>
             {getInitials(employee.name)}
           </AvatarFallback>
@@ -215,7 +214,7 @@ export default function Management() {
               )}
               {employee.user_id && (
                 <div title="Has user account">
-                  <Crown className="h-4 w-4 text-yellow-500" />
+                  <User className="h-4 w-4 text-blue-500" />
                 </div>
               )}
             </div>
@@ -356,7 +355,7 @@ export default function Management() {
                 {/* Level 1 - Board of Directors */}
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-center gap-2">
-                    👑 Board of Directors
+                    📋 Board of Directors
                   </h3>
                   <div className="flex justify-center gap-6">
                     {employees.filter(emp => emp.hierarchy_level === 1).map(director => (

@@ -271,6 +271,42 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          code: string
+          created_at: string | null
+          description: string | null
+          hierarchy_level: number | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          description?: string | null
+          hierarchy_level?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          hierarchy_level?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_verification_tokens: {
         Row: {
           created_at: string | null
@@ -368,6 +404,7 @@ export type Database = {
           date_of_joining: string
           department: string
           department_code: string | null
+          department_id: string | null
           designation: string
           email: string
           employee_id: string
@@ -377,6 +414,7 @@ export type Database = {
           name: string
           onboarding_completed: boolean | null
           phone: string | null
+          position_id: string | null
           reports_to: string | null
           salary: number
           shift: string | null
@@ -389,6 +427,7 @@ export type Database = {
           date_of_joining: string
           department: string
           department_code?: string | null
+          department_id?: string | null
           designation: string
           email: string
           employee_id: string
@@ -398,6 +437,7 @@ export type Database = {
           name: string
           onboarding_completed?: boolean | null
           phone?: string | null
+          position_id?: string | null
           reports_to?: string | null
           salary: number
           shift?: string | null
@@ -410,6 +450,7 @@ export type Database = {
           date_of_joining?: string
           department?: string
           department_code?: string | null
+          department_id?: string | null
           designation?: string
           email?: string
           employee_id?: string
@@ -419,6 +460,7 @@ export type Database = {
           name?: string
           onboarding_completed?: boolean | null
           phone?: string | null
+          position_id?: string | null
           reports_to?: string | null
           salary?: number
           shift?: string | null
@@ -427,6 +469,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "employees_reports_to_fkey"
             columns: ["reports_to"]
@@ -1378,6 +1434,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      positions: {
+        Row: {
+          created_at: string | null
+          department_id: string | null
+          description: string | null
+          hierarchy_level: number | null
+          id: string
+          is_active: boolean | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department_id?: string | null
+          description?: string | null
+          hierarchy_level?: number | null
+          id?: string
+          is_active?: boolean | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department_id?: string | null
+          description?: string | null
+          hierarchy_level?: number | null
+          id?: string
+          is_active?: boolean | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

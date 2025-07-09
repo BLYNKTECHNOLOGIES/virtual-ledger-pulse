@@ -3,10 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { UserPlus, Shield, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddUserDialogProps {
   onAddUser: (userData: {
@@ -32,7 +35,39 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     last_name: "",
     phone: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    department_id: "",
+    position_id: ""
+  });
+
+  // Fetch departments and positions
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('hierarchy_level', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: positions = [] } = useQuery({
+    queryKey: ['positions', formData.department_id],
+    queryFn: async () => {
+      if (!formData.department_id) return [];
+      const { data, error } = await supabase
+        .from('positions')
+        .select('*')
+        .eq('department_id', formData.department_id)
+        .eq('is_active', true)
+        .order('hierarchy_level', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!formData.department_id,
   });
 
   // Enhanced permission check with detailed logging
@@ -142,7 +177,9 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           last_name: "",
           phone: "",
           password: "",
-          confirmPassword: ""
+          confirmPassword: "",
+          department_id: "",
+          position_id: ""
         });
         setOpen(false);
         console.log('User created successfully');
@@ -252,6 +289,46 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               placeholder="Enter phone number"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Select 
+                value={formData.department_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value, position_id: "" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.icon} {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <Select 
+                value={formData.position_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, position_id: value }))}
+                disabled={!formData.department_id}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {positions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           <div className="space-y-2">

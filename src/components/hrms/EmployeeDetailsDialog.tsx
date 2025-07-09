@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,8 @@ interface Employee {
   date_of_joining: string;
   salary: number;
   status: string;
+  department_id?: string;
+  position_id?: string;
 }
 
 interface EmployeeDetailsDialogProps {
@@ -38,10 +40,40 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
     name: employee?.name || "",
     email: employee?.email || "",
     phone: employee?.phone || "",
-    department: employee?.department || "",
-    designation: employee?.designation || "",
+    department_id: employee?.department_id || "",
+    position_id: employee?.position_id || "",
     salary: employee?.salary?.toString() || "",
     status: employee?.status || "ACTIVE"
+  });
+
+  // Fetch departments and positions
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('hierarchy_level', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: positions = [] } = useQuery({
+    queryKey: ['positions', formData.department_id],
+    queryFn: async () => {
+      if (!formData.department_id) return [];
+      const { data, error } = await supabase
+        .from('positions')
+        .select('*')
+        .eq('department_id', formData.department_id)
+        .eq('is_active', true)
+        .order('hierarchy_level', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!formData.department_id,
   });
 
   const updateEmployeeMutation = useMutation({
@@ -54,8 +86,8 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
           name: data.name,
           email: data.email,
           phone: data.phone || null,
-          department: data.department,
-          designation: data.designation,
+          department_id: data.department_id || null,
+          position_id: data.position_id || null,
           salary: parseFloat(data.salary),
           status: data.status,
           updated_at: new Date().toISOString()
@@ -166,31 +198,40 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
             <div>
               <Label htmlFor="department">Department *</Label>
               <Select 
-                value={formData.department} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}
+                value={formData.department_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, department_id: value, position_id: "" }))}
                 disabled={!isEditMode}
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Technology">Technology</SelectItem>
-                  <SelectItem value="Sales">Sales</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="HR">HR</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
+                  {departments.map((dept) => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.icon} {dept.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="designation">Designation *</Label>
-              <Input
-                id="designation"
-                value={formData.designation}
-                onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
-                disabled={!isEditMode}
-                required
-              />
+              <Label htmlFor="position">Position *</Label>
+              <Select 
+                value={formData.position_id} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, position_id: value }))}
+                disabled={!isEditMode || !formData.department_id}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select position" />
+                </SelectTrigger>
+                <SelectContent>
+                  {positions.map((pos) => (
+                    <SelectItem key={pos.id} value={pos.id}>
+                      {pos.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

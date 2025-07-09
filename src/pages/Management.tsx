@@ -52,7 +52,7 @@ interface DepartmentGroup {
 export default function Management() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
-  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set(['Technology']));
+  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set(['Finance']));
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -92,10 +92,6 @@ export default function Management() {
       case 'Finance': return '💰';
       case 'Operations': return '⚙️';
       case 'Compliance': return '⚖️';
-      case 'Technology': return '💻';
-      case 'Sales': return '💼';
-      case 'Marketing': return '📈';
-      case 'HR': return '👥';
       default: return '🏢';
     }
   };
@@ -347,7 +343,6 @@ export default function Management() {
             </CardContent>
           </Card>
 
-          {/* Organizational Hierarchy */}
           <Card>
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
@@ -356,8 +351,8 @@ export default function Management() {
               </CardTitle>
               <p className="text-gray-600">Complete organizational structure with reporting relationships</p>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
+            <CardContent className="overflow-x-auto">
+              <div className="min-w-[800px] space-y-8">
                 {/* Level 1 - Board of Directors */}
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-center gap-2">
@@ -391,58 +386,69 @@ export default function Management() {
                       <div className="w-px h-8 bg-gray-300"></div>
                     </div>
 
-                    {/* Level 3 - Department Heads */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      {['Finance', 'Operations', 'Compliance'].map(dept => {
-                        const deptHead = employees.find(emp => 
-                          emp.hierarchy_level === 3 && emp.department === dept
-                        );
-                        
-                        if (!deptHead) return null;
-
-                        return (
-                          <div key={dept} className="space-y-4">
-                            <h4 className="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2">
-                              {getDepartmentIcon(dept)} {dept}
-                            </h4>
-                            
-                            {/* Department Head */}
-                            <div className="flex justify-center">
-                              <div className="w-full max-w-sm">
-                                {renderEmployeeCard(deptHead)}
+                    {/* Level 3 - Department Heads - Fixed Layout */}
+                    <div className="flex justify-center">
+                      <div className="grid grid-cols-3 gap-12 max-w-6xl">
+                        {['Finance', 'Operations', 'Compliance'].map(dept => {
+                          const deptHead = employees.find(emp => 
+                            emp.hierarchy_level === 3 && emp.department === dept
+                          );
+                          
+                          if (!deptHead) return (
+                            <div key={dept} className="w-80 space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-400 flex items-center justify-center gap-2">
+                                {getDepartmentIcon(dept)} {dept}
+                              </h4>
+                              <div className="text-center text-gray-400 p-4 border-2 border-dashed border-gray-200 rounded-lg">
+                                No department head assigned
                               </div>
                             </div>
+                          );
 
-                            {/* Subordinates */}
-                            {hierarchy[deptHead.id] && hierarchy[deptHead.id].length > 0 && (
-                              <div className="space-y-3">
-                                <div className="flex justify-center">
-                                  <div className="w-px h-6 bg-gray-200"></div>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 gap-3">
-                                  {hierarchy[deptHead.id].map((subordinate: Employee) => (
-                                    <div key={subordinate.id} className="space-y-3">
-                                      {renderEmployeeCard(subordinate, true)}
-                                      
-                                      {/* Further subordinates */}
-                                      {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
-                                        <div className="ml-6 space-y-2 border-l-2 border-gray-100 pl-4">
-                                          {hierarchy[subordinate.id].map((emp: Employee) => (
-                                            <div key={emp.id}>
-                                              {renderEmployeeCard(emp, false)}
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
+                          return (
+                            <div key={dept} className="w-80 space-y-4">
+                              <h4 className="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2">
+                                {getDepartmentIcon(dept)} {dept}
+                              </h4>
+                              
+                              {/* Department Head */}
+                              <div className="flex justify-center">
+                                <div className="w-full">
+                                  {renderEmployeeCard(deptHead)}
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        );
-                      })}
+
+                              {/* Subordinates */}
+                              {hierarchy[deptHead.id] && hierarchy[deptHead.id].length > 0 && (
+                                <div className="space-y-3">
+                                  <div className="flex justify-center">
+                                    <div className="w-px h-6 bg-gray-200"></div>
+                                  </div>
+                                  
+                                  <div className="space-y-3">
+                                    {hierarchy[deptHead.id].map((subordinate: Employee) => (
+                                      <div key={subordinate.id} className="space-y-3">
+                                        {renderEmployeeCard(subordinate, true)}
+                                        
+                                        {/* Further subordinates */}
+                                        {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
+                                          <div className="ml-4 space-y-2 border-l-2 border-gray-100 pl-4">
+                                            {hierarchy[subordinate.id].map((emp: Employee) => (
+                                              <div key={emp.id} className="transform scale-95">
+                                                {renderEmployeeCard(emp, false)}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 ))}

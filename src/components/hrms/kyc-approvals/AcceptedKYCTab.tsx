@@ -3,9 +3,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Eye, Calendar, CreditCard } from "lucide-react";
+import { User, Eye, Calendar, CreditCard, Clock, CheckCircle } from "lucide-react";
 import { KYCDetailsDialog } from "./KYCDetailsDialog";
 import { KYCTimelineDialog } from "./KYCTimelineDialog";
+import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
+import { UserPayingOptionsDialog } from "./UserPayingOptionsDialog";
+import { OrderCompletionDialog } from "./OrderCompletionDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,6 +25,8 @@ interface KYCRequest {
   binance_id_screenshot_url: string;
   additional_documents_url: string | null;
   status: string;
+  payment_status?: string;
+  payment_method_id?: string;
   created_at: string;
   updated_at: string;
   kyc_queries?: Array<{
@@ -40,6 +45,9 @@ export function AcceptedKYCTab() {
   const [loading, setLoading] = useState(true);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [userPayingDialogOpen, setUserPayingDialogOpen] = useState(false);
+  const [orderCompletionDialogOpen, setOrderCompletionDialogOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<KYCRequest | null>(null);
   const { toast } = useToast();
 
@@ -94,14 +102,70 @@ export function AcceptedKYCTab() {
   };
 
   const handleProceedPayment = (kyc: KYCRequest) => {
-    // This could navigate to a payment processing page or open a payment dialog
-    toast({
-      title: "Payment Processing",
-      description: `Proceeding with payment for ${kyc.counterparty_name} - ₹${kyc.order_amount.toLocaleString()}`,
-    });
-    
-    // You can implement actual payment logic here
-    console.log('Proceeding with payment for:', kyc);
+    // Check if already in user paying status
+    if (kyc.payment_status === "USER_PAYING") {
+      setSelectedKYC(kyc);
+      setUserPayingDialogOpen(true);
+    } else {
+      setSelectedKYC(kyc);
+      setPaymentDialogOpen(true);
+    }
+  };
+
+  const handlePaymentStatusChange = async (kycId: string, status: string, paymentMethodId?: string) => {
+    try {
+      const updateData: any = {
+        payment_status: status,
+        updated_at: new Date().toISOString()
+      };
+
+      if (paymentMethodId) {
+        updateData.payment_method_id = paymentMethodId;
+      }
+
+      if (status === "ORDER_CANCELLED") {
+        // Move to leads table
+        const kyc = kycRequests.find(k => k.id === kycId);
+        if (kyc) {
+          await supabase.from('leads').insert({
+            name: kyc.counterparty_name,
+            estimated_order_value: kyc.order_amount,
+            description: `Cancelled KYC Order - ${kyc.purpose_of_buying || 'No purpose specified'}`,
+            status: 'NEW',
+            source: 'KYC Cancellation'
+          });
+        }
+        updateData.status = 'CANCELLED';
+      }
+
+      const { error } = await supabase
+        .from('kyc_approval_requests')
+        .update(updateData)
+        .eq('id', kycId);
+
+      if (error) throw error;
+
+      // Refresh the data
+      fetchApprovedKYC();
+
+    } catch (error) {
+      console.error('Error updating payment status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment status.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAlternativeMethod = () => {
+    setUserPayingDialogOpen(false);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleOrderCompletion = (kyc: KYCRequest, paymentMethodId: string) => {
+    setSelectedKYC({ ...kyc, payment_method_id: paymentMethodId });
+    setOrderCompletionDialogOpen(true);
   };
 
   const isVideoKYCCompleted = (kyc: KYCRequest) => {
@@ -198,14 +262,34 @@ export function AcceptedKYCTab() {
                     <Calendar className="h-4 w-4" />
                     View Timeline
                   </Button>
-                  <Button 
-                    size="sm" 
-                    onClick={() => handleProceedPayment(kyc)} 
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Proceed for Payment
-                  </Button>
+                  {kyc.payment_status === "USER_PAYING" ? (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleProceedPayment(kyc)} 
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Clock className="h-4 w-4" />
+                      User Paying
+                    </Button>
+                  ) : kyc.payment_status === "PAYMENT_DONE" ? (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleOrderCompletion(kyc, kyc.payment_method_id!)} 
+                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Complete Order
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleProceedPayment(kyc)} 
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Proceed for Payment
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -223,6 +307,49 @@ export function AcceptedKYCTab() {
         open={timelineDialogOpen}
         onOpenChange={setTimelineDialogOpen}
         kycRequest={selectedKYC}
+      />
+
+      <PaymentMethodSelectionDialog
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        orderAmount={selectedKYC?.order_amount || 0}
+        counterpartyName={selectedKYC?.counterparty_name || ""}
+        kycId={selectedKYC?.id || ""}
+        onStatusChange={(status, paymentMethodId) => {
+          if (selectedKYC) {
+            if (status === "PAYMENT_DONE" && paymentMethodId) {
+              handleOrderCompletion(selectedKYC, paymentMethodId);
+            } else {
+              handlePaymentStatusChange(selectedKYC.id, status, paymentMethodId);
+            }
+          }
+        }}
+      />
+
+      <UserPayingOptionsDialog
+        open={userPayingDialogOpen}
+        onOpenChange={setUserPayingDialogOpen}
+        counterpartyName={selectedKYC?.counterparty_name || ""}
+        orderAmount={selectedKYC?.order_amount || 0}
+        onStatusChange={(status) => {
+          if (selectedKYC) {
+            if (status === "PAYMENT_DONE") {
+              handleOrderCompletion(selectedKYC, selectedKYC.payment_method_id!);
+            } else {
+              handlePaymentStatusChange(selectedKYC.id, status);
+            }
+          }
+        }}
+        onAlternativeMethod={handleAlternativeMethod}
+      />
+
+      <OrderCompletionDialog
+        open={orderCompletionDialogOpen}
+        onOpenChange={setOrderCompletionDialogOpen}
+        counterpartyName={selectedKYC?.counterparty_name || ""}
+        orderAmount={selectedKYC?.order_amount || 0}
+        paymentMethodId={selectedKYC?.payment_method_id || ""}
+        kycId={selectedKYC?.id || ""}
       />
     </div>
   );

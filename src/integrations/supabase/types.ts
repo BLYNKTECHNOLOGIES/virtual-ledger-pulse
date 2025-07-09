@@ -725,6 +725,8 @@ export type Database = {
           id: string
           negative_feedback_url: string | null
           order_amount: number
+          payment_method_id: string | null
+          payment_status: string | null
           purpose_of_buying: string | null
           status: string
           updated_at: string
@@ -742,6 +744,8 @@ export type Database = {
           id?: string
           negative_feedback_url?: string | null
           order_amount: number
+          payment_method_id?: string | null
+          payment_status?: string | null
           purpose_of_buying?: string | null
           status?: string
           updated_at?: string
@@ -759,6 +763,8 @@ export type Database = {
           id?: string
           negative_feedback_url?: string | null
           order_amount?: number
+          payment_method_id?: string | null
+          payment_status?: string | null
           purpose_of_buying?: string | null
           status?: string
           updated_at?: string
@@ -770,6 +776,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_approval_requests_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "sales_payment_methods"
             referencedColumns: ["id"]
           },
         ]

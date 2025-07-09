@@ -146,7 +146,12 @@ export function AcceptedKYCTab() {
       if (error) throw error;
 
       // Refresh the data
-      fetchApprovedKYC();
+      await fetchApprovedKYC();
+      
+      toast({
+        title: "Status Updated",
+        description: `Payment status updated to ${status.replace('_', ' ')}`,
+      });
 
     } catch (error) {
       console.error('Error updating payment status:', error);

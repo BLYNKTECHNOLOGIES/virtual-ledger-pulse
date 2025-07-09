@@ -62,7 +62,8 @@ export function PaymentMethodSelectionDialog({
         `)
         .eq('type', methodType)
         .eq('is_active', true)
-        .order('created_at');
+        .order('risk_category', { ascending: true })
+        .order('current_usage', { ascending: true });
       
       if (error) throw error;
       return data as PaymentMethod[];

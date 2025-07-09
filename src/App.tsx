@@ -39,6 +39,7 @@ import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
 import EMS from './pages/EMS';
 import Management from './pages/Management';
+import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
@@ -399,22 +400,36 @@ const router = createBrowserRouter([
         </AuthProvider>
       </QueryProvider>
     ),
-  },
-  {
-    path: "/banking",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <Banking />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-  },
-  // Catch-all route for 404 errors
+   },
+   {
+     path: "/profile",
+     element: (
+       <QueryProvider>
+         <AuthProvider>
+           <AuthCheck>
+             <Layout>
+               <UserProfile />
+             </Layout>
+           </AuthCheck>
+         </AuthProvider>
+       </QueryProvider>
+     ),
+   },
+   {
+     path: "/banking",
+     element: (
+       <QueryProvider>
+         <AuthProvider>
+           <AuthCheck>
+             <Layout>
+               <Banking />
+             </Layout>
+           </AuthCheck>
+         </AuthProvider>
+       </QueryProvider>
+     ),
+   },
+   // Catch-all route for 404 errors
   {
     path: "*",
     element: <NotFound />,

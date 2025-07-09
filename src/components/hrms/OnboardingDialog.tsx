@@ -72,19 +72,20 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
       
       const { error } = await supabase
         .from('employees')
-        .insert([{
-          employee_id: employeeId,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          department: data.department,
-          designation: data.designation,
-          salary: parseFloat(data.salary),
-          shift: data.shift,
-          date_of_joining: data.date_of_joining,
-          onboarding_completed: true,
-          status: 'ACTIVE'
-        }]);
+         .insert([{
+           employee_id: employeeId,
+           name: data.name,
+           email: data.email,
+           phone: data.phone,
+           department: data.department,
+           designation: data.designation,
+           salary: parseFloat(data.salary),
+           shift: data.shift,
+           date_of_joining: data.date_of_joining,
+           onboarding_completed: true,
+           status: 'ACTIVE',
+           user_id: null
+         }]);
       
       if (error) throw error;
 

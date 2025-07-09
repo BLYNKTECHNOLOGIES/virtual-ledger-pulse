@@ -418,4 +418,5 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
   );
 }
 
+export { DashboardWidget };
 export default DashboardWidget;

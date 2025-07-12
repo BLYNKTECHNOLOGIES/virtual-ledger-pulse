@@ -44,7 +44,7 @@ import Banking from './pages/Banking';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
-import { AuthProvider } from './hooks/useAuth';
+import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 
 const router = createBrowserRouter([

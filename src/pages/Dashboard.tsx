@@ -128,10 +128,10 @@ export default function Dashboard() {
         .select('balance')
         .eq('status', 'ACTIVE');
 
-      // Get stock inventory data using average_buying_price
+      // Get stock inventory data using cost_price for total value calculation
       const { data: stockData } = await supabase
         .from('products')
-        .select('id, average_buying_price, current_stock_quantity');
+        .select('id, cost_price, current_stock_quantity');
 
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
@@ -140,10 +140,10 @@ export default function Dashboard() {
       const verifiedClients = clientsData?.length || 0;
       const totalClients = totalClientsData?.length || 0;
       
-      // Calculate total cash (sum of active bank balances + stock value using average_buying_price)
+      // Calculate total cash (sum of active bank balances + stock value using cost_price)
       const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
       const stockValue = stockData?.reduce((sum, product) => {
-        return sum + (Number(product.average_buying_price || 0) * Number(product.current_stock_quantity));
+        return sum + (Number(product.cost_price || 0) * Number(product.current_stock_quantity));
       }, 0) || 0;
       const totalCash = bankBalance + stockValue;
 
@@ -277,14 +277,23 @@ export default function Dashboard() {
     });
   };
 
-  const handleRefreshDashboard = () => {
-    refetchMetrics();
-    refetchWarehouseStock();
-    refetchActivity();
-    toast({
-      title: "Dashboard Refreshed",
-      description: "All dashboard data has been refreshed.",
-    });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshDashboard = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        refetchMetrics(),
+        refetchWarehouseStock(),
+        refetchActivity()
+      ]);
+      toast({
+        title: "Dashboard Refreshed",
+        description: "All dashboard data has been refreshed.",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -311,7 +320,7 @@ export default function Dashboard() {
               
               {/* Quick Stats in Header */}
               <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-secondary rounded-lg px-4 py-2 border-2 border-border shadow-md">
+                <div className="bg-blue-800 text-white rounded-lg px-4 py-2 border-2 border-blue-700 shadow-md">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
@@ -368,10 +377,11 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   onClick={handleRefreshDashboard}
+                  disabled={isRefreshing}
                   className="bg-card border-2 border-border text-foreground hover:bg-muted shadow-md"
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
                 </Button>
               </div>
             </div>
@@ -460,9 +470,9 @@ export default function Dashboard() {
           <Card className="bg-amber-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 relative z-10">
                   <p className="text-amber-100 text-sm font-medium">Total Cash</p>
-                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight">
+                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words">
                     ₹{(metrics?.totalCash || 0).toLocaleString()}
                   </div>
                   <div className="flex items-center gap-1 mt-2">
@@ -470,7 +480,7 @@ export default function Dashboard() {
                     <span className="text-sm font-medium">Banks + Stock</span>
                   </div>
                 </div>
-                <div className="bg-amber-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-amber-700 p-3 rounded-xl shadow-lg flex-shrink-0 relative z-0">
                   <Wallet className="h-8 w-8" />
                 </div>
               </div>

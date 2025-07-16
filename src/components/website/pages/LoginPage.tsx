@@ -9,17 +9,19 @@ import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export function LoginPage() {
-  const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
-  const [password, setPassword] = useState('Blynk@0717');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
     
     try {
       // Check demo admin credentials first
@@ -66,7 +68,8 @@ export function LoginPage() {
         localStorage.setItem('userSession', JSON.stringify(sessionData));
         
         console.log('Demo admin login successful');
-        navigate('/dashboard');
+        setSuccess('Correct password, redirecting to Dashboard...');
+        setTimeout(() => navigate('/dashboard'), 1500);
         return;
       }
 
@@ -81,7 +84,7 @@ export function LoginPage() {
 
       if (userCheckError || !existingUser) {
         console.log('User not found in database');
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError('Incorrect credentials. Please check your email and password.');
         return;
       }
 
@@ -93,7 +96,7 @@ export function LoginPage() {
 
       if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
         console.log('Invalid credentials');
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError('Incorrect credentials. Please check your email and password.');
         return;
       }
 
@@ -101,7 +104,7 @@ export function LoginPage() {
       
       if (!validationData?.is_valid) {
         console.log('Credentials are invalid');
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError('Incorrect credentials. Please check your email and password.');
         return;
       }
 
@@ -170,7 +173,8 @@ export function LoginPage() {
       }
 
       console.log('User authenticated successfully:', authenticatedUser);
-      navigate('/dashboard');
+      setSuccess('Correct password, redirecting to Dashboard...');
+      setTimeout(() => navigate('/dashboard'), 1500);
       
     } catch (error) {
       console.error('Login error:', error);
@@ -194,6 +198,11 @@ export function LoginPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
                 {error}
+              </div>
+            )}
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-md text-sm">
+                {success}
               </div>
             )}
             
@@ -258,11 +267,6 @@ export function LoginPage() {
             </Button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Demo Credentials:</p>
-            <p>Email: blynkvirtualtechnologiespvtld@gmail.com</p>
-            <p>Password: Blynk@0717</p>
-          </div>
         </CardContent>
       </Card>
     </div>

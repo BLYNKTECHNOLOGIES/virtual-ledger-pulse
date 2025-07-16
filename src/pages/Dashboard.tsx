@@ -419,18 +419,18 @@ export default function Dashboard() {
           </Card>
 
           {/* Sales Orders Card */}
-          <Card className="bg-secondary text-secondary-foreground border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-sm font-medium">Sales Orders</p>
+                  <p className="text-purple-100 text-sm font-medium">Sales Orders</p>
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4" />
                     <span className="text-sm font-medium">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-muted p-3 rounded-xl shadow-lg flex-shrink-0">
+                <div className="bg-purple-700 p-3 rounded-xl shadow-lg flex-shrink-0">
                   <TrendingUp className="h-8 w-8" />
                 </div>
               </div>
@@ -490,9 +490,9 @@ export default function Dashboard() {
           
           {/* Activity Feed */}
           <Card className="bg-card border-2 border-border shadow-xl">
-            <CardHeader className="bg-secondary text-secondary-foreground rounded-t-lg">
+            <CardHeader className="bg-teal-600 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-muted rounded-lg shadow-md">
+                <div className="p-2 bg-teal-700 rounded-lg shadow-md">
                   <Activity className="h-5 w-5" />
                 </div>
                 Recent Activity ({selectedPeriod})
@@ -542,7 +542,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stock Inventory Section */}
-        <Card className="bg-white border-2 border-gray-200 shadow-xl">
+        <Card className="bg-card border-2 border-border shadow-xl">
           <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-xl">
               <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
@@ -554,41 +554,41 @@ export default function Dashboard() {
           <CardContent className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {warehouseStock?.map((warehouse, index) => (
-                <Card key={index} className="border-2 border-gray-200 hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="bg-gray-50 border-b">
+                <Card key={index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+                  <CardHeader className="bg-secondary border-b">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <Building className="h-5 w-5 text-gray-600" />
+                        <Building className="h-5 w-5 text-muted-foreground" />
                         {warehouse.name}
                       </CardTitle>
-                      <Badge className="bg-slate-100 text-slate-800">{warehouse.totalProducts} Products</Badge>
+                      <Badge className="bg-muted text-foreground">{warehouse.totalProducts} Products</Badge>
                     </div>
                     {warehouse.location && (
-                      <p className="text-sm text-gray-600">{warehouse.location}</p>
+                      <p className="text-sm text-muted-foreground">{warehouse.location}</p>
                     )}
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-gray-700">Total Quantity</span>
+                        <span className="text-sm font-medium text-foreground">Total Quantity</span>
                         <Badge className="bg-emerald-100 text-emerald-800 font-bold">
                           {warehouse.totalQuantity.toLocaleString()}
                         </Badge>
                       </div>
                       
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-2">Top Products</h4>
+                        <h4 className="text-sm font-semibold text-foreground mb-2">Top Products</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
                           {warehouse.products.slice(0, 5).map((product: any, idx: number) => (
                             <div key={idx} className="flex justify-between text-xs">
-                              <span className="text-gray-600 truncate pr-2">{product.name}</span>
-                              <span className="font-medium text-gray-800 whitespace-nowrap">
+                              <span className="text-muted-foreground truncate pr-2">{product.name}</span>
+                              <span className="font-medium text-foreground whitespace-nowrap">
                                 {Number(product.current_stock_quantity).toLocaleString()}
                               </span>
                             </div>
                           ))}
                           {warehouse.products.length > 5 && (
-                            <div className="text-xs text-gray-500 italic">
+                            <div className="text-xs text-muted-foreground italic">
                               +{warehouse.products.length - 5} more products
                             </div>
                           )}
@@ -600,8 +600,8 @@ export default function Dashboard() {
               ))}
               
               {(!warehouseStock || warehouseStock.length === 0) && (
-                <div className="col-span-full text-center py-12 text-gray-500">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Package className="h-8 w-8 opacity-50" />
                   </div>
                   <p className="font-medium">No warehouse data available</p>

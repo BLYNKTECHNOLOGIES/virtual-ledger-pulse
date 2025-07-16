@@ -428,7 +428,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             <h3 className="text-lg font-semibold">Step 1: Choose Order Type</h3>
             <div className="grid grid-cols-1 gap-4">
               <Card 
-                className="cursor-pointer transition-all hover:shadow-md ring-2 ring-blue-500"
+                className={`cursor-pointer transition-all ${orderType === 'repeat' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
                 onClick={() => handleOrderTypeSelection('repeat')}
               >
                 <CardHeader className="pb-3">
@@ -440,6 +440,23 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 <CardContent>
                   <p className="text-sm text-gray-600">
                     System fetches a searchable dropdown of all existing clients (by name, ID, or platform)
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card 
+                className={`cursor-pointer transition-all ${orderType === 'new' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+                onClick={() => handleOrderTypeSelection('new')}
+              >
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <UserPlus className="h-5 w-5 text-blue-600" />
+                    New Client ➕
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    Manual form to enter new client details (Name, Phone, Platform, etc.)
                   </p>
                 </CardContent>
               </Card>

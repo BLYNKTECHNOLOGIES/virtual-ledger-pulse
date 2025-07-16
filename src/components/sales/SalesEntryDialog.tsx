@@ -93,7 +93,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       if (data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
-          .select('bank_account_id, payment_gateway')
+          .select('bank_account_id, payment_gateway, current_usage, payment_limit')
           .eq('id', data.sales_payment_method_id)
           .single();
 
@@ -104,6 +104,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .from('sales_orders')
           .update({ settlement_status: settlementStatus })
           .eq('id', result.id);
+
+        // Update payment method usage if it's a payment gateway
+        if (paymentMethod?.payment_gateway) {
+          const newUsage = (paymentMethod.current_usage || 0) + data.total_amount;
+          await supabase
+            .from('sales_payment_methods')
+            .update({ current_usage: newUsage })
+            .eq('id', data.sales_payment_method_id);
+        }
 
         // Only credit bank account if NOT a payment gateway
         if (paymentMethod?.bank_account_id && !paymentMethod?.payment_gateway) {

@@ -365,6 +365,34 @@ export function PendingSettlements() {
 
       if (updateError) throw updateError;
 
+      // Reset payment method usage for settled sales
+      const paymentMethodIds = [...new Set(selectedSales.map(saleId => {
+        const sale = pendingSales.find(s => s.id === saleId);
+        return sale?.sales_payment_method.id;
+      }).filter(Boolean))];
+
+      for (const methodId of paymentMethodIds) {
+        const settledAmount = selectedSales.reduce((sum, saleId) => {
+          const sale = pendingSales.find(s => s.id === saleId);
+          return sale?.sales_payment_method.id === methodId ? sum + (sale?.total_amount || 0) : sum;
+        }, 0);
+
+        // Reduce the current usage by the settled amount
+        const { data: currentMethod } = await supabase
+          .from('sales_payment_methods')
+          .select('current_usage')
+          .eq('id', methodId)
+          .single();
+
+        if (currentMethod) {
+          const newUsage = Math.max(0, (currentMethod.current_usage || 0) - settledAmount);
+          await supabase
+            .from('sales_payment_methods')
+            .update({ current_usage: newUsage })
+            .eq('id', methodId);
+        }
+      }
+
 
       toast({
         title: "Success",

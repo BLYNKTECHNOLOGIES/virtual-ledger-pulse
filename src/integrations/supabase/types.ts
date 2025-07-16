@@ -1717,6 +1717,7 @@ export type Database = {
       purchase_payment_methods: {
         Row: {
           bank_account_name: string | null
+          beneficiaries_per_24h: number | null
           created_at: string
           current_usage: number | null
           custom_frequency: string | null
@@ -1734,6 +1735,7 @@ export type Database = {
         }
         Insert: {
           bank_account_name?: string | null
+          beneficiaries_per_24h?: number | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null
@@ -1751,6 +1753,7 @@ export type Database = {
         }
         Update: {
           bank_account_name?: string | null
+          beneficiaries_per_24h?: number | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null
@@ -1974,6 +1977,7 @@ export type Database = {
       sales_payment_methods: {
         Row: {
           bank_account_id: string | null
+          beneficiaries_per_24h: number | null
           created_at: string
           current_usage: number | null
           custom_frequency: string | null
@@ -1991,6 +1995,7 @@ export type Database = {
         }
         Insert: {
           bank_account_id?: string | null
+          beneficiaries_per_24h?: number | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null
@@ -2008,6 +2013,7 @@ export type Database = {
         }
         Update: {
           bank_account_id?: string | null
+          beneficiaries_per_24h?: number | null
           created_at?: string
           current_usage?: number | null
           custom_frequency?: string | null

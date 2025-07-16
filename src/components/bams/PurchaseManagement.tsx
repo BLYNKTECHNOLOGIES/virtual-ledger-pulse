@@ -27,6 +27,7 @@ interface PurchaseMethod {
   isActive: boolean;
   safeFund: boolean;
   bankAccountName?: string;
+  beneficiariesPer24h?: number;
 }
 
 interface BankAccount {
@@ -52,7 +53,8 @@ export function PurchaseManagement() {
     maxLimit: "10000000",
     frequency: "24 hours" as "24 hours" | "Daily",
     bankAccountName: "",
-    safeFund: false
+    safeFund: false,
+    beneficiariesPer24h: "5"
   });
 
   // Fetch purchase methods from Supabase with real-time updates
@@ -83,7 +85,8 @@ export function PurchaseManagement() {
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
           safeFund: method.safe_fund || false,
-          bankAccountName: method.bank_account_name
+          bankAccountName: method.bank_account_name,
+          beneficiariesPer24h: method.beneficiaries_per_24h || 5
         })) || [];
         setPurchaseMethods(formattedMethods);
       }
@@ -165,8 +168,11 @@ export function PurchaseManagement() {
             frequency: formData.frequency,
             bank_account_name: formData.bankAccountName || null,
             safe_fund: formData.safeFund,
+            beneficiaries_per_24h: formData.type === "Bank Transfer" ? parseInt(formData.beneficiariesPer24h) : null,
+            safe_funds: formData.safeFund,
             current_usage: 0,
-            is_active: true
+            is_active: true,
+            last_reset: new Date().toISOString()
           });
 
         if (error) throw error;
@@ -196,7 +202,8 @@ export function PurchaseManagement() {
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
           safeFund: method.safe_fund || false,
-          bankAccountName: method.bank_account_name
+          bankAccountName: method.bank_account_name,
+          beneficiariesPer24h: method.beneficiaries_per_24h || 5
         }));
         setPurchaseMethods(formattedMethods);
       }
@@ -223,7 +230,8 @@ export function PurchaseManagement() {
       maxLimit: method.maxLimit.toString(),
       frequency: method.frequency,
       bankAccountName: method.bankAccountName || "",
-      safeFund: method.safeFund
+      safeFund: method.safeFund,
+      beneficiariesPer24h: method.beneficiariesPer24h?.toString() || "5"
     });
     setIsAddDialogOpen(true);
   };
@@ -263,7 +271,8 @@ export function PurchaseManagement() {
       maxLimit: "10000000",
       frequency: "24 hours",
       bankAccountName: "",
-      safeFund: false
+      safeFund: false,
+      beneficiariesPer24h: "5"
     });
     setEditingMethod(null);
   };
@@ -386,52 +395,144 @@ export function PurchaseManagement() {
               </div>
 
               <div>
-                <Label>Limit Range (₹200 - ₹1 Crore)</Label>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>Min: ₹{parseInt(formData.minLimit || "200").toLocaleString()}</span>
-                    <span>Max: ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}</span>
-                  </div>
-                  <Slider
-                    value={[parseInt(formData.minLimit || "200"), parseInt(formData.maxLimit || "10000000")]}
-                    onValueChange={(value) => setFormData(prev => ({ 
-                      ...prev, 
-                      minLimit: value[0].toString(), 
-                      maxLimit: value[1].toString() 
-                    }))}
-                    min={200}
-                    max={10000000}
-                    step={1000}
-                    className="w-full"
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="minLimit">Minimum Limit (₹)</Label>
+                <Label>Payment Limits (₹200 - ₹1 Crore)</Label>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Minimum Limit</Label>
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-32 h-32">
+                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="#e2e8f0"
+                              strokeWidth="2"
+                            />
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="#3b82f6"
+                              strokeWidth="2"
+                              strokeDasharray={`${((parseInt(formData.minLimit) - 200) / (10000000 - 200)) * 100}, 100`}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-medium text-center">
+                              ₹{parseInt(formData.minLimit || "200").toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Slider
+                        value={[parseInt(formData.minLimit || "200")]}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, minLimit: value[0].toString() }))}
+                        min={200}
+                        max={10000000}
+                        step={1000}
+                        className="w-full"
+                      />
                       <Input
-                        id="minLimit"
                         type="number"
                         min="200"
                         max="10000000"
                         value={formData.minLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
-                        required
+                        className="text-center"
+                        placeholder="Manual input"
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="maxLimit">Maximum Limit (₹)</Label>
+                    
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Maximum Limit</Label>
+                      <div className="flex items-center justify-center">
+                        <div className="relative w-32 h-32">
+                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="#e2e8f0"
+                              strokeWidth="2"
+                            />
+                            <path
+                              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                              fill="none"
+                              stroke="#10b981"
+                              strokeWidth="2"
+                              strokeDasharray={`${((parseInt(formData.maxLimit) - 200) / (10000000 - 200)) * 100}, 100`}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-medium text-center">
+                              ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Slider
+                        value={[parseInt(formData.maxLimit || "10000000")]}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, maxLimit: value[0].toString() }))}
+                        min={200}
+                        max={10000000}
+                        step={1000}
+                        className="w-full"
+                      />
                       <Input
-                        id="maxLimit"
                         type="number"
                         min="200"
                         max="10000000"
                         value={formData.maxLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
-                        required
+                        className="text-center"
+                        placeholder="Manual input"
                       />
                     </div>
                   </div>
                 </div>
               </div>
+
+              <div>
+                <Label htmlFor="frequency">Reset Frequency *</Label>
+                <Select 
+                  value={formData.frequency} 
+                  onValueChange={(value: "24 hours" | "Daily") => {
+                    setFormData(prev => ({ ...prev, frequency: value }));
+                    // Reset current usage when frequency changes
+                    if (editingMethod) {
+                      // Trigger limit reset logic here if needed
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>
+                    <SelectItem value="Daily">Daily (Calendar Day)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
+                </p>
+              </div>
+
+              {formData.type === "Bank Transfer" && (
+                <div>
+                  <Label htmlFor="beneficiariesPer24h">Beneficiaries per 24 Hours *</Label>
+                  <Input
+                    id="beneficiariesPer24h"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={formData.beneficiariesPer24h}
+                    onChange={(e) => setFormData(prev => ({ ...prev, beneficiariesPer24h: e.target.value }))}
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum number of unique beneficiaries allowed per 24 hours
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -440,6 +541,9 @@ export function PurchaseManagement() {
                   onCheckedChange={(checked) => setFormData(prev => ({ ...prev, safeFund: checked === true }))}
                 />
                 <Label htmlFor="safeFund">Safe Fund</Label>
+                <div className="text-xs text-gray-500 ml-2">
+                  Mark as safe funds for secure transactions
+                </div>
               </div>
 
               <div className="flex justify-end gap-2">

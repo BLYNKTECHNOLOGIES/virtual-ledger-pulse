@@ -279,162 +279,204 @@ export default function Management() {
     </div>
   );
 
-  return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-slate-100 rounded-lg">
-              <Network className="h-8 w-8 text-slate-600" />
-            </div>
-            Management Structure
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Organizational hierarchy and employee management overview
-          </p>
+  const renderOrgChartBox = (employee: Employee, isTopLevel = false) => {
+    const getBoxColor = (level: number) => {
+      switch (level) {
+        case 1: return 'bg-blue-600 text-white'; // Board
+        case 2: return 'bg-red-400 text-white'; // General Manager
+        case 3: return 'bg-teal-500 text-white'; // Department Heads
+        case 4: return 'bg-purple-400 text-white'; // Managers
+        default: return 'bg-gray-200 text-gray-800'; // Others
+      }
+    };
+
+    const getIcon = (department: string, level: number) => {
+      if (level === 1) return '⭐';
+      if (level === 2) return '⭐';
+      switch (department) {
+        case 'Finance': return '💰';
+        case 'Operations': return '⚙️';
+        case 'Compliance': return '⚖️';
+        default: return '🏢';
+      }
+    };
+
+    return (
+      <div 
+        className={`rounded-lg p-4 shadow-md cursor-pointer hover:shadow-lg transition-all ${getBoxColor(employee.hierarchy_level || 5)} ${
+          isTopLevel ? 'min-w-[280px]' : 'min-w-[220px]'
+        }`}
+        onClick={() => handleEmployeeClick(employee)}
+      >
+        <div className="flex items-center gap-3">
+          <div className="text-2xl">
+            {getIcon(employee.department, employee.hierarchy_level || 5)}
+          </div>
+          <div className="flex-1">
+            <h3 className={`font-bold ${isTopLevel ? 'text-lg' : 'text-sm'}`}>
+              {employee.name}
+            </h3>
+            <p className={`${isTopLevel ? 'text-base' : 'text-xs'} opacity-90`}>
+              {employee.designation}
+            </p>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <Badge variant="outline" className="text-sm">
-            <Building2 className="h-4 w-4 mr-1" />
-            {departments.length} Departments
-          </Badge>
-          <Badge variant="outline" className="text-sm">
-            <Users className="h-4 w-4 mr-1" />
-            {employees.length} Employees
-          </Badge>
+      </div>
+    );
+  };
+
+  const renderConnectorLine = (width = 'w-px', height = 'h-8') => (
+    <div className={`${width} ${height} bg-gray-400`}></div>
+  );
+
+  const renderHorizontalLine = (width = 'w-32') => (
+    <div className={`${width} h-px bg-gray-400`}></div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-black text-white py-6">
+        <div className="container mx-auto px-6">
+          <h1 className="text-3xl font-bold text-center">
+            Management Organizational Chart
+          </h1>
         </div>
       </div>
 
-      <Tabs defaultValue="hierarchy" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="hierarchy" className="flex items-center gap-2">
-            <TreePine className="h-4 w-4" />
-            Organizational Hierarchy
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Department View
-          </TabsTrigger>
-        </TabsList>
+      {/* Search and Filter */}
+      <div className="container mx-auto px-6 py-4">
+        <div className="flex gap-4 items-center mb-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search employees by name, ID, email, or designation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
-        <TabsContent value="hierarchy" className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Search Employees
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search employees by name, ID, email, or designation..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+      {/* Organizational Chart */}
+      <div className="container mx-auto px-6 pb-12">
+        <div className="bg-white rounded-lg shadow-lg p-8 overflow-x-auto">
+          <div className="min-w-[1200px]">
+            {/* Level 1 - Board of Directors */}
+            {employees.filter(emp => emp.hierarchy_level === 1 && 
+              (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+              (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+               emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+            ).map(director => (
+              <div key={director.id} className="mb-8">
+                <div className="flex justify-center mb-6">
+                  {renderOrgChartBox(director, true)}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <TreePine className="h-6 w-6 text-green-600" />
-                Organizational Hierarchy Structure
-              </CardTitle>
-              <p className="text-gray-600">Complete organizational structure with reporting relationships</p>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <div className="min-w-[800px] space-y-8">
-                {/* Level 1 - Board of Directors */}
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center justify-center gap-2">
-                    📋 Board of Directors
-                  </h3>
-                  <div className="flex justify-center gap-6">
-                    {employees.filter(emp => emp.hierarchy_level === 1).map(director => (
-                      <div key={director.id} className="w-64">
-                        {renderEmployeeCard(director)}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Connector Line */}
-                <div className="flex justify-center">
-                  <div className="w-px h-8 bg-gray-300"></div>
+                
+                {/* Connector to Level 2 */}
+                <div className="flex justify-center mb-6">
+                  {renderConnectorLine()}
                 </div>
 
                 {/* Level 2 - General Manager */}
-                {employees.filter(emp => emp.hierarchy_level === 2).map(gm => (
-                  <div key={gm.id} className="text-center">
+                {employees.filter(emp => emp.hierarchy_level === 2 && emp.reports_to === director.id &&
+                  (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                  (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                   emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                ).map(gm => (
+                  <div key={gm.id}>
                     <div className="flex justify-center mb-6">
-                      <div className="w-64">
-                        {renderEmployeeCard(gm)}
-                      </div>
+                      {renderOrgChartBox(gm, true)}
                     </div>
 
-                    {/* Connector Line */}
+                    {/* Connector to Level 3 */}
                     <div className="flex justify-center mb-6">
-                      <div className="w-px h-8 bg-gray-300"></div>
+                      {renderConnectorLine()}
                     </div>
 
-                    {/* Level 3 - Department Heads - Fixed Layout */}
-                    <div className="flex justify-center">
-                      <div className="grid grid-cols-3 gap-12 max-w-6xl">
+                    {/* Level 3 - Department Heads */}
+                    <div className="flex justify-center mb-8">
+                      <div className="flex items-start gap-8">
                         {['Finance', 'Operations', 'Compliance'].map(dept => {
                           const deptHead = employees.find(emp => 
-                            emp.hierarchy_level === 3 && emp.department === dept
+                            emp.hierarchy_level === 3 && 
+                            emp.department === dept && 
+                            emp.reports_to === gm.id &&
+                            (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                            (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
                           );
                           
-                          if (!deptHead) return (
-                            <div key={dept} className="w-80 space-y-4">
-                              <h4 className="text-lg font-semibold text-gray-400 flex items-center justify-center gap-2">
-                                {getDepartmentIcon(dept)} {dept}
-                              </h4>
-                              <div className="text-center text-gray-400 p-4 border-2 border-dashed border-gray-200 rounded-lg">
-                                No department head assigned
-                              </div>
-                            </div>
-                          );
+                          if (!deptHead && selectedDepartment !== 'all' && selectedDepartment !== dept) {
+                            return null;
+                          }
 
                           return (
-                            <div key={dept} className="w-80 space-y-4">
-                              <h4 className="text-lg font-semibold text-gray-900 flex items-center justify-center gap-2">
-                                {getDepartmentIcon(dept)} {dept}
-                              </h4>
-                              
+                            <div key={dept} className="flex flex-col items-center">
                               {/* Department Head */}
-                              <div className="flex justify-center">
-                                <div className="w-full">
-                                  {renderEmployeeCard(deptHead)}
+                              {deptHead ? (
+                                <div className="mb-4">
+                                  {renderOrgChartBox(deptHead)}
                                 </div>
-                              </div>
+                              ) : (
+                                <div className="mb-4">
+                                  <div className="rounded-lg p-4 shadow-md bg-gray-200 text-gray-500 min-w-[220px] text-center">
+                                    <div className="flex items-center gap-3 justify-center">
+                                      <div className="text-2xl">{getDepartmentIcon(dept)}</div>
+                                      <div>
+                                        <h3 className="font-bold text-sm">NA</h3>
+                                        <p className="text-xs">Chief {dept} Officer</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Subordinates */}
-                              {hierarchy[deptHead.id] && hierarchy[deptHead.id].length > 0 && (
-                                <div className="space-y-3">
+                              {deptHead && hierarchy[deptHead.id] && hierarchy[deptHead.id].length > 0 && (
+                                <div className="space-y-4">
                                   <div className="flex justify-center">
-                                    <div className="w-px h-6 bg-gray-200"></div>
+                                    {renderConnectorLine('w-px', 'h-6')}
                                   </div>
                                   
                                   <div className="space-y-3">
-                                    {hierarchy[deptHead.id].map((subordinate: Employee) => (
+                                    {hierarchy[deptHead.id]
+                                      .filter((emp: Employee) => 
+                                        (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                                        (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                         emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                                      )
+                                      .map((subordinate: Employee) => (
                                       <div key={subordinate.id} className="space-y-3">
-                                        {renderEmployeeCard(subordinate, true)}
+                                        {renderOrgChartBox(subordinate)}
                                         
                                         {/* Further subordinates */}
                                         {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
-                                          <div className="ml-4 space-y-2 border-l-2 border-gray-100 pl-4">
-                                            {hierarchy[subordinate.id].map((emp: Employee) => (
+                                          <div className="ml-4 space-y-2">
+                                            <div className="flex justify-center">
+                                              {renderConnectorLine('w-px', 'h-4')}
+                                            </div>
+                                            {hierarchy[subordinate.id]
+                                              .filter((emp: Employee) => 
+                                                (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                                                (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                                 emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                                              )
+                                              .map((emp: Employee) => (
                                               <div key={emp.id} className="transform scale-95">
-                                                {renderEmployeeCard(emp, false)}
+                                                {renderOrgChartBox(emp)}
                                               </div>
                                             ))}
                                           </div>
@@ -452,100 +494,80 @@ export default function Management() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="departments" className="space-y-6">
-          {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filters & Search
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search employees by name, ID, email, or designation..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Departments</SelectItem>
-                    {departments.map(dept => (
-                      <SelectItem key={dept} value={dept}>
-                        {getDepartmentIcon(dept)} {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Department Tree */}
-          <div className="space-y-4">
-            {departmentGroups.map(group => (
-              <Card key={group.department} className="overflow-hidden">
-                <CardHeader 
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => toggleDepartment(group.department)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {expandedDepartments.has(group.department) ? 
-                        <ChevronDown className="h-5 w-5 text-gray-500" /> : 
-                        <ChevronRight className="h-5 w-5 text-gray-500" />
-                      }
-                      <div className="text-2xl">{getDepartmentIcon(group.department)}</div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900">{group.department}</h3>
-                        <p className="text-sm text-gray-600">{group.count} employees</p>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="text-sm">
-                      {group.count}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                
-                {expandedDepartments.has(group.department) && (
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {group.employees.map(employee => renderEmployeeCard(employee))}
-                    </div>
-                  </CardContent>
-                )}
-              </Card>
             ))}
           </div>
+        </div>
+      </div>
 
-          {departmentGroups.length === 0 && (
-            <Card>
-              <CardContent className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No employees found</h3>
-                <p className="text-gray-600">Try adjusting your search criteria or filters.</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Department View Tab */}
+      <div className="container mx-auto px-6 pb-12">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Building2 className="h-6 w-6" />
+              Department View
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {departmentGroups.map(group => (
+                <Card key={group.department} className="overflow-hidden">
+                  <CardHeader 
+                    className="cursor-pointer hover:bg-gray-50" 
+                    onClick={() => toggleDepartment(group.department)}
+                  >
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{getDepartmentIcon(group.department)}</span>
+                        <span>{group.department}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{group.count}</Badge>
+                        {expandedDepartments.has(group.department) ? 
+                          <ChevronDown className="h-4 w-4" /> : 
+                          <ChevronRight className="h-4 w-4" />
+                        }
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  
+                  {expandedDepartments.has(group.department) && (
+                    <CardContent className="pt-0">
+                      <div className="space-y-3">
+                        {group.employees.map(emp => (
+                          <div key={emp.id} className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
+                               onClick={() => handleEmployeeClick(emp)}>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="text-xs">
+                                  {getInitials(emp.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{emp.name}</p>
+                                <p className="text-xs text-gray-600 truncate">{emp.designation}</p>
+                              </div>
+                              <Badge className={`text-xs ${getStatusColor(emp.status)}`}>
+                                {emp.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
+      {/* Employee Details Dialog */}
       <EmployeeDetailsDialog
+        employee={selectedEmployee}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        employee={selectedEmployee}
         isEditMode={false}
       />
     </div>

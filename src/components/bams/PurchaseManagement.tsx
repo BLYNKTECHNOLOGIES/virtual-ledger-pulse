@@ -369,12 +369,11 @@ export function PurchaseManagement() {
         </div>
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
             onClick={() => resetLimitsMutation.mutate()}
             disabled={resetLimitsMutation.isPending}
             className="flex items-center gap-2"
           >
-            {resetLimitsMutation.isPending ? "Resetting..." : "Reset All Limits"}
+            {resetLimitsMutation.isPending ? "Resetting..." : "Reset Limits"}
           </Button>
         </div>
       </div>

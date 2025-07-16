@@ -1987,8 +1987,11 @@ export type Database = {
           last_reset: string | null
           max_limit: number
           min_limit: number
+          payment_gateway: boolean | null
           payment_limit: number
           risk_category: string
+          settlement_cycle: string | null
+          settlement_days: number | null
           type: string
           updated_at: string
           upi_id: string | null
@@ -2005,8 +2008,11 @@ export type Database = {
           last_reset?: string | null
           max_limit?: number
           min_limit?: number
+          payment_gateway?: boolean | null
           payment_limit?: number
           risk_category: string
+          settlement_cycle?: string | null
+          settlement_days?: number | null
           type: string
           updated_at?: string
           upi_id?: string | null
@@ -2023,8 +2029,11 @@ export type Database = {
           last_reset?: string | null
           max_limit?: number
           min_limit?: number
+          payment_gateway?: boolean | null
           payment_limit?: number
           risk_category?: string
+          settlement_cycle?: string | null
+          settlement_days?: number | null
           type?: string
           updated_at?: string
           upi_id?: string | null

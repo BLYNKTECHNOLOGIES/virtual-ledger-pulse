@@ -30,6 +30,9 @@ interface SalesPaymentMethod {
   custom_frequency?: string;
   current_usage: number;
   is_active: boolean;
+  payment_gateway: boolean;
+  settlement_cycle?: "Instant Settlement" | "T+1 Day" | "Custom";
+  settlement_days?: number;
 }
 
 export function PaymentMethodManagement() {
@@ -49,7 +52,10 @@ export function PaymentMethodManagement() {
     maxLimit: "10000000",
     frequency: "" as "24 hours" | "Daily" | "48 hours" | "Custom" | "",
     custom_frequency: "",
-    beneficiariesPer24h: ""
+    beneficiariesPer24h: "",
+    payment_gateway: false,
+    settlement_cycle: "" as "Instant Settlement" | "T+1 Day" | "Custom" | "",
+    settlement_days: ""
   });
 
   const getProgressColor = (progress: number) => {
@@ -116,6 +122,9 @@ export function PaymentMethodManagement() {
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
           beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          payment_gateway: methodData.payment_gateway,
+          settlement_cycle: methodData.payment_gateway ? methodData.settlement_cycle : null,
+          settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
           is_active: true,
           last_reset: new Date().toISOString()
         });
@@ -170,6 +179,9 @@ export function PaymentMethodManagement() {
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
           beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          payment_gateway: methodData.payment_gateway,
+          settlement_cycle: methodData.payment_gateway ? methodData.settlement_cycle : null,
+          settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
           is_active: true,
           updated_at: new Date().toISOString()
         })
@@ -239,6 +251,24 @@ export function PaymentMethodManagement() {
       });
       return;
     }
+
+    if (formData.payment_gateway && !formData.settlement_cycle) {
+      toast({
+        title: "Validation Error",
+        description: "Settlement cycle is required when Payment Gateway is enabled.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.payment_gateway && formData.settlement_cycle === "Custom" && !formData.settlement_days) {
+      toast({
+        title: "Validation Error",
+        description: "Settlement days is required for custom settlement cycle.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (editingMethod) {
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
@@ -259,7 +289,10 @@ export function PaymentMethodManagement() {
       maxLimit: (method as any).max_limit?.toString() || "10000000",
       frequency: method.frequency,
       custom_frequency: method.custom_frequency || "",
-      beneficiariesPer24h: (method as any).beneficiaries_per_24h?.toString() || "5"
+      beneficiariesPer24h: (method as any).beneficiaries_per_24h?.toString() || "5",
+      payment_gateway: method.payment_gateway || false,
+      settlement_cycle: method.settlement_cycle || "",
+      settlement_days: method.settlement_days?.toString() || ""
     });
     setStep(1); // Reset to first step when editing
     setIsAddDialogOpen(true);
@@ -276,7 +309,10 @@ export function PaymentMethodManagement() {
       maxLimit: "10000000",
       frequency: "" as any, // Start empty
       custom_frequency: "",
-      beneficiariesPer24h: "" // Start empty
+      beneficiariesPer24h: "", // Start empty
+      payment_gateway: false,
+      settlement_cycle: "",
+      settlement_days: ""
     });
     setEditingMethod(null);
     setStep(1);
@@ -328,14 +364,14 @@ export function PaymentMethodManagement() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {editingMethod ? "Edit Payment Method" : "Add New Payment Method"}
-                <span className="text-sm text-gray-500">Step {step} of 3</span>
+                {editingMethod ? "Edit Sales Payment Method" : "Add New Sales Payment Method"}
+                <span className="text-sm text-gray-500">Step {step} of {formData.payment_gateway ? 4 : 3}</span>
               </DialogTitle>
             </DialogHeader>
             
             <div className="flex justify-center mb-6">
               <div className="flex items-center space-x-4">
-                {[1, 2, 3].map((stepNum) => (
+                {Array.from({ length: formData.payment_gateway ? 4 : 3 }, (_, i) => i + 1).map((stepNum) => (
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       stepNum <= step ? 'bg-blue-600 text-white' : 
@@ -343,7 +379,7 @@ export function PaymentMethodManagement() {
                     } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                    {stepNum < (formData.payment_gateway ? 4 : 3) && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
                   </div>
                 ))}
               </div>
@@ -438,6 +474,24 @@ export function PaymentMethodManagement() {
                       onChange={(e) => setFormData(prev => ({ ...prev, payment_limit: e.target.value }))}
                       required
                     />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="payment_gateway"
+                      checked={formData.payment_gateway}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        payment_gateway: e.target.checked,
+                        settlement_cycle: e.target.checked ? prev.settlement_cycle : "",
+                        settlement_days: e.target.checked ? prev.settlement_days : ""
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <Label htmlFor="payment_gateway" className="text-sm font-medium text-gray-700">
+                      Payment Gateway
+                    </Label>
                   </div>
                 </div>
               )}
@@ -626,6 +680,64 @@ export function PaymentMethodManagement() {
                 </div>
               )}
 
+              {step === 4 && formData.payment_gateway && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Settlement Cycle Configuration</h3>
+                  <p className="text-sm text-gray-600">Configure how quickly funds are settled to your bank account</p>
+                  
+                  <div>
+                    <Label htmlFor="settlement_cycle">Settlement Cycle *</Label>
+                    <Select 
+                      value={formData.settlement_cycle} 
+                      onValueChange={(value: "Instant Settlement" | "T+1 Day" | "Custom") => {
+                        setFormData(prev => ({ ...prev, settlement_cycle: value }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select settlement cycle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Instant Settlement">Instant Settlement</SelectItem>
+                        <SelectItem value="T+1 Day">T+1 Day</SelectItem>
+                        <SelectItem value="Custom">Custom (T+n)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Instant: Funds available immediately | T+1: Next business day | Custom: Specify number of days
+                    </p>
+                  </div>
+
+                  {formData.settlement_cycle === "Custom" && (
+                    <div>
+                      <Label htmlFor="settlement_days">Settlement Days (T+n) *</Label>
+                      <Input
+                        id="settlement_days"
+                        type="number"
+                        min="1"
+                        max="30"
+                        placeholder="Enter number of days (e.g., 2 for T+2)"
+                        value={formData.settlement_days}
+                        onChange={(e) => setFormData(prev => ({ ...prev, settlement_days: e.target.value }))}
+                        required={formData.settlement_cycle === "Custom"}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter the number of days after transaction for settlement (e.g., 2 for T+2, 7 for T+7)
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Settlement Cycle Examples</h4>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <div><strong>Instant Settlement:</strong> Funds available immediately in your account</div>
+                      <div><strong>T+1 Day:</strong> Funds available next business day</div>
+                      <div><strong>T+2 Days:</strong> Funds available in 2 business days</div>
+                      <div><strong>T+7 Days:</strong> Funds available in 1 week</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between">
                 <Button 
                   type="button" 
@@ -635,7 +747,7 @@ export function PaymentMethodManagement() {
                   {step > 1 ? "Previous" : "Cancel"}
                 </Button>
                 
-                {step < 3 ? (
+                {step < (formData.payment_gateway ? 4 : 3) ? (
                   <Button type="button" onClick={() => setStep(step + 1)}>
                     Next
                   </Button>

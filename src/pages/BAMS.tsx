@@ -27,8 +27,8 @@ export default function BAMS() {
             </TabsTrigger>
             <TabsTrigger value="payment-methods" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Payment Methods</span>
-              <span className="sm:hidden">Payments</span>
+              <span className="hidden sm:inline">Sales Methods</span>
+              <span className="sm:hidden">Sales</span>
             </TabsTrigger>
             <TabsTrigger value="purchases" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <ShoppingBag className="h-4 w-4" />

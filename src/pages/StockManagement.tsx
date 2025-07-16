@@ -6,7 +6,7 @@ import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab"
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
-import { WarehouseManagementTab } from "@/components/stock/WarehouseManagementTab";
+import { WalletManagementTab } from "@/components/stock/WarehouseManagementTab";
 
 export default function StockManagement() {
   return (
@@ -28,7 +28,7 @@ export default function StockManagement() {
           </TabsTrigger>
           <TabsTrigger value="warehouse" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
-            Warehouses
+            Wallets
           </TabsTrigger>
           <TabsTrigger value="valuation" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
@@ -49,7 +49,7 @@ export default function StockManagement() {
         </TabsContent>
 
         <TabsContent value="warehouse">
-          <WarehouseManagementTab />
+          <WalletManagementTab />
         </TabsContent>
 
         <TabsContent value="valuation">

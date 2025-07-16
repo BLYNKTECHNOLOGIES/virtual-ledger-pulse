@@ -14,11 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-export function WarehouseManagementTab() {
+export function WalletManagementTab() {
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
-  const [showWarehouseDialog, setShowWarehouseDialog] = useState(false);
-  const [editingWarehouse, setEditingWarehouse] = useState<any>(null);
-  const [warehouseForm, setWarehouseForm] = useState({
+  const [showWalletDialog, setShowWalletDialog] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<any>(null);
+  const [walletForm, setWalletForm] = useState({
     name: "",
     location: ""
   });
@@ -118,52 +118,52 @@ export function WarehouseManagementTab() {
     },
   });
 
-  const createWarehouseMutation = useMutation({
-    mutationFn: async (warehouseData: any) => {
-      if (editingWarehouse) {
+  const createWalletMutation = useMutation({
+    mutationFn: async (walletData: any) => {
+      if (editingWallet) {
         const { data, error } = await supabase
           .from('warehouses')
-          .update(warehouseData)
-          .eq('id', editingWarehouse.id);
+          .update(walletData)
+          .eq('id', editingWallet.id);
         if (error) throw error;
         return data;
       } else {
         const { data, error } = await supabase
           .from('warehouses')
-          .insert(warehouseData);
+          .insert(walletData);
         if (error) throw error;
         return data;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-      toast.success(editingWarehouse ? "Warehouse updated successfully" : "Warehouse created successfully");
-      setShowWarehouseDialog(false);
-      setEditingWarehouse(null);
-      setWarehouseForm({ name: "", location: "" });
+      toast.success(editingWallet ? "Wallet updated successfully" : "Wallet created successfully");
+      setShowWalletDialog(false);
+      setEditingWallet(null);
+      setWalletForm({ name: "", location: "" });
     },
     onError: (error) => {
-      toast.error("Failed to save warehouse");
-      console.error("Error saving warehouse:", error);
+      toast.error("Failed to save wallet");
+      console.error("Error saving wallet:", error);
     }
   });
 
-  const deleteWarehouseMutation = useMutation({
-    mutationFn: async (warehouseId: string) => {
+  const deleteWalletMutation = useMutation({
+    mutationFn: async (walletId: string) => {
       const { data, error } = await supabase
         .from('warehouses')
         .update({ is_active: false })
-        .eq('id', warehouseId);
+        .eq('id', walletId);
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-      toast.success("Warehouse deleted successfully");
+      toast.success("Wallet deleted successfully");
     },
     onError: (error) => {
-      toast.error("Failed to delete warehouse");
-      console.error("Error deleting warehouse:", error);
+      toast.error("Failed to delete wallet");
+      console.error("Error deleting wallet:", error);
     }
   });
 
@@ -253,22 +253,22 @@ export function WarehouseManagementTab() {
     }
   });
 
-  const handleCreateWarehouse = () => {
-    if (!warehouseForm.name) {
-      toast.error("Please enter warehouse name");
+  const handleCreateWallet = () => {
+    if (!walletForm.name) {
+      toast.error("Please enter wallet name");
       return;
     }
 
-    createWarehouseMutation.mutate(warehouseForm);
+    createWalletMutation.mutate(walletForm);
   };
 
-  const handleEditWarehouse = (warehouse: any) => {
-    setEditingWarehouse(warehouse);
-    setWarehouseForm({
-      name: warehouse.name,
-      location: warehouse.location || ""
+  const handleEditWallet = (wallet: any) => {
+    setEditingWallet(wallet);
+    setWalletForm({
+      name: wallet.name,
+      location: wallet.location || ""
     });
-    setShowWarehouseDialog(true);
+    setShowWalletDialog(true);
   };
 
   const handleCreateAdjustment = () => {
@@ -320,44 +320,44 @@ export function WarehouseManagementTab() {
 
   return (
     <div className="space-y-6">
-      {/* Warehouse Management */}
+      {/* Wallet Management */}
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Warehouse Management</CardTitle>
-            <Dialog open={showWarehouseDialog} onOpenChange={setShowWarehouseDialog}>
+            <CardTitle>Wallet Management</CardTitle>
+            <Dialog open={showWalletDialog} onOpenChange={setShowWalletDialog}>
               <DialogTrigger asChild>
                 <Button onClick={() => {
-                  setEditingWarehouse(null);
-                  setWarehouseForm({ name: "", location: "" });
+                  setEditingWallet(null);
+                  setWalletForm({ name: "", location: "" });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Warehouse
+                  Add Wallet
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>{editingWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}</DialogTitle>
+                  <DialogTitle>{editingWallet ? 'Edit Wallet' : 'Add New Wallet'}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label>Warehouse Name</Label>
+                    <Label>Wallet Name</Label>
                     <Input
-                      value={warehouseForm.name}
-                      onChange={(e) => setWarehouseForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter warehouse name"
+                      value={walletForm.name}
+                      onChange={(e) => setWalletForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter wallet name"
                     />
                   </div>
                   <div>
-                    <Label>Location</Label>
+                    <Label>Linked to</Label>
                     <Input
-                      value={warehouseForm.location}
-                      onChange={(e) => setWarehouseForm(prev => ({ ...prev, location: e.target.value }))}
-                      placeholder="Enter warehouse location"
+                      value={walletForm.location}
+                      onChange={(e) => setWalletForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Enter linked exchange/platform"
                     />
                   </div>
-                  <Button onClick={handleCreateWarehouse} className="w-full">
-                    {editingWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
+                  <Button onClick={handleCreateWallet} className="w-full">
+                    {editingWallet ? 'Update Wallet' : 'Create Wallet'}
                   </Button>
                 </div>
               </DialogContent>
@@ -376,19 +376,19 @@ export function WarehouseManagementTab() {
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{warehouse.name}</CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditWarehouse(warehouse)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditWallet(warehouse)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteWarehouseMutation.mutate(warehouse.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => deleteWalletMutation.mutate(warehouse.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xs text-muted-foreground mb-2">{warehouse.location}</div>
+                    <div className="text-xs text-muted-foreground mb-2">Linked to: {warehouse.location || 'Not specified'}</div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Products</span>
+                        <span className="text-sm text-gray-600">Assets</span>
                         <Badge variant="outline">{totalProducts}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
@@ -396,12 +396,12 @@ export function WarehouseManagementTab() {
                         <Badge className="bg-green-100 text-green-800">{totalQuantity}</Badge>
                       </div>
                       <div className="mt-3">
-                        <h4 className="text-sm font-medium mb-2">Stock Details</h4>
+                        <h4 className="text-sm font-medium mb-2">Holdings Details</h4>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
                           {stocks.map((stock, idx) => (
                             <div key={idx} className="flex justify-between text-xs">
                               <span>{stock.product?.name}</span>
-                              <span>{stock.quantity} {stock.product?.unit_of_measurement}</span>
+                              <span>{stock.quantity} Nos</span>
                             </div>
                           ))}
                         </div>

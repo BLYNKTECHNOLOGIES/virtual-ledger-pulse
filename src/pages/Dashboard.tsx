@@ -565,48 +565,48 @@ export default function Dashboard() {
               <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
                 <Package className="h-6 w-6" />
               </div>
-              Stock Inventory
+              Asset Inventory
             </CardTitle>
           </CardHeader>
           <CardContent className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {warehouseStock?.map((warehouse, index) => (
-                <Card key={warehouse.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+              {warehouseStock?.map((wallet, index) => (
+                <Card key={wallet.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
                   <CardHeader className="bg-secondary border-b">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-lg">
                         <Building className="h-5 w-5 text-muted-foreground" />
-                        {warehouse.name}
+                        {wallet.name}
                       </CardTitle>
-                      <Badge className="bg-muted text-foreground">{warehouse.totalProducts} Products</Badge>
+                      <Badge className="bg-muted text-foreground">{wallet.totalProducts} Assets</Badge>
                     </div>
-                    {warehouse.location && (
-                      <p className="text-sm text-muted-foreground">{warehouse.location}</p>
+                    {wallet.location && (
+                      <p className="text-sm text-muted-foreground">Linked to: {wallet.location}</p>
                     )}
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-foreground">Total Quantity</span>
+                        <span className="text-sm font-medium text-foreground">Total Holdings</span>
                         <Badge className="bg-emerald-100 text-emerald-800 font-bold">
-                          {warehouse.totalQuantity.toLocaleString()}
+                          {wallet.totalQuantity.toLocaleString()} Nos
                         </Badge>
                       </div>
                       
                       <div className="border-t pt-3">
-                        <h4 className="text-sm font-semibold text-foreground mb-2">Top Products</h4>
+                        <h4 className="text-sm font-semibold text-foreground mb-2">Top Assets</h4>
                         <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {warehouse.products.slice(0, 5).map((product: any, idx: number) => (
+                          {wallet.products.slice(0, 5).map((asset: any, idx: number) => (
                             <div key={idx} className="flex justify-between text-xs">
-                              <span className="text-muted-foreground truncate pr-2">{product.name}</span>
+                              <span className="text-muted-foreground truncate pr-2">{asset.name}</span>
                               <span className="font-medium text-foreground whitespace-nowrap">
-                                {Number(product.current_stock_quantity).toLocaleString()}
+                                {Number(asset.current_stock_quantity).toLocaleString()} Nos
                               </span>
                             </div>
                           ))}
-                          {warehouse.products.length > 5 && (
+                          {wallet.products.length > 5 && (
                             <div className="text-xs text-muted-foreground italic">
-                              +{warehouse.products.length - 5} more products
+                              +{wallet.products.length - 5} more assets
                             </div>
                           )}
                         </div>

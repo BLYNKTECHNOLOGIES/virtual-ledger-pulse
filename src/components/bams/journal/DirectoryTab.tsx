@@ -360,7 +360,7 @@ export function DirectoryTab() {
 
       // Add table using autoTable
       autoTable(doc, {
-        head: [['Date', 'Remark', 'Note', 'Bank Account', 'Category', 'Bank Account Number', 'Debit', 'Credit']],
+        head: [['Date', 'Remark', 'Type', 'Bank Account', 'Category', 'Bank Account Number', 'Debit', 'Credit']],
         body: tableData,
         startY: 80,
         styles: {
@@ -377,12 +377,12 @@ export function DirectoryTab() {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 20 }, // Date
-          1: { cellWidth: 18 }, // Remark
-          2: { cellWidth: 12 }, // Note
-          3: { cellWidth: 35 }, // Bank Account
-          4: { cellWidth: 20 }, // Category
-          5: { cellWidth: 25 }, // Bank Account Number
+          0: { cellWidth: 18 }, // Date
+          1: { cellWidth: 16 }, // Remark
+          2: { cellWidth: 18 }, // Type (expanded)
+          3: { cellWidth: 32 }, // Bank Account
+          4: { cellWidth: 18 }, // Category
+          5: { cellWidth: 24 }, // Bank Account Number
           6: { cellWidth: 20, textColor: [220, 53, 69] }, // Debit (red)
           7: { cellWidth: 20, textColor: [40, 167, 69] }  // Credit (green)
         }

@@ -11,8 +11,8 @@ interface LoginProps {
 }
 
 export function Login({ onLogin }: LoginProps) {
-  const [email, setEmail] = useState('blynkvirtualtechnologiespvtld@gmail.com');
-  const [password, setPassword] = useState('Blynk@0717');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -50,6 +50,7 @@ export function Login({ onLogin }: LoginProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
                   required
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -66,6 +67,7 @@ export function Login({ onLogin }: LoginProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10"
                   required
+                  autoComplete="off"
                 />
                 <Button
                   type="button"
@@ -99,11 +101,6 @@ export function Login({ onLogin }: LoginProps) {
             </Button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Demo Credentials:</p>
-            <p>Email: blynkvirtualtechnologiespvtld@gmail.com</p>
-            <p>Password: Blynk@0717</p>
-          </div>
         </CardContent>
       </Card>
     </div>

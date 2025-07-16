@@ -489,10 +489,10 @@ export default function Dashboard() {
           </div>
           
           {/* Activity Feed */}
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-slate-600 text-white rounded-t-lg">
+          <Card className="bg-card border-2 border-border shadow-xl">
+            <CardHeader className="bg-secondary text-secondary-foreground rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-slate-700 rounded-lg shadow-md">
+                <div className="p-2 bg-muted rounded-lg shadow-md">
                   <Activity className="h-5 w-5" />
                 </div>
                 Recent Activity ({selectedPeriod})
@@ -500,37 +500,37 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-6 space-y-4 max-h-96 overflow-y-auto">
               {recentActivity?.slice(0, 8).map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border-2 border-gray-100 hover:shadow-md transition-all duration-200">
+                <div key={activity.id} className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${
-                      activity.type === 'sale' ? 'bg-emerald-100' : 'bg-slate-100'
+                      activity.type === 'sale' ? 'bg-emerald-100' : 'bg-muted'
                     }`}>
                       {activity.type === 'sale' ? (
                         <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
                       ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-slate-600" />
+                        <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm text-gray-900">{activity.title}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="font-semibold text-sm text-foreground">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">
                         {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`font-bold text-sm ${
-                      activity.type === 'sale' ? 'text-emerald-600' : 'text-slate-600'
+                      activity.type === 'sale' ? 'text-emerald-600' : 'text-muted-foreground'
                     }`}>
                       {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
                     </p>
-                    <p className="text-xs text-gray-500">{activity.reference}</p>
+                    <p className="text-xs text-muted-foreground">{activity.reference}</p>
                   </div>
                 </div>
               ))}
               {(!recentActivity || recentActivity.length === 0) && (
-                <div className="text-center py-12 text-gray-500">
-                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Activity className="h-8 w-8 opacity-50" />
                   </div>
                   <p className="font-medium">No activity in {selectedPeriod}</p>

@@ -107,17 +107,17 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
   const averageCurrentSales = salesChartData?.length ? totalCurrentSales / salesChartData.length : 0;
 
   return (
-    <Card className="bg-white border-2 border-gray-200 shadow-xl">
-      <CardHeader className="bg-slate-600 text-white rounded-t-lg">
+    <Card className="bg-card border-2 border-border shadow-xl">
+      <CardHeader className="bg-secondary text-secondary-foreground rounded-t-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 bg-slate-700 rounded-lg shadow-md">
+            <div className="p-2 bg-muted rounded-lg shadow-md">
               <BarChart3 className="h-6 w-6" />
             </div>
             Performance Analytics
           </CardTitle>
           <Select value={selectedMetric} onValueChange={setSelectedMetric}>
-            <SelectTrigger className="w-40 bg-white text-gray-900">
+            <SelectTrigger className="w-40 bg-card text-foreground">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -143,14 +143,14 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-slate-200 bg-slate-50">
+          <Card className="border-2 border-secondary bg-secondary/50">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-700">All-Time Avg Daily</p>
-                  <p className="text-2xl font-bold text-slate-800">₹{Math.round(salesChartData?.[0]?.averageSales || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-secondary-foreground">All-Time Avg Daily</p>
+                  <p className="text-2xl font-bold text-secondary-foreground">₹{Math.round(salesChartData?.[0]?.averageSales || 0).toLocaleString()}</p>
                 </div>
-                <Activity className="h-8 w-8 text-slate-600" />
+                <Activity className="h-8 w-8 text-secondary-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -170,7 +170,7 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
 
         {/* Sales Timeline Chart */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Sales Timeline Comparison</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">Sales Timeline Comparison</h3>
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={salesChartData}>
@@ -244,16 +244,16 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
         </div>
 
         {/* Performance Insights */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold text-gray-800 mb-2">Performance Insights</h4>
+        <div className="mt-6 p-4 bg-muted rounded-lg">
+          <h4 className="font-semibold text-foreground mb-2">Performance Insights</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-              <span className="text-gray-700">Current period performance vs all-time average</span>
+              <span className="text-muted-foreground">Current period performance vs all-time average</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-slate-500 rounded-full"></div>
-              <span className="text-gray-700">Historical average baseline for comparison</span>
+              <div className="w-3 h-3 bg-secondary rounded-full"></div>
+              <span className="text-muted-foreground">Historical average baseline for comparison</span>
             </div>
           </div>
         </div>

@@ -377,14 +377,14 @@ export function DirectoryTab() {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 18 }, // Date
-          1: { cellWidth: 18 }, // Remark
-          2: { cellWidth: 16 }, // Type
-          3: { cellWidth: 32 }, // Bank Account
-          4: { cellWidth: 18 }, // Category
-          5: { cellWidth: 24 }, // Bank Account Number
-          6: { cellWidth: 28, textColor: [220, 53, 69] }, // Debit (red) - increased width
-          7: { cellWidth: 28, textColor: [40, 167, 69] }  // Credit (green) - increased width
+          0: { cellWidth: 20 }, // Date
+          1: { cellWidth: 20 }, // Remark
+          2: { cellWidth: 18 }, // Type
+          3: { cellWidth: 36 }, // Bank Account
+          4: { cellWidth: 22 }, // Category
+          5: { cellWidth: 28 }, // Bank Account Number
+          6: { cellWidth: 32, textColor: [220, 53, 69] }, // Debit (red) - increased width
+          7: { cellWidth: 32, textColor: [40, 167, 69] }  // Credit (green) - increased width
         }
       });
 
@@ -420,7 +420,7 @@ export function DirectoryTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4">
       {/* Filter Controls */}
       <Card className="shadow-sm">
         <CardHeader>

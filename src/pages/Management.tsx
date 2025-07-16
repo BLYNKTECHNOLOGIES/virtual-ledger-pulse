@@ -452,79 +452,136 @@ export default function Management() {
               </div>
             </div>
 
-            {/* Level 4+ - Subordinates under each department */}
-            <div className="flex justify-center">
-              <div className="flex items-start gap-12 justify-center">
-                {['Finance', 'Operations', 'Compliance'].map(dept => {
-                  const deptHead = employees.find(emp => 
-                    emp.hierarchy_level === 3 && 
-                    emp.department === dept &&
-                    (selectedDepartment === 'all' || emp.department === selectedDepartment)
-                  );
+            {/* Level 4+ - Subordinates organized by hierarchy level */}
+            <div className="space-y-12">
+              {/* Level 4 - All Assistant Managers and similar roles at same vertical level */}
+              {employees.filter(emp => emp.hierarchy_level === 4 &&
+                (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                 emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+              ).length > 0 && (
+                <div>
+                  {/* Connector from Level 3 to Level 4 */}
+                  <div className="flex justify-center mb-8">
+                    {renderConnectorLine('w-px', 'h-8')}
+                  </div>
                   
-                  if (!deptHead || !hierarchy[deptHead.id] || hierarchy[deptHead.id].length === 0) {
-                    return (
-                      <div key={dept} className="min-w-[220px]">
-                        {/* Empty space to maintain alignment */}
-                      </div>
-                    );
-                  }
-
-                  const subordinates = hierarchy[deptHead.id].filter((emp: Employee) => 
-                    (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-                    (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                     emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-                  );
-
-                  if (subordinates.length === 0) {
-                    return (
-                      <div key={dept} className="min-w-[220px]">
-                        {/* Empty space to maintain alignment */}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={dept} className="flex flex-col items-center space-y-6">
-                      {/* Connector line */}
-                      <div className="flex justify-center">
-                        {renderConnectorLine('w-px', 'h-8')}
-                      </div>
-                      
-                      {/* Level 4 employees - All at same vertical level */}
-                      <div className="flex flex-col items-center gap-4">
-                        {subordinates.map((subordinate: Employee, index: number) => (
-                          <div key={subordinate.id} className="flex flex-col items-center">
-                            {renderOrgChartBox(subordinate)}
-                            
-                            {/* Level 5+ employees under this subordinate */}
-                            {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
-                              <div className="mt-4 space-y-3">
-                                <div className="flex justify-center">
-                                  {renderConnectorLine('w-px', 'h-4')}
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                  {hierarchy[subordinate.id]
-                                    .filter((emp: Employee) => 
-                                      (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-                                      (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                       emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-                                    )
-                                    .map((emp: Employee) => (
-                                    <div key={emp.id} className="transform scale-90">
-                                      {renderOrgChartBox(emp)}
-                                    </div>
-                                  ))}
-                                </div>
+                  <div className="flex justify-center">
+                    <div className="flex items-end gap-12 justify-center">
+                      {['Finance', 'Operations', 'Compliance'].map(dept => {
+                        const deptEmployees = employees.filter(emp => 
+                          emp.hierarchy_level === 4 && 
+                          emp.department === dept &&
+                          (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                          (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                        );
+                        
+                        return (
+                          <div key={dept} className="flex flex-col items-center space-y-4 min-w-[220px]">
+                            {deptEmployees.map(emp => (
+                              <div key={emp.id}>
+                                {renderOrgChartBox(emp)}
+                              </div>
+                            ))}
+                            {deptEmployees.length === 0 && (
+                              <div className="opacity-0 min-h-[80px]">
+                                {/* Placeholder to maintain spacing */}
                               </div>
                             )}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Level 5 - All Executive roles at same vertical level */}
+              {employees.filter(emp => emp.hierarchy_level === 5 &&
+                (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                 emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+              ).length > 0 && (
+                <div>
+                  {/* Connector from Level 4 to Level 5 */}
+                  <div className="flex justify-center mb-8">
+                    {renderConnectorLine('w-px', 'h-8')}
+                  </div>
+                  
+                  <div className="flex justify-center">
+                    <div className="flex items-end gap-12 justify-center">
+                      {['Finance', 'Operations', 'Compliance'].map(dept => {
+                        const deptEmployees = employees.filter(emp => 
+                          emp.hierarchy_level === 5 && 
+                          emp.department === dept &&
+                          (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                          (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                        );
+                        
+                        return (
+                          <div key={dept} className="flex flex-col items-center space-y-4 min-w-[220px]">
+                            {deptEmployees.map(emp => (
+                              <div key={emp.id} className="transform scale-95">
+                                {renderOrgChartBox(emp)}
+                              </div>
+                            ))}
+                            {deptEmployees.length === 0 && (
+                              <div className="opacity-0 min-h-[70px]">
+                                {/* Placeholder to maintain spacing */}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Level 6+ - Any remaining lower level employees */}
+              {employees.filter(emp => (emp.hierarchy_level || 6) >= 6 &&
+                (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                 emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+              ).length > 0 && (
+                <div>
+                  {/* Connector from previous level */}
+                  <div className="flex justify-center mb-8">
+                    {renderConnectorLine('w-px', 'h-8')}
+                  </div>
+                  
+                  <div className="flex justify-center">
+                    <div className="flex items-end gap-12 justify-center">
+                      {['Finance', 'Operations', 'Compliance'].map(dept => {
+                        const deptEmployees = employees.filter(emp => 
+                          (emp.hierarchy_level || 6) >= 6 && 
+                          emp.department === dept &&
+                          (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                          (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                        );
+                        
+                        return (
+                          <div key={dept} className="flex flex-col items-center space-y-3 min-w-[220px]">
+                            {deptEmployees.map(emp => (
+                              <div key={emp.id} className="transform scale-90">
+                                {renderOrgChartBox(emp)}
+                              </div>
+                            ))}
+                            {deptEmployees.length === 0 && (
+                              <div className="opacity-0 min-h-[60px]">
+                                {/* Placeholder to maintain spacing */}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

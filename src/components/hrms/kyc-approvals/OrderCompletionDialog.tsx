@@ -41,8 +41,15 @@ export function OrderCompletionDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Generate unique order number
+  const generateOrderNumber = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `KYC-${timestamp}-${random}`;
+  };
+
   const [formData, setFormData] = useState<OrderFormData>({
-    order_number: `ORD-${Date.now()}`,
+    order_number: generateOrderNumber(),
     platform: "",
     product_id: "",
     warehouse_id: "",

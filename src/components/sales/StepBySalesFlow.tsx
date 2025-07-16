@@ -39,14 +39,21 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>([]);
   const [usedPaymentMethods, setUsedPaymentMethods] = useState<string[]>([]);
+  // Generate unique order number
+  const generateOrderNumber = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `ORD-${timestamp}-${random}`;
+  };
+
   const [finalOrderData, setFinalOrderData] = useState({
-    order_number: '',
-    platform: '',
-    quantity: 1,
-    description: '',
-    stockName: '',
-    warehouseId: '',
-    price: 0
+    order_number: generateOrderNumber(), 
+    platform: '', 
+    quantity: 1, 
+    description: '', 
+    stockName: '', 
+    warehouseId: '', 
+    price: 0 
   });
 
   // Fetch existing clients
@@ -309,7 +316,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     setSelectedPaymentMethod(null);
     setAvailablePaymentMethods([]);
     setUsedPaymentMethods([]);
-    setFinalOrderData({ order_number: '', platform: '', quantity: 1, description: '', stockName: '', warehouseId: '', price: 0 });
+    setFinalOrderData({ order_number: generateOrderNumber(), platform: '', quantity: 1, description: '', stockName: '', warehouseId: '', price: 0 });
   };
 
   const handleOrderTypeSelection = (type: 'repeat' | 'new') => {

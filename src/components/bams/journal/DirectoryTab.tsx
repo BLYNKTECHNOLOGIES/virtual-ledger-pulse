@@ -381,11 +381,11 @@ export function DirectoryTab() {
           0: { cellWidth: 18 }, // Date
           1: { cellWidth: 22 }, // Remark
           2: { cellWidth: 16 }, // Type
-          3: { cellWidth: 42 }, // Bank Account - increased
+          3: { cellWidth: 42 }, // Bank Account
           4: { cellWidth: 24 }, // Category
-          5: { cellWidth: 32 }, // Bank Account Number
-          6: { cellWidth: 30, textColor: [220, 53, 69] }, // Debit (red) - reduced
-          7: { cellWidth: 36, textColor: [40, 167, 69] }  // Credit (green) - increased
+          5: { cellWidth: 30 }, // Bank Account Number - reduced by 2
+          6: { cellWidth: 28, textColor: [220, 53, 69] }, // Debit (red) - reduced by 2
+          7: { cellWidth: 34, textColor: [40, 167, 69] }  // Credit (green) - reduced by 2
         }
       });
 

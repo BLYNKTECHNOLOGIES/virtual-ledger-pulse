@@ -51,7 +51,7 @@ export function DirectoryTab() {
           reference_number,
           related_account_name,
           created_at,
-          bank_accounts!bank_account_id(account_name, bank_name, id)
+          bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
         `)
         .order('transaction_date', { ascending: false });
 
@@ -69,7 +69,7 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
-          sales_payment_methods(type, bank_accounts(account_name, bank_name, id))
+          sales_payment_methods(type, bank_accounts(account_name, bank_name, id, account_number))
         `)
         .order('order_date', { ascending: false });
 
@@ -87,7 +87,7 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
-          bank_accounts!bank_account_id(account_name, bank_name, id)
+          bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
         `)
         .order('order_date', { ascending: false });
 
@@ -329,6 +329,19 @@ export function DirectoryTab() {
       doc.setFont('helvetica', 'bold');
       doc.text(`₹${totalCredit.toLocaleString('en-IN')}`, 115, 65);
 
+      // Get bank account numbers for each transaction
+      const getBankAccountNumber = (transaction: any) => {
+        // First try to get from the main bank_accounts relation
+        if (transaction.bank_accounts?.account_number) {
+          return transaction.bank_accounts.account_number;
+        }
+        // For sales orders, try the nested relation
+        if (transaction.sales_payment_methods?.bank_accounts?.account_number) {
+          return transaction.sales_payment_methods.bank_accounts.account_number;
+        }
+        return 'Not Available';
+      };
+
       // Table data
       const tableData = dataToDownload.map(transaction => [
         format(new Date(transaction.display_date), 'dd MMM yyyy'),
@@ -338,16 +351,16 @@ export function DirectoryTab() {
           transaction.display_account.substring(0, 25) + '...' : 
           transaction.display_account,
         transaction.display_type.replace('_', ' '),
+        getBankAccountNumber(transaction),
         ['EXPENSE', 'PURCHASE_ORDER'].includes(transaction.display_type) ? 
           `₹${Number(transaction.display_amount).toLocaleString('en-IN')}` : '-',
         ['INCOME', 'SALES_ORDER'].includes(transaction.display_type) ? 
-          `₹${Number(transaction.display_amount).toLocaleString('en-IN')}` : '-',
-        'COMPLETED'
+          `₹${Number(transaction.display_amount).toLocaleString('en-IN')}` : '-'
       ]);
 
       // Add table using autoTable
       autoTable(doc, {
-        head: [['Date', 'Remark', 'Note', 'Party', 'Category', 'Expenses', 'Credit', 'Status']],
+        head: [['Date', 'Remark', 'Note', 'Bank Account', 'Category', 'Bank Account Number', 'Expenses', 'Credit']],
         body: tableData,
         startY: 80,
         styles: {
@@ -364,14 +377,14 @@ export function DirectoryTab() {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 20 }, // Date
-          1: { cellWidth: 20 }, // Remark
-          2: { cellWidth: 15 }, // Note
-          3: { cellWidth: 30 }, // Party
-          4: { cellWidth: 25 }, // Category
-          5: { cellWidth: 25 }, // Expenses
-          6: { cellWidth: 25 }, // Credit
-          7: { cellWidth: 20 }  // Status
+          0: { cellWidth: 18 }, // Date
+          1: { cellWidth: 18 }, // Remark
+          2: { cellWidth: 12 }, // Note
+          3: { cellWidth: 28 }, // Bank Account
+          4: { cellWidth: 22 }, // Category
+          5: { cellWidth: 22 }, // Bank Account Number
+          6: { cellWidth: 22, textColor: [220, 53, 69] }, // Expenses (red)
+          7: { cellWidth: 22, textColor: [40, 167, 69] }  // Credit (green)
         }
       });
 
@@ -380,6 +393,11 @@ export function DirectoryTab() {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(`Total number of transactions: ${dataToDownload.length}`, 20, finalY + 10);
+      
+      // Add company footer
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'italic');
+      doc.text('For Blynk Virtual Technologies Private Limited', 20, finalY + 25);
 
       // Save the PDF
       doc.save(`transaction_report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);

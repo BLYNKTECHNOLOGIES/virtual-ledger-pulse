@@ -363,28 +363,29 @@ export function DirectoryTab() {
         head: [['Date', 'Remark', 'Type', 'Bank Account', 'Category', 'Bank Account Number', 'Debit', 'Credit']],
         body: tableData,
         startY: 80,
+        margin: { left: 10, right: 10 }, // Use more space on left and right
         styles: {
-          fontSize: 8,
+          fontSize: 7, // Reduced from 8 to 7
           cellPadding: 3,
         },
         headStyles: {
           fillColor: [66, 139, 202],
           textColor: [255, 255, 255],
-          fontSize: 9,
+          fontSize: 8, // Reduced from 9 to 8
           fontStyle: 'bold'
         },
         alternateRowStyles: {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 16 }, // Date - reduced
-          1: { cellWidth: 20 }, // Remark
-          2: { cellWidth: 14 }, // Type - reduced
-          3: { cellWidth: 36 }, // Bank Account
-          4: { cellWidth: 22 }, // Category
-          5: { cellWidth: 26 }, // Bank Account Number - slightly reduced
-          6: { cellWidth: 30, textColor: [220, 53, 69] }, // Debit (red)
-          7: { cellWidth: 30, textColor: [40, 167, 69] }  // Credit (green)
+          0: { cellWidth: 18 }, // Date - increased slightly
+          1: { cellWidth: 22 }, // Remark - increased
+          2: { cellWidth: 16 }, // Type - back to 16 as requested
+          3: { cellWidth: 40 }, // Bank Account - increased
+          4: { cellWidth: 24 }, // Category - increased
+          5: { cellWidth: 30 }, // Bank Account Number - increased
+          6: { cellWidth: 34, textColor: [220, 53, 69] }, // Debit (red) - increased
+          7: { cellWidth: 34, textColor: [40, 167, 69] }  // Credit (green) - increased
         }
       });
 

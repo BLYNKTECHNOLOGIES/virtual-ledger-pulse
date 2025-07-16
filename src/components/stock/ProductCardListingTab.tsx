@@ -197,12 +197,12 @@ export function ProductCardListingTab() {
                             <div key={index} className="space-y-1">
                               <div className="flex justify-between items-center">
                                 <span className="text-slate-600 text-xs truncate">Wallet: {ws.wallet_name}</span>
-                                <span className="font-semibold text-slate-800 text-xs">
-                                  {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 2
-                                  })}
-                                </span>
+                                 <span className="font-semibold text-slate-800 text-xs">
+                                   {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
+                                     minimumFractionDigits: 0,
+                                     maximumFractionDigits: 2
+                                   })}
+                                 </span>
                               </div>
                               <div className="text-slate-500 text-xs">Linked to: {ws.linked_to}</div>
                             </div>

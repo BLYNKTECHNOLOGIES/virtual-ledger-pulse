@@ -443,23 +443,6 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                   </p>
                 </CardContent>
               </Card>
-
-              <Card 
-                className={`cursor-pointer transition-all ${orderType === 'new' ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
-                onClick={() => handleOrderTypeSelection('new')}
-              >
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <UserPlus className="h-5 w-5 text-blue-600" />
-                    New Client ➕
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600">
-                    Manual form to enter new client details (Name, Phone, Platform, etc.)
-                  </p>
-                </CardContent>
-              </Card>
             </div>
           </div>
         );

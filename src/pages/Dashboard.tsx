@@ -46,14 +46,6 @@ export default function Dashboard() {
       icon: Users,
       category: 'Metrics',
       size: 'small' as const
-    },
-    {
-      id: 'stock-inventory',
-      name: 'Stock Inventory',
-      description: 'Warehouse stock overview',
-      icon: Package,
-      category: 'Analytics',
-      size: 'large' as const
     }
   ];
 

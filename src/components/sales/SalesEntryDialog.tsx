@@ -29,6 +29,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     quantity: 1,
     price_per_unit: 0,
     total_amount: 0,
+    sales_payment_method_id: '',
     payment_status: 'COMPLETED',
     order_date: new Date().toISOString().split('T')[0],
     description: ''
@@ -54,6 +55,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
+  // Fetch payment methods
+  const { data: paymentMethods } = useQuery({
+    queryKey: ['sales_payment_methods'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('sales_payment_methods').select('*').eq('is_active', true);
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const createSalesOrderMutation = useMutation({
     mutationFn: async (data: any) => {
       const { data: result, error } = await supabase
@@ -68,6 +79,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
           total_amount: data.total_amount,
+          sales_payment_method_id: data.sales_payment_method_id,
           payment_status: data.payment_status,
           order_date: data.order_date,
           description: data.description
@@ -76,6 +88,33 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         .single();
       
       if (error) throw error;
+
+      // Only credit bank account if NOT a payment gateway
+      if (data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
+        const { data: paymentMethod } = await supabase
+          .from('sales_payment_methods')
+          .select('bank_account_id, payment_gateway')
+          .eq('id', data.sales_payment_method_id)
+          .single();
+
+        if (paymentMethod?.bank_account_id && !paymentMethod?.payment_gateway) {
+          const { data: bankAccount } = await supabase
+            .from('bank_accounts')
+            .select('balance')
+            .eq('id', paymentMethod.bank_account_id)
+            .single();
+            
+          if (bankAccount) {
+            await supabase
+              .from('bank_accounts')
+              .update({ 
+                balance: bankAccount.balance + data.total_amount 
+              })
+              .eq('id', paymentMethod.bank_account_id);
+          }
+        }
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -91,6 +130,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         quantity: 1,
         price_per_unit: 0,
         total_amount: 0,
+        sales_payment_method_id: '',
         payment_status: 'COMPLETED',
         order_date: new Date().toISOString().split('T')[0],
         description: ''
@@ -234,6 +274,25 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 disabled
                 className="bg-gray-100"
               />
+            </div>
+
+            <div>
+              <Label>Payment Method</Label>
+              <Select
+                value={formData.sales_payment_method_id}
+                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods?.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

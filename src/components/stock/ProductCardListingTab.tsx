@@ -178,7 +178,7 @@ export function ProductCardListingTab() {
                         <span className="text-xl font-bold text-slate-800">
                           {parseFloat((asset.calculated_stock || 0).toString()).toLocaleString('en-IN', {
                             minimumFractionDigits: 0,
-                            maximumFractionDigits: 2
+                            maximumFractionDigits: 0
                           })}
                         </span>
                         <span className="text-slate-500 ml-1 text-sm">Nos</span>
@@ -200,7 +200,7 @@ export function ProductCardListingTab() {
                                 <span className="font-semibold text-slate-800 text-xs">
                                   {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
                                     minimumFractionDigits: 0,
-                                    maximumFractionDigits: 2
+                                    maximumFractionDigits: 0
                                   })}
                                 </span>
                               </div>

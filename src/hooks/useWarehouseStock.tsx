@@ -31,6 +31,9 @@ export function useWarehouseStock() {
     queryFn: async () => {
       console.log('Fetching warehouse stock movements...');
       
+      // Use the sync function to ensure consistency
+      await supabase.rpc('sync_product_warehouse_stock');
+      
       const { data: movements, error } = await supabase
         .from('warehouse_stock_movements')
         .select(`
@@ -75,7 +78,7 @@ export function useWarehouseStock() {
         }
       });
 
-      // Filter out negative stock quantities and log warnings
+      // Filter out negative stock quantities
       const result = Array.from(stockMap.values()).filter(stock => {
         if (stock.quantity < 0) {
           console.warn(`Negative stock detected for ${stock.product_name} in warehouse ${stock.warehouse_name}: ${stock.quantity}`);
@@ -85,21 +88,6 @@ export function useWarehouseStock() {
       });
       
       console.log('Processed warehouse stock:', result);
-      
-      // Sync product stock quantities with calculated totals
-      const productTotals = new Map<string, number>();
-      result.forEach(stock => {
-        const current = productTotals.get(stock.product_id) || 0;
-        productTotals.set(stock.product_id, current + stock.quantity);
-      });
-
-      // Update product table with correct stock quantities
-      for (const [productId, totalStock] of productTotals) {
-        await supabase
-          .from('products')
-          .update({ current_stock_quantity: totalStock })
-          .eq('id', productId);
-      }
       
       return result;
     },

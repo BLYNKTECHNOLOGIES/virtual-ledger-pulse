@@ -2570,6 +2570,10 @@ export type Database = {
         Args: { registration_id: string; reason?: string }
         Returns: boolean
       }
+      sync_product_warehouse_stock: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_role_permissions: {
         Args: {
           p_role_id: string

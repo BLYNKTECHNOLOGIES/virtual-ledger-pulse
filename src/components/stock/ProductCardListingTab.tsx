@@ -19,7 +19,10 @@ export function ProductCardListingTab() {
     queryFn: async () => {
       console.log('Fetching products with warehouse stock for cards...');
       
-      // First get all products
+      // Sync stock data first
+      await supabase.rpc('sync_product_warehouse_stock');
+      
+      // Get all products
       let query = supabase
         .from('products')
         .select('*')
@@ -33,7 +36,7 @@ export function ProductCardListingTab() {
       
       if (productsError) throw productsError;
 
-      // Get warehouse stock movements to calculate actual stock
+      // Get warehouse stock movements to calculate actual stock breakdown
       const { data: movements, error: movementsError } = await supabase
         .from('warehouse_stock_movements')
         .select(`
@@ -73,15 +76,13 @@ export function ProductCardListingTab() {
         }
       });
 
-      // Attach calculated stock to products and sync with database
-      const productsWithStock = await Promise.all(productsData?.map(async (product) => {
+      // Attach calculated stock breakdown to products
+      const productsWithStock = productsData?.map((product) => {
         const productStocks = stockMap.get(product.id);
-        let totalStock = 0;
         const warehouseStocks: Array<{warehouse_id: string, warehouse_name: string, quantity: number}> = [];
         
         if (productStocks) {
           productStocks.forEach((quantity, warehouseId) => {
-            totalStock += quantity;
             const warehouse = movements?.find(m => m.warehouse_id === warehouseId)?.warehouses;
             warehouseStocks.push({
               warehouse_id: warehouseId,
@@ -91,20 +92,13 @@ export function ProductCardListingTab() {
           });
         }
 
-        // Update the product's current_stock_quantity to match calculated total
-        await supabase
-          .from('products')
-          .update({ current_stock_quantity: totalStock })
-          .eq('id', product.id);
-
         return {
           ...product,
-          calculated_stock: totalStock,
-          current_stock_quantity: totalStock, // Ensure consistency
+          calculated_stock: product.current_stock_quantity, // Use synced value
           warehouse_stocks: warehouseStocks,
-          stock_value: totalStock * (product.average_buying_price || product.cost_price)
+          stock_value: product.current_stock_quantity * (product.average_buying_price || product.cost_price)
         };
-      }) || []);
+      }) || [];
 
       return productsWithStock;
     },

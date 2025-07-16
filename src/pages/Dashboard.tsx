@@ -166,6 +166,9 @@ export default function Dashboard() {
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
     queryKey: ['warehouse_stock'],
     queryFn: async () => {
+      // Sync stock data first
+      await supabase.rpc('sync_product_warehouse_stock');
+      
       const { data: warehouses } = await supabase
         .from('warehouses')
         .select('*')
@@ -175,16 +178,9 @@ export default function Dashboard() {
         .from('products')
         .select('id, name, code, current_stock_quantity, warehouse_id');
 
-      // Also get products without warehouse_id assigned
-      const { data: unassignedProducts } = await supabase
-        .from('products')
-        .select('id, name, code, current_stock_quantity, warehouse_id')
-        .is('warehouse_id', null);
-
       // Group products by warehouse
       const warehouseStockMap = new Map();
       
-      // Add assigned warehouses
       warehouses?.forEach(warehouse => {
         const warehouseProducts = products?.filter(p => p.warehouse_id === warehouse.id) || [];
         warehouseStockMap.set(warehouse.id, {
@@ -197,20 +193,9 @@ export default function Dashboard() {
         });
       });
 
-      // Add unassigned products as a separate "warehouse"
-      if (unassignedProducts && unassignedProducts.length > 0) {
-        warehouseStockMap.set('unassigned', {
-          id: 'unassigned',
-          name: 'Unassigned Stock',
-          location: 'Various',
-          products: unassignedProducts,
-          totalProducts: unassignedProducts.length,
-          totalQuantity: unassignedProducts.reduce((sum, p) => sum + Number(p.current_stock_quantity), 0)
-        });
-      }
-
       return Array.from(warehouseStockMap.values());
     },
+    refetchInterval: 30000,
   });
 
   // Fetch recent transactions for activity feed with period filtering

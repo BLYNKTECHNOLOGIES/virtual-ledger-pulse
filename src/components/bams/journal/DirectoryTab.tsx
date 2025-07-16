@@ -377,14 +377,14 @@ export function DirectoryTab() {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 22 }, // Date
-          1: { cellWidth: 20 }, // Remark
-          2: { cellWidth: 15 }, // Note
-          3: { cellWidth: 40 }, // Bank Account (increased width)
-          4: { cellWidth: 25 }, // Category
-          5: { cellWidth: 30 }, // Bank Account Number
-          6: { cellWidth: 25, textColor: [220, 53, 69] }, // Debit (red)
-          7: { cellWidth: 25, textColor: [40, 167, 69] }  // Credit (green)
+          0: { cellWidth: 20 }, // Date
+          1: { cellWidth: 18 }, // Remark
+          2: { cellWidth: 12 }, // Note
+          3: { cellWidth: 35 }, // Bank Account
+          4: { cellWidth: 20 }, // Category
+          5: { cellWidth: 25 }, // Bank Account Number
+          6: { cellWidth: 20, textColor: [220, 53, 69] }, // Debit (red)
+          7: { cellWidth: 20, textColor: [40, 167, 69] }  // Credit (green)
         }
       });
 

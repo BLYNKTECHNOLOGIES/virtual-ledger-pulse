@@ -270,7 +270,11 @@ export function PaymentMethodManagement() {
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
-          if (!open) resetForm();
+          if (!open) {
+            resetForm();
+          } else {
+            setStep(1); // Always start at step 1 when opening
+          }
         }}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">

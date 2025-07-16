@@ -61,6 +61,7 @@ export function PendingSettlements() {
           total_amount,
           order_date,
           payment_status,
+          settlement_status,
           sales_payment_methods!inner (
             id,
             type,
@@ -70,6 +71,7 @@ export function PendingSettlements() {
           )
         `)
         .eq('sales_payment_methods.payment_gateway', true)
+        .eq('settlement_status', 'PENDING')
         .in('payment_status', ['COMPLETED']);
 
       if (error) throw error;
@@ -181,7 +183,45 @@ export function PendingSettlements() {
     try {
       const settlementAmount = calculateSettlementAmount();
       const mdrAmount = deductMdr ? getMdrAmount() : 0;
+      const totalAmount = selectedSales.reduce((sum, saleId) => {
+        const sale = pendingSales.find(s => s.id === saleId);
+        return sum + (sale?.total_amount || 0);
+      }, 0);
       const selectedBankAcc = bankAccounts.find(acc => acc.id === selectedBankAccount);
+      const settlementBatchId = `PGS-${Date.now()}`;
+
+      // Create settlement record
+      const { data: settlement, error: settlementError } = await supabase
+        .from('payment_gateway_settlements')
+        .insert({
+          settlement_batch_id: settlementBatchId,
+          bank_account_id: selectedBankAccount,
+          total_amount: totalAmount,
+          mdr_amount: mdrAmount,
+          net_amount: settlementAmount,
+          mdr_rate: parseFloat(mdrRate),
+          settlement_date: new Date().toISOString().split('T')[0]
+        })
+        .select()
+        .single();
+
+      if (settlementError) throw settlementError;
+
+      // Create settlement items
+      const settlementItems = selectedSales.map(saleId => {
+        const sale = pendingSales.find(s => s.id === saleId);
+        return {
+          settlement_id: settlement.id,
+          sales_order_id: saleId,
+          amount: sale?.total_amount || 0
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from('payment_gateway_settlement_items')
+        .insert(settlementItems);
+
+      if (itemsError) throw itemsError;
 
       // Create bank transaction for settlement
       const { error: transactionError } = await supabase
@@ -193,15 +233,19 @@ export function PendingSettlements() {
           description: `Payment Gateway Settlement - ${selectedSales.length} sales${deductMdr ? ` (MDR: ₹${mdrAmount.toFixed(2)})` : ''}`,
           transaction_date: new Date().toISOString().split('T')[0],
           category: 'Payment Gateway Settlement',
-          reference_number: `PGS-${Date.now()}`
+          reference_number: settlementBatchId
         });
 
       if (transactionError) throw transactionError;
 
-      // Update sales orders status to settled
+      // Update sales orders settlement status
       const { error: updateError } = await supabase
         .from('sales_orders')
-        .update({ payment_status: 'SETTLED' })
+        .update({ 
+          settlement_status: 'SETTLED',
+          settlement_batch_id: settlementBatchId,
+          settled_at: new Date().toISOString()
+        })
         .in('id', selectedSales);
 
       if (updateError) throw updateError;

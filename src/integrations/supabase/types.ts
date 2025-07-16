@@ -1148,6 +1148,95 @@ export type Database = {
           },
         ]
       }
+      payment_gateway_settlement_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          sales_order_id: string
+          settlement_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          sales_order_id: string
+          settlement_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          sales_order_id?: string
+          settlement_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_gateway_settlement_items_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_gateway_settlement_items_settlement_id_fkey"
+            columns: ["settlement_id"]
+            isOneToOne: false
+            referencedRelation: "payment_gateway_settlements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_gateway_settlements: {
+        Row: {
+          bank_account_id: string
+          created_at: string
+          id: string
+          mdr_amount: number
+          mdr_rate: number
+          net_amount: number
+          settlement_batch_id: string
+          settlement_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          bank_account_id: string
+          created_at?: string
+          id?: string
+          mdr_amount?: number
+          mdr_rate?: number
+          net_amount?: number
+          settlement_batch_id: string
+          settlement_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          bank_account_id?: string
+          created_at?: string
+          id?: string
+          mdr_amount?: number
+          mdr_rate?: number
+          net_amount?: number
+          settlement_batch_id?: string
+          settlement_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_gateway_settlements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_methods: {
         Row: {
           account_number: string | null
@@ -1901,6 +1990,9 @@ export type Database = {
           quantity: number
           risk_level: string | null
           sales_payment_method_id: string | null
+          settled_at: string | null
+          settlement_batch_id: string | null
+          settlement_status: string | null
           status: string
           total_amount: number
           updated_at: string
@@ -1923,6 +2015,9 @@ export type Database = {
           quantity: number
           risk_level?: string | null
           sales_payment_method_id?: string | null
+          settled_at?: string | null
+          settlement_batch_id?: string | null
+          settlement_status?: string | null
           status?: string
           total_amount: number
           updated_at?: string
@@ -1945,6 +2040,9 @@ export type Database = {
           quantity?: number
           risk_level?: string | null
           sales_payment_method_id?: string | null
+          settled_at?: string | null
+          settlement_batch_id?: string | null
+          settlement_status?: string | null
           status?: string
           total_amount?: number
           updated_at?: string

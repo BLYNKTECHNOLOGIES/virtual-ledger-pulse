@@ -89,7 +89,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       if (error) throw error;
 
-      // Only credit bank account if NOT a payment gateway
+      // Set settlement status and handle bank crediting based on payment method type
       if (data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
@@ -97,6 +97,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .eq('id', data.sales_payment_method_id)
           .single();
 
+        // Update settlement status based on payment method type
+        const settlementStatus = paymentMethod?.payment_gateway ? 'PENDING' : 'DIRECT';
+        
+        await supabase
+          .from('sales_orders')
+          .update({ settlement_status: settlementStatus })
+          .eq('id', result.id);
+
+        // Only credit bank account if NOT a payment gateway
         if (paymentMethod?.bank_account_id && !paymentMethod?.payment_gateway) {
           const { data: bankAccount } = await supabase
             .from('bank_accounts')

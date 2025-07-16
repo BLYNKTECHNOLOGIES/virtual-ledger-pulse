@@ -48,7 +48,8 @@ export function PurchaseManagement() {
     type: "UPI" as "UPI" | "Bank Transfer",
     name: "",
     paymentLimit: "",
-    limitRange: [0, 100000] as [number, number],
+    minLimit: "200",
+    maxLimit: "10000000",
     frequency: "24 hours" as "24 hours" | "Daily",
     bankAccountName: "",
     safeFund: false
@@ -139,8 +140,8 @@ export function PurchaseManagement() {
           .update({
             type: formData.type,
             payment_limit: parseFloat(formData.paymentLimit),
-            min_limit: formData.limitRange[0],
-            max_limit: formData.limitRange[1],
+            min_limit: parseFloat(formData.minLimit),
+            max_limit: parseFloat(formData.maxLimit),
             frequency: formData.frequency,
             bank_account_name: formData.bankAccountName || null,
             safe_fund: formData.safeFund

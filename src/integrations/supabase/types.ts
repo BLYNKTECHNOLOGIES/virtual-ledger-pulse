@@ -1981,6 +1981,8 @@ export type Database = {
           id: string
           is_active: boolean
           last_reset: string | null
+          max_limit: number
+          min_limit: number
           payment_limit: number
           risk_category: string
           type: string
@@ -1996,6 +1998,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_reset?: string | null
+          max_limit?: number
+          min_limit?: number
           payment_limit?: number
           risk_category: string
           type: string
@@ -2011,6 +2015,8 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_reset?: string | null
+          max_limit?: number
+          min_limit?: number
           payment_limit?: number
           risk_category?: string
           type?: string

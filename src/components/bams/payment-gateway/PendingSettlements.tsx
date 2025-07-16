@@ -52,6 +52,8 @@ export function PendingSettlements() {
 
   const fetchPendingSettlements = async () => {
     try {
+      console.log('Fetching pending settlements...');
+      
       const { data, error } = await supabase
         .from('sales_orders')
         .select(`
@@ -62,7 +64,7 @@ export function PendingSettlements() {
           order_date,
           payment_status,
           settlement_status,
-          sales_payment_methods!inner (
+          sales_payment_methods (
             id,
             type,
             settlement_cycle,
@@ -70,18 +72,53 @@ export function PendingSettlements() {
             payment_gateway
           )
         `)
-        .eq('sales_payment_methods.payment_gateway', true)
         .eq('settlement_status', 'PENDING')
-        .in('payment_status', ['COMPLETED']);
+        .eq('payment_status', 'COMPLETED')
+        .not('sales_payment_method_id', 'is', null);
 
-      if (error) throw error;
+      console.log('Query result:', { data, error });
+
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.log('No data returned from query');
+        setPendingSales([]);
+        return;
+      }
+
+      // Filter for payment gateway sales only
+      const gatewayData = data.filter((sale: any) => {
+        const hasPaymentMethod = sale.sales_payment_methods;
+        const isGateway = hasPaymentMethod?.payment_gateway === true;
+        console.log('Sale filter check:', {
+          orderId: sale.id,
+          orderNumber: sale.order_number,
+          hasPaymentMethod: !!hasPaymentMethod,
+          isGateway,
+          paymentMethod: hasPaymentMethod
+        });
+        return hasPaymentMethod && isGateway;
+      });
+
+      console.log('Filtered gateway data:', gatewayData);
       
       // Filter sales that need settlement based on settlement cycle
-        const pendingData = (data || []).filter((sale: any) => {
+      const pendingData = gatewayData.filter((sale: any) => {
         const settlementCycle = sale.sales_payment_methods.settlement_cycle;
         const settlementDays = sale.sales_payment_methods.settlement_days;
         const orderDate = new Date(sale.order_date);
         const now = new Date();
+        
+        console.log('Settlement cycle check:', {
+          orderId: sale.id,
+          settlementCycle,
+          settlementDays,
+          orderDate: orderDate.toISOString(),
+          now: now.toISOString()
+        });
         
         if (!settlementCycle) return true; // Show if no cycle configured
         
@@ -103,6 +140,7 @@ export function PendingSettlements() {
         sales_payment_method: sale.sales_payment_methods
       }));
 
+      console.log('Final pending data:', pendingData);
       setPendingSales(pendingData);
     } catch (error) {
       console.error('Error fetching pending settlements:', error);

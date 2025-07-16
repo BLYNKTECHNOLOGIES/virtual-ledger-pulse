@@ -1724,7 +1724,10 @@ export type Database = {
           id: string
           is_active: boolean
           last_reset: string | null
+          max_limit: number
+          min_limit: number
           payment_limit: number
+          safe_fund: boolean
           safe_funds: boolean
           type: string
           updated_at: string
@@ -1738,7 +1741,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_reset?: string | null
+          max_limit?: number
+          min_limit?: number
           payment_limit?: number
+          safe_fund?: boolean
           safe_funds?: boolean
           type?: string
           updated_at?: string
@@ -1752,7 +1758,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_reset?: string | null
+          max_limit?: number
+          min_limit?: number
           payment_limit?: number
+          safe_fund?: boolean
           safe_funds?: boolean
           type?: string
           updated_at?: string

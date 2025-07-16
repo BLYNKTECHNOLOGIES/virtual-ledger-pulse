@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,10 +19,13 @@ interface PurchaseMethod {
   type: "UPI" | "Bank Transfer";
   name: string;
   paymentLimit: number;
+  minLimit: number;
+  maxLimit: number;
   frequency: "24 hours" | "Daily";
   currentUsage: number;
   lastReset: string;
   isActive: boolean;
+  safeFund: boolean;
   bankAccountName?: string;
 }
 
@@ -43,8 +48,10 @@ export function PurchaseManagement() {
     type: "UPI" as "UPI" | "Bank Transfer",
     name: "",
     paymentLimit: "",
+    limitRange: [0, 100000] as [number, number],
     frequency: "24 hours" as "24 hours" | "Daily",
-    bankAccountName: ""
+    bankAccountName: "",
+    safeFund: false
   });
 
   // Fetch purchase methods from Supabase with real-time updates
@@ -68,10 +75,13 @@ export function PurchaseManagement() {
           type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',
           paymentLimit: method.payment_limit,
+          minLimit: method.min_limit || 0,
+          maxLimit: method.max_limit || 0,
           frequency: method.frequency as "24 hours" | "Daily",
           currentUsage: method.current_usage || 0,
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
+          safeFund: method.safe_fund || false,
           bankAccountName: method.bank_account_name
         })) || [];
         setPurchaseMethods(formattedMethods);
@@ -129,8 +139,11 @@ export function PurchaseManagement() {
           .update({
             type: formData.type,
             payment_limit: parseFloat(formData.paymentLimit),
+            min_limit: formData.limitRange[0],
+            max_limit: formData.limitRange[1],
             frequency: formData.frequency,
-            bank_account_name: formData.bankAccountName || null
+            bank_account_name: formData.bankAccountName || null,
+            safe_fund: formData.safeFund
           })
           .eq('id', editingMethod.id);
 
@@ -146,8 +159,11 @@ export function PurchaseManagement() {
           .insert({
             type: formData.type,
             payment_limit: parseFloat(formData.paymentLimit),
+            min_limit: formData.limitRange[0],
+            max_limit: formData.limitRange[1],
             frequency: formData.frequency,
             bank_account_name: formData.bankAccountName || null,
+            safe_fund: formData.safeFund,
             current_usage: 0,
             is_active: true
           });
@@ -172,10 +188,13 @@ export function PurchaseManagement() {
           type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',
           paymentLimit: method.payment_limit,
+          minLimit: method.min_limit || 0,
+          maxLimit: method.max_limit || 0,
           frequency: method.frequency as "24 hours" | "Daily",
           currentUsage: method.current_usage || 0,
           lastReset: method.last_reset || new Date().toISOString(),
           isActive: method.is_active,
+          safeFund: method.safe_fund || false,
           bankAccountName: method.bank_account_name
         }));
         setPurchaseMethods(formattedMethods);
@@ -199,8 +218,10 @@ export function PurchaseManagement() {
       type: method.type,
       name: method.name,
       paymentLimit: method.paymentLimit.toString(),
+      limitRange: [method.minLimit, method.maxLimit],
       frequency: method.frequency,
-      bankAccountName: method.bankAccountName || ""
+      bankAccountName: method.bankAccountName || "",
+      safeFund: method.safeFund
     });
     setIsAddDialogOpen(true);
   };
@@ -236,8 +257,10 @@ export function PurchaseManagement() {
       type: "UPI",
       name: "",
       paymentLimit: "",
+      limitRange: [0, 100000],
       frequency: "24 hours",
-      bankAccountName: ""
+      bankAccountName: "",
+      safeFund: false
     });
     setEditingMethod(null);
   };
@@ -357,6 +380,36 @@ export function PurchaseManagement() {
                     <SelectItem value="Daily">Daily (Resets at 11:59 PM)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="limitRange">Limit Range (₹)</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Min: ₹{formData.limitRange[0].toLocaleString()}</span>
+                    <span>Max: ₹{formData.limitRange[1].toLocaleString()}</span>
+                  </div>
+                  <Slider
+                    value={formData.limitRange}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, limitRange: value as [number, number] }))}
+                    min={0}
+                    max={1000000}
+                    step={1000}
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500">
+                    Set minimum and maximum limits for this payment method
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="safeFund"
+                  checked={formData.safeFund}
+                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, safeFund: checked === true }))}
+                />
+                <Label htmlFor="safeFund">Safe Fund</Label>
               </div>
 
               <div className="flex justify-end gap-2">

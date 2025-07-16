@@ -22,6 +22,22 @@ export async function validateBankAccountBalance(bankAccountId: string, debitAmo
   }
 }
 
+export async function validatePaymentLimit(paymentMethodId: string, amount: number): Promise<void> {
+  const { data: paymentMethod, error } = await supabase
+    .from('purchase_payment_methods')
+    .select('current_usage, payment_limit, bank_account_name')
+    .eq('id', paymentMethodId)
+    .single();
+
+  if (error) throw error;
+
+  const newUsage = (paymentMethod.current_usage || 0) + amount;
+  
+  if (newUsage > paymentMethod.payment_limit) {
+    throw new ValidationError(`Payment limit cannot be exceeded. Current usage: ₹${paymentMethod.current_usage?.toFixed(2) || '0.00'}, Limit: ₹${paymentMethod.payment_limit.toFixed(2)}, Attempted: ₹${amount.toFixed(2)} for ${paymentMethod.bank_account_name}`);
+  }
+}
+
 export async function validateProductStock(productId: string, warehouseId: string, requiredQuantity: number): Promise<void> {
   // Get current stock from warehouse movements
   const { data: movements, error } = await supabase

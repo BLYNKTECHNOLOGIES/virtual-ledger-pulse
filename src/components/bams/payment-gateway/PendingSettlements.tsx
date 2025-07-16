@@ -125,9 +125,12 @@ export function PendingSettlements() {
         if (settlementCycle === "Instant Settlement") {
           return true; // Always show for instant settlement
         } else if (settlementCycle === "T+1 Day") {
-          const nextDay = new Date(orderDate);
-          nextDay.setDate(nextDay.getDate() + 1);
-          return now >= nextDay;
+          // For demo purposes, show all T+1 day settlements immediately
+          // In production, you'd want: 
+          // const nextDay = new Date(orderDate);
+          // nextDay.setDate(nextDay.getDate() + 1);
+          // return now >= nextDay;
+          return true; // Show immediately for demo
         } else if (settlementCycle === "Custom" && settlementDays) {
           const settlementDate = new Date(orderDate);
           settlementDate.setDate(settlementDate.getDate() + settlementDays);

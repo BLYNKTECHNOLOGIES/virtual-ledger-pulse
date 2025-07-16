@@ -347,8 +347,8 @@ export function DirectoryTab() {
         format(new Date(transaction.display_date), 'dd MMM yyyy'),
         transaction.display_reference || '-',
         transaction.source,
-        transaction.display_account.length > 25 ? 
-          transaction.display_account.substring(0, 25) + '...' : 
+        transaction.display_account.length > 35 ? 
+          transaction.display_account.substring(0, 35) + '...' : 
           transaction.display_account,
         transaction.display_type.replace('_', ' '),
         getBankAccountNumber(transaction),
@@ -360,31 +360,31 @@ export function DirectoryTab() {
 
       // Add table using autoTable
       autoTable(doc, {
-        head: [['Date', 'Remark', 'Note', 'Bank Account', 'Category', 'Bank Account Number', 'Expenses', 'Credit']],
+        head: [['Date', 'Remark', 'Note', 'Bank Account', 'Category', 'Bank Account Number', 'Debit', 'Credit']],
         body: tableData,
         startY: 80,
         styles: {
           fontSize: 8,
-          cellPadding: 2,
+          cellPadding: 3,
         },
         headStyles: {
           fillColor: [66, 139, 202],
           textColor: [255, 255, 255],
-          fontSize: 8,
+          fontSize: 9,
           fontStyle: 'bold'
         },
         alternateRowStyles: {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 18 }, // Date
-          1: { cellWidth: 18 }, // Remark
-          2: { cellWidth: 12 }, // Note
-          3: { cellWidth: 28 }, // Bank Account
-          4: { cellWidth: 22 }, // Category
-          5: { cellWidth: 22 }, // Bank Account Number
-          6: { cellWidth: 22, textColor: [220, 53, 69] }, // Expenses (red)
-          7: { cellWidth: 22, textColor: [40, 167, 69] }  // Credit (green)
+          0: { cellWidth: 22 }, // Date
+          1: { cellWidth: 20 }, // Remark
+          2: { cellWidth: 15 }, // Note
+          3: { cellWidth: 40 }, // Bank Account (increased width)
+          4: { cellWidth: 25 }, // Category
+          5: { cellWidth: 30 }, // Bank Account Number
+          6: { cellWidth: 25, textColor: [220, 53, 69] }, // Debit (red)
+          7: { cellWidth: 25, textColor: [40, 167, 69] }  // Credit (green)
         }
       });
 

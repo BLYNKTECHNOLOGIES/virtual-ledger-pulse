@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 
 export function DirectoryTab() {
   // Filter states
-  const [selectedBankAccount, setSelectedBankAccount] = useState<string>("");
-  const [selectedTransactionType, setSelectedTransactionType] = useState<string>("");
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
+  const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
@@ -144,12 +144,12 @@ export function DirectoryTab() {
   // Filter transactions based on selected filters
   const filteredTransactions = allTransactions?.filter(transaction => {
     // Bank account filter
-    if (selectedBankAccount && transaction.bank_account_id !== selectedBankAccount) {
+    if (selectedBankAccount && selectedBankAccount !== "all" && transaction.bank_account_id !== selectedBankAccount) {
       return false;
     }
 
     // Transaction type filter
-    if (selectedTransactionType) {
+    if (selectedTransactionType && selectedTransactionType !== "all") {
       const typeMapping: { [key: string]: string[] } = {
         'sales': ['SALES_ORDER'],
         'settlement': ['INCOME'],
@@ -177,13 +177,13 @@ export function DirectoryTab() {
   }) || [];
 
   const clearFilters = () => {
-    setSelectedBankAccount("");
-    setSelectedTransactionType("");
+    setSelectedBankAccount("all");
+    setSelectedTransactionType("all");
     setDateFrom(undefined);
     setDateTo(undefined);
   };
 
-  const hasActiveFilters = selectedBankAccount || selectedTransactionType || dateFrom || dateTo;
+  const hasActiveFilters = (selectedBankAccount !== "all") || (selectedTransactionType !== "all") || dateFrom || dateTo;
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -324,7 +324,7 @@ export function DirectoryTab() {
                     <SelectValue placeholder="All accounts" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="">All accounts</SelectItem>
+                    <SelectItem value="all">All accounts</SelectItem>
                     {bankAccounts?.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
                         {account.account_name} - {account.bank_name}
@@ -342,7 +342,7 @@ export function DirectoryTab() {
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="">All types</SelectItem>
+                    <SelectItem value="all">All types</SelectItem>
                     <SelectItem value="sales">Sales</SelectItem>
                     <SelectItem value="settlement">Settlement</SelectItem>
                     <SelectItem value="expense">Expense</SelectItem>

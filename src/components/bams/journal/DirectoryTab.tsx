@@ -1,12 +1,39 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function DirectoryTab() {
+  // Filter states
+  const [selectedBankAccount, setSelectedBankAccount] = useState<string>("");
+  const [selectedTransactionType, setSelectedTransactionType] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Fetch bank accounts for filter dropdown
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts_filter'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('id, account_name, bank_name')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      if (error) throw error;
+      return data;
+    },
+  });
   // Fetch all transactions (bank, sales, purchases)
   const { data: allTransactions, isLoading } = useQuery({
     queryKey: ['all_transactions'],
@@ -114,6 +141,50 @@ export function DirectoryTab() {
     },
   });
 
+  // Filter transactions based on selected filters
+  const filteredTransactions = allTransactions?.filter(transaction => {
+    // Bank account filter
+    if (selectedBankAccount && transaction.bank_account_id !== selectedBankAccount) {
+      return false;
+    }
+
+    // Transaction type filter
+    if (selectedTransactionType) {
+      const typeMapping: { [key: string]: string[] } = {
+        'sales': ['SALES_ORDER'],
+        'settlement': ['INCOME'],
+        'expense': ['EXPENSE', 'PURCHASE_ORDER'],
+        'income': ['INCOME'],
+        'transfer': ['TRANSFER_IN', 'TRANSFER_OUT']
+      };
+      
+      const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
+      if (!allowedTypes.includes(transaction.display_type)) {
+        return false;
+      }
+    }
+
+    // Date range filter
+    const transactionDate = new Date(transaction.display_date);
+    if (dateFrom && transactionDate < dateFrom) {
+      return false;
+    }
+    if (dateTo && transactionDate > dateTo) {
+      return false;
+    }
+
+    return true;
+  }) || [];
+
+  const clearFilters = () => {
+    setSelectedBankAccount("");
+    setSelectedTransactionType("");
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const hasActiveFilters = selectedBankAccount || selectedTransactionType || dateFrom || dateTo;
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'INCOME':
@@ -163,7 +234,8 @@ export function DirectoryTab() {
   };
 
   const downloadCSV = () => {
-    if (!allTransactions || allTransactions.length === 0) return;
+    const dataToDownload = filteredTransactions;
+    if (!dataToDownload || dataToDownload.length === 0) return;
 
     const csvHeaders = [
       'Source',
@@ -176,7 +248,7 @@ export function DirectoryTab() {
       'Created At'
     ];
 
-    const csvData = allTransactions.map(transaction => [
+    const csvData = dataToDownload.map(transaction => [
       transaction.source,
       transaction.display_type.replace('_', ' '),
       format(new Date(transaction.display_date), 'MMM dd, yyyy'),
@@ -216,6 +288,130 @@ export function DirectoryTab() {
 
   return (
     <div className="space-y-6">
+      {/* Filter Controls */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5 text-blue-600" />
+              Transaction Filters
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {hasActiveFilters && (
+                <Button variant="outline" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                {showFilters ? 'Hide' : 'Show'} Filters
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        {showFilters && (
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Bank Account Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="bank-filter">Bank Account</Label>
+                <Select value={selectedBankAccount} onValueChange={setSelectedBankAccount}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All accounts" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="">All accounts</SelectItem>
+                    {bankAccounts?.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} - {account.bank_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Transaction Type Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="type-filter">Transaction Type</Label>
+                <Select value={selectedTransactionType} onValueChange={setSelectedTransactionType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="">All types</SelectItem>
+                    <SelectItem value="sales">Sales</SelectItem>
+                    <SelectItem value="settlement">Settlement</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="transfer">Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date From Filter */}
+              <div className="space-y-2">
+                <Label>From Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date To Filter */}
+              <div className="space-y-2">
+                <Label>To Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Transactions List */}
       <Card className="shadow-sm">
         <CardHeader>
@@ -223,12 +419,18 @@ export function DirectoryTab() {
             <CardTitle className="flex items-center gap-2">
               <ArrowRightLeft className="h-5 w-5 text-blue-600" />
               All Transactions Directory
-              <Badge variant="secondary">{allTransactions?.length || 0} entries</Badge>
+              <Badge variant="secondary">{filteredTransactions?.length || 0} entries</Badge>
+              {hasActiveFilters && (
+                <Badge variant="outline" className="text-blue-600">
+                  Filtered
+                </Badge>
+              )}
             </CardTitle>
             <Button 
               variant="outline" 
               onClick={downloadCSV} 
               className="flex items-center gap-2"
+              disabled={!filteredTransactions || filteredTransactions.length === 0}
             >
               <Download className="h-4 w-4" />
               Download Data
@@ -236,13 +438,13 @@ export function DirectoryTab() {
           </div>
         </CardHeader>
         <CardContent>
-          {!allTransactions || allTransactions.length === 0 ? (
+          {!filteredTransactions || filteredTransactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No transactions found
+              {hasActiveFilters ? "No transactions match the selected filters" : "No transactions found"}
             </div>
           ) : (
             <div className="space-y-4">
-              {allTransactions.map((transaction) => (
+              {filteredTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
                   className="flex items-center justify-between p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"

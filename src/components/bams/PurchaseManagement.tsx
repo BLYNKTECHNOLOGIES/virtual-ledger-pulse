@@ -160,8 +160,8 @@ export function PurchaseManagement() {
           .insert({
             type: formData.type,
             payment_limit: parseFloat(formData.paymentLimit),
-            min_limit: formData.limitRange[0],
-            max_limit: formData.limitRange[1],
+            min_limit: parseFloat(formData.minLimit),
+            max_limit: parseFloat(formData.maxLimit),
             frequency: formData.frequency,
             bank_account_name: formData.bankAccountName || null,
             safe_fund: formData.safeFund,
@@ -219,7 +219,8 @@ export function PurchaseManagement() {
       type: method.type,
       name: method.name,
       paymentLimit: method.paymentLimit.toString(),
-      limitRange: [method.minLimit, method.maxLimit],
+      minLimit: method.minLimit.toString(),
+      maxLimit: method.maxLimit.toString(),
       frequency: method.frequency,
       bankAccountName: method.bankAccountName || "",
       safeFund: method.safeFund
@@ -258,7 +259,8 @@ export function PurchaseManagement() {
       type: "UPI",
       name: "",
       paymentLimit: "",
-      limitRange: [0, 100000],
+      minLimit: "200",
+      maxLimit: "10000000",
       frequency: "24 hours",
       bankAccountName: "",
       safeFund: false
@@ -384,22 +386,34 @@ export function PurchaseManagement() {
               </div>
 
               <div>
-                <Label htmlFor="limitRange">Limit Range (₹)</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <span>Min: ₹{formData.limitRange[0].toLocaleString()}</span>
-                    <span>Max: ₹{formData.limitRange[1].toLocaleString()}</span>
+                <Label>Limit Range (₹200 - ₹1 Crore)</Label>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="minLimit">Minimum Limit (₹)</Label>
+                    <Input
+                      id="minLimit"
+                      type="number"
+                      min="200"
+                      max="10000000"
+                      value={formData.minLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
+                      required
+                    />
                   </div>
-                  <Slider
-                    value={formData.limitRange}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, limitRange: value as [number, number] }))}
-                    min={0}
-                    max={1000000}
-                    step={1000}
-                    className="w-full"
-                  />
+                  <div>
+                    <Label htmlFor="maxLimit">Maximum Limit (₹)</Label>
+                    <Input
+                      id="maxLimit"
+                      type="number"
+                      min="200"
+                      max="10000000"
+                      value={formData.maxLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
+                      required
+                    />
+                  </div>
                   <div className="text-xs text-gray-500">
-                    Set minimum and maximum limits for this payment method
+                    Range: ₹200 to ₹1 Crore (₹10,000,000)
                   </div>
                 </div>
               </div>

@@ -143,14 +143,14 @@ export function OrderCompletionDialog({
           .eq('id', paymentMethodId);
       }
 
-      // Update bank account balance
+      // Update bank account balance only if NOT a payment gateway
       const { data: paymentMethodWithBank } = await supabase
         .from('sales_payment_methods')
-        .select('bank_account_id')
+        .select('bank_account_id, payment_gateway')
         .eq('id', paymentMethodId)
         .single();
 
-      if (paymentMethodWithBank?.bank_account_id) {
+      if (paymentMethodWithBank?.bank_account_id && !paymentMethodWithBank?.payment_gateway) {
         const { data: bankAccount } = await supabase
           .from('bank_accounts')
           .select('balance')

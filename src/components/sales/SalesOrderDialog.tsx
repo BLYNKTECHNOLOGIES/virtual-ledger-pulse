@@ -63,10 +63,11 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_payment_methods')
-        .select(`
-          *,
-          bank_accounts:bank_account_id(account_name, bank_name, balance)
-        `)
+         .select(`
+           *,
+           bank_accounts:bank_account_id(account_name, bank_name, balance),
+           payment_gateway
+         `)
         .eq('is_active', true)
         .order('created_at');
       
@@ -139,15 +140,15 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             .eq('id', orderData.sales_payment_method_id);
         }
 
-        // Update bank account balance if payment is completed
+        // Update bank account balance if payment is completed and NOT a payment gateway
         if (orderData.payment_status === 'COMPLETED') {
           const { data: paymentMethodWithBank } = await supabase
             .from('sales_payment_methods')
-            .select('bank_account_id')
+            .select('bank_account_id, payment_gateway')
             .eq('id', orderData.sales_payment_method_id)
             .single();
 
-          if (paymentMethodWithBank?.bank_account_id) {
+          if (paymentMethodWithBank?.bank_account_id && !paymentMethodWithBank?.payment_gateway) {
             const { data: bankAccount } = await supabase
               .from('bank_accounts')
               .select('balance')

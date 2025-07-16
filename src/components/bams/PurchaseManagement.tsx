@@ -355,13 +355,12 @@ export function PurchaseManagement() {
                 {[1, 2, 3].map((stepNum) => (
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                      stepNum < step ? 'bg-blue-600 text-white' : 
-                      stepNum === step ? 'bg-blue-600 text-white ring-2 ring-blue-300' : 
+                      stepNum <= step ? 'bg-blue-600 text-white' : 
                       'bg-gray-200 text-gray-500'
-                    }`}>
+                    } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum < step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
                   </div>
                 ))}
               </div>

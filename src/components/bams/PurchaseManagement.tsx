@@ -12,6 +12,7 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PurchaseMethod {
@@ -41,6 +42,7 @@ interface BankAccount {
 
 export function PurchaseManagement() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [purchaseMethods, setPurchaseMethods] = useState<PurchaseMethod[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -52,7 +54,8 @@ export function PurchaseManagement() {
     paymentLimit: "",
     minLimit: "200",
     maxLimit: "10000000",
-    frequency: "" as "24 hours" | "Daily" | "",
+    frequency: "" as "24 hours" | "Daily" | "Custom" | "",
+    custom_frequency: "",
     bankAccountName: "",
     safeFund: false,
     beneficiariesPer24h: ""
@@ -63,6 +66,127 @@ export function PurchaseManagement() {
     if (progress < 0.6) return "#f59e0b"; // Yellow
     if (progress < 0.8) return "#f97316"; // Orange
     return "#dc2626"; // Red
+  };
+
+  // Create purchase method mutation
+  const createMethodMutation = useMutation({
+    mutationFn: async (methodData: typeof formData) => {
+      const { error } = await supabase
+        .from('purchase_payment_methods')
+        .insert({
+          type: methodData.type,
+          payment_limit: parseFloat(methodData.paymentLimit),
+          min_limit: parseFloat(methodData.minLimit),
+          max_limit: parseFloat(methodData.maxLimit),
+          frequency: methodData.frequency,
+          custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
+          bank_account_name: methodData.bankAccountName || null,
+          safe_fund: methodData.safeFund,
+          beneficiaries_per_24h: methodData.type === "Bank Transfer" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          safe_funds: methodData.safeFund,
+          current_usage: 0,
+          is_active: true,
+          last_reset: new Date().toISOString()
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Purchase Method Added",
+        description: "New purchase method has been successfully added.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
+      resetForm();
+      setIsAddDialogOpen(false);
+    },
+    onError: (error: any) => {
+      if (error.message?.includes('unique_purchase_bank_transfer')) {
+        toast({
+          title: "Duplicate Payment Method",
+          description: "This bank account already has a bank transfer payment method. Each bank account can only have one bank transfer method.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create purchase method",
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  // Update purchase method mutation
+  const updateMethodMutation = useMutation({
+    mutationFn: async (methodData: typeof formData & { id: string }) => {
+      const { error } = await supabase
+        .from('purchase_payment_methods')
+        .update({
+          type: methodData.type,
+          payment_limit: parseFloat(methodData.paymentLimit),
+          min_limit: parseFloat(methodData.minLimit),
+          max_limit: parseFloat(methodData.maxLimit),
+          frequency: methodData.frequency,
+          custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
+          bank_account_name: methodData.bankAccountName || null,
+          safe_fund: methodData.safeFund,
+          beneficiaries_per_24h: methodData.type === "Bank Transfer" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', methodData.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Purchase Method Updated",
+        description: "The purchase method has been successfully updated.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
+      resetForm();
+      setIsAddDialogOpen(false);
+      setEditingMethod(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update purchase method",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset payment limits mutation
+  const resetLimitsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke('reset-payment-limits');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment Limits Reset",
+        description: "All payment limits have been reset based on their frequency settings.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['purchase_payment_methods'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",  
+        description: "Failed to reset payment limits.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (editingMethod) {
+      updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
+    } else {
+      createMethodMutation.mutate(formData);
+    }
   };
 
   // Fetch purchase methods from Supabase with real-time updates
@@ -141,93 +265,6 @@ export function PurchaseManagement() {
     fetchBankAccounts();
   }, [toast]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      if (editingMethod) {
-        const { error } = await supabase
-          .from('purchase_payment_methods')
-          .update({
-            type: formData.type,
-            payment_limit: parseFloat(formData.paymentLimit),
-            min_limit: parseFloat(formData.minLimit),
-            max_limit: parseFloat(formData.maxLimit),
-            frequency: formData.frequency,
-            bank_account_name: formData.bankAccountName || null,
-            safe_fund: formData.safeFund
-          })
-          .eq('id', editingMethod.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Purchase Method Updated",
-          description: "The purchase method has been successfully updated.",
-        });
-      } else {
-        const { error } = await supabase
-          .from('purchase_payment_methods')
-          .insert({
-            type: formData.type,
-            payment_limit: parseFloat(formData.paymentLimit),
-            min_limit: parseFloat(formData.minLimit),
-            max_limit: parseFloat(formData.maxLimit),
-            frequency: formData.frequency,
-            bank_account_name: formData.bankAccountName || null,
-            safe_fund: formData.safeFund,
-            beneficiaries_per_24h: formData.type === "Bank Transfer" ? parseInt(formData.beneficiariesPer24h) : null,
-            safe_funds: formData.safeFund,
-            current_usage: 0,
-            is_active: true,
-            last_reset: new Date().toISOString()
-          });
-
-        if (error) throw error;
-
-        toast({
-          title: "Purchase Method Added",
-          description: "New purchase method has been successfully added.",
-        });
-      }
-
-      // Refresh the list
-      const { data } = await supabase
-        .from('purchase_payment_methods')
-        .select('*')
-        .order('created_at');
-
-      if (data) {
-        const formattedMethods = data.map(method => ({
-          id: method.id,
-          type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
-          name: method.bank_account_name || 'Unnamed Method',
-          paymentLimit: method.payment_limit,
-          minLimit: method.min_limit || 0,
-          maxLimit: method.max_limit || 0,
-          frequency: method.frequency as "24 hours" | "Daily",
-          currentUsage: method.current_usage || 0,
-          lastReset: method.last_reset || new Date().toISOString(),
-          isActive: method.is_active,
-          safeFund: method.safe_fund || false,
-          bankAccountName: method.bank_account_name,
-          beneficiariesPer24h: method.beneficiaries_per_24h || 5
-        }));
-        setPurchaseMethods(formattedMethods);
-      }
-
-      resetForm();
-      setIsAddDialogOpen(false);
-    } catch (error) {
-      console.error('Error saving purchase method:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save purchase method.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleEdit = (method: PurchaseMethod) => {
     setEditingMethod(method);
     setFormData({
@@ -237,6 +274,7 @@ export function PurchaseManagement() {
       minLimit: method.minLimit.toString(),
       maxLimit: method.maxLimit.toString(),
       frequency: method.frequency,
+      custom_frequency: "",
       bankAccountName: method.bankAccountName || "",
       safeFund: method.safeFund,
       beneficiariesPer24h: method.beneficiariesPer24h?.toString() || "5"
@@ -279,6 +317,7 @@ export function PurchaseManagement() {
       minLimit: "200",
       maxLimit: "10000000",
       frequency: "" as any, // Start empty
+      custom_frequency: "",
       bankAccountName: "",
       safeFund: false,
       beneficiariesPer24h: "" // Start empty
@@ -328,6 +367,19 @@ export function PurchaseManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Purchase Management</h2>
           <p className="text-gray-600">Manage payment methods for company purchases</p>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => resetLimitsMutation.mutate()}
+            disabled={resetLimitsMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {resetLimitsMutation.isPending ? "Resetting..." : "Reset All Limits"}
+          </Button>
+        </div>
+      </div>
+      
+      <div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
@@ -523,7 +575,7 @@ export function PurchaseManagement() {
                     <Label htmlFor="frequency">Reset Frequency *</Label>
                     <Select 
                       value={formData.frequency} 
-                      onValueChange={(value: "24 hours" | "Daily") => {
+                      onValueChange={(value: "24 hours" | "Daily" | "Custom") => {
                         setFormData(prev => ({ ...prev, frequency: value }));
                       }}
                     >
@@ -533,12 +585,46 @@ export function PurchaseManagement() {
                       <SelectContent>
                         <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>
                         <SelectItem value="Daily">Daily (Calendar Day)</SelectItem>
+                        <SelectItem value="Custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-gray-500 mt-1">
                       24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
                     </p>
                   </div>
+
+                  {formData.frequency === "Custom" && (
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="custom_frequency">Custom Frequency (Hours) *</Label>
+                        <div className="flex items-center space-x-4">
+                          <Input
+                            id="custom_frequency"
+                            type="number"
+                            min="1"
+                            placeholder="Enter hours (e.g., 12, 72)"
+                            value={formData.custom_frequency}
+                            onChange={(e) => setFormData(prev => ({ ...prev, custom_frequency: e.target.value }))}
+                            className="flex-1"
+                            required={formData.frequency === "Custom"}
+                          />
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-700 font-medium">
+                              Hours Guide
+                            </p>
+                            <div className="text-xs text-blue-600 space-y-1 mt-1">
+                              <div>• 12 hours = Twice daily</div>
+                              <div>• 72 hours = Every 3 days</div>
+                              <div>• 168 hours = Weekly</div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Set how many hours after which the payment limit will reset
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {formData.type === "Bank Transfer" && (
                     <div>
@@ -586,8 +672,14 @@ export function PurchaseManagement() {
                     Next
                   </Button>
                 ) : (
-                  <Button type="submit">
-                    {editingMethod ? "Update Method" : "Add Method"}
+                  <Button 
+                    type="submit" 
+                    disabled={createMethodMutation.isPending || updateMethodMutation.isPending}
+                  >
+                    {createMethodMutation.isPending || updateMethodMutation.isPending ? 
+                      "Processing..." : 
+                      (editingMethod ? "Update Method" : "Add Method")
+                    }
                   </Button>
                 )}
               </div>

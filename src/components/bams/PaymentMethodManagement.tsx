@@ -132,11 +132,20 @@ export function PaymentMethodManagement() {
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create payment method",
-        variant: "destructive",
-      });
+      // Handle specific constraint violation for bank account uniqueness
+      if (error.message?.includes('unique_sales_bank_account_transfer')) {
+        toast({
+          title: "Duplicate Payment Method",
+          description: "This bank account already has a bank transfer payment method. Each bank account can only have one bank transfer method.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create payment method",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -182,6 +191,28 @@ export function PaymentMethodManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update payment method",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reset payment limits mutation
+  const resetLimitsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.functions.invoke('reset-payment-limits');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Payment Limits Reset",
+        description: "All payment limits have been reset based on their frequency settings.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: "Failed to reset payment limits.",
         variant: "destructive",
       });
     },
@@ -268,6 +299,18 @@ export function PaymentMethodManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Sales Payment Methods</h2>
           <p className="text-gray-600">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
         </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => resetLimitsMutation.mutate()}
+            disabled={resetLimitsMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            {resetLimitsMutation.isPending ? "Resetting..." : "Reset All Limits"}
+          </Button>
+        </div>
+      </div>
+      <div>
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
@@ -525,15 +568,35 @@ export function PaymentMethodManagement() {
                   </div>
 
                   {formData.frequency === "Custom" && (
-                    <div>
-                      <Label htmlFor="custom_frequency">Custom Frequency *</Label>
-                      <Input
-                        id="custom_frequency"
-                        value={formData.custom_frequency}
-                        onChange={(e) => setFormData(prev => ({ ...prev, custom_frequency: e.target.value }))}
-                        placeholder="e.g., 72 hours, Weekly"
-                        required={formData.frequency === "Custom"}
-                      />
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="custom_frequency">Custom Frequency (Hours) *</Label>
+                        <div className="flex items-center space-x-4">
+                          <Input
+                            id="custom_frequency"
+                            type="number"
+                            min="1"
+                            placeholder="Enter hours (e.g., 12, 72)"
+                            value={formData.custom_frequency}
+                            onChange={(e) => setFormData(prev => ({ ...prev, custom_frequency: e.target.value }))}
+                            className="flex-1"
+                            required={formData.frequency === "Custom"}
+                          />
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-700 font-medium">
+                              Hours Guide
+                            </p>
+                            <div className="text-xs text-blue-600 space-y-1 mt-1">
+                              <div>• 12 hours = Twice daily</div>
+                              <div>• 72 hours = Every 3 days</div>
+                              <div>• 168 hours = Weekly</div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Set how many hours after which the payment limit will reset
+                        </p>
+                      </div>
                     </div>
                   )}
 

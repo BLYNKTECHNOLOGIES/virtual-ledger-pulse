@@ -156,7 +156,8 @@ export default function Dashboard() {
         totalClients,
         totalCash,
         bankBalance,
-        stockValue
+        stockValue,
+        totalRevenue: totalSales // Use actual sales data for revenue
       };
     },
   });
@@ -174,18 +175,39 @@ export default function Dashboard() {
         .from('products')
         .select('id, name, code, current_stock_quantity, warehouse_id');
 
+      // Also get products without warehouse_id assigned
+      const { data: unassignedProducts } = await supabase
+        .from('products')
+        .select('id, name, code, current_stock_quantity, warehouse_id')
+        .is('warehouse_id', null);
+
       // Group products by warehouse
       const warehouseStockMap = new Map();
+      
+      // Add assigned warehouses
       warehouses?.forEach(warehouse => {
+        const warehouseProducts = products?.filter(p => p.warehouse_id === warehouse.id) || [];
         warehouseStockMap.set(warehouse.id, {
+          id: warehouse.id,
           name: warehouse.name,
           location: warehouse.location,
-          products: products?.filter(p => p.warehouse_id === warehouse.id) || [],
-          totalProducts: products?.filter(p => p.warehouse_id === warehouse.id).length || 0,
-          totalQuantity: products?.filter(p => p.warehouse_id === warehouse.id)
-            .reduce((sum, p) => sum + Number(p.current_stock_quantity), 0) || 0
+          products: warehouseProducts,
+          totalProducts: warehouseProducts.length,
+          totalQuantity: warehouseProducts.reduce((sum, p) => sum + Number(p.current_stock_quantity), 0)
         });
       });
+
+      // Add unassigned products as a separate "warehouse"
+      if (unassignedProducts && unassignedProducts.length > 0) {
+        warehouseStockMap.set('unassigned', {
+          id: 'unassigned',
+          name: 'Unassigned Stock',
+          location: 'Various',
+          products: unassignedProducts,
+          totalProducts: unassignedProducts.length,
+          totalQuantity: unassignedProducts.reduce((sum, p) => sum + Number(p.current_stock_quantity), 0)
+        });
+      }
 
       return Array.from(warehouseStockMap.values());
     },
@@ -564,7 +586,7 @@ export default function Dashboard() {
           <CardContent className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {warehouseStock?.map((warehouse, index) => (
-                <Card key={index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+                <Card key={warehouse.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
                   <CardHeader className="bg-secondary border-b">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-lg">

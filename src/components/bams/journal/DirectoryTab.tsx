@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export function DirectoryTab() {
   // Filter states
@@ -153,9 +155,10 @@ export function DirectoryTab() {
       const typeMapping: { [key: string]: string[] } = {
         'sales': ['SALES_ORDER'],
         'settlement': ['INCOME'],
-        'expense': ['EXPENSE', 'PURCHASE_ORDER'],
+        'expense': ['EXPENSE'],
         'income': ['INCOME'],
-        'transfer': ['TRANSFER_IN', 'TRANSFER_OUT']
+        'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
+        'purchase': ['PURCHASE_ORDER']
       };
       
       const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
@@ -274,6 +277,111 @@ export function DirectoryTab() {
     window.URL.revokeObjectURL(url);
   };
 
+  const generatePDF = () => {
+    const dataToDownload = filteredTransactions;
+    if (!dataToDownload || dataToDownload.length === 0) return;
+
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Transaction Report', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on: ${format(new Date(), 'dd MMM yyyy, HH:mm a')}`, 20, 30);
+    
+    // Duration
+    let durationText = 'Duration: ';
+    if (dateFrom && dateTo) {
+      durationText += `${format(dateFrom, 'dd MMM yyyy')} - ${format(dateTo, 'dd MMM yyyy')}`;
+    } else if (dateFrom) {
+      durationText += `From ${format(dateFrom, 'dd MMM yyyy')}`;
+    } else if (dateTo) {
+      durationText += `Until ${format(dateTo, 'dd MMM yyyy')}`;
+    } else {
+      durationText += 'All time';
+    }
+    doc.text(durationText, 20, 40);
+
+    // Summary boxes
+    const totalExpenses = dataToDownload
+      .filter(t => ['EXPENSE', 'PURCHASE_ORDER'].includes(t.display_type))
+      .reduce((sum, t) => sum + Number(t.display_amount), 0);
+    
+    const totalCredit = dataToDownload
+      .filter(t => ['INCOME', 'SALES_ORDER'].includes(t.display_type))
+      .reduce((sum, t) => sum + Number(t.display_amount), 0);
+
+    doc.setFontSize(10);
+    doc.rect(20, 50, 80, 20);
+    doc.text('Total Expenses', 25, 58);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`₹${totalExpenses.toLocaleString('en-IN')}`, 25, 65);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.rect(110, 50, 80, 20);
+    doc.text('Total Credit', 115, 58);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`₹${totalCredit.toLocaleString('en-IN')}`, 115, 65);
+
+    // Table data
+    const tableData = dataToDownload.map(transaction => [
+      format(new Date(transaction.display_date), 'dd MMM yyyy'),
+      transaction.display_reference || '-',
+      transaction.source,
+      transaction.display_account.length > 25 ? 
+        transaction.display_account.substring(0, 25) + '...' : 
+        transaction.display_account,
+      transaction.display_type.replace('_', ' '),
+      ['EXPENSE', 'PURCHASE_ORDER'].includes(transaction.display_type) ? 
+        `₹${Number(transaction.display_amount).toLocaleString('en-IN')}` : '-',
+      ['INCOME', 'SALES_ORDER'].includes(transaction.display_type) ? 
+        `₹${Number(transaction.display_amount).toLocaleString('en-IN')}` : '-',
+      'COMPLETED'
+    ]);
+
+    // Add table
+    (doc as any).autoTable({
+      head: [['Date', 'Remark', 'Note', 'Party', 'Category', 'Expenses', 'Credit', 'Status']],
+      body: tableData,
+      startY: 80,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [66, 139, 202],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      columnStyles: {
+        0: { cellWidth: 20 }, // Date
+        1: { cellWidth: 20 }, // Remark
+        2: { cellWidth: 15 }, // Note
+        3: { cellWidth: 30 }, // Party
+        4: { cellWidth: 25 }, // Category
+        5: { cellWidth: 25 }, // Expenses
+        6: { cellWidth: 25 }, // Credit
+        7: { cellWidth: 20 }  // Status
+      }
+    });
+
+    // Footer info
+    const finalY = (doc as any).lastAutoTable.finalY || 200;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total number of transactions: ${dataToDownload.length}`, 20, finalY + 10);
+
+    // Save the PDF
+    doc.save(`transaction_report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
   if (isLoading) {
     return (
       <Card className="shadow-sm">
@@ -348,6 +456,7 @@ export function DirectoryTab() {
                     <SelectItem value="expense">Expense</SelectItem>
                     <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="transfer">Transfer</SelectItem>
+                    <SelectItem value="purchase">Purchase</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -426,15 +535,25 @@ export function DirectoryTab() {
                 </Badge>
               )}
             </CardTitle>
-            <Button 
-              variant="outline" 
-              onClick={downloadCSV} 
-              className="flex items-center gap-2"
-              disabled={!filteredTransactions || filteredTransactions.length === 0}
-            >
-              <Download className="h-4 w-4" />
-              Download Data
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={downloadCSV} 
+                className="flex items-center gap-2"
+                disabled={!filteredTransactions || filteredTransactions.length === 0}
+              >
+                <Download className="h-4 w-4" />
+                Download CSV
+              </Button>
+              <Button 
+                onClick={generatePDF} 
+                className="flex items-center gap-2"
+                disabled={!filteredTransactions || filteredTransactions.length === 0}
+              >
+                <FileText className="h-4 w-4" />
+                Generate PDF
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

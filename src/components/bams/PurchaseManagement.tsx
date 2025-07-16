@@ -45,6 +45,7 @@ export function PurchaseManagement() {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PurchaseMethod | null>(null);
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     type: "UPI" as "UPI" | "Bank Transfer",
     name: "",
@@ -56,6 +57,13 @@ export function PurchaseManagement() {
     safeFund: false,
     beneficiariesPer24h: "5"
   });
+
+  const getProgressColor = (progress: number) => {
+    if (progress < 0.3) return "#10b981"; // Green
+    if (progress < 0.6) return "#f59e0b"; // Yellow
+    if (progress < 0.8) return "#f97316"; // Orange
+    return "#dc2626"; // Red
+  };
 
   // Fetch purchase methods from Supabase with real-time updates
   useEffect(() => {
@@ -275,6 +283,7 @@ export function PurchaseManagement() {
       beneficiariesPer24h: "5"
     });
     setEditingMethod(null);
+    setStep(1);
   };
 
   const getAvailableLimit = (method: PurchaseMethod) => {
@@ -328,92 +337,101 @@ export function PurchaseManagement() {
               Add Purchase Method
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
                 {editingMethod ? "Edit Purchase Method" : "Add New Purchase Method"}
+                <span className="text-sm text-gray-500">Step {step} of 3</span>
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="type">Payment Method Type</Label>
-                <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Transfer") => 
-                  setFormData(prev => ({ ...prev, type: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UPI">UPI Payment</SelectItem>
-                    <SelectItem value="Bank Transfer">Bank Transfer (IMPS/NEFT)</SelectItem>
-                  </SelectContent>
-                </Select>
+            
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center space-x-4">
+                {[1, 2, 3].map((stepNum) => (
+                  <div key={stepNum} className="flex items-center">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      stepNum <= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                    }`}>
+                      {stepNum}
+                    </div>
+                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum < step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                  </div>
+                ))}
               </div>
+            </div>
 
-              <div>
-                <Label htmlFor="bankAccount">Link Bank Account</Label>
-                <Select value={formData.bankAccountName} onValueChange={(value) => 
-                  setFormData(prev => ({ ...prev, bankAccountName: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccounts.map((account) => (
-                      <SelectItem key={account.id} value={account.account_name}>
-                        {account.bank_name} - {account.account_name} ({account.account_number})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {step === 1 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Basic Information</h3>
+                  
+                  <div>
+                    <Label htmlFor="type">Payment Method Type</Label>
+                    <Select value={formData.type} onValueChange={(value: "UPI" | "Bank Transfer") => 
+                      setFormData(prev => ({ ...prev, type: value }))
+                    }>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UPI">UPI Payment</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer (IMPS/NEFT)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div>
-                <Label htmlFor="paymentLimit">Payment Limit (₹)</Label>
-                <Input
-                  id="paymentLimit"
-                  type="number"
-                  value={formData.paymentLimit}
-                  onChange={(e) => setFormData(prev => ({ ...prev, paymentLimit: e.target.value }))}
-                  required
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="bankAccount">Link Bank Account</Label>
+                    <Select value={formData.bankAccountName} onValueChange={(value) => 
+                      setFormData(prev => ({ ...prev, bankAccountName: value }))
+                    }>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.account_name}>
+                            {account.bank_name} - {account.account_name} ({account.account_number})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div>
-                <Label htmlFor="frequency">Frequency</Label>
-                <Select value={formData.frequency} onValueChange={(value: "24 hours" | "Daily") => 
-                  setFormData(prev => ({ ...prev, frequency: value }))
-                }>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24 hours">24 Hours</SelectItem>
-                    <SelectItem value="Daily">Daily (Resets at 11:59 PM)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div>
+                    <Label htmlFor="paymentLimit">Payment Limit (₹)</Label>
+                    <Input
+                      id="paymentLimit"
+                      type="number"
+                      value={formData.paymentLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, paymentLimit: e.target.value }))}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
 
-              <div>
-                <Label>Payment Limits (₹200 - ₹1 Crore)</Label>
-                <div className="space-y-6">
+              {step === 2 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Payment Limits</h3>
+                  
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Minimum Limit</Label>
                       <div className="flex items-center justify-center">
-                        <div className="relative w-32 h-32">
-                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                        <div className="relative w-24 h-24">
+                          <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
                               stroke="#e2e8f0"
-                              strokeWidth="2"
+                              strokeWidth="3"
                             />
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
-                              stroke="#3b82f6"
-                              strokeWidth="2"
+                              stroke={getProgressColor((parseInt(formData.minLimit) - 200) / (10000000 - 200))}
+                              strokeWidth="3"
                               strokeDasharray={`${((parseInt(formData.minLimit) - 200) / (10000000 - 200)) * 100}, 100`}
                             />
                           </svg>
@@ -438,7 +456,7 @@ export function PurchaseManagement() {
                         max="10000000"
                         value={formData.minLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
-                        className="text-center"
+                        className="text-center text-sm"
                         placeholder="Manual input"
                       />
                     </div>
@@ -446,19 +464,19 @@ export function PurchaseManagement() {
                     <div className="space-y-3">
                       <Label className="text-sm font-medium">Maximum Limit</Label>
                       <div className="flex items-center justify-center">
-                        <div className="relative w-32 h-32">
-                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
+                        <div className="relative w-24 h-24">
+                          <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 36 36">
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
                               stroke="#e2e8f0"
-                              strokeWidth="2"
+                              strokeWidth="3"
                             />
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
-                              stroke="#10b981"
-                              strokeWidth="2"
+                              stroke={getProgressColor((parseInt(formData.maxLimit) - 200) / (10000000 - 200))}
+                              strokeWidth="3"
                               strokeDasharray={`${((parseInt(formData.maxLimit) - 200) / (10000000 - 200)) * 100}, 100`}
                             />
                           </svg>
@@ -483,76 +501,89 @@ export function PurchaseManagement() {
                         max="10000000"
                         value={formData.maxLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
-                        className="text-center"
+                        className="text-center text-sm"
                         placeholder="Manual input"
                       />
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <Label htmlFor="frequency">Reset Frequency *</Label>
-                <Select 
-                  value={formData.frequency} 
-                  onValueChange={(value: "24 hours" | "Daily") => {
-                    setFormData(prev => ({ ...prev, frequency: value }));
-                    // Reset current usage when frequency changes
-                    if (editingMethod) {
-                      // Trigger limit reset logic here if needed
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>
-                    <SelectItem value="Daily">Daily (Calendar Day)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-gray-500 mt-1">
-                  24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
-                </p>
-              </div>
+              {step === 3 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Additional Settings</h3>
+                  
+                  <div>
+                    <Label htmlFor="frequency">Reset Frequency *</Label>
+                    <Select 
+                      value={formData.frequency} 
+                      onValueChange={(value: "24 hours" | "Daily") => {
+                        setFormData(prev => ({ ...prev, frequency: value }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>
+                        <SelectItem value="Daily">Daily (Calendar Day)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
+                    </p>
+                  </div>
 
-              {formData.type === "Bank Transfer" && (
-                <div>
-                  <Label htmlFor="beneficiariesPer24h">Beneficiaries per 24 Hours *</Label>
-                  <Input
-                    id="beneficiariesPer24h"
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={formData.beneficiariesPer24h}
-                    onChange={(e) => setFormData(prev => ({ ...prev, beneficiariesPer24h: e.target.value }))}
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Maximum number of unique beneficiaries allowed per 24 hours
-                  </p>
+                  {formData.type === "Bank Transfer" && (
+                    <div>
+                      <Label htmlFor="beneficiariesPer24h">Beneficiaries per 24 Hours *</Label>
+                      <Input
+                        id="beneficiariesPer24h"
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={formData.beneficiariesPer24h}
+                        onChange={(e) => setFormData(prev => ({ ...prev, beneficiariesPer24h: e.target.value }))}
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Maximum number of unique beneficiaries allowed per 24 hours
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="safeFund"
+                      checked={formData.safeFund}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, safeFund: checked === true }))}
+                    />
+                    <Label htmlFor="safeFund">Safe Fund</Label>
+                    <div className="text-xs text-gray-500 ml-2">
+                      Mark as safe funds for secure transactions
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="safeFund"
-                  checked={formData.safeFund}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, safeFund: checked === true }))}
-                />
-                <Label htmlFor="safeFund">Safe Fund</Label>
-                <div className="text-xs text-gray-500 ml-2">
-                  Mark as safe funds for secure transactions
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
+              <div className="flex justify-between">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => step > 1 ? setStep(step - 1) : setIsAddDialogOpen(false)}
+                >
+                  {step > 1 ? "Previous" : "Cancel"}
                 </Button>
-                <Button type="submit">
-                  {editingMethod ? "Update Method" : "Add Method"}
-                </Button>
+                
+                {step < 3 ? (
+                  <Button type="button" onClick={() => setStep(step + 1)}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button type="submit">
+                    {editingMethod ? "Update Method" : "Add Method"}
+                  </Button>
+                )}
               </div>
             </form>
           </DialogContent>

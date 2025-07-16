@@ -378,14 +378,14 @@ export function DirectoryTab() {
           fillColor: [245, 245, 245]
         },
         columnStyles: {
-          0: { cellWidth: 18 }, // Date
+          0: { cellWidth: 17 }, // Date - reduced by 1
           1: { cellWidth: 22 }, // Remark
           2: { cellWidth: 16 }, // Type
-          3: { cellWidth: 42 }, // Bank Account
+          3: { cellWidth: 40 }, // Bank Account - reduced by 2
           4: { cellWidth: 24 }, // Category
-          5: { cellWidth: 28 }, // Bank Account Number - reduced by 2 more
-          6: { cellWidth: 26, textColor: [220, 53, 69] }, // Debit (red) - reduced by 2 more
-          7: { cellWidth: 32, textColor: [40, 167, 69] }  // Credit (green) - reduced by 2 more
+          5: { cellWidth: 28 }, // Bank Account Number
+          6: { cellWidth: 24, textColor: [220, 53, 69] }, // Debit (red) - reduced by 2
+          7: { cellWidth: 30, textColor: [40, 167, 69] }  // Credit (green) - reduced by 2
         }
       });
 

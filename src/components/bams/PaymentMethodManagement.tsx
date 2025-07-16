@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { Plus, Edit, Smartphone, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -43,9 +44,10 @@ export function PaymentMethodManagement() {
     bank_account_id: "",
     risk_category: "Medium Risk" as "High Risk" | "Medium Risk" | "Low Risk" | "No Risk",
     payment_limit: "",
+    minLimit: "200",
+    maxLimit: "10000000",
     frequency: "Daily" as "24 hours" | "Daily" | "48 hours" | "Custom",
-    custom_frequency: "",
-    is_active: true
+    custom_frequency: ""
   });
 
   // Fetch sales payment methods
@@ -100,9 +102,11 @@ export function PaymentMethodManagement() {
           bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit),
+          min_limit: parseFloat(methodData.minLimit),
+          max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          is_active: methodData.is_active
+          is_active: true
         });
 
       if (error) throw error;
@@ -141,9 +145,11 @@ export function PaymentMethodManagement() {
           bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit),
+          min_limit: parseFloat(methodData.minLimit),
+          max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          is_active: methodData.is_active,
+          is_active: true,
           updated_at: new Date().toISOString()
         })
         .eq('id', methodData.id);
@@ -206,9 +212,10 @@ export function PaymentMethodManagement() {
       bank_account_id: method.bank_account_id || "",
       risk_category: method.risk_category,
       payment_limit: method.payment_limit.toString(),
+      minLimit: (method as any).min_limit?.toString() || "200",
+      maxLimit: (method as any).max_limit?.toString() || "10000000",
       frequency: method.frequency,
-      custom_frequency: method.custom_frequency || "",
-      is_active: method.is_active
+      custom_frequency: method.custom_frequency || ""
     });
     setIsAddDialogOpen(true);
   };
@@ -220,9 +227,10 @@ export function PaymentMethodManagement() {
       bank_account_id: "",
       risk_category: "Medium Risk",
       payment_limit: "",
+      minLimit: "200",
+      maxLimit: "10000000",
       frequency: "Daily",
-      custom_frequency: "",
-      is_active: true
+      custom_frequency: ""
     });
     setEditingMethod(null);
   };
@@ -339,12 +347,61 @@ export function PaymentMethodManagement() {
                   <Input
                     id="payment_limit"
                     type="number"
-                    min="0"
+                    min="200"
+                    max="10000000"
                     step="0.01"
                     value={formData.payment_limit}
                     onChange={(e) => setFormData(prev => ({ ...prev, payment_limit: e.target.value }))}
                     required
                   />
+                </div>
+
+                <div className="col-span-2">
+                  <Label>Limit Range (₹200 - ₹1 Crore)</Label>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between text-sm text-gray-600">
+                      <span>Min: ₹{parseInt(formData.minLimit || "200").toLocaleString()}</span>
+                      <span>Max: ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}</span>
+                    </div>
+                    <Slider
+                      value={[parseInt(formData.minLimit || "200"), parseInt(formData.maxLimit || "10000000")]}
+                      onValueChange={(value) => setFormData(prev => ({ 
+                        ...prev, 
+                        minLimit: value[0].toString(), 
+                        maxLimit: value[1].toString() 
+                      }))}
+                      min={200}
+                      max={10000000}
+                      step={1000}
+                      className="w-full"
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="minLimit">Minimum Limit (₹)</Label>
+                        <Input
+                          id="minLimit"
+                          type="number"
+                          min="200"
+                          max="10000000"
+                          value={formData.minLimit}
+                          onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="maxLimit">Maximum Limit (₹)</Label>
+                        <Input
+                          id="maxLimit"
+                          type="number"
+                          min="200"
+                          max="10000000"
+                          value={formData.maxLimit}
+                          onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -378,15 +435,6 @@ export function PaymentMethodManagement() {
                 )}
               </div>
 
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
-                />
-                <Label htmlFor="is_active">Active Payment Method</Label>
-              </div>
 
               <div className="p-3 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">

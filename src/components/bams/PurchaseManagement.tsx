@@ -388,32 +388,47 @@ export function PurchaseManagement() {
               <div>
                 <Label>Limit Range (₹200 - ₹1 Crore)</Label>
                 <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="minLimit">Minimum Limit (₹)</Label>
-                    <Input
-                      id="minLimit"
-                      type="number"
-                      min="200"
-                      max="10000000"
-                      value={formData.minLimit}
-                      onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
-                      required
-                    />
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Min: ₹{parseInt(formData.minLimit || "200").toLocaleString()}</span>
+                    <span>Max: ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}</span>
                   </div>
-                  <div>
-                    <Label htmlFor="maxLimit">Maximum Limit (₹)</Label>
-                    <Input
-                      id="maxLimit"
-                      type="number"
-                      min="200"
-                      max="10000000"
-                      value={formData.maxLimit}
-                      onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Range: ₹200 to ₹1 Crore (₹10,000,000)
+                  <Slider
+                    value={[parseInt(formData.minLimit || "200"), parseInt(formData.maxLimit || "10000000")]}
+                    onValueChange={(value) => setFormData(prev => ({ 
+                      ...prev, 
+                      minLimit: value[0].toString(), 
+                      maxLimit: value[1].toString() 
+                    }))}
+                    min={200}
+                    max={10000000}
+                    step={1000}
+                    className="w-full"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="minLimit">Minimum Limit (₹)</Label>
+                      <Input
+                        id="minLimit"
+                        type="number"
+                        min="200"
+                        max="10000000"
+                        value={formData.minLimit}
+                        onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="maxLimit">Maximum Limit (₹)</Label>
+                      <Input
+                        id="maxLimit"
+                        type="number"
+                        min="200"
+                        max="10000000"
+                        value={formData.maxLimit}
+                        onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

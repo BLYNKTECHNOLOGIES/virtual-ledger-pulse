@@ -373,128 +373,159 @@ export default function Management() {
       {/* Organizational Chart */}
       <div className="container mx-auto px-6 pb-12">
         <div className="bg-white rounded-lg shadow-lg p-8 overflow-x-auto">
-          <div className="min-w-[1200px]">
+          <div className="min-w-[1200px] space-y-12">
             {/* Level 1 - Board of Directors */}
-            {employees.filter(emp => emp.hierarchy_level === 1 && 
-              (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-              (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-               emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-            ).map(director => (
-              <div key={director.id} className="mb-8">
-                <div className="flex justify-center mb-6">
-                  {renderOrgChartBox(director, true)}
-                </div>
-                
-                {/* Connector to Level 2 */}
-                <div className="flex justify-center mb-6">
-                  {renderConnectorLine()}
-                </div>
+            <div className="flex justify-center">
+              <div className="flex items-end gap-8">
+                {employees.filter(emp => emp.hierarchy_level === 1 && 
+                  (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                  (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                   emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                ).map(director => (
+                  <div key={director.id}>
+                    {renderOrgChartBox(director, true)}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                {/* Level 2 - General Manager */}
-                {employees.filter(emp => emp.hierarchy_level === 2 && emp.reports_to === director.id &&
+            {/* Vertical Connector from Level 1 to Level 2 */}
+            <div className="flex justify-center">
+              {renderConnectorLine('w-px', 'h-12')}
+            </div>
+
+            {/* Level 2 - General Manager */}
+            <div className="flex justify-center">
+              <div className="flex items-end gap-8">
+                {employees.filter(emp => emp.hierarchy_level === 2 &&
                   (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
                   (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                    emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
                 ).map(gm => (
                   <div key={gm.id}>
-                    <div className="flex justify-center mb-6">
-                      {renderOrgChartBox(gm, true)}
-                    </div>
-
-                    {/* Connector to Level 3 */}
-                    <div className="flex justify-center mb-6">
-                      {renderConnectorLine()}
-                    </div>
-
-                    {/* Level 3 - Department Heads */}
-                    <div className="flex justify-center mb-8">
-                      <div className="flex items-start gap-8">
-                        {['Finance', 'Operations', 'Compliance'].map(dept => {
-                          const deptHead = employees.find(emp => 
-                            emp.hierarchy_level === 3 && 
-                            emp.department === dept && 
-                            emp.reports_to === gm.id &&
-                            (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-                            (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                             emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-                          );
-                          
-                          if (!deptHead && selectedDepartment !== 'all' && selectedDepartment !== dept) {
-                            return null;
-                          }
-
-                          return (
-                            <div key={dept} className="flex flex-col items-center">
-                              {/* Department Head */}
-                              {deptHead ? (
-                                <div className="mb-4">
-                                  {renderOrgChartBox(deptHead)}
-                                </div>
-                              ) : (
-                                <div className="mb-4">
-                                  <div className="rounded-lg p-4 shadow-md bg-gray-200 text-gray-500 min-w-[220px] text-center">
-                                    <div className="flex items-center gap-3 justify-center">
-                                      <div className="text-2xl">{getDepartmentIcon(dept)}</div>
-                                      <div>
-                                        <h3 className="font-bold text-sm">NA</h3>
-                                        <p className="text-xs">Chief {dept} Officer</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Subordinates */}
-                              {deptHead && hierarchy[deptHead.id] && hierarchy[deptHead.id].length > 0 && (
-                                <div className="space-y-4">
-                                  <div className="flex justify-center">
-                                    {renderConnectorLine('w-px', 'h-6')}
-                                  </div>
-                                  
-                                  <div className="space-y-3">
-                                    {hierarchy[deptHead.id]
-                                      .filter((emp: Employee) => 
-                                        (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-                                        (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                         emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-                                      )
-                                      .map((subordinate: Employee) => (
-                                      <div key={subordinate.id} className="space-y-3">
-                                        {renderOrgChartBox(subordinate)}
-                                        
-                                        {/* Further subordinates */}
-                                        {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
-                                          <div className="ml-4 space-y-2">
-                                            <div className="flex justify-center">
-                                              {renderConnectorLine('w-px', 'h-4')}
-                                            </div>
-                                            {hierarchy[subordinate.id]
-                                              .filter((emp: Employee) => 
-                                                (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
-                                                (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                                 emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
-                                              )
-                                              .map((emp: Employee) => (
-                                              <div key={emp.id} className="transform scale-95">
-                                                {renderOrgChartBox(emp)}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    {renderOrgChartBox(gm, true)}
                   </div>
                 ))}
               </div>
-            ))}
+            </div>
+
+            {/* Vertical Connector from Level 2 to Level 3 */}
+            <div className="flex justify-center">
+              {renderConnectorLine('w-px', 'h-12')}
+            </div>
+
+            {/* Level 3 - Department Heads - All at same vertical level */}
+            <div className="flex justify-center">
+              <div className="flex items-end gap-12 justify-center">
+                {['Finance', 'Operations', 'Compliance'].map(dept => {
+                  const deptHead = employees.find(emp => 
+                    emp.hierarchy_level === 3 && 
+                    emp.department === dept &&
+                    (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                    (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                     emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                  );
+                  
+                  if (!deptHead && selectedDepartment !== 'all' && selectedDepartment !== dept) {
+                    return null;
+                  }
+
+                  return (
+                    <div key={dept} className="flex flex-col items-center">
+                      {/* Department Head - Same vertical level */}
+                      {deptHead ? (
+                        renderOrgChartBox(deptHead)
+                      ) : (
+                        <div className="rounded-lg p-4 shadow-md bg-gray-200 text-gray-500 min-w-[220px] text-center">
+                          <div className="flex items-center gap-3 justify-center">
+                            <div className="text-2xl">{getDepartmentIcon(dept)}</div>
+                            <div>
+                              <h3 className="font-bold text-sm">NA</h3>
+                              <p className="text-xs">Chief {dept} Officer</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Level 4+ - Subordinates under each department */}
+            <div className="flex justify-center">
+              <div className="flex items-start gap-12 justify-center">
+                {['Finance', 'Operations', 'Compliance'].map(dept => {
+                  const deptHead = employees.find(emp => 
+                    emp.hierarchy_level === 3 && 
+                    emp.department === dept &&
+                    (selectedDepartment === 'all' || emp.department === selectedDepartment)
+                  );
+                  
+                  if (!deptHead || !hierarchy[deptHead.id] || hierarchy[deptHead.id].length === 0) {
+                    return (
+                      <div key={dept} className="min-w-[220px]">
+                        {/* Empty space to maintain alignment */}
+                      </div>
+                    );
+                  }
+
+                  const subordinates = hierarchy[deptHead.id].filter((emp: Employee) => 
+                    (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                    (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                     emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                  );
+
+                  if (subordinates.length === 0) {
+                    return (
+                      <div key={dept} className="min-w-[220px]">
+                        {/* Empty space to maintain alignment */}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={dept} className="flex flex-col items-center space-y-6">
+                      {/* Connector line */}
+                      <div className="flex justify-center">
+                        {renderConnectorLine('w-px', 'h-8')}
+                      </div>
+                      
+                      {/* Level 4 employees - All at same vertical level */}
+                      <div className="flex flex-col items-center gap-4">
+                        {subordinates.map((subordinate: Employee, index: number) => (
+                          <div key={subordinate.id} className="flex flex-col items-center">
+                            {renderOrgChartBox(subordinate)}
+                            
+                            {/* Level 5+ employees under this subordinate */}
+                            {hierarchy[subordinate.id] && hierarchy[subordinate.id].length > 0 && (
+                              <div className="mt-4 space-y-3">
+                                <div className="flex justify-center">
+                                  {renderConnectorLine('w-px', 'h-4')}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                  {hierarchy[subordinate.id]
+                                    .filter((emp: Employee) => 
+                                      (selectedDepartment === 'all' || emp.department === selectedDepartment) &&
+                                      (searchTerm === '' || emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                       emp.designation.toLowerCase().includes(searchTerm.toLowerCase()))
+                                    )
+                                    .map((emp: Employee) => (
+                                    <div key={emp.id} className="transform scale-90">
+                                      {renderOrgChartBox(emp)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>

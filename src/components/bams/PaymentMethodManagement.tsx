@@ -230,6 +230,7 @@ export function PaymentMethodManagement() {
       custom_frequency: method.custom_frequency || "",
       beneficiariesPer24h: (method as any).beneficiaries_per_24h?.toString() || "5"
     });
+    setStep(1); // Reset to first step when editing
     setIsAddDialogOpen(true);
   };
 

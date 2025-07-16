@@ -241,6 +241,7 @@ export function PurchaseManagement() {
       safeFund: method.safeFund,
       beneficiariesPer24h: method.beneficiariesPer24h?.toString() || "5"
     });
+    setStep(1); // Reset to first step when editing
     setIsAddDialogOpen(true);
   };
 

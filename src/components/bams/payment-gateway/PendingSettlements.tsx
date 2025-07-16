@@ -70,7 +70,7 @@ export function PendingSettlements() {
           )
         `)
         .eq('sales_payment_methods.payment_gateway', true)
-        .eq('payment_status', 'COMPLETED');
+        .in('payment_status', ['COMPLETED']);
 
       if (error) throw error;
       
@@ -205,6 +205,7 @@ export function PendingSettlements() {
         .in('id', selectedSales);
 
       if (updateError) throw updateError;
+
 
       toast({
         title: "Success",

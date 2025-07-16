@@ -106,7 +106,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     
     let query = supabase
       .from('sales_payment_methods')
-      .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name)')
+      .select('*, bank_accounts:bank_account_id(account_name, bank_name, account_number, IFSC, bank_account_holder_name), payment_gateway')
       .eq('is_active', true)
       .eq('risk_category', riskCategory);
 
@@ -202,8 +202,8 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
 
       console.log('Sales order created successfully:', salesOrder);
 
-      // If payment method is selected, credit the amount to the linked bank account
-      if (selectedPaymentMethod?.bank_account_id) {
+      // If payment method is selected and NOT a payment gateway, credit the amount to the linked bank account
+      if (selectedPaymentMethod?.bank_account_id && !selectedPaymentMethod?.payment_gateway) {
         const { error: bankTransactionError } = await supabase
           .from('bank_transactions')
           .insert({

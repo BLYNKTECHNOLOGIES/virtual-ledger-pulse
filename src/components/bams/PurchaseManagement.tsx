@@ -52,10 +52,10 @@ export function PurchaseManagement() {
     paymentLimit: "",
     minLimit: "200",
     maxLimit: "10000000",
-    frequency: "24 hours" as "24 hours" | "Daily",
+    frequency: "" as "24 hours" | "Daily" | "",
     bankAccountName: "",
     safeFund: false,
-    beneficiariesPer24h: "5"
+    beneficiariesPer24h: ""
   });
 
   const getProgressColor = (progress: number) => {
@@ -278,10 +278,10 @@ export function PurchaseManagement() {
       paymentLimit: "",
       minLimit: "200",
       maxLimit: "10000000",
-      frequency: "24 hours",
+      frequency: "" as any, // Start empty
       bankAccountName: "",
       safeFund: false,
-      beneficiariesPer24h: "5"
+      beneficiariesPer24h: "" // Start empty
     });
     setEditingMethod(null);
     setStep(1);
@@ -528,7 +528,7 @@ export function PurchaseManagement() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select frequency" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>

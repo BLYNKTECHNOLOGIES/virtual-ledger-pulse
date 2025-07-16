@@ -47,9 +47,9 @@ export function PaymentMethodManagement() {
     payment_limit: "",
     minLimit: "200",
     maxLimit: "10000000",
-    frequency: "Daily" as "24 hours" | "Daily" | "48 hours" | "Custom",
+    frequency: "" as "24 hours" | "Daily" | "48 hours" | "Custom" | "",
     custom_frequency: "",
-    beneficiariesPer24h: "5"
+    beneficiariesPer24h: ""
   });
 
   const getProgressColor = (progress: number) => {
@@ -115,7 +115,7 @@ export function PaymentMethodManagement() {
           max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h) : null,
+          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
           is_active: true,
           last_reset: new Date().toISOString()
         });
@@ -160,7 +160,7 @@ export function PaymentMethodManagement() {
           max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h) : null,
+          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
           is_active: true,
           updated_at: new Date().toISOString()
         })
@@ -243,9 +243,9 @@ export function PaymentMethodManagement() {
       payment_limit: "",
       minLimit: "200",
       maxLimit: "10000000",
-      frequency: "Daily",
+      frequency: "" as any, // Start empty
       custom_frequency: "",
-      beneficiariesPer24h: "5"
+      beneficiariesPer24h: "" // Start empty
     });
     setEditingMethod(null);
     setStep(1);
@@ -510,7 +510,7 @@ export function PaymentMethodManagement() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select frequency" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="24 hours">24 Hours (Rolling)</SelectItem>

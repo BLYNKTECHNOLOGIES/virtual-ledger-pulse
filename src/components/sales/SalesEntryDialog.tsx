@@ -107,20 +107,18 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
         // Only credit bank account if NOT a payment gateway
         if (paymentMethod?.bank_account_id && !paymentMethod?.payment_gateway) {
-          const { data: bankAccount } = await supabase
-            .from('bank_accounts')
-            .select('balance')
-            .eq('id', paymentMethod.bank_account_id)
-            .single();
-            
-          if (bankAccount) {
-            await supabase
-              .from('bank_accounts')
-              .update({ 
-                balance: bankAccount.balance + data.total_amount 
-              })
-              .eq('id', paymentMethod.bank_account_id);
-          }
+          // Create bank transaction for direct sales
+          await supabase
+            .from('bank_transactions')
+            .insert({
+              bank_account_id: paymentMethod.bank_account_id,
+              transaction_type: 'INCOME',
+              amount: data.total_amount,
+              description: `Sales Order - ${data.order_number} - ${data.client_name}`,
+              transaction_date: data.order_date,
+              category: 'Sales',
+              reference_number: data.order_number
+            });
         }
       }
 

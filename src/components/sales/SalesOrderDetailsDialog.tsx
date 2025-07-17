@@ -46,41 +46,51 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
   if (!order) return null;
 
   const handleDownloadPDF = () => {
+    console.log('Download PDF clicked for order:', order.order_number);
     try {
+      console.log('Generating PDF with data:', { order, bankAccountData });
       const pdf = generateInvoicePDF({ 
         order, 
         bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
       });
+      console.log('PDF generated successfully, saving...');
       pdf.save(`Invoice_${order.order_number}.pdf`);
+      console.log('PDF saved successfully');
       toast({
         title: "Success",
         description: "Invoice PDF downloaded successfully",
       });
     } catch (error) {
+      console.error('PDF generation error:', error);
       toast({
         title: "Error",
-        description: "Failed to generate PDF",
+        description: `Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }
   };
 
   const handlePrintPDF = () => {
+    console.log('Print PDF clicked for order:', order.order_number);
     try {
+      console.log('Generating PDF for printing with data:', { order, bankAccountData });
       const pdf = generateInvoicePDF({ 
         order, 
         bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
       });
+      console.log('PDF generated successfully, opening for print...');
       pdf.autoPrint();
       window.open(pdf.output('bloburl'), '_blank');
+      console.log('PDF opened for printing');
       toast({
         title: "Success",
         description: "Invoice sent to printer",
       });
     } catch (error) {
+      console.error('PDF print error:', error);
       toast({
         title: "Error",
-        description: "Failed to print PDF",
+        description: `Failed to print PDF: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }

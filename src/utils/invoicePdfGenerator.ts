@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface InvoiceData {
   order: any;
@@ -15,6 +15,7 @@ interface InvoiceData {
 }
 
 export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: InvoiceData) => {
+  console.log('Starting PDF generation for order:', order.order_number);
   const doc = new jsPDF();
   
   // Company details (default if not provided)
@@ -107,7 +108,7 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   const totalAmount = Math.round(amount);
   tableData.push(['', '', '', '', '', 'Total', `₹${totalAmount.toFixed(2)}`]);
   
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: headers,
     body: tableData,
     startY: tableStartY,
@@ -133,7 +134,9 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   });
   
   // Amount in words
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  // Get the final Y position from the table
+  const tableEndY = (doc as any).lastAutoTable?.finalY || tableStartY + 50;
+  const finalY = tableEndY + 10;
   doc.setFontSize(10);
   doc.text('Amount Chargeable (in words)', 20, finalY);
   doc.setFont('helvetica', 'bold');

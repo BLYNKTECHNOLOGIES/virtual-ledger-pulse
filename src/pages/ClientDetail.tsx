@@ -10,7 +10,7 @@ import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnaly
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 
 export default function ClientDetail() {
-  const { clientId } = useParams();
+  const { id: clientId } = useParams();
 
   return (
     <div className="space-y-6 p-6">

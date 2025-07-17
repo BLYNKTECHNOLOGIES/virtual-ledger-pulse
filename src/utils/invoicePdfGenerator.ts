@@ -85,10 +85,8 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   
   doc.setFont('helvetica', 'bold');
   doc.text('Reference No. & Date', 150, 52);
-  doc.text('Other References', 150, 59);
   doc.setFont('helvetica', 'normal');
   doc.text('', 150, 57);
-  doc.text('', 150, 64);
   
   // Customer details box (adjust position to account for larger company box)
   doc.rect(15, 80, 180, 25);

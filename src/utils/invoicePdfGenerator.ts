@@ -78,17 +78,17 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   
   doc.setFont('helvetica', 'bold');
   doc.text('Delivery Note', 120, 52);
-  doc.text('Mode/Terms of Payment', 160, 52);
+  doc.text('Mode/Terms of Payment', 140, 52);
   doc.setFont('helvetica', 'normal');
   doc.text('', 120, 57);
-  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 160, 57);
+  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 140, 57);
   
   doc.setFont('helvetica', 'bold');
   doc.text('Reference No. & Date', 120, 64);
-  doc.text('Other References', 160, 64);
+  doc.text('Other References', 140, 64);
   doc.setFont('helvetica', 'normal');
   doc.text('', 120, 69);
-  doc.text('', 160, 69);
+  doc.text('', 140, 69);
   
   // Customer details box (adjust position to account for larger company box)
   doc.rect(15, 80, 180, 25);
@@ -119,18 +119,18 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   const amount = order.total_amount;
   
   const tableData = [
-    ['1', productName, '', quantity.toString(), `₹${Number(rate).toFixed(2)}`, 'NOS', `₹${Number(amount).toFixed(2)}`]
+    ['1', productName, '', quantity.toString(), Number(rate).toFixed(2), 'NOS', Number(amount).toFixed(2)]
   ];
   
   // Add round off row if needed
   const roundOff = Math.round(amount) - amount;
   if (Math.abs(roundOff) > 0.01) {
-    tableData.push(['', 'Round Off', '', '', '', '', `₹${roundOff.toFixed(2)}`]);
+    tableData.push(['', 'Round Off', '', '', '', '', roundOff.toFixed(2)]);
   }
   
   // Total row
   const totalAmount = Math.round(amount);
-  tableData.push(['', '', '', '', '', 'Total', `₹${totalAmount.toFixed(2)}`]);
+  tableData.push(['', '', '', '', '', 'Total', totalAmount.toFixed(2)]);
   
   autoTable(doc, {
     head: headers,
@@ -186,7 +186,14 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   doc.text('goods described and that all particulars are true and correct.', 20, declarationY + 14);
   
   // Signature
-  doc.text(`for ${company.name}`, 130, declarationY + 7);
+  doc.setFontSize(8);
+  const signatureLines = doc.splitTextToSize(`for ${company.name}`, 80);
+  let signatureY = declarationY + 7;
+  signatureLines.forEach((line: string) => {
+    doc.text(line, 130, signatureY);
+    signatureY += 4;
+  });
+  doc.setFontSize(9);
   doc.text('Authorised Signatory', 150, declarationY + 25);
   
   // Footer

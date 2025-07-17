@@ -17,12 +17,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
+import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
+  const [showManualSalesEntry, setShowManualSalesEntry] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -307,6 +309,10 @@ export default function Sales() {
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
+          <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Manual Sales Entry
+          </Button>
           <Button onClick={() => setShowStepByStepFlow(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Order
@@ -458,6 +464,12 @@ export default function Sales() {
       <StepBySalesFlow 
         open={showStepByStepFlow}
         onOpenChange={setShowStepByStepFlow}
+      />
+
+      {/* Manual Sales Entry Dialog */}
+      <SalesEntryDialog
+        open={showManualSalesEntry}
+        onOpenChange={setShowManualSalesEntry}
       />
 
       {/* Details Dialog */}

@@ -12,10 +12,16 @@ import { PendingPurchaseOrders } from "@/components/purchase/PendingPurchaseOrde
 import { ReviewNeededOrders } from "@/components/purchase/ReviewNeededOrders";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
 import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
+import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
 
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
+
+  const handleRefreshData = () => {
+    // This will trigger a refetch of the summary data
+    window.location.reload();
+  };
 
   // Fetch purchase orders summary for badges
   const { data: ordersSummary } = useQuery({
@@ -48,6 +54,7 @@ export default function Purchase() {
           <p className="text-gray-600 mt-1">Manage inventory purchases and supplier orders</p>
         </div>
         <div className="flex gap-2">
+          <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV

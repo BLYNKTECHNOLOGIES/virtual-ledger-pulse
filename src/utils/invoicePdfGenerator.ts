@@ -38,52 +38,76 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   
   // Company details box
   doc.setFontSize(10);
-  doc.rect(15, 30, 180, 40);
+  doc.rect(15, 30, 180, 45);
   
-  // Left side - Company details
-  doc.setFontSize(12);
+  // Left side - Company details (adjust positioning for better alignment)
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text(company.name, 20, 40);
+  // Split company name if too long
+  const companyNameLines = doc.splitTextToSize(company.name, 90);
+  let yPos = 40;
+  companyNameLines.forEach((line: string) => {
+    doc.text(line, 20, yPos);
+    yPos += 5;
+  });
+  
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text(company.address, 20, 47);
-  doc.text(company.city, 20, 52);
-  doc.text(company.state, 20, 57);
-  doc.text(`E-Mail: ${company.email}`, 20, 62);
+  doc.setFontSize(9);
+  doc.text(company.address, 20, yPos + 2);
+  doc.text(company.city, 20, yPos + 7);
+  doc.text(company.state, 20, yPos + 12);
+  doc.text(`E-Mail: ${company.email}`, 20, yPos + 17);
   if (company.gstin) {
-    doc.text(`GSTIN/UIN: ${company.gstin}`, 20, 67);
+    doc.text(`GSTIN/UIN: ${company.gstin}`, 20, yPos + 22);
   }
   
-  // Right side - Invoice details
+  // Vertical divider line
+  doc.line(115, 30, 115, 75);
+  
+  // Right side - Invoice details (better spacing)
   const invoiceNo = order.order_number || '47';
   const invoiceDate = new Date(order.order_date).toLocaleDateString('en-GB');
   
-  doc.setFontSize(10);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
   doc.text('Invoice No.', 120, 40);
   doc.text('Dated', 160, 40);
+  doc.setFont('helvetica', 'normal');
   doc.text(invoiceNo, 120, 45);
   doc.text(invoiceDate, 160, 45);
   
+  doc.setFont('helvetica', 'bold');
   doc.text('Delivery Note', 120, 52);
   doc.text('Mode/Terms of Payment', 160, 52);
+  doc.setFont('helvetica', 'normal');
   doc.text('', 120, 57);
   doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 160, 57);
   
-  // Customer details box
-  doc.rect(15, 75, 180, 25);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Reference No. & Date', 120, 64);
+  doc.text('Other References', 160, 64);
+  doc.setFont('helvetica', 'normal');
+  doc.text('', 120, 69);
+  doc.text('', 160, 69);
+  
+  // Customer details box (adjust position to account for larger company box)
+  doc.rect(15, 80, 180, 25);
   
   // Customer details
-  doc.setFontSize(10);
-  doc.text('Buyer (Bill to)', 20, 85);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
-  doc.text(order.client_name || 'Customer Name', 20, 92);
+  doc.text('Buyer (Bill to)', 20, 90);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(order.client_name || 'Customer Name', 20, 97);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
   if (order.client_phone) {
-    doc.text(`Phone: ${order.client_phone}`, 20, 97);
+    doc.text(`Phone: ${order.client_phone}`, 20, 102);
   }
   
-  // Items table
-  const tableStartY = 110;
+  // Items table (adjust start position)
+  const tableStartY = 115;
   
   // Table headers
   const headers = [['Sl No.', 'Description of Goods and Services', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount']];

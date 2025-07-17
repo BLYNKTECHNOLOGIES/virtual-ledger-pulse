@@ -1,9 +1,13 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
+import { Download, Printer } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface SalesOrderDetailsDialogProps {
   open: boolean;
@@ -12,6 +16,8 @@ interface SalesOrderDetailsDialogProps {
 }
 
 export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrderDetailsDialogProps) {
+  const { toast } = useToast();
+
   // Fetch bank account details if sales_payment_method_id exists
   const { data: bankAccountData } = useQuery({
     queryKey: ['bank_account_for_order', order?.sales_payment_method_id],
@@ -38,6 +44,47 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
   });
 
   if (!order) return null;
+
+  const handleDownloadPDF = () => {
+    try {
+      const pdf = generateInvoicePDF({ 
+        order, 
+        bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
+      });
+      pdf.save(`Invoice_${order.order_number}.pdf`);
+      toast({
+        title: "Success",
+        description: "Invoice PDF downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePrintPDF = () => {
+    try {
+      const pdf = generateInvoicePDF({ 
+        order, 
+        bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
+      });
+      pdf.autoPrint();
+      window.open(pdf.output('bloburl'), '_blank');
+      toast({
+        title: "Success",
+        description: "Invoice sent to printer",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to print PDF",
+        variant: "destructive",
+      });
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -143,6 +190,18 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               <p className="text-sm text-red-800 font-medium">⚠️ COSMOS Alert was triggered for this order</p>
             </div>
           )}
+          
+          {/* PDF Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t">
+            <Button onClick={handleDownloadPDF} className="flex-1">
+              <Download className="h-4 w-4 mr-2" />
+              Download Invoice PDF
+            </Button>
+            <Button onClick={handlePrintPDF} variant="outline" className="flex-1">
+              <Printer className="h-4 w-4 mr-2" />
+              Print Invoice
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

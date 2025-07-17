@@ -5,42 +5,45 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Clock, Phone, MessageCircle } from "lucide-react";
 
-const buyingSellingSoonData = [
-  {
-    clientName: "John Doe",
-    lastInteraction: "10 June 2025",
-    intent: "Buying Soon",
-    assignedOperator: "Ravi Sharma",
-    followupAction: "Reminder on 14th",
-    intentColor: "text-green-600 bg-green-50 border-green-200"
-  },
-  {
-    clientName: "Sara Ali",
-    lastInteraction: "09 June 2025",
-    intent: "Selling Soon",
-    assignedOperator: "Kavita Mehta",
-    followupAction: "Call Scheduled",
-    intentColor: "text-blue-600 bg-blue-50 border-blue-200"
-  },
-  {
-    clientName: "Raj Kumar",
-    lastInteraction: "11 June 2025",
-    intent: "Buying Soon",
-    assignedOperator: "Amit Singh",
-    followupAction: "WhatsApp sent",
-    intentColor: "text-green-600 bg-green-50 border-green-200"
-  },
-  {
-    clientName: "Priya Patel",
-    lastInteraction: "08 June 2025",
-    intent: "Selling Soon",
-    assignedOperator: "Ravi Sharma",
-    followupAction: "Meeting today",
-    intentColor: "text-blue-600 bg-blue-50 border-blue-200"
-  }
-];
+interface BuyingSellingSoonTrackerProps {
+  clientId?: string;
+}
 
-export function BuyingSellingSoonTracker() {
+export function BuyingSellingSoonTracker({ clientId }: BuyingSellingSoonTrackerProps) {
+  const buyingSellingSoonData = [
+    {
+      clientName: "John Doe",
+      lastInteraction: "10 June 2025",
+      intent: "Buying Soon",
+      assignedOperator: "Ravi Sharma",
+      followupAction: "Reminder on 14th",
+      intentColor: "text-green-600 bg-green-50 border-green-200"
+    },
+    {
+      clientName: "Sara Ali",
+      lastInteraction: "09 June 2025",
+      intent: "Selling Soon",
+      assignedOperator: "Kavita Mehta",
+      followupAction: "Call Scheduled",
+      intentColor: "text-blue-600 bg-blue-50 border-blue-200"
+    },
+    {
+      clientName: "Raj Kumar",
+      lastInteraction: "11 June 2025",
+      intent: "Buying Soon",
+      assignedOperator: "Amit Singh",
+      followupAction: "WhatsApp sent",
+      intentColor: "text-green-600 bg-green-50 border-green-200"
+    },
+    {
+      clientName: "Priya Patel",
+      lastInteraction: "08 June 2025",
+      intent: "Selling Soon",
+      assignedOperator: "Ravi Sharma",
+      followupAction: "Meeting today",
+      intentColor: "text-blue-600 bg-blue-50 border-blue-200"
+    }
+  ];
   return (
     <Card>
       <CardHeader>

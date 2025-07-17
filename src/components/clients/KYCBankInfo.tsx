@@ -4,7 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, CheckCircle, AlertCircle, CreditCard } from "lucide-react";
 
-export function KYCBankInfo() {
+interface KYCBankInfoProps {
+  clientId?: string;
+}
+
+export function KYCBankInfo({ clientId }: KYCBankInfoProps) {
   return (
     <Card>
       <CardHeader>

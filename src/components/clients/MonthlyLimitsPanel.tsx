@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, Shield, TrendingUp } from "lucide-react";
 
-export function MonthlyLimitsPanel() {
+interface MonthlyLimitsPanelProps {
+  clientId?: string;
+}
+
+export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
   const usedPercentage = (85000 / 100000) * 100;
 
   return (

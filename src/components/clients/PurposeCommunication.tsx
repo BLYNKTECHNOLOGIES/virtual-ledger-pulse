@@ -4,7 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Phone, Mail, Calendar } from "lucide-react";
 
-export function PurposeCommunication() {
+interface PurposeCommunicationProps {
+  clientId?: string;
+}
+
+export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
   return (
     <Card>
       <CardHeader>

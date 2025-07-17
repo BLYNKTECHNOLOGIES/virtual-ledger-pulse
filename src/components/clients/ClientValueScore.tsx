@@ -3,7 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Star } from "lucide-react";
 
-export function ClientValueScore() {
+interface ClientValueScoreProps {
+  clientId?: string;
+}
+
+export function ClientValueScore({ clientId }: ClientValueScoreProps) {
   return (
     <Card>
       <CardHeader>

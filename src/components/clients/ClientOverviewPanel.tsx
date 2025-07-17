@@ -2,29 +2,70 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Calendar, Tag, Phone, Mail, MapPin } from "lucide-react";
+import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useParams } from "react-router-dom";
 
 interface ClientOverviewPanelProps {
   clientId?: string;
 }
 
 export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
+  const params = useParams();
+  const activeClientId = clientId || params.clientId;
+
+  // Fetch client data
   const { data: client, isLoading } = useQuery({
-    queryKey: ['client', clientId],
+    queryKey: ['client', activeClientId],
     queryFn: async () => {
-      if (!clientId) return null;
+      if (!activeClientId) return null;
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('id', clientId)
+        .eq('id', activeClientId)
         .single();
       
       if (error) throw error;
       return data;
     },
-    enabled: !!clientId,
+    enabled: !!activeClientId,
+  });
+
+  // Fetch client's orders to calculate first order value and stats
+  const { data: orders } = useQuery({
+    queryKey: ['client-orders', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId || !client) return [];
+      
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select('*')
+        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .order('order_date', { ascending: true });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeClientId && !!client,
+  });
+
+  // Fetch KYC data for additional information (Aadhar, address)
+  const { data: kycData } = useQuery({
+    queryKey: ['client-kyc', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId || !client) return [];
+      
+      const { data, error } = await supabase
+        .from('kyc_approval_requests')
+        .select('*')
+        .eq('counterparty_name', client.name)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeClientId && !!client,
   });
 
   if (isLoading) {
@@ -59,8 +100,20 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
     ? Math.floor((new Date().getTime() - new Date(client.date_of_onboarding).getTime()) / (1000 * 60 * 60 * 24 * 30))
     : 0;
 
+  // Calculate first order value from actual orders
+  const firstOrder = orders?.[0];
+  const firstOrderValue = firstOrder?.total_amount || client.first_order_value || 0;
+  
+  // Get latest KYC info for additional details
+  const latestKyc = kycData?.[0];
+
+  // Calculate order statistics
+  const totalOrders = orders?.length || 0;
+  const totalTradeVolume = orders?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
+  const completedOrders = orders?.filter(order => order.status === 'COMPLETED').length || 0;
+
   return (
-    <Card>
+    <Card className="shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5 text-blue-600" />
@@ -78,18 +131,69 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
             <p className="text-lg font-semibold text-blue-600">{client.client_id}</p>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-600">Phone Number</label>
+            <div className="flex items-center gap-2">
+              <Phone className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium">{client.phone || 'Not provided'}</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-600">Email</label>
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-gray-400" />
+              <span className="text-sm">{client.email || 'Not provided'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Display Aadhar and Address from KYC if available */}
+        {latestKyc && (
+          <div className="grid grid-cols-1 gap-4 p-3 bg-blue-50 rounded-md">
+            <div>
+              <label className="text-sm font-medium text-gray-600">KYC Information</label>
+              <div className="flex items-center gap-2 mt-1">
+                <FileText className="h-4 w-4 text-gray-400" />
+                <span className="text-sm">Aadhar documents submitted</span>
+              </div>
+              {latestKyc.additional_info && (
+                <p className="text-sm text-gray-600 mt-1">{latestKyc.additional_info}</p>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-600">Date of Onboarding</label>
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gray-400" />
-              <span>{new Date(client.date_of_onboarding).toLocaleDateString()}</span>
+              <span className="text-sm">{new Date(client.date_of_onboarding).toLocaleDateString()}</span>
             </div>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-600">Client Age</label>
             <p className="text-sm text-green-600 font-medium">{clientAge} months</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-600">First Order Value</label>
+            <div className="flex items-center gap-2">
+              <IndianRupee className="h-4 w-4 text-gray-400" />
+              <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString()}</span>
+            </div>
+            {firstOrder && (
+              <p className="text-xs text-gray-500">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>
+            )}
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-600">Total Orders</label>
+            <p className="text-lg font-semibold text-blue-600">{totalOrders}</p>
+            <p className="text-xs text-gray-500">{completedOrders} completed</p>
           </div>
         </div>
 
@@ -110,23 +214,6 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">Email</label>
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-400" />
-              <span className="text-sm">{client.email || 'Not provided'}</span>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Phone</label>
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-gray-400" />
-              <span className="text-sm">{client.phone || 'Not provided'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
             <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
             <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString() || 'Not set'}</p>
           </div>
@@ -136,16 +223,22 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
           </div>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
-          <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-gray-600">Total Trade Volume</label>
+            <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString()}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-600">KYC Status</label>
+            <Badge variant={client.kyc_status === 'COMPLETED' ? 'default' : 'secondary'}>
+              {client.kyc_status}
+            </Badge>
+          </div>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">KYC Status</label>
-          <Badge variant={client.kyc_status === 'COMPLETED' ? 'default' : 'secondary'}>
-            {client.kyc_status}
-          </Badge>
+          <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
+          <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>
 
         <div className="flex gap-2 pt-2">

@@ -4,7 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BarChart, TrendingUp, AlertTriangle, Activity } from "lucide-react";
 
-export function TradingPatternAnalysis() {
+interface TradingPatternAnalysisProps {
+  clientId?: string;
+}
+
+export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps) {
   return (
     <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-indigo-50">
       <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">

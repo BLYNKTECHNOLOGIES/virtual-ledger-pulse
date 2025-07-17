@@ -22,7 +22,7 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   const company = companyDetails || {
     name: "BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED",
     address: "Plot No.15 First Floor Balwant Arcade",
-    city: "Malviya Pralap Nagar Zone 2",
+    city: "Maharana Pratap Nagar Zone 2",
     state: "Bhopal, Madhya Pradesh",
     email: "blynkvirtualtechnologiespvtltd@gmail.com",
     gstin: "23AANCB2572J1ZK"
@@ -78,17 +78,17 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   
   doc.setFont('helvetica', 'bold');
   doc.text('Delivery Note', 120, 52);
-  doc.text('Mode/Terms of Payment', 140, 52);
+  doc.text('Mode/Terms of Payment', 120, 59);
   doc.setFont('helvetica', 'normal');
   doc.text('', 120, 57);
-  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 140, 57);
+  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 120, 64);
   
   doc.setFont('helvetica', 'bold');
-  doc.text('Reference No. & Date', 120, 64);
-  doc.text('Other References', 140, 64);
+  doc.text('Reference No. & Date', 150, 52);
+  doc.text('Other References', 150, 59);
   doc.setFont('helvetica', 'normal');
-  doc.text('', 120, 69);
-  doc.text('', 140, 69);
+  doc.text('', 150, 57);
+  doc.text('', 150, 64);
   
   // Customer details box (adjust position to account for larger company box)
   doc.rect(15, 80, 180, 25);

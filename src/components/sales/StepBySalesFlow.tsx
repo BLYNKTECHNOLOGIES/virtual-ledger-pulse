@@ -36,7 +36,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     client_type: 'INDIVIDUAL',
     risk_appetite: 'HIGH'
   });
-  const [orderAmount, setOrderAmount] = useState(0);
+  const [orderAmount, setOrderAmount] = useState('');
   const [usdtAmount, setUsdtAmount] = useState(0);
   const [cosmosAlert, setCosmosAlert] = useState(false);
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
@@ -166,11 +166,18 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
   // Auto-calculate quantity when amount or price changes
   useEffect(() => {
-    if (finalOrderData.price > 0 && orderAmount > 0) {
-      const calculatedQuantity = orderAmount / finalOrderData.price;
+    const amount = parseFloat(orderAmount) || 0;
+    if (finalOrderData.price > 0 && amount > 0) {
+      const calculatedQuantity = amount / finalOrderData.price;
       setFinalOrderData(prev => ({ ...prev, quantity: calculatedQuantity }));
     }
   }, [orderAmount, finalOrderData.price]);
+
+  // Auto-calculate USDT amount when order amount changes
+  useEffect(() => {
+    const amount = parseFloat(orderAmount) || 0;
+    setUsdtAmount(amount); // Default USDT amount to order amount
+  }, [orderAmount]);
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -206,7 +213,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         warehouse_id: finalOrderData.warehouseId,
         quantity: finalOrderData.quantity,
         price_per_unit: finalOrderData.price,
-        total_amount: orderAmount,
+        total_amount: parseFloat(orderAmount) || 0,
         sales_payment_method_id: selectedPaymentMethod?.id,
         payment_status: 'COMPLETED',
         status: 'COMPLETED',
@@ -264,7 +271,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           .from('bank_transactions')
           .insert({
             bank_account_id: selectedPaymentMethod.bank_account_id,
-            amount: orderAmount,
+            amount: parseFloat(orderAmount) || 0,
             transaction_type: 'INCOME',
             transaction_date: new Date().toISOString().split('T')[0],
             description: `Sales income from order ${finalOrderData.order_number} - ${selectedClient?.name || newClientData.name}`,
@@ -281,7 +288,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         const { error: usageError } = await supabase
           .from('sales_payment_methods')
           .update({
-            current_usage: selectedPaymentMethod.current_usage + orderAmount,
+            current_usage: selectedPaymentMethod.current_usage + (parseFloat(orderAmount) || 0),
             updated_at: new Date().toISOString()
           })
           .eq('id', selectedPaymentMethod.id);
@@ -316,7 +323,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             transaction_type: 'SALE',
             quantity: -finalOrderData.quantity, // Negative for outgoing stock
             unit_price: finalOrderData.price,
-            total_amount: orderAmount,
+            total_amount: parseFloat(orderAmount) || 0,
             transaction_date: new Date().toISOString().split('T')[0],
             supplier_customer_name: selectedClient?.name || newClientData.name,
             reference_number: finalOrderData.order_number,
@@ -361,7 +368,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     setOrderType(null);
     setSelectedClient(null);
     setNewClientData({ name: '', phone: '', walletId: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
-    setOrderAmount(0);
+    setOrderAmount('');
     setCosmosAlert(false);
     setPaymentType(null);
     setSelectedPaymentMethod(null);
@@ -376,7 +383,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   };
 
   const handleAmountVerification = () => {
-    if (selectedClient && orderAmount > (selectedClient.monthly_limit - selectedClient.current_month_used)) {
+    const amount = parseFloat(orderAmount) || 0;
+    if (selectedClient && amount > (selectedClient.monthly_limit - selectedClient.current_month_used)) {
       setCosmosAlert(true);
     }
     setCurrentStep('payment-type-selection');
@@ -394,7 +402,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     const leadData = {
       name: selectedClient?.name || newClientData.name,
       contact_number: selectedClient?.phone || newClientData.phone,
-      estimated_order_value: orderAmount,
+      estimated_order_value: parseFloat(orderAmount) || 0,
       status: 'NEW',
       source: 'Cancelled Sales Order',
       description: `Cancelled order for amount ₹${orderAmount}`
@@ -434,11 +442,74 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     }
   };
 
-  const handleUserPaying = () => {
+  const handleUserPaying = async () => {
     const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
     const riskCategory = getRiskCategoryFromAppetite(riskLevel);
     
+    // Auto-select payment method based on smart logic
+    await autoSelectPaymentMethod(riskCategory);
+    
+    // Open dialog with auto-selected method
     setPaymentMethodDialogOpen(true);
+  };
+
+  const autoSelectPaymentMethod = async (riskCategory: string) => {
+    try {
+      // Fetch available payment methods for the risk category
+      const { data: methods, error } = await supabase
+        .from('sales_payment_methods')
+        .select('*, bank_accounts:bank_account_id(*)')
+        .eq('is_active', true)
+        .eq('risk_category', riskCategory)
+        .gt('payment_limit', 'current_usage');
+
+      if (error) throw error;
+
+      if (methods && methods.length > 0) {
+        // Smart selection logic:
+        // 1. Prefer UPI methods for speed
+        // 2. Then prefer methods with highest available balance
+        // 3. Avoid recently used methods
+        
+        const upiMethods = methods.filter(m => m.type === 'UPI');
+        const bankMethods = methods.filter(m => m.type === 'Bank Account');
+        
+        let selectedMethod = null;
+        
+        if (upiMethods.length > 0) {
+          // Select UPI method with highest available balance
+          selectedMethod = upiMethods.reduce((best, current) => 
+            (current.payment_limit - current.current_usage) > (best.payment_limit - best.current_usage) 
+              ? current : best
+          );
+          setPaymentType('UPI');
+        } else if (bankMethods.length > 0) {
+          // Select bank method with highest available balance
+          selectedMethod = bankMethods.reduce((best, current) => 
+            (current.payment_limit - current.current_usage) > (best.payment_limit - best.current_usage) 
+              ? current : best
+          );
+          setPaymentType('Bank Transfer');
+        }
+
+        if (selectedMethod) {
+          setSelectedPaymentMethod(selectedMethod);
+          setAvailablePaymentMethods(methods);
+          
+          toast({ 
+            title: "Payment Method Auto-Selected", 
+            description: `${selectedMethod.type} method selected based on availability and risk level` 
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-selecting payment method:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to auto-select payment method", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handlePaymentReceived = () => {
@@ -494,10 +565,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         client_name: selectedClient?.name || newClientData.name,
         client_phone: selectedClient?.phone || newClientData.phone,
         wallet_id: walletId || null,
-        total_amount: orderAmount,
-        usdt_amount: usdtAmount || orderAmount, // Default USDT amount to order amount
+        total_amount: parseFloat(orderAmount) || 0,
+        usdt_amount: usdtAmount || parseFloat(orderAmount) || 0, // Default USDT amount to order amount
         quantity: 1,
-        price_per_unit: orderAmount,
+        price_per_unit: parseFloat(orderAmount) || 0,
         sales_payment_method_id: paymentMethodId,
         payment_status: 'USER_PAYING',
         status: 'PENDING',
@@ -636,7 +707,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   <SelectContent>
                     {clients?.map((client) => (
                       <SelectItem key={client.id} value={client.id}>
-                        <div>
+                        <div className="flex flex-col items-start">
                           <div className="font-medium">{client.name}</div>
                           <div className="text-sm text-gray-500">
                             ID: {client.client_id} | Risk: {client.risk_appetite}
@@ -698,23 +769,12 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               <Input 
                 type="number"
                 value={orderAmount}
-                onChange={(e) => setOrderAmount(parseFloat(e.target.value) || 0)}
+                onChange={(e) => setOrderAmount(e.target.value)}
                 placeholder="Enter order amount"
               />
             </div>
 
-            <div>
-              <Label>USDT Amount</Label>
-              <Input 
-                type="number"
-                step="0.01"
-                value={usdtAmount}
-                onChange={(e) => setUsdtAmount(parseFloat(e.target.value) || 0)}
-                placeholder="Enter USDT amount to deduct from wallet"
-              />
-            </div>
-
-            {selectedClient && orderAmount > 0 && (
+            {selectedClient && parseFloat(orderAmount) > 0 && (
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium mb-2">COSMOS Limit Verification</h4>
                 <div className="text-sm space-y-1">
@@ -722,7 +782,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   <div>Used This Month: ₹{selectedClient.current_month_used?.toLocaleString()}</div>
                   <div>Available: ₹{(selectedClient.monthly_limit - selectedClient.current_month_used)?.toLocaleString()}</div>
                 </div>
-                {orderAmount > (selectedClient.monthly_limit - selectedClient.current_month_used) && (
+                {parseFloat(orderAmount) > (selectedClient.monthly_limit - selectedClient.current_month_used) && (
                   <Badge variant="destructive" className="mt-2">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     COSMOS Alert Triggered!
@@ -1170,7 +1230,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         <PaymentMethodSelectionDialog
           open={paymentMethodDialogOpen}
           onOpenChange={setPaymentMethodDialogOpen}
-          orderAmount={orderAmount}
+          orderAmount={parseFloat(orderAmount) || 0}
           clientName={selectedClient?.name || newClientData.name}
           orderId=""
           riskCategory={getRiskCategoryFromAppetite(selectedClient?.risk_appetite || newClientData.risk_appetite)}
@@ -1183,7 +1243,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           open={userPayingDialogOpen}
           onOpenChange={setUserPayingDialogOpen}
           clientName={selectedClient?.name || newClientData.name}
-          orderAmount={orderAmount}
+          orderAmount={parseFloat(orderAmount) || 0}
           onStatusChange={handleUserPayingStatusChange}
           onAlternativeMethod={() => {
             setUserPayingDialogOpen(false);

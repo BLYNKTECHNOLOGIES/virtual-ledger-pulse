@@ -474,10 +474,11 @@ export default function Sales() {
       </Card>
 
       {/* Step-by-Step Sales Flow */}
-      <StepBySalesFlow 
-        open={showStepByStepFlow}
-        onOpenChange={setShowStepByStepFlow}
-      />
+          <StepBySalesFlow 
+            open={showStepByStepFlow} 
+            onOpenChange={setShowStepByStepFlow}
+            queryClient={queryClient}
+          />
 
       {/* Manual Sales Entry Dialog */}
       <SalesEntryDialog

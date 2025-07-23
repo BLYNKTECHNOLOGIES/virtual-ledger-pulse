@@ -17,13 +17,14 @@ import { UserPayingStatusDialog } from "./UserPayingStatusDialog";
 interface StepBySalesFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  queryClient: any;
 }
 
 type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice' | 'user-paying-status';
 
-export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
+export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryClient }: StepBySalesFlowProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const queryClient = passedQueryClient;
   
   const [currentStep, setCurrentStep] = useState<FlowStep>('order-type');
   const [orderType, setOrderType] = useState<'repeat' | 'new' | null>(null);
@@ -407,6 +408,8 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     if (status === "USER_PAYING") {
       // Create pending sales order and close dialog
       await createPendingSalesOrder(paymentMethodId);
+      // Refetch sales orders to show the new order immediately
+      await queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       resetFlow();
       onOpenChange(false);
     } else if (status === "PAYMENT_DONE") {

@@ -488,6 +488,7 @@ export function BankAccountManagement() {
         }}
         account={accountToClose}
         onAccountClosed={handleAccountClosed}
+        enableManualDelete={true}
       />
     </div>
   );

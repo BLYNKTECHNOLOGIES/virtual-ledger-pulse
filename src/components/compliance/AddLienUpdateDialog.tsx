@@ -206,7 +206,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
                 className="opacity-60"
               />
               <Label htmlFor="lien-resolved" className="text-sm font-medium text-green-600">
-                This lien has been resolved
+                ✓ This lien has been resolved and released (cannot be changed)
               </Label>
             </div>
           )}

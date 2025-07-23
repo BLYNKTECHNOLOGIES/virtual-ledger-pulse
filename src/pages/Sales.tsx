@@ -20,6 +20,7 @@ import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
 import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 import { UserPayingStatusDialog } from "@/components/sales/UserPayingStatusDialog";
 import { PaymentMethodSelectionDialog } from "@/components/sales/PaymentMethodSelectionDialog";
+import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
@@ -36,6 +37,7 @@ export default function Sales() {
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
   const [selectedOrderForUserPaying, setSelectedOrderForUserPaying] = useState<any>(null);
   const [selectedOrderForAlternativeMethod, setSelectedOrderForAlternativeMethod] = useState<any>(null);
+  const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
 
   // Fetch sales orders from database
@@ -556,12 +558,19 @@ export default function Sales() {
         clientName={selectedOrderForUserPaying?.client_name || ''}
         orderAmount={selectedOrderForUserPaying?.total_amount || 0}
         onStatusChange={(status) => {
-          if (selectedOrderForUserPaying) {
-            updateOrderStatusMutation.mutate({
-              orderId: selectedOrderForUserPaying.id,
-              status: status
-            });
+          if (status === "PAYMENT_DONE") {
+            // Show completion form instead of directly updating status
             setSelectedOrderForUserPaying(null);
+            setSelectedOrderForCompletion(selectedOrderForUserPaying);
+          } else {
+            // Handle other status changes (ORDER_CANCELLED)
+            if (selectedOrderForUserPaying) {
+              updateOrderStatusMutation.mutate({
+                orderId: selectedOrderForUserPaying.id,
+                status: status
+              });
+              setSelectedOrderForUserPaying(null);
+            }
           }
         }}
         onAlternativeMethod={() => {
@@ -588,6 +597,13 @@ export default function Sales() {
             setSelectedOrderForAlternativeMethod(null);
           }
         }}
+      />
+
+      {/* Order Completion Form */}
+      <OrderCompletionForm
+        open={!!selectedOrderForCompletion}
+        onOpenChange={(open) => !open && setSelectedOrderForCompletion(null)}
+        order={selectedOrderForCompletion}
       />
     </div>
   );

@@ -25,6 +25,7 @@ const indianStates = [
 export function LienCaseTrackingTab() {
   const [showNewLienDialog, setShowNewLienDialog] = useState(false);
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("placeholder");
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
   const [newLien, setNewLien] = useState({
     bank_account_id: "",
     date_imposed: "",
@@ -59,7 +60,7 @@ export function LienCaseTrackingTab() {
 
   // Fetch lien cases with comprehensive error handling
   const { data: lienCases, refetch: refetchLiens } = useQuery({
-    queryKey: ['lien_cases', selectedBankFilter],
+    queryKey: ['lien_cases', selectedBankFilter, selectedStatusFilter],
     queryFn: async () => {
       try {
         const { data, error } = await supabase
@@ -72,13 +73,18 @@ export function LienCaseTrackingTab() {
           throw error;
         }
         
-        const lienData = data || [];
+        let lienData = data || [];
         
-        // Filter on the client side if a bank filter is selected and it's not the placeholder
-        if (selectedBankFilter && selectedBankFilter !== "placeholder" && lienData.length > 0) {
-          return lienData.filter(lien => 
+        // Filter by bank if selected
+        if (selectedBankFilter && selectedBankFilter !== "placeholder") {
+          lienData = lienData.filter(lien => 
             lien.bank_accounts?.bank_name === selectedBankFilter
           );
+        }
+        
+        // Filter by status if selected
+        if (selectedStatusFilter !== "all") {
+          lienData = lienData.filter(lien => lien.status === selectedStatusFilter);
         }
         
         return lienData;
@@ -192,6 +198,27 @@ export function LienCaseTrackingTab() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedBankFilter("placeholder")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Resolved">Resolved</SelectItem>
+                </SelectContent>
+              </Select>
+              {selectedStatusFilter !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedStatusFilter("all")}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -355,7 +382,7 @@ export function LienCaseTrackingTab() {
           
           {(!lienCases || lienCases.length === 0) && (
             <div className="text-center py-8 text-gray-500">
-              No lien cases found. {selectedBankFilter && selectedBankFilter !== "placeholder" && "Try removing the bank filter or"} Report your first lien case to get started.
+              No lien cases found. {(selectedBankFilter && selectedBankFilter !== "placeholder") || selectedStatusFilter !== "all" ? "Try removing the filters or" : ""} Report your first lien case to get started.
             </div>
           )}
         </div>

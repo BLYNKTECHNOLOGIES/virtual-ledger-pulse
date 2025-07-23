@@ -271,6 +271,48 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_documents: {
+        Row: {
+          category: string
+          created_at: string
+          expiry_date: string | null
+          file_size: number | null
+          file_type: string | null
+          file_url: string
+          id: string
+          name: string
+          status: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          expiry_date?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
+          id?: string
+          name: string
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          expiry_date?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          name?: string
+          status?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           code: string
@@ -907,6 +949,131 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_actions: {
+        Row: {
+          action_type: string
+          actual_cost: number | null
+          case_documents: string[] | null
+          case_number: string | null
+          court_name: string | null
+          created_at: string
+          date_filed: string | null
+          description: string | null
+          estimated_cost: number | null
+          id: string
+          next_hearing_date: string | null
+          notes: string | null
+          opposing_lawyer: string | null
+          opposing_party: string | null
+          our_lawyer: string | null
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          actual_cost?: number | null
+          case_documents?: string[] | null
+          case_number?: string | null
+          court_name?: string | null
+          created_at?: string
+          date_filed?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          id?: string
+          next_hearing_date?: string | null
+          notes?: string | null
+          opposing_lawyer?: string | null
+          opposing_party?: string | null
+          our_lawyer?: string | null
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          actual_cost?: number | null
+          case_documents?: string[] | null
+          case_number?: string | null
+          court_name?: string | null
+          created_at?: string
+          date_filed?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          id?: string
+          next_hearing_date?: string | null
+          notes?: string | null
+          opposing_lawyer?: string | null
+          opposing_party?: string | null
+          our_lawyer?: string | null
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      legal_communications: {
+        Row: {
+          attachments: string[] | null
+          communication_date: string
+          communication_type: string
+          contact_person: string | null
+          content: string | null
+          created_at: string
+          follow_up_date: string | null
+          follow_up_required: boolean | null
+          id: string
+          legal_action_id: string | null
+          party_name: string
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: string[] | null
+          communication_date?: string
+          communication_type: string
+          contact_person?: string | null
+          content?: string | null
+          created_at?: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          legal_action_id?: string | null
+          party_name: string
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: string[] | null
+          communication_date?: string
+          communication_type?: string
+          contact_person?: string | null
+          content?: string | null
+          created_at?: string
+          follow_up_date?: string | null
+          follow_up_required?: boolean | null
+          id?: string
+          legal_action_id?: string | null
+          party_name?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_legal_communications_legal_action"
+            columns: ["legal_action_id"]
+            isOneToOne: false
+            referencedRelation: "legal_actions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lien_cases: {
         Row: {
           acknowledgment_number: string | null
@@ -962,6 +1129,7 @@ export type Database = {
       }
       lien_updates: {
         Row: {
+          attachment_urls: string[] | null
           created_at: string
           created_by: string | null
           id: string
@@ -969,6 +1137,7 @@ export type Database = {
           update_text: string
         }
         Insert: {
+          attachment_urls?: string[] | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -976,6 +1145,7 @@ export type Database = {
           update_text: string
         }
         Update: {
+          attachment_urls?: string[] | null
           created_at?: string
           created_by?: string | null
           id?: string

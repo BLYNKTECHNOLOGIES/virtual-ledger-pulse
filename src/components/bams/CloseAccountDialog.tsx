@@ -84,12 +84,15 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
     }
 
     setUploading(true);
+    console.log('Starting account closure process...');
     
     try {
       // Upload documents if any
       let documentUrls: string[] = [];
       if (documents.length > 0) {
+        console.log('Uploading documents...');
         documentUrls = await uploadDocuments(documents);
+        console.log('Documents uploaded:', documentUrls);
       }
 
       // Insert into closed_bank_accounts table first

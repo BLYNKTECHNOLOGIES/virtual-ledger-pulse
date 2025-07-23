@@ -313,33 +313,33 @@ export function LienCaseTrackingTab() {
       <CardContent>
         <div className="space-y-4">
           {(lienCases || []).map((lien) => (
-            <div key={lien.id} className="border border-red-200 rounded-lg p-4 bg-red-50">
+            <div key={lien.id} className={`border rounded-lg p-4 ${lien.status === 'Resolved' ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h4 className="font-medium text-red-900">{lien.lien_number}</h4>
-                  <p className="text-sm text-red-700">
+                  <h4 className={`font-medium ${lien.status === 'Resolved' ? 'text-green-900' : 'text-red-900'}`}>{lien.lien_number}</h4>
+                  <p className={`text-sm ${lien.status === 'Resolved' ? 'text-green-700' : 'text-red-700'}`}>
                     {lien.bank_accounts?.bank_name} - {lien.bank_accounts?.account_name}
                   </p>
                 </div>
-                <Badge variant={lien.status === 'Active' ? 'destructive' : 'secondary'}>
+                <Badge variant={lien.status === 'Resolved' ? 'default' : lien.status === 'Active' ? 'destructive' : 'secondary'} className={lien.status === 'Resolved' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}>
                   {lien.status}
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-red-600">Amount:</span> ₹{Number(lien.amount).toLocaleString()}
+                  <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString()}
                 </div>
                 <div>
-                  <span className="text-red-600">Date:</span> {new Date(lien.date_imposed).toLocaleDateString()}
+                  <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Date:</span> {new Date(lien.date_imposed).toLocaleDateString()}
                 </div>
                 {lien.city && (
                   <div>
-                    <span className="text-red-600">Location:</span> {lien.city}, {lien.state}
+                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Location:</span> {lien.city}, {lien.state}
                   </div>
                 )}
                 {lien.lawyer && (
                   <div>
-                    <span className="text-red-600">Lawyer:</span> {lien.lawyer}
+                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Lawyer:</span> {lien.lawyer}
                   </div>
                 )}
               </div>

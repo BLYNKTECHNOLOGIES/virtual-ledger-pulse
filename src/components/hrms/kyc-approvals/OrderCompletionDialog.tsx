@@ -17,6 +17,7 @@ interface OrderCompletionDialogProps {
   orderAmount: number;
   paymentMethodId: string;
   kycId: string;
+  onOrderCompleted?: () => void;
 }
 
 interface OrderFormData {
@@ -36,7 +37,8 @@ export function OrderCompletionDialog({
   counterpartyName,
   orderAmount,
   paymentMethodId,
-  kycId
+  kycId,
+  onOrderCompleted
 }: OrderCompletionDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -186,6 +188,7 @@ export function OrderCompletionDialog({
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      onOrderCompleted?.();
       onOpenChange(false);
     },
     onError: (error) => {

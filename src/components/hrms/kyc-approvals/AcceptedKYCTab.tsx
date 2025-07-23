@@ -70,6 +70,7 @@ export function AcceptedKYCTab() {
           )
         `)
         .eq('status', 'APPROVED')
+        .neq('payment_status', 'ORDER_CANCELLED')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -129,7 +130,7 @@ export function AcceptedKYCTab() {
             console.error('Error creating lead:', leadError);
           }
         }
-        // Don't change the KYC status - just mark payment as cancelled
+        // Mark payment as cancelled (this will hide it from approved list)
       }
 
       const { error } = await supabase
@@ -144,6 +145,10 @@ export function AcceptedKYCTab() {
       
       // Also invalidate the query to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['approved_kyc_requests'] });
+      
+      // Close any open dialogs
+      setPaymentDialogOpen(false);
+      setUserPayingDialogOpen(false);
       
       toast({
         title: "Status Updated",
@@ -358,6 +363,7 @@ export function AcceptedKYCTab() {
         orderAmount={selectedKYC?.order_amount || 0}
         paymentMethodId={selectedKYC?.payment_method_id || ""}
         kycId={selectedKYC?.id || ""}
+        onOrderCompleted={handleOrderCompleted}
       />
     </div>
   );

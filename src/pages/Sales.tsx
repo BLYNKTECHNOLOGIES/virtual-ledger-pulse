@@ -305,24 +305,15 @@ export default function Sales() {
                <td className="py-3 px-4">
                  <div className="flex gap-1">
                    {order.payment_status === 'USER_PAYING' ? (
-                     // Special actions for User Paying orders
-                     <>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => setSelectedOrderForUserPaying(order)}
-                         className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                       >
-                         User Paying
-                       </Button>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => setSelectedOrderForAlternativeMethod(order)}
-                       >
-                         Alternative Method
-                       </Button>
-                     </>
+                     // Special action for User Paying orders
+                     <Button 
+                       variant="outline" 
+                       size="sm"
+                       onClick={() => setSelectedOrderForUserPaying(order)}
+                       className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                     >
+                       Take Action
+                     </Button>
                    ) : (
                      // Default actions for other orders
                      <>

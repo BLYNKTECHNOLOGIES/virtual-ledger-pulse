@@ -132,9 +132,17 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       console.log('Has related records:', hasRelatedRecords);
 
       if (hasRelatedRecords) {
+        let errorDetails = "This account has related records that prevent closure:\n";
+        if (lienCases && lienCases.length > 0) errorDetails += `• ${lienCases.length} lien case(s)\n`;
+        if (bankTransactions && bankTransactions.length > 0) errorDetails += `• ${bankTransactions.length} bank transaction(s)\n`;
+        if (purchaseOrders && purchaseOrders.length > 0) errorDetails += `• ${purchaseOrders.length} purchase order(s)\n`;
+        if (settlements && settlements.length > 0) errorDetails += `• ${settlements.length} payment gateway settlement(s)\n`;
+        if (purchasePaymentMethods && purchasePaymentMethods.length > 0) errorDetails += `• ${purchasePaymentMethods.length} purchase payment method(s)\n`;
+        errorDetails += "\nPlease remove these records first or contact admin.";
+        
         toast({
           title: "Cannot Close Account",
-          description: "This account has related transactions or records. Please resolve them first or contact admin.",
+          description: errorDetails,
           variant: "destructive"
         });
         setUploading(false);

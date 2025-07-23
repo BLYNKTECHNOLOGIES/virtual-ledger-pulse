@@ -92,49 +92,52 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       // Check for foreign key references before attempting deletion
       console.log('Checking foreign key references for account:', account.id, account.account_name);
       
-      const { data: lienCases } = await supabase
+      const { data: lienCases, error: lienError } = await supabase
         .from('lien_cases')
         .select('id')
         .eq('bank_account_id', account.id);
-      console.log('Lien cases found:', lienCases?.length || 0);
+      console.log('Lien cases found:', lienCases?.length || 0, 'Error:', lienError);
 
-      const { data: bankTransactions } = await supabase
+      const { data: bankTransactions, error: transError } = await supabase
         .from('bank_transactions')
         .select('id')
         .eq('bank_account_id', account.id);
-      console.log('Bank transactions found:', bankTransactions?.length || 0);
+      console.log('Bank transactions found:', bankTransactions?.length || 0, 'Error:', transError);
 
-      const { data: purchaseOrders } = await supabase
+      const { data: purchaseOrders, error: poError } = await supabase
         .from('purchase_orders')
         .select('id')
         .eq('bank_account_id', account.id);
-      console.log('Purchase orders found:', purchaseOrders?.length || 0);
+      console.log('Purchase orders found:', purchaseOrders?.length || 0, 'Error:', poError);
 
-      const { data: settlements } = await supabase
+      const { data: settlements, error: settError } = await supabase
         .from('payment_gateway_settlements')
         .select('id')
         .eq('bank_account_id', account.id);
-      console.log('Payment gateway settlements found:', settlements?.length || 0);
+      console.log('Payment gateway settlements found:', settlements?.length || 0, 'Error:', settError);
 
-      const { data: purchasePaymentMethods } = await supabase
+      const { data: purchasePaymentMethods, error: ppmError } = await supabase
         .from('purchase_payment_methods')
         .select('id')
         .eq('bank_account_name', account.account_name);
-      console.log('Purchase payment methods found:', purchasePaymentMethods?.length || 0);
+      console.log('Purchase payment methods found:', purchasePaymentMethods?.length || 0, 'Error:', ppmError);
 
       // Check if there are any related records
-      const hasRelatedRecords = (lienCases && lienCases.length > 0) || 
-                               (bankTransactions && bankTransactions.length > 0) ||
-                               (purchaseOrders && purchaseOrders.length > 0) ||
-                               (settlements && settlements.length > 0) ||
-                               (purchasePaymentMethods && purchasePaymentMethods.length > 0);
+      const lienCheck = lienCases && lienCases.length > 0;
+      const transCheck = bankTransactions && bankTransactions.length > 0;
+      const poCheck = purchaseOrders && purchaseOrders.length > 0;
+      const settCheck = settlements && settlements.length > 0;
+      const ppmCheck = purchasePaymentMethods && purchasePaymentMethods.length > 0;
+      
+      const hasRelatedRecords = lienCheck || transCheck || poCheck || settCheck || ppmCheck;
 
       console.log('Individual checks:', {
-        lienCases: lienCases?.length || 0,
-        bankTransactions: bankTransactions?.length || 0, 
-        purchaseOrders: purchaseOrders?.length || 0,
-        settlements: settlements?.length || 0,
-        purchasePaymentMethods: purchasePaymentMethods?.length || 0
+        lienCheck,
+        transCheck, 
+        poCheck,
+        settCheck,
+        ppmCheck,
+        hasRelatedRecords
       });
 
       if (hasRelatedRecords) {

@@ -9,6 +9,7 @@ import { KYCTimelineDialog } from "./KYCTimelineDialog";
 import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
 import { UserPayingOptionsDialog } from "./UserPayingOptionsDialog";
 import { OrderCompletionDialog } from "./OrderCompletionDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,8 +42,6 @@ interface KYCRequest {
 }
 
 export function AcceptedKYCTab() {
-  const [kycRequests, setKycRequests] = useState<KYCRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -50,9 +49,12 @@ export function AcceptedKYCTab() {
   const [orderCompletionDialogOpen, setOrderCompletionDialogOpen] = useState(false);
   const [selectedKYC, setSelectedKYC] = useState<KYCRequest | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchApprovedKYC = async () => {
-    try {
+  // Use React Query for better state management
+  const { data: kycRequests = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ['approved_kyc_requests'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('kyc_approval_requests')
         .select(`
@@ -70,26 +72,12 @@ export function AcceptedKYCTab() {
         .eq('status', 'APPROVED')
         .order('updated_at', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
-      setKycRequests(data || []);
-    } catch (error) {
-      console.error('Error fetching approved KYC requests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch approved KYC requests.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchApprovedKYC();
-  }, []);
+      if (error) throw error;
+      return data as KYCRequest[];
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 30000, // Cache for 30 seconds
+  });
 
   const handleViewDetails = (kyc: KYCRequest) => {
     setSelectedKYC(kyc);
@@ -114,6 +102,8 @@ export function AcceptedKYCTab() {
 
   const handlePaymentStatusChange = async (kycId: string, status: string, paymentMethodId?: string) => {
     try {
+      console.log(`Updating KYC ${kycId} to status: ${status}`, { paymentMethodId });
+      
       const updateData: any = {
         payment_status: status,
         updated_at: new Date().toISOString()
@@ -127,13 +117,17 @@ export function AcceptedKYCTab() {
         // Move to leads table
         const kyc = kycRequests.find(k => k.id === kycId);
         if (kyc) {
-          await supabase.from('leads').insert({
+          const { error: leadError } = await supabase.from('leads').insert({
             name: kyc.counterparty_name,
             estimated_order_value: kyc.order_amount,
             description: `Cancelled KYC Order - ${kyc.purpose_of_buying || 'No purpose specified'}`,
             status: 'NEW',
             source: 'KYC Cancellation'
           });
+          
+          if (leadError) {
+            console.error('Error creating lead:', leadError);
+          }
         }
         updateData.status = 'CANCELLED';
       }
@@ -145,8 +139,11 @@ export function AcceptedKYCTab() {
 
       if (error) throw error;
 
-      // Refresh the data
-      await fetchApprovedKYC();
+      // Force refresh the data
+      await refetch();
+      
+      // Also invalidate the query to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ['approved_kyc_requests'] });
       
       toast({
         title: "Status Updated",
@@ -171,6 +168,12 @@ export function AcceptedKYCTab() {
   const handleOrderCompletion = (kyc: KYCRequest, paymentMethodId: string) => {
     setSelectedKYC({ ...kyc, payment_method_id: paymentMethodId });
     setOrderCompletionDialogOpen(true);
+  };
+
+  const handleOrderCompleted = () => {
+    // Refresh data after order completion
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ['approved_kyc_requests'] });
   };
 
   const isVideoKYCCompleted = (kyc: KYCRequest) => {

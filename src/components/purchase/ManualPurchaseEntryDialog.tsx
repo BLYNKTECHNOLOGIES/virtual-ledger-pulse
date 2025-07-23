@@ -28,12 +28,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     price_per_unit: '',
     total_amount: '',
     contact_number: '',
-    payment_method_type: '',
-    bank_account_name: '',
-    bank_account_number: '',
-    ifsc_code: '',
-    upi_id: '',
-    pan_number: '',
     status: 'COMPLETED',
     deduction_bank_account_id: ''
   });
@@ -142,14 +136,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           description: formData.description,
           total_amount: totalAmount,
           contact_number: formData.contact_number || null,
-          payment_method_type: formData.payment_method_type || null,
-          bank_account_name: formData.bank_account_name || null,
-          bank_account_number: formData.bank_account_number || null,
-          ifsc_code: formData.ifsc_code || null,
-          upi_id: formData.upi_id || null,
-          pan_number: formData.pan_number || null,
           status: formData.status,
-          payment_method_used: formData.payment_method_type || null,
           bank_account_id: formData.deduction_bank_account_id
         })
         .select()
@@ -204,12 +191,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         price_per_unit: '',
         total_amount: '',
         contact_number: '',
-        payment_method_type: '',
-        bank_account_name: '',
-        bank_account_number: '',
-        ifsc_code: '',
-        upi_id: '',
-        pan_number: '',
         status: 'COMPLETED',
         deduction_bank_account_id: ''
       });
@@ -362,91 +343,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contact_number">Contact Number</Label>
-              <Input
-                id="contact_number"
-                value={formData.contact_number}
-                onChange={(e) => handleInputChange('contact_number', e.target.value)}
-                placeholder="Enter contact number"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="payment_method_type">Payment Method</Label>
-              <Select 
-                value={formData.payment_method_type} 
-                onValueChange={(value) => handleInputChange('payment_method_type', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent className="bg-white z-50">
-                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="Cheque">Cheque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="contact_number">Contact Number</Label>
+            <Input
+              id="contact_number"
+              value={formData.contact_number}
+              onChange={(e) => handleInputChange('contact_number', e.target.value)}
+              placeholder="Enter contact number"
+            />
           </div>
-
-          {formData.payment_method_type === 'Bank Transfer' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="bank_account_name">Bank Account Name</Label>
-                <Input
-                  id="bank_account_name"
-                  value={formData.bank_account_name}
-                  onChange={(e) => handleInputChange('bank_account_name', e.target.value)}
-                  placeholder="Account holder name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bank_account_number">Account Number</Label>
-                <Input
-                  id="bank_account_number"
-                  value={formData.bank_account_number}
-                  onChange={(e) => handleInputChange('bank_account_number', e.target.value)}
-                  placeholder="Account number"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ifsc_code">IFSC Code</Label>
-                <Input
-                  id="ifsc_code"
-                  value={formData.ifsc_code}
-                  onChange={(e) => handleInputChange('ifsc_code', e.target.value)}
-                  placeholder="IFSC code"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pan_number">PAN Number</Label>
-                <Input
-                  id="pan_number"
-                  value={formData.pan_number}
-                  onChange={(e) => handleInputChange('pan_number', e.target.value)}
-                  placeholder="PAN number"
-                />
-              </div>
-            </div>
-          )}
-
-          {formData.payment_method_type === 'UPI' && (
-            <div className="space-y-2">
-              <Label htmlFor="upi_id">UPI ID</Label>
-              <Input
-                id="upi_id"
-                value={formData.upi_id}
-                onChange={(e) => handleInputChange('upi_id', e.target.value)}
-                placeholder="Enter UPI ID"
-              />
-            </div>
-          )}
 
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
@@ -457,7 +362,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white z-50">
                 <SelectItem value="PENDING">Pending</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
                 <SelectItem value="CANCELLED">Cancelled</SelectItem>

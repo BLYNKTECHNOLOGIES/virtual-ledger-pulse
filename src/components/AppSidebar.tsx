@@ -191,13 +191,12 @@ export function AppSidebar() {
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
-            className="h-10 w-auto flex-shrink-0 bg-white/10 p-1.5 rounded-lg shadow-lg"
+            className="h-12 w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg"
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-3">
               <h2 className="text-sm font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
               <p className="text-sm text-blue-100 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
-              <p className="text-xs text-blue-200 font-medium mt-0.5 truncate">ERP Solutions</p>
             </div>
           )}
         </div>

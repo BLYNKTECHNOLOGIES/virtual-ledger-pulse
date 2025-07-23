@@ -129,7 +129,7 @@ export function AcceptedKYCTab() {
             console.error('Error creating lead:', leadError);
           }
         }
-        updateData.status = 'CANCELLED';
+        // Don't change the KYC status - just mark payment as cancelled
       }
 
       const { error } = await supabase

@@ -45,7 +45,8 @@ export function OrderCompletionDialog({
   const generateOrderNumber = () => {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
-    return `KYC-${timestamp}-${random}`;
+    const counter = Math.floor(Math.random() * 1000);
+    return `KYC-${timestamp}-${random}-${counter}`;
   };
 
   const [formData, setFormData] = useState<OrderFormData>({

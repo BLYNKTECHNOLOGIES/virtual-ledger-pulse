@@ -110,11 +110,17 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         .select('id')
         .eq('bank_account_id', account.id);
 
+      const { data: purchasePaymentMethods } = await supabase
+        .from('purchase_payment_methods')
+        .select('id')
+        .eq('bank_account_name', account.account_name);
+
       // Check if there are any related records
       const hasRelatedRecords = (lienCases && lienCases.length > 0) || 
                                (bankTransactions && bankTransactions.length > 0) ||
                                (purchaseOrders && purchaseOrders.length > 0) ||
-                               (settlements && settlements.length > 0);
+                               (settlements && settlements.length > 0) ||
+                               (purchasePaymentMethods && purchasePaymentMethods.length > 0);
 
       if (hasRelatedRecords) {
         toast({

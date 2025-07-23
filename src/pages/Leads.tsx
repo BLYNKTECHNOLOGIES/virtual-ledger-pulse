@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Search, Edit, Trash2, Phone, Mail } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +17,17 @@ export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
+  const [leadToEdit, setLeadToEdit] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    contact_number: "",
+    estimated_order_value: "",
+    source: "",
+    description: "",
+    status: ""
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -70,6 +82,60 @@ export default function Leads() {
       });
     },
   });
+
+  // Update lead mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ leadId, data }: { leadId: string; data: any }) => {
+      const { error } = await supabase
+        .from('leads')
+        .update(data)
+        .eq('id', leadId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Lead updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update lead",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (lead: any) => {
+    setLeadToEdit(lead);
+    setEditFormData({
+      name: lead.name || "",
+      contact_number: lead.contact_number || "",
+      estimated_order_value: lead.estimated_order_value?.toString() || "",
+      source: lead.source || "",
+      description: lead.description || "",
+      status: lead.status || "NEW"
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (leadToEdit) {
+      await updateMutation.mutateAsync({
+        leadId: leadToEdit.id,
+        data: {
+          ...editFormData,
+          estimated_order_value: editFormData.estimated_order_value ? Number(editFormData.estimated_order_value) : 0
+        }
+      });
+      setShowEditDialog(false);
+      setLeadToEdit(null);
+    }
+  };
 
   const handleDelete = (lead: any) => {
     setLeadToDelete(lead);
@@ -195,7 +261,12 @@ export default function Leads() {
 
                 <div className="flex justify-between items-center pt-2 border-t">
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" className="h-8 px-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-8 px-2"
+                      onClick={() => handleEdit(lead)}
+                    >
                       <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
@@ -226,6 +297,104 @@ export default function Leads() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Lead Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Lead</DialogTitle>
+            <DialogDescription>
+              Update the lead information below.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateLead} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input
+                id="edit-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Enter lead name"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact">Contact Number</Label>
+              <Input
+                id="edit-contact"
+                value={editFormData.contact_number}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, contact_number: e.target.value }))}
+                placeholder="Enter contact number"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-value">Estimated Order Value</Label>
+              <Input
+                id="edit-value"
+                type="number"
+                value={editFormData.estimated_order_value}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, estimated_order_value: e.target.value }))}
+                placeholder="Enter estimated value"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-source">Source</Label>
+              <Input
+                id="edit-source"
+                value={editFormData.source}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, source: e.target.value }))}
+                placeholder="Enter lead source"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <select
+                id="edit-status"
+                value={editFormData.status}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="NEW">New</option>
+                <option value="CONTACTED">Contacted</option>
+                <option value="QUALIFIED">Qualified</option>
+                <option value="CONVERTED">Converted</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter lead description"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setShowEditDialog(false)}
+                disabled={updateMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? "Updating..." : "Update Lead"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

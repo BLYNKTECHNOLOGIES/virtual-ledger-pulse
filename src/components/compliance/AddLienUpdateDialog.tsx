@@ -192,7 +192,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
                 onCheckedChange={(checked) => setIsLienRelease(checked as boolean)}
               />
               <Label htmlFor="lien-release" className="text-sm font-medium">
-                This is a lien release (will mark lien as resolved)
+                This lien has been resolved (Released)
               </Label>
             </div>
           )}

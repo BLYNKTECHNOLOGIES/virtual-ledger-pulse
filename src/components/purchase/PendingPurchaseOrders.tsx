@@ -45,6 +45,23 @@ export function PendingPurchaseOrders() {
             unit_price,
             total_price,
             products (name, code)
+          ),
+          purchase_payment_method:purchase_payment_method_id (
+            id,
+            type,
+            bank_account_name,
+            min_limit,
+            max_limit,
+            payment_limit,
+            current_usage,
+            bank_accounts:bank_account_id (
+              id,
+              account_name,
+              account_number,
+              bank_name,
+              IFSC,
+              bank_account_holder_name
+            )
           )
         `)
         .eq('status', 'PENDING')

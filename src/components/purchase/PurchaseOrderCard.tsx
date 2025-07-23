@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Eye, FileText, CreditCard } from "lucide-react";
+import { Eye, FileText, CreditCard, Building2, Wallet, Copy } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface PurchaseOrder {
   id: string;
@@ -19,6 +20,7 @@ interface PurchaseOrder {
   contact_number?: string;
   bank_account_name?: string;
   payment_method_type?: string;
+  purchase_payment_method?: any;
 }
 
 interface PurchaseOrderCardProps {
@@ -29,6 +31,8 @@ interface PurchaseOrderCardProps {
 }
 
 export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: PurchaseOrderCardProps) {
+  const { toast } = useToast();
+  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
@@ -45,6 +49,14 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
       case 'REVIEW_NEEDED': return '⚠️';
       default: return '📋';
     }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
   };
 
   return (
@@ -96,6 +108,97 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
             <div className="flex justify-between items-center text-sm mt-1">
               <span className="text-gray-600">Net Payable:</span>
               <span className="font-bold text-green-700">₹{order.net_payable_amount?.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Counterparty Payment Details */}
+        {order.purchase_payment_method && (
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="flex items-center gap-2 mb-3">
+              {order.purchase_payment_method.type === 'UPI' ? (
+                <Wallet className="h-4 w-4 text-green-600" />
+              ) : (
+                <Building2 className="h-4 w-4 text-green-600" />
+              )}
+              <span className="font-medium text-green-800">Counterparty Payment Details</span>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-green-700">Method Type:</span>
+                <Badge className="bg-green-100 text-green-800">
+                  {order.purchase_payment_method.type}
+                </Badge>
+              </div>
+              
+              {order.purchase_payment_method.bank_accounts && (
+                <>
+                  <div className="grid grid-cols-1 gap-2 mt-3 p-3 bg-white rounded border">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Account Name:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium">{order.purchase_payment_method.bank_accounts.account_name}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => copyToClipboard(order.purchase_payment_method?.bank_accounts?.account_name || '', 'Account Name')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Account Number:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono font-medium">{order.purchase_payment_method.bank_accounts.account_number}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => copyToClipboard(order.purchase_payment_method?.bank_accounts?.account_number || '', 'Account Number')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Bank Name:</span>
+                      <span className="font-medium">{order.purchase_payment_method.bank_accounts.bank_name}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">IFSC Code:</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono font-medium">{order.purchase_payment_method.bank_accounts.IFSC}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => copyToClipboard(order.purchase_payment_method?.bank_accounts?.IFSC || '', 'IFSC Code')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Account Holder:</span>
+                      <span className="font-medium">{order.purchase_payment_method.bank_accounts.bank_account_holder_name}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-green-700">Available Limit:</span>
+                    <span className="font-medium text-green-800">
+                      ₹{(order.purchase_payment_method.payment_limit - order.purchase_payment_method.current_usage).toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

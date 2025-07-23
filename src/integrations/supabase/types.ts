@@ -20,6 +20,7 @@ export type Database = {
           account_number: string
           account_status: string
           balance: number
+          balance_locked: boolean
           bank_account_holder_name: string | null
           bank_name: string
           branch: string | null
@@ -34,6 +35,7 @@ export type Database = {
           account_number: string
           account_status?: string
           balance?: number
+          balance_locked?: boolean
           bank_account_holder_name?: string | null
           bank_name: string
           branch?: string | null
@@ -48,6 +50,7 @@ export type Database = {
           account_number?: string
           account_status?: string
           balance?: number
+          balance_locked?: boolean
           bank_account_holder_name?: string | null
           bank_name?: string
           branch?: string | null
@@ -3048,6 +3051,10 @@ export type Database = {
     Functions: {
       approve_registration: {
         Args: { registration_id: string }
+        Returns: boolean
+      }
+      bank_account_has_transactions: {
+        Args: { account_id_param: string }
         Returns: boolean
       }
       create_role_with_permissions: {

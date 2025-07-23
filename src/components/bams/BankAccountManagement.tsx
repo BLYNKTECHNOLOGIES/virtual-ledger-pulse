@@ -25,6 +25,7 @@ interface BankAccount {
   status: "ACTIVE" | "INACTIVE";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
+  balance_locked?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -300,8 +301,14 @@ export function BankAccountManagement() {
                     step="0.01" 
                     value={formData.balance} 
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))} 
+                    disabled={editingAccount?.balance_locked}
                     required 
                   />
+                  {editingAccount?.balance_locked && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      Balance is locked due to existing transactions
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="status">Account Status *</Label>
@@ -373,7 +380,12 @@ export function BankAccountManagement() {
                         <TableCell>{account.IFSC}</TableCell>
                         <TableCell>{account.branch || "-"}</TableCell>
                         <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
-                          ₹{account.balance.toLocaleString()}
+                          <div className="flex items-center gap-2">
+                            ₹{account.balance.toLocaleString()}
+                            {account.balance_locked && (
+                              <Badge variant="secondary" className="text-xs">Locked</Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>

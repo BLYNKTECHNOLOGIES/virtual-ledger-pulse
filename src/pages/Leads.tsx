@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Search, Edit, Trash2, Phone, Mail } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,8 @@ import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -69,9 +71,16 @@ export default function Leads() {
     },
   });
 
-  const handleDelete = (leadId: string, leadName: string) => {
-    if (confirm(`Are you sure you want to delete the lead "${leadName}"?`)) {
-      deleteMutation.mutate(leadId);
+  const handleDelete = (lead: any) => {
+    setLeadToDelete(lead);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (leadToDelete) {
+      deleteMutation.mutate(leadToDelete.id);
+      setShowDeleteDialog(false);
+      setLeadToDelete(null);
     }
   };
 
@@ -194,7 +203,7 @@ export default function Leads() {
                       size="sm" 
                       variant="outline" 
                       className="h-8 px-2 text-red-600 hover:text-red-700"
-                      onClick={() => handleDelete(lead.id, lead.name)}
+                      onClick={() => handleDelete(lead)}
                       disabled={deleteMutation.isPending}
                     >
                       <Trash2 className="h-3 w-3 mr-1" />
@@ -217,6 +226,34 @@ export default function Leads() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Lead</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the lead "{leadToDelete?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

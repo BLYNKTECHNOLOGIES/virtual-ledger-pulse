@@ -115,7 +115,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       }
 
       // Step 1: Transfer balance to settlement account if specified and balance > 0
-      if (account.balance > 0 && settlementAccountId) {
+      if (account.balance > 0 && settlementAccountId && settlementAccountId !== 'none') {
         // Create transfer transaction from closing account
         const { error: transferOutError } = await supabase
           .from('bank_transactions')
@@ -253,7 +253,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
                     <SelectValue placeholder="Select settlement account" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No settlement (keep balance in closure record)</SelectItem>
+                    <SelectItem value="none">No settlement (keep balance in closure record)</SelectItem>
                     {availableBankAccounts.map((acc) => (
                       <SelectItem key={acc.id} value={acc.id}>
                         {acc.account_name} - {acc.bank_name}

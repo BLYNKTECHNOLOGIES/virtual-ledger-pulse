@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -35,7 +36,31 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
   const [closureReason, setClosureReason] = useState('');
   const [documents, setDocuments] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [settlementAccountId, setSettlementAccountId] = useState<string>('');
+  const [availableBankAccounts, setAvailableBankAccounts] = useState<BankAccount[]>([]);
   const { toast } = useToast();
+
+  // Fetch available bank accounts for settlement
+  useEffect(() => {
+    if (isOpen && account) {
+      fetchAvailableBankAccounts();
+    }
+  }, [isOpen, account]);
+
+  const fetchAvailableBankAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('account_status', 'ACTIVE')
+        .neq('id', account?.id); // Exclude the account being closed
+      
+      if (error) throw error;
+      setAvailableBankAccounts(data || []);
+    } catch (error) {
+      console.error('Error fetching bank accounts:', error);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -89,7 +114,64 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         documentUrls = await uploadDocuments(documents);
       }
 
-      // Step 1: Insert closure record
+      // Step 1: Transfer balance to settlement account if specified and balance > 0
+      if (account.balance > 0 && settlementAccountId) {
+        // Create transfer transaction from closing account
+        const { error: transferOutError } = await supabase
+          .from('bank_transactions')
+          .insert({
+            bank_account_id: account.id,
+            transaction_type: 'TRANSFER_OUT',
+            amount: account.balance,
+            transaction_date: new Date().toISOString().split('T')[0],
+            description: `Balance transfer to settlement account due to account closure`,
+            category: 'TRANSFER',
+            related_account_name: availableBankAccounts.find(acc => acc.id === settlementAccountId)?.account_name || 'Settlement Account'
+          });
+
+        if (transferOutError) {
+          throw new Error(`Failed to create transfer out transaction: ${transferOutError.message}`);
+        }
+
+        // Create transfer transaction to settlement account
+        const { error: transferInError } = await supabase
+          .from('bank_transactions')
+          .insert({
+            bank_account_id: settlementAccountId,
+            transaction_type: 'TRANSFER_IN',
+            amount: account.balance,
+            transaction_date: new Date().toISOString().split('T')[0],
+            description: `Balance received from closed account: ${account.account_name}`,
+            category: 'TRANSFER',
+            related_account_name: account.account_name
+          });
+
+        if (transferInError) {
+          throw new Error(`Failed to create transfer in transaction: ${transferInError.message}`);
+        }
+      }
+
+      // Step 2: Deactivate sales payment methods linked to this bank account
+      const { error: salesPaymentMethodError } = await supabase
+        .from('sales_payment_methods')
+        .update({ is_active: false })
+        .eq('bank_account_id', account.id);
+
+      if (salesPaymentMethodError) {
+        console.warn('Failed to deactivate sales payment methods:', salesPaymentMethodError);
+      }
+
+      // Step 3: Deactivate purchase payment methods linked to this bank account
+      const { error: purchasePaymentMethodError } = await supabase
+        .from('purchase_payment_methods')
+        .update({ is_active: false })
+        .eq('bank_account_name', account.account_name);
+
+      if (purchasePaymentMethodError) {
+        console.warn('Failed to deactivate purchase payment methods:', purchasePaymentMethodError);
+      }
+
+      // Step 4: Insert closure record
       const { error: insertError } = await supabase
         .from('closed_bank_accounts')
         .insert({
@@ -109,7 +191,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         throw new Error(`Failed to create closure record: ${insertError.message}`);
       }
 
-      // Step 2: Update account status to CLOSED (instead of deleting)
+      // Step 5: Update account status to CLOSED
       const { error: updateError } = await supabase
         .from('bank_accounts')
         .update({ 
@@ -131,6 +213,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       onClose();
       setClosureReason('');
       setDocuments([]);
+      setSettlementAccountId('');
       
     } catch (error: any) {
       toast({
@@ -158,6 +241,28 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
               <p className="text-sm text-muted-foreground">Account: {account.account_number}</p>
               <p className="text-sm">Final Balance: ₹{account.balance.toLocaleString()}</p>
             </div>
+
+            {account.balance > 0 && (
+              <div>
+                <Label htmlFor="settlement">Settlement Account (Optional)</Label>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Select an account to transfer the remaining balance of ₹{account.balance.toLocaleString()}
+                </p>
+                <Select value={settlementAccountId} onValueChange={setSettlementAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select settlement account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No settlement (keep balance in closure record)</SelectItem>
+                    {availableBankAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.account_name} - {acc.bank_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div>
               <Label htmlFor="reason">Reason for Closure *</Label>

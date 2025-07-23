@@ -195,9 +195,9 @@ export function AppSidebar() {
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-4">
-              <h2 className="text-2xl font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-sm text-blue-100 font-semibold -mt-1 truncate">TECHNOLOGIES</p>
-              <p className="text-xs text-blue-200 font-medium mt-1 truncate">ERP Solutions</p>
+              <h2 className="text-lg font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-base text-blue-100 font-bold -mt-1 truncate">TECHNOLOGIES</p>
+              <p className="text-xs text-blue-200 font-medium mt-0.5 truncate">ERP Solutions</p>
             </div>
           )}
         </div>

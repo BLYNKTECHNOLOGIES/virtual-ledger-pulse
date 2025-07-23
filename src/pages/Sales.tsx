@@ -18,6 +18,8 @@ import { StepBySalesFlow } from "@/components/sales/StepBySalesFlow";
 import { SalesOrderDetailsDialog } from "@/components/sales/SalesOrderDetailsDialog";
 import { EditSalesOrderDialog } from "@/components/sales/EditSalesOrderDialog";
 import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
+import { UserPayingStatusDialog } from "@/components/sales/UserPayingStatusDialog";
+import { PaymentMethodSelectionDialog } from "@/components/sales/PaymentMethodSelectionDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
@@ -32,6 +34,8 @@ export default function Sales() {
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
+  const [selectedOrderForUserPaying, setSelectedOrderForUserPaying] = useState<any>(null);
+  const [selectedOrderForAlternativeMethod, setSelectedOrderForAlternativeMethod] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
 
   // Fetch sales orders from database
@@ -155,6 +159,36 @@ export default function Sales() {
     }
   });
 
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      const { error } = await supabase
+        .from('sales_orders')
+        .update({ 
+          payment_status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      return { orderId, status };
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Success", 
+        description: `Order status updated to ${data.status.replace('_', ' ').toLowerCase()}` 
+      });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+    },
+    onError: (error) => {
+      console.error('Error updating order status:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to update order status", 
+        variant: "destructive" 
+      });
+    }
+  });
+
   const handleExportCSV = () => {
     if (!salesOrders || salesOrders.length === 0) return;
 
@@ -268,33 +302,57 @@ export default function Sales() {
               <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
               <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
               <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-              <td className="py-3 px-4">
-                <div className="flex gap-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setSelectedOrderForDetails(order)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    View Details
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => setSelectedOrderForEdit(order)}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDeleteOrder(order.id)}
-                    disabled={deleteSalesOrderMutation.isPending}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </td>
+               <td className="py-3 px-4">
+                 <div className="flex gap-1">
+                   {order.payment_status === 'USER_PAYING' ? (
+                     // Special actions for User Paying orders
+                     <>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => setSelectedOrderForUserPaying(order)}
+                         className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                       >
+                         User Paying
+                       </Button>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => setSelectedOrderForAlternativeMethod(order)}
+                       >
+                         Alternative Method
+                       </Button>
+                     </>
+                   ) : (
+                     // Default actions for other orders
+                     <>
+                       <Button 
+                         variant="ghost" 
+                         size="sm"
+                         onClick={() => setSelectedOrderForDetails(order)}
+                       >
+                         <Eye className="h-3 w-3 mr-1" />
+                         View Details
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="sm"
+                         onClick={() => setSelectedOrderForEdit(order)}
+                       >
+                         <Edit className="h-3 w-3" />
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         onClick={() => handleDeleteOrder(order.id)}
+                         disabled={deleteSalesOrderMutation.isPending}
+                       >
+                         <Trash2 className="h-3 w-3" />
+                       </Button>
+                     </>
+                   )}
+                 </div>
+               </td>
             </tr>
           ))}
         </tbody>
@@ -498,6 +556,47 @@ export default function Sales() {
         open={!!selectedOrderForEdit}
         onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
         order={selectedOrderForEdit}
+      />
+
+      {/* User Paying Status Dialog */}
+      <UserPayingStatusDialog
+        open={!!selectedOrderForUserPaying}
+        onOpenChange={(open) => !open && setSelectedOrderForUserPaying(null)}
+        clientName={selectedOrderForUserPaying?.client_name || ''}
+        orderAmount={selectedOrderForUserPaying?.total_amount || 0}
+        onStatusChange={(status) => {
+          if (selectedOrderForUserPaying) {
+            updateOrderStatusMutation.mutate({
+              orderId: selectedOrderForUserPaying.id,
+              status: status
+            });
+            setSelectedOrderForUserPaying(null);
+          }
+        }}
+        onAlternativeMethod={() => {
+          setSelectedOrderForUserPaying(null);
+          setSelectedOrderForAlternativeMethod(selectedOrderForUserPaying);
+        }}
+      />
+
+      {/* Alternative Payment Method Dialog */}
+      <PaymentMethodSelectionDialog
+        open={!!selectedOrderForAlternativeMethod}
+        onOpenChange={(open) => !open && setSelectedOrderForAlternativeMethod(null)}
+        orderAmount={selectedOrderForAlternativeMethod?.total_amount || 0}
+        clientName={selectedOrderForAlternativeMethod?.client_name || ''}
+        orderId={selectedOrderForAlternativeMethod?.id || ''}
+        riskCategory="MEDIUM"
+        paymentType="UPI"
+        onStatusChange={(status) => {
+          if (selectedOrderForAlternativeMethod) {
+            updateOrderStatusMutation.mutate({
+              orderId: selectedOrderForAlternativeMethod.id,
+              status: status
+            });
+            setSelectedOrderForAlternativeMethod(null);
+          }
+        }}
       />
     </div>
   );

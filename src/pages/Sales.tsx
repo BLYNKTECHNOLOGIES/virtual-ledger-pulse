@@ -66,8 +66,13 @@ export default function Sales() {
   });
 
   // Filter orders based on active tab
-  const pendingOrders = salesOrders?.filter(order => order.payment_status === 'PENDING') || [];
-  const completedOrders = salesOrders?.filter(order => order.payment_status === 'COMPLETED') || [];
+  const pendingOrders = salesOrders?.filter(order => 
+    order.payment_status === 'PENDING' || order.payment_status === 'USER_PAYING'
+  ) || [];
+  const userPayingOrders = salesOrders?.filter(order => order.payment_status === 'USER_PAYING') || [];
+  const completedOrders = salesOrders?.filter(order => 
+    order.payment_status === 'COMPLETED' || order.payment_status === 'PAYMENT_DONE'
+  ) || [];
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -196,13 +201,19 @@ export default function Sales() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return <Badge className="bg-green-100 text-green-800">Payment Received</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+      case "PAYMENT_DONE":
+        return <Badge className="bg-green-100 text-green-800">Payment Done</Badge>;
+      case "USER_PAYING":
+        return <Badge className="bg-blue-100 text-blue-800">User Paying</Badge>;
       case "PARTIAL":
         return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
       case "PENDING":
-        return <Badge className="bg-blue-100 text-blue-800">Pending</Badge>;
+        return <Badge className="bg-gray-100 text-gray-800">Pending</Badge>;
       case "FAILED":
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+      case "ORDER_CANCELLED":
+        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
       default:
         return <Badge variant="secondary">Unknown</Badge>;
     }
@@ -349,9 +360,12 @@ export default function Sales() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="USER_PAYING">User Paying</SelectItem>
+                        <SelectItem value="PAYMENT_DONE">Payment Done</SelectItem>
                         <SelectItem value="PARTIAL">Partial</SelectItem>
                         <SelectItem value="COMPLETED">Completed</SelectItem>
                         <SelectItem value="FAILED">Failed</SelectItem>
+                        <SelectItem value="ORDER_CANCELLED">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -439,9 +453,12 @@ export default function Sales() {
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="pending">
                   Pending Orders ({pendingOrders.length})
+                </TabsTrigger>
+                <TabsTrigger value="user-paying">
+                  User Paying ({userPayingOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
                   Completed Orders ({completedOrders.length})
@@ -450,6 +467,10 @@ export default function Sales() {
               
               <TabsContent value="pending" className="mt-6">
                 {renderOrdersTable(pendingOrders)}
+              </TabsContent>
+
+              <TabsContent value="user-paying" className="mt-6">
+                {renderOrdersTable(userPayingOrders)}
               </TabsContent>
               
               <TabsContent value="completed" className="mt-6">

@@ -7,17 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw, Copy } from "lucide-react";
+import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw, Copy, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
+import { UserPayingStatusDialog } from "./UserPayingStatusDialog";
 
 interface StepBySalesFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice';
+type FlowStep = 'order-type' | 'amount-verification' | 'payment-type-selection' | 'payment-method-display' | 'action-buttons' | 'final-form' | 'alternative-method-choice' | 'user-paying-status';
 
 export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const { toast } = useToast();
@@ -39,6 +41,9 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<any[]>([]);
   const [usedPaymentMethods, setUsedPaymentMethods] = useState<string[]>([]);
+  const [paymentMethodDialogOpen, setPaymentMethodDialogOpen] = useState(false);
+  const [userPayingDialogOpen, setUserPayingDialogOpen] = useState(false);
+  const [pendingSalesOrder, setPendingSalesOrder] = useState<any>(null);
   // Generate unique order number
   const generateOrderNumber = () => {
     const timestamp = Date.now();
@@ -383,12 +388,118 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
     }
   };
 
+  const handleUserPaying = () => {
+    const riskLevel = selectedClient?.risk_appetite || newClientData.risk_appetite;
+    const riskCategory = getRiskCategoryFromAppetite(riskLevel);
+    
+    setPaymentMethodDialogOpen(true);
+  };
+
   const handlePaymentReceived = () => {
     setFinalOrderData(prev => ({
       ...prev,
       platform: selectedClient?.platform || newClientData.platform || ''
     }));
     setCurrentStep('final-form');
+  };
+
+  const handlePaymentStatusChange = async (status: string, paymentMethodId?: string) => {
+    if (status === "USER_PAYING") {
+      // Create pending sales order
+      await createPendingSalesOrder(paymentMethodId);
+      setUserPayingDialogOpen(true);
+    } else if (status === "PAYMENT_DONE") {
+      // Update order to completed and proceed to final form
+      if (pendingSalesOrder) {
+        await updateSalesOrderStatus(pendingSalesOrder.id, "PAYMENT_DONE", paymentMethodId);
+        setCurrentStep('final-form');
+      }
+    } else if (status === "ORDER_CANCELLED") {
+      // Handle cancellation
+      handleOrderCancelled();
+    }
+  };
+
+  const handleUserPayingStatusChange = async (status: string) => {
+    if (!pendingSalesOrder) return;
+
+    if (status === "PAYMENT_DONE") {
+      await updateSalesOrderStatus(pendingSalesOrder.id, "PAYMENT_DONE");
+      setUserPayingDialogOpen(false);
+      setCurrentStep('final-form');
+    } else if (status === "ORDER_CANCELLED") {
+      await updateSalesOrderStatus(pendingSalesOrder.id, "ORDER_CANCELLED");
+      handleOrderCancelled();
+    }
+  };
+
+  const createPendingSalesOrder = async (paymentMethodId?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const salesOrderData = {
+        order_number: finalOrderData.order_number,
+        client_name: selectedClient?.name || newClientData.name,
+        client_phone: selectedClient?.phone || newClientData.phone,
+        platform: selectedClient?.platform || newClientData.platform || '',
+        total_amount: orderAmount,
+        quantity: 1, // Default quantity for pending order
+        price_per_unit: orderAmount, // Default price per unit
+        sales_payment_method_id: paymentMethodId,
+        payment_status: 'USER_PAYING',
+        status: 'PENDING',
+        order_date: new Date().toISOString().split('T')[0],
+        description: `Pending order - awaiting payment confirmation`,
+        cosmos_alert: cosmosAlert,
+        risk_level: selectedClient?.risk_appetite || newClientData.risk_appetite,
+        created_by: user?.id
+      };
+
+      const { data: salesOrder, error } = await supabase
+        .from('sales_orders')
+        .insert([salesOrderData])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPendingSalesOrder(salesOrder);
+      toast({ title: "Order Created", description: "Order created with USER_PAYING status" });
+      
+    } catch (error) {
+      console.error('Error creating pending sales order:', error);
+      toast({ title: "Error", description: "Failed to create order", variant: "destructive" });
+    }
+  };
+
+  const updateSalesOrderStatus = async (orderId: string, status: string, paymentMethodId?: string) => {
+    try {
+      const updateData: any = {
+        payment_status: status,
+        updated_at: new Date().toISOString()
+      };
+
+      if (paymentMethodId) {
+        updateData.sales_payment_method_id = paymentMethodId;
+      }
+
+      if (status === "PAYMENT_DONE") {
+        updateData.status = "COMPLETED";
+      }
+
+      const { error } = await supabase
+        .from('sales_orders')
+        .update(updateData)
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({ title: "Status Updated", description: `Order status updated to ${status.replace('_', ' ')}` });
+      
+    } catch (error) {
+      console.error('Error updating sales order status:', error);
+      toast({ title: "Error", description: "Failed to update order status", variant: "destructive" });
+    }
   };
 
   const handleFinalSubmit = () => {
@@ -751,7 +862,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
       case 'action-buttons':
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold">⚠️ Three Action Buttons After Payment Method Is Given</h3>
+            <h3 className="text-lg font-semibold">⚠️ Payment Action Options</h3>
             
             <div className="space-y-3">
               <Button 
@@ -779,6 +890,17 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
               </p>
 
               <Button 
+                onClick={handleUserPaying}
+                className="w-full flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Clock className="h-4 w-4" />
+                🔵 User Paying
+              </Button>
+              <p className="text-xs text-gray-600 px-2">
+                Creates order in USER_PAYING status, allowing you to track payment progress and take new orders.
+              </p>
+
+              <Button 
                 onClick={handlePaymentReceived}
                 className="w-full flex items-center gap-2"
               >
@@ -786,7 +908,7 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
                 🟢 Payment Received
               </Button>
               <p className="text-xs text-gray-600 px-2">
-                Opens form to capture the full sales data with auto pre-filled information wherever possible.
+                Directly mark as paid and opens form to capture the full sales data with auto pre-filled information.
               </p>
             </div>
           </div>
@@ -969,6 +1091,31 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
             {currentStep === 'order-type' ? 'Cancel' : 'Back'}
           </Button>
         </div>
+
+        {/* Payment Method Selection Dialog */}
+        <PaymentMethodSelectionDialog
+          open={paymentMethodDialogOpen}
+          onOpenChange={setPaymentMethodDialogOpen}
+          orderAmount={orderAmount}
+          clientName={selectedClient?.name || newClientData.name}
+          orderId=""
+          riskCategory={getRiskCategoryFromAppetite(selectedClient?.risk_appetite || newClientData.risk_appetite)}
+          paymentType={paymentType || 'UPI'}
+          onStatusChange={handlePaymentStatusChange}
+        />
+
+        {/* User Paying Status Dialog */}
+        <UserPayingStatusDialog
+          open={userPayingDialogOpen}
+          onOpenChange={setUserPayingDialogOpen}
+          clientName={selectedClient?.name || newClientData.name}
+          orderAmount={orderAmount}
+          onStatusChange={handleUserPayingStatusChange}
+          onAlternativeMethod={() => {
+            setUserPayingDialogOpen(false);
+            setPaymentMethodDialogOpen(true);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

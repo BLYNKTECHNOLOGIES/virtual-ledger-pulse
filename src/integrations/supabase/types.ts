@@ -271,6 +271,57 @@ export type Database = {
         }
         Relationships: []
       }
+      closed_bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string
+          bank_account_holder_name: string | null
+          bank_name: string
+          branch: string | null
+          closed_by: string | null
+          closure_date: string
+          closure_documents: string[] | null
+          closure_reason: string
+          created_at: string
+          final_balance: number
+          id: string
+          ifsc: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          bank_account_holder_name?: string | null
+          bank_name: string
+          branch?: string | null
+          closed_by?: string | null
+          closure_date?: string
+          closure_documents?: string[] | null
+          closure_reason: string
+          created_at?: string
+          final_balance?: number
+          id?: string
+          ifsc?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          bank_account_holder_name?: string | null
+          bank_name?: string
+          branch?: string | null
+          closed_by?: string | null
+          closure_date?: string
+          closure_documents?: string[] | null
+          closure_reason?: string
+          created_at?: string
+          final_balance?: number
+          id?: string
+          ifsc?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       compliance_documents: {
         Row: {
           category: string

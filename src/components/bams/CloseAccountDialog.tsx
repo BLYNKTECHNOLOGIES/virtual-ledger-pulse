@@ -140,6 +140,8 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         throw new Error(`Failed to delete bank account: ${deleteError.message}`);
       }
 
+      console.log('Account closure successful!');
+      
       toast({
         title: "Success",
         description: "Bank account has been closed successfully"
@@ -151,13 +153,19 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       setDocuments([]);
       
     } catch (error: any) {
-      console.error('Error closing account:', error);
+      console.error('=== Error closing account ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('==============================');
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to close bank account",
+        description: error.message || "Failed to close bank account. Check console for details.",
         variant: "destructive"
       });
     } finally {
+      console.log('Setting uploading to false');
       setUploading(false);
     }
   };

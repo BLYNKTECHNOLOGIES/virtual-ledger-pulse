@@ -181,7 +181,7 @@ export function OrderCompletionDialog({
         title: "Order Completed Successfully",
         description: "Sales order has been created and KYC marked as completed.",
       });
-      queryClient.invalidateQueries({ queryKey: ['kyc_approval_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['approved_kyc_requests'] });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });

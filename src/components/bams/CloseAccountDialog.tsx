@@ -70,6 +70,9 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Close account form submitted');
+    console.log('Account:', account);
+    console.log('Closure reason:', closureReason);
     
     if (!account || !closureReason.trim()) {
       toast({

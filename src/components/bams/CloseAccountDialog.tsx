@@ -89,13 +89,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         documentUrls = await uploadDocuments(documents);
       }
 
-      // Step 1: Update any purchase_payment_methods that reference this account
-      await supabase
-        .from('purchase_payment_methods')
-        .update({ bank_account_name: null })
-        .eq('bank_account_name', account.account_name);
-
-      // Step 2: Insert into closed_bank_accounts table
+      // Step 1: Insert closure record
       const { error: insertError } = await supabase
         .from('closed_bank_accounts')
         .insert({
@@ -115,14 +109,17 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         throw new Error(`Failed to create closure record: ${insertError.message}`);
       }
 
-      // Step 3: Delete from bank_accounts table
-      const { error: deleteError } = await supabase
+      // Step 2: Update account status to CLOSED (instead of deleting)
+      const { error: updateError } = await supabase
         .from('bank_accounts')
-        .delete()
+        .update({ 
+          account_status: 'CLOSED',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', account.id);
 
-      if (deleteError) {
-        throw new Error(`Failed to delete bank account: ${deleteError.message}`);
+      if (updateError) {
+        throw new Error(`Failed to close bank account: ${updateError.message}`);
       }
 
       toast({

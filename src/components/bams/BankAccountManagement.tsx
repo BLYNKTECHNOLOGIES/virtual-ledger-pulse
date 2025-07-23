@@ -23,6 +23,7 @@ interface BankAccount {
   branch?: string;
   balance: number;
   status: "ACTIVE" | "INACTIVE";
+  account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
   created_at: string;
   updated_at: string;
@@ -62,13 +63,14 @@ export function BankAccountManagement() {
     bank_account_holder_name: ""
   });
 
-  // Fetch active bank accounts
+  // Fetch active bank accounts (only show accounts with account_status = 'ACTIVE')
   const { data: bankAccounts, isLoading } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
         .select('*')
+        .eq('account_status', 'ACTIVE')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as BankAccount[];

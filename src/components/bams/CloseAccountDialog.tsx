@@ -133,7 +133,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
           account_name: account.account_name,
           bank_name: account.bank_name,
           account_number: account.account_number,
-          IFSC: account.IFSC,
+          ifsc: account.IFSC,
           branch: account.branch,
           bank_account_holder_name: account.bank_account_holder_name,
           final_balance: account.balance,

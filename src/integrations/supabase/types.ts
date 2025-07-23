@@ -208,6 +208,98 @@ export type Database = {
           },
         ]
       }
+      client_onboarding_approvals: {
+        Row: {
+          aadhar_back_url: string | null
+          aadhar_front_url: string | null
+          aadhar_number: string | null
+          additional_documents_url: string[] | null
+          address: string | null
+          approval_status: string
+          binance_id_screenshot_url: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          compliance_notes: string | null
+          created_at: string
+          id: string
+          order_amount: number
+          order_date: string
+          proposed_monthly_limit: number | null
+          purpose_of_buying: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_assessment: string | null
+          sales_order_id: string | null
+          updated_at: string
+          vkyc_notes: string | null
+          vkyc_recording_url: string | null
+        }
+        Insert: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          aadhar_number?: string | null
+          additional_documents_url?: string[] | null
+          address?: string | null
+          approval_status?: string
+          binance_id_screenshot_url?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          compliance_notes?: string | null
+          created_at?: string
+          id?: string
+          order_amount: number
+          order_date: string
+          proposed_monthly_limit?: number | null
+          purpose_of_buying?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_assessment?: string | null
+          sales_order_id?: string | null
+          updated_at?: string
+          vkyc_notes?: string | null
+          vkyc_recording_url?: string | null
+        }
+        Update: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          aadhar_number?: string | null
+          additional_documents_url?: string[] | null
+          address?: string | null
+          approval_status?: string
+          binance_id_screenshot_url?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          compliance_notes?: string | null
+          created_at?: string
+          id?: string
+          order_amount?: number
+          order_date?: string
+          proposed_monthly_limit?: number | null
+          purpose_of_buying?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_assessment?: string | null
+          sales_order_id?: string | null
+          updated_at?: string
+          vkyc_notes?: string | null
+          vkyc_recording_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_approvals_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           assigned_operator: string | null

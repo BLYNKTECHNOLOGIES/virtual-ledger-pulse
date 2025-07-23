@@ -237,6 +237,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
                 type="submit"
                 variant="destructive"
                 disabled={uploading || !closureReason.trim()}
+                onClick={() => console.log('Close Account button clicked', { uploading, closureReason: closureReason.trim() })}
               >
                 {uploading ? 'Closing Account...' : 'Close Account'}
               </Button>

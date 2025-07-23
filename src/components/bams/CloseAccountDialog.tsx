@@ -129,7 +129,13 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
                                (settlements && settlements.length > 0) ||
                                (purchasePaymentMethods && purchasePaymentMethods.length > 0);
 
-      console.log('Has related records:', hasRelatedRecords);
+      console.log('Individual checks:', {
+        lienCases: lienCases?.length || 0,
+        bankTransactions: bankTransactions?.length || 0, 
+        purchaseOrders: purchaseOrders?.length || 0,
+        settlements: settlements?.length || 0,
+        purchasePaymentMethods: purchasePaymentMethods?.length || 0
+      });
 
       if (hasRelatedRecords) {
         let errorDetails = "This account has related records that prevent closure:\n";

@@ -23,6 +23,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     supplier_name: '',
     order_date: new Date().toISOString().split('T')[0],
     description: '',
+    product_id: '',
     quantity: '',
     price_per_unit: '',
     total_amount: '',
@@ -33,7 +34,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     ifsc_code: '',
     upi_id: '',
     pan_number: '',
-    status: 'COMPLETED'
+    status: 'COMPLETED',
+    deduction_bank_account_id: ''
   });
 
   // Fetch purchase payment methods
@@ -58,6 +60,19 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         .from('bank_accounts')
         .select('*')
         .eq('status', 'ACTIVE');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
       
       if (error) throw error;
       return data;
@@ -90,10 +105,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
     try {
       // Validate required fields
-      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit) {
+      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.deduction_bank_account_id || !formData.product_id) {
         toast({
           title: "Error",
-          description: "Please fill in all required fields",
+          description: "Please fill in all required fields including product and bank account for deduction",
           variant: "destructive"
         });
         return;
@@ -101,6 +116,21 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       const orderNumber = generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
+
+      // Create bank transaction to deduct amount
+      const { error: transactionError } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: formData.deduction_bank_account_id,
+          transaction_type: 'EXPENSE',
+          amount: totalAmount,
+          description: `Purchase order: ${orderNumber} - ${formData.supplier_name}`,
+          transaction_date: formData.order_date,
+          category: 'Purchase',
+          reference_number: orderNumber
+        });
+
+      if (transactionError) throw transactionError;
 
       // Create purchase order
       const { data: purchaseOrder, error: orderError } = await supabase
@@ -119,16 +149,49 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           upi_id: formData.upi_id || null,
           pan_number: formData.pan_number || null,
           status: formData.status,
-          payment_method_used: formData.payment_method_type || null
+          payment_method_used: formData.payment_method_type || null,
+          bank_account_id: formData.deduction_bank_account_id
         })
         .select()
         .single();
 
       if (orderError) throw orderError;
 
+      // Create purchase order item
+      const { error: itemError } = await supabase
+        .from('purchase_order_items')
+        .insert({
+          purchase_order_id: purchaseOrder.id,
+          product_id: formData.product_id,
+          quantity: parseFloat(formData.quantity),
+          unit_price: parseFloat(formData.price_per_unit),
+          total_price: totalAmount
+        });
+
+      if (itemError) throw itemError;
+
+      // Get current product stock and update it
+      const { data: currentProduct, error: fetchError } = await supabase
+        .from('products')
+        .select('current_stock_quantity')
+        .eq('id', formData.product_id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Update product stock (increase)
+      const { error: stockError } = await supabase
+        .from('products')
+        .update({
+          current_stock_quantity: currentProduct.current_stock_quantity + parseFloat(formData.quantity)
+        })
+        .eq('id', formData.product_id);
+
+      if (stockError) throw stockError;
+
       toast({
         title: "Success",
-        description: `Purchase order ${orderNumber} created successfully`
+        description: `Purchase order ${orderNumber} created successfully and stock updated`
       });
 
       // Reset form
@@ -136,6 +199,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         supplier_name: '',
         order_date: new Date().toISOString().split('T')[0],
         description: '',
+        product_id: '',
         quantity: '',
         price_per_unit: '',
         total_amount: '',
@@ -146,7 +210,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         ifsc_code: '',
         upi_id: '',
         pan_number: '',
-        status: 'COMPLETED'
+        status: 'COMPLETED',
+        deduction_bank_account_id: ''
       });
 
       setOpen(false);
@@ -208,6 +273,25 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="product_id">Product *</Label>
+            <Select 
+              value={formData.product_id} 
+              onValueChange={(value) => handleInputChange('product_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent className="bg-white z-50">
+                {products?.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name} - {product.code} (Stock: {product.current_stock_quantity})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
@@ -259,6 +343,25 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="deduction_bank_account_id">Deduct Amount from Bank Account *</Label>
+            <Select 
+              value={formData.deduction_bank_account_id} 
+              onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select bank account for deduction" />
+              </SelectTrigger>
+              <SelectContent className="bg-white z-50">
+                {bankAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.bank_name} - {account.account_name} (₹{account.balance})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="contact_number">Contact Number</Label>
@@ -279,7 +382,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white z-50">
                   <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                   <SelectItem value="UPI">UPI</SelectItem>
                   <SelectItem value="Cash">Cash</SelectItem>

@@ -186,17 +186,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
-      <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
-        <div className="flex items-center justify-center">
+      <SidebarHeader className="p-6 border-b-2 border-gray-100 bg-blue-600">
+        <div className="flex items-center justify-center min-h-[80px]">
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
-            className="h-8 w-auto flex-shrink-0 bg-white/10 p-1 rounded-lg"
+            className="h-16 w-auto flex-shrink-0 bg-white/10 p-2 rounded-xl shadow-lg"
           />
           {!isCollapsed && (
-            <div className="flex flex-col min-w-0 ml-3">
-              <h2 className="text-base font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-xs text-blue-100 font-medium -mt-0.5 truncate">TECHNOLOGIES</p>
+            <div className="flex flex-col min-w-0 ml-4">
+              <h2 className="text-2xl font-bold text-white tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
+              <p className="text-sm text-blue-100 font-semibold -mt-1 truncate">TECHNOLOGIES</p>
+              <p className="text-xs text-blue-200 font-medium mt-1 truncate">ERP Solutions</p>
             </div>
           )}
         </div>

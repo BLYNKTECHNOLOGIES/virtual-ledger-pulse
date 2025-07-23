@@ -89,76 +89,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         documentUrls = await uploadDocuments(documents);
       }
 
-      // Check for foreign key references before attempting deletion
-      console.log('Checking foreign key references for account:', account.id, account.account_name);
-      
-      const { data: lienCases, error: lienError } = await supabase
-        .from('lien_cases')
-        .select('id')
-        .eq('bank_account_id', account.id);
-      console.log('Lien cases found:', lienCases?.length || 0, 'Error:', lienError);
-
-      const { data: bankTransactions, error: transError } = await supabase
-        .from('bank_transactions')
-        .select('id')
-        .eq('bank_account_id', account.id);
-      console.log('Bank transactions found:', bankTransactions?.length || 0, 'Error:', transError);
-
-      const { data: purchaseOrders, error: poError } = await supabase
-        .from('purchase_orders')
-        .select('id')
-        .eq('bank_account_id', account.id);
-      console.log('Purchase orders found:', purchaseOrders?.length || 0, 'Error:', poError);
-
-      const { data: settlements, error: settError } = await supabase
-        .from('payment_gateway_settlements')
-        .select('id')
-        .eq('bank_account_id', account.id);
-      console.log('Payment gateway settlements found:', settlements?.length || 0, 'Error:', settError);
-
-      const { data: purchasePaymentMethods, error: ppmError } = await supabase
-        .from('purchase_payment_methods')
-        .select('id')
-        .eq('bank_account_name', account.account_name);
-      console.log('Purchase payment methods found:', purchasePaymentMethods?.length || 0, 'Error:', ppmError);
-
-      // Check if there are any related records
-      const lienCheck = lienCases && lienCases.length > 0;
-      const transCheck = bankTransactions && bankTransactions.length > 0;
-      const poCheck = purchaseOrders && purchaseOrders.length > 0;
-      const settCheck = settlements && settlements.length > 0;
-      const ppmCheck = purchasePaymentMethods && purchasePaymentMethods.length > 0;
-      
-      const hasRelatedRecords = lienCheck || transCheck || poCheck || settCheck || ppmCheck;
-
-      console.log('Individual checks:', {
-        lienCheck,
-        transCheck, 
-        poCheck,
-        settCheck,
-        ppmCheck,
-        hasRelatedRecords
-      });
-
-      if (hasRelatedRecords) {
-        let errorDetails = "This account has related records that prevent closure:\n";
-        if (lienCases && lienCases.length > 0) errorDetails += `• ${lienCases.length} lien case(s)\n`;
-        if (bankTransactions && bankTransactions.length > 0) errorDetails += `• ${bankTransactions.length} bank transaction(s)\n`;
-        if (purchaseOrders && purchaseOrders.length > 0) errorDetails += `• ${purchaseOrders.length} purchase order(s)\n`;
-        if (settlements && settlements.length > 0) errorDetails += `• ${settlements.length} payment gateway settlement(s)\n`;
-        if (purchasePaymentMethods && purchasePaymentMethods.length > 0) errorDetails += `• ${purchasePaymentMethods.length} purchase payment method(s)\n`;
-        errorDetails += "\nPlease remove these records first or contact admin.";
-        
-        toast({
-          title: "Cannot Close Account",
-          description: errorDetails,
-          variant: "destructive"
-        });
-        setUploading(false);
-        return;
-      }
-
-      // Insert into closed_bank_accounts table
+      // Insert into closed_bank_accounts table first
       const { error: insertError } = await supabase
         .from('closed_bank_accounts')
         .insert({
@@ -179,7 +110,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         throw new Error(`Failed to create closure record: ${insertError.message}`);
       }
 
-      // Delete from bank_accounts table
+      // Try to delete from bank_accounts table
       const { error: deleteError } = await supabase
         .from('bank_accounts')
         .delete()
@@ -187,6 +118,19 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
 
       if (deleteError) {
         console.error('Delete error:', deleteError);
+        
+        // If it's a foreign key constraint error, provide helpful message
+        if (deleteError.message.includes('violates foreign key constraint')) {
+          // Rollback the closure record since deletion failed
+          await supabase
+            .from('closed_bank_accounts')
+            .delete()
+            .eq('account_name', account.account_name)
+            .eq('account_number', account.account_number);
+            
+          throw new Error('Cannot close account: This account is referenced by other records (transactions, payment methods, etc.). Please remove or update those records first.');
+        }
+        
         throw new Error(`Failed to delete bank account: ${deleteError.message}`);
       }
 

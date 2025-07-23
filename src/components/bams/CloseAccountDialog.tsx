@@ -70,9 +70,6 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Close account form submitted');
-    console.log('Account:', account);
-    console.log('Closure reason:', closureReason);
     
     if (!account || !closureReason.trim()) {
       toast({
@@ -84,18 +81,21 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
     }
 
     setUploading(true);
-    console.log('Starting account closure process...');
     
     try {
       // Upload documents if any
       let documentUrls: string[] = [];
       if (documents.length > 0) {
-        console.log('Uploading documents...');
         documentUrls = await uploadDocuments(documents);
-        console.log('Documents uploaded:', documentUrls);
       }
 
-      // Insert into closed_bank_accounts table first
+      // Step 1: Update any purchase_payment_methods that reference this account
+      await supabase
+        .from('purchase_payment_methods')
+        .update({ bank_account_name: null })
+        .eq('bank_account_name', account.account_name);
+
+      // Step 2: Insert into closed_bank_accounts table
       const { error: insertError } = await supabase
         .from('closed_bank_accounts')
         .insert({
@@ -108,40 +108,23 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
           final_balance: account.balance,
           closure_reason: closureReason,
           closure_documents: documentUrls,
-          closed_by: 'Current User' // You can update this to get actual user
+          closed_by: 'Current User'
         });
 
       if (insertError) {
-        console.error('Insert error:', insertError);
         throw new Error(`Failed to create closure record: ${insertError.message}`);
       }
 
-      // Try to delete from bank_accounts table
+      // Step 3: Delete from bank_accounts table
       const { error: deleteError } = await supabase
         .from('bank_accounts')
         .delete()
         .eq('id', account.id);
 
       if (deleteError) {
-        console.error('Delete error:', deleteError);
-        
-        // If it's a foreign key constraint error, provide helpful message
-        if (deleteError.message.includes('violates foreign key constraint')) {
-          // Rollback the closure record since deletion failed
-          await supabase
-            .from('closed_bank_accounts')
-            .delete()
-            .eq('account_name', account.account_name)
-            .eq('account_number', account.account_number);
-            
-          throw new Error('Cannot close account: This account is referenced by other records (transactions, payment methods, etc.). Please remove or update those records first.');
-        }
-        
         throw new Error(`Failed to delete bank account: ${deleteError.message}`);
       }
 
-      console.log('Account closure successful!');
-      
       toast({
         title: "Success",
         description: "Bank account has been closed successfully"
@@ -153,19 +136,12 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       setDocuments([]);
       
     } catch (error: any) {
-      console.error('=== Error closing account ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      console.error('==============================');
-      
       toast({
         title: "Error",
-        description: error.message || "Failed to close bank account. Check console for details.",
+        description: error.message || "Failed to close bank account",
         variant: "destructive"
       });
     } finally {
-      console.log('Setting uploading to false');
       setUploading(false);
     }
   };

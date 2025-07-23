@@ -2166,6 +2166,8 @@ export type Database = {
           status: string
           total_amount: number
           updated_at: string
+          usdt_amount: number | null
+          wallet_id: string | null
           warehouse_id: string | null
         }
         Insert: {
@@ -2191,6 +2193,8 @@ export type Database = {
           status?: string
           total_amount: number
           updated_at?: string
+          usdt_amount?: number | null
+          wallet_id?: string | null
           warehouse_id?: string | null
         }
         Update: {
@@ -2216,6 +2220,8 @@ export type Database = {
           status?: string
           total_amount?: number
           updated_at?: string
+          usdt_amount?: number | null
+          wallet_id?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
@@ -2231,6 +2237,13 @@ export type Database = {
             columns: ["sales_payment_method_id"]
             isOneToOne: false
             referencedRelation: "sales_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
             referencedColumns: ["id"]
           },
           {
@@ -2715,6 +2728,92 @@ export type Database = {
           },
         ]
       }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          created_at: string
+          current_balance: number
+          id: string
+          is_active: boolean
+          total_received: number
+          total_sent: number
+          updated_at: string
+          wallet_address: string
+          wallet_name: string
+          wallet_type: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          total_received?: number
+          total_sent?: number
+          updated_at?: string
+          wallet_address: string
+          wallet_name: string
+          wallet_type?: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          id?: string
+          is_active?: boolean
+          total_received?: number
+          total_sent?: number
+          updated_at?: string
+          wallet_address?: string
+          wallet_name?: string
+          wallet_type?: string
+        }
+        Relationships: []
+      }
       warehouse_stock_movements: {
         Row: {
           created_at: string
@@ -2864,11 +2963,19 @@ export type Database = {
           roles: Json
         }[]
       }
+      process_sales_order_wallet_deduction: {
+        Args: { sales_order_id: string; wallet_id: string; usdt_amount: number }
+        Returns: boolean
+      }
       reject_registration: {
         Args: { registration_id: string; reason?: string }
         Returns: boolean
       }
       sync_product_warehouse_stock: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      sync_usdt_stock: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

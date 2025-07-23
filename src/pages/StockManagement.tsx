@@ -6,7 +6,7 @@ import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab"
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
-import { WalletManagementTab } from "@/components/stock/WarehouseManagementTab";
+import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
 
 export default function StockManagement() {
   return (

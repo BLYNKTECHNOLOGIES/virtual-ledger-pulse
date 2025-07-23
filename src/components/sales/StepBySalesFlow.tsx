@@ -32,11 +32,12 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const [newClientData, setNewClientData] = useState({
     name: '',
     phone: '',
-    platform: '',
+    walletId: '',
     client_type: 'INDIVIDUAL',
     risk_appetite: 'HIGH'
   });
   const [orderAmount, setOrderAmount] = useState(0);
+  const [usdtAmount, setUsdtAmount] = useState(0);
   const [cosmosAlert, setCosmosAlert] = useState(false);
   const [paymentType, setPaymentType] = useState<'UPI' | 'Bank Transfer' | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null);
@@ -80,6 +81,21 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         .from('products')
         .select('*')
         .gt('current_stock_quantity', 0);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch wallets
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('is_active', true)
+        .order('wallet_name');
       
       if (error) throw error;
       return data;
@@ -170,20 +186,22 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     }
   });
 
-  // Create sales order mutation with proper data structure
+  // Create sales order mutation with wallet deduction
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Get the selected product to link to the order
+      // Get the selected product and wallet
       const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
+      const walletId = selectedClient?.walletId || newClientData.walletId;
       
       // Prepare the complete sales order data
       const salesOrderData = {
         order_number: finalOrderData.order_number,
         client_name: selectedClient?.name || newClientData.name,
         client_phone: selectedClient?.phone || newClientData.phone,
-        platform: finalOrderData.platform,
+        wallet_id: walletId || null,
+        usdt_amount: usdtAmount,
         product_id: selectedProduct?.id || null,
         warehouse_id: finalOrderData.warehouseId,
         quantity: finalOrderData.quantity,
@@ -214,6 +232,31 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       }
 
       console.log('Sales order created successfully:', salesOrder);
+
+      // Process wallet deduction if USDT amount is specified and wallet is selected
+      if (walletId && usdtAmount > 0) {
+        try {
+          const { error: walletError } = await supabase.rpc(
+            'process_sales_order_wallet_deduction',
+            {
+              sales_order_id: salesOrder.id,
+              wallet_id: walletId,
+              usdt_amount: usdtAmount
+            }
+          );
+
+          if (walletError) {
+            console.error('Wallet deduction error:', walletError);
+            throw new Error(`Wallet deduction failed: ${walletError.message}`);
+          }
+
+          console.log('Wallet deduction processed successfully');
+        } catch (walletError) {
+          // If wallet deduction fails, we should probably handle this more gracefully
+          console.error('Error processing wallet deduction:', walletError);
+          throw walletError;
+        }
+      }
 
       // If payment method is selected and NOT a payment gateway, credit the amount to the linked bank account
       if (selectedPaymentMethod?.bank_account_id && !selectedPaymentMethod?.payment_gateway) {
@@ -291,13 +334,15 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       console.log('Sales order creation completed successfully:', data);
       toast({ 
         title: "Success", 
-        description: "Sales order created successfully with all linked records updated" 
+        description: "Sales order created successfully with wallet deduction and all linked records updated" 
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       resetFlow();
       onOpenChange(false);
     },
@@ -305,7 +350,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       console.error('Sales order creation failed:', error);
       toast({ 
         title: "Error", 
-        description: "Failed to create sales order. Please check the details and try again.",
+        description: `Failed to create sales order: ${error.message}`,
         variant: "destructive"
       });
     }
@@ -315,7 +360,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     setCurrentStep('order-type');
     setOrderType(null);
     setSelectedClient(null);
-    setNewClientData({ name: '', phone: '', platform: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
+    setNewClientData({ name: '', phone: '', walletId: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
     setOrderAmount(0);
     setCosmosAlert(false);
     setPaymentType(null);
@@ -399,7 +444,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const handlePaymentReceived = () => {
     setFinalOrderData(prev => ({
       ...prev,
-      platform: selectedClient?.platform || newClientData.platform || ''
+      walletId: selectedClient?.walletId || newClientData.walletId || ''
     }));
     setCurrentStep('final-form');
   };
@@ -441,14 +486,18 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Get selected wallet ID
+      const walletId = selectedClient?.walletId || newClientData.walletId;
+      
       const salesOrderData = {
         order_number: finalOrderData.order_number,
         client_name: selectedClient?.name || newClientData.name,
         client_phone: selectedClient?.phone || newClientData.phone,
-        platform: selectedClient?.platform || newClientData.platform || '',
+        wallet_id: walletId || null,
         total_amount: orderAmount,
-        quantity: 1, // Default quantity for pending order
-        price_per_unit: orderAmount, // Default price per unit
+        usdt_amount: usdtAmount || orderAmount, // Default USDT amount to order amount
+        quantity: 1,
+        price_per_unit: orderAmount,
         sales_payment_method_id: paymentMethodId,
         payment_status: 'USER_PAYING',
         status: 'PENDING',
@@ -618,14 +667,24 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                     placeholder="Enter phone number"
                   />
                 </div>
-                <div>
-                  <Label>Platform</Label>
-                  <Input 
-                    value={newClientData.platform}
-                    onChange={(e) => setNewClientData(prev => ({ ...prev, platform: e.target.value }))}
-                    placeholder="Enter platform"
-                  />
-                </div>
+                 <div>
+                   <Label>Select Wallet</Label>
+                   <Select 
+                     value={newClientData.walletId}
+                     onValueChange={(value) => setNewClientData(prev => ({ ...prev, walletId: value }))}
+                   >
+                     <SelectTrigger>
+                       <SelectValue placeholder="Select a wallet" />
+                     </SelectTrigger>
+                     <SelectContent>
+                       {wallets?.map((wallet) => (
+                         <SelectItem key={wallet.id} value={wallet.id}>
+                           {wallet.wallet_name} ({wallet.current_balance.toLocaleString()} {wallet.wallet_type})
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
+                   </Select>
+                 </div>
                 <div className="p-3 bg-yellow-50 rounded-lg">
                   <p className="text-sm text-yellow-800">
                     <strong>Note:</strong> New clients automatically get HIGH risk appetite by default
@@ -635,12 +694,23 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             )}
 
             <div>
-              <Label>Order Amount</Label>
+              <Label>Order Amount (INR)</Label>
               <Input 
                 type="number"
                 value={orderAmount}
                 onChange={(e) => setOrderAmount(parseFloat(e.target.value) || 0)}
                 placeholder="Enter order amount"
+              />
+            </div>
+
+            <div>
+              <Label>USDT Amount</Label>
+              <Input 
+                type="number"
+                step="0.01"
+                value={usdtAmount}
+                onChange={(e) => setUsdtAmount(parseFloat(e.target.value) || 0)}
+                placeholder="Enter USDT amount to deduct from wallet"
               />
             </div>
 
@@ -942,14 +1012,14 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 />
               </div>
 
-              <div>
-                <Label>Platform Name</Label>
-                <Input 
-                  value={selectedClient?.platform || newClientData.platform || ''}
-                  disabled
-                  className="bg-gray-100"
-                />
-              </div>
+               <div>
+                 <Label>Wallet Address</Label>
+                 <Input 
+                   value={selectedClient?.walletId || newClientData.walletId || ''}
+                   disabled
+                   className="bg-gray-100"
+                 />
+               </div>
 
               <div>
                 <Label>Order Number</Label>

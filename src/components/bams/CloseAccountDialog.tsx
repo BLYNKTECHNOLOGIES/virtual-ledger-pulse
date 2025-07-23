@@ -90,30 +90,37 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       }
 
       // Check for foreign key references before attempting deletion
+      console.log('Checking foreign key references for account:', account.id, account.account_name);
+      
       const { data: lienCases } = await supabase
         .from('lien_cases')
         .select('id')
         .eq('bank_account_id', account.id);
+      console.log('Lien cases found:', lienCases?.length || 0);
 
       const { data: bankTransactions } = await supabase
         .from('bank_transactions')
         .select('id')
         .eq('bank_account_id', account.id);
+      console.log('Bank transactions found:', bankTransactions?.length || 0);
 
       const { data: purchaseOrders } = await supabase
         .from('purchase_orders')
         .select('id')
         .eq('bank_account_id', account.id);
+      console.log('Purchase orders found:', purchaseOrders?.length || 0);
 
       const { data: settlements } = await supabase
         .from('payment_gateway_settlements')
         .select('id')
         .eq('bank_account_id', account.id);
+      console.log('Payment gateway settlements found:', settlements?.length || 0);
 
       const { data: purchasePaymentMethods } = await supabase
         .from('purchase_payment_methods')
         .select('id')
         .eq('bank_account_name', account.account_name);
+      console.log('Purchase payment methods found:', purchasePaymentMethods?.length || 0);
 
       // Check if there are any related records
       const hasRelatedRecords = (lienCases && lienCases.length > 0) || 
@@ -121,6 +128,8 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
                                (purchaseOrders && purchaseOrders.length > 0) ||
                                (settlements && settlements.length > 0) ||
                                (purchasePaymentMethods && purchasePaymentMethods.length > 0);
+
+      console.log('Has related records:', hasRelatedRecords);
 
       if (hasRelatedRecords) {
         toast({

@@ -89,6 +89,43 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         documentUrls = await uploadDocuments(documents);
       }
 
+      // Check for foreign key references before attempting deletion
+      const { data: lienCases } = await supabase
+        .from('lien_cases')
+        .select('id')
+        .eq('bank_account_id', account.id);
+
+      const { data: bankTransactions } = await supabase
+        .from('bank_transactions')
+        .select('id')
+        .eq('bank_account_id', account.id);
+
+      const { data: purchaseOrders } = await supabase
+        .from('purchase_orders')
+        .select('id')
+        .eq('bank_account_id', account.id);
+
+      const { data: settlements } = await supabase
+        .from('payment_gateway_settlements')
+        .select('id')
+        .eq('bank_account_id', account.id);
+
+      // Check if there are any related records
+      const hasRelatedRecords = (lienCases && lienCases.length > 0) || 
+                               (bankTransactions && bankTransactions.length > 0) ||
+                               (purchaseOrders && purchaseOrders.length > 0) ||
+                               (settlements && settlements.length > 0);
+
+      if (hasRelatedRecords) {
+        toast({
+          title: "Cannot Close Account",
+          description: "This account has related transactions or records. Please resolve them first or contact admin.",
+          variant: "destructive"
+        });
+        setUploading(false);
+        return;
+      }
+
       // Insert into closed_bank_accounts table
       const { error: insertError } = await supabase
         .from('closed_bank_accounts')
@@ -105,7 +142,10 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
           closed_by: 'Current User' // You can update this to get actual user
         });
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw new Error(`Failed to create closure record: ${insertError.message}`);
+      }
 
       // Delete from bank_accounts table
       const { error: deleteError } = await supabase
@@ -113,7 +153,10 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
         .delete()
         .eq('id', account.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete error:', deleteError);
+        throw new Error(`Failed to delete bank account: ${deleteError.message}`);
+      }
 
       toast({
         title: "Success",
@@ -125,11 +168,11 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       setClosureReason('');
       setDocuments([]);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error closing account:', error);
       toast({
         title: "Error",
-        description: "Failed to close bank account",
+        description: error.message || "Failed to close bank account",
         variant: "destructive"
       });
     } finally {

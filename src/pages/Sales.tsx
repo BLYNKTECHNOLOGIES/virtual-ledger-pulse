@@ -69,7 +69,6 @@ export default function Sales() {
   const pendingOrders = salesOrders?.filter(order => 
     order.payment_status === 'PENDING' || order.payment_status === 'USER_PAYING'
   ) || [];
-  const userPayingOrders = salesOrders?.filter(order => order.payment_status === 'USER_PAYING') || [];
   const completedOrders = salesOrders?.filter(order => 
     order.payment_status === 'COMPLETED' || order.payment_status === 'PAYMENT_DONE'
   ) || [];
@@ -453,12 +452,9 @@ export default function Sales() {
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="pending">
                   Pending Orders ({pendingOrders.length})
-                </TabsTrigger>
-                <TabsTrigger value="user-paying">
-                  User Paying ({userPayingOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
                   Completed Orders ({completedOrders.length})
@@ -467,10 +463,6 @@ export default function Sales() {
               
               <TabsContent value="pending" className="mt-6">
                 {renderOrdersTable(pendingOrders)}
-              </TabsContent>
-
-              <TabsContent value="user-paying" className="mt-6">
-                {renderOrdersTable(userPayingOrders)}
               </TabsContent>
               
               <TabsContent value="completed" className="mt-6">

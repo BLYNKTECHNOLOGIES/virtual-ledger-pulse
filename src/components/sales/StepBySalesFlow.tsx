@@ -405,9 +405,10 @@ export function StepBySalesFlow({ open, onOpenChange }: StepBySalesFlowProps) {
 
   const handlePaymentStatusChange = async (status: string, paymentMethodId?: string) => {
     if (status === "USER_PAYING") {
-      // Create pending sales order
+      // Create pending sales order and close dialog
       await createPendingSalesOrder(paymentMethodId);
-      setUserPayingDialogOpen(true);
+      resetFlow();
+      onOpenChange(false);
     } else if (status === "PAYMENT_DONE") {
       // Update order to completed and proceed to final form
       if (pendingSalesOrder) {

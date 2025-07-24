@@ -45,8 +45,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
+  // Fetch wallets
+  const { data: wallets } = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
       const { data, error } = await supabase.from('warehouses').select('*');
@@ -246,18 +246,18 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             </div>
 
             <div>
-              <Label>Warehouse</Label>
+              <Label>Wallet</Label>
               <Select
                 value={formData.warehouse_id}
                 onValueChange={(value) => handleInputChange('warehouse_id', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
+                  <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
                 <SelectContent>
-                  {warehouses?.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

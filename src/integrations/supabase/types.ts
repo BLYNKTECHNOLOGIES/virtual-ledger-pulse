@@ -2950,6 +2950,7 @@ export type Database = {
       }
       wallets: {
         Row: {
+          chain_name: string | null
           created_at: string
           current_balance: number
           id: string
@@ -2962,6 +2963,7 @@ export type Database = {
           wallet_type: string
         }
         Insert: {
+          chain_name?: string | null
           created_at?: string
           current_balance?: number
           id?: string
@@ -2974,6 +2976,7 @@ export type Database = {
           wallet_type?: string
         }
         Update: {
+          chain_name?: string | null
           created_at?: string
           current_balance?: number
           id?: string

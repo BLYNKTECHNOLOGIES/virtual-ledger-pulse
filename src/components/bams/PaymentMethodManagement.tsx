@@ -73,7 +73,7 @@ export function PaymentMethodManagement() {
         .from('sales_payment_methods')
         .select(`
           *,
-          bank_accounts (
+          bank_accounts!bank_account_id (
             account_name,
             bank_name,
             account_number

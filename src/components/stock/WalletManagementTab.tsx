@@ -281,6 +281,7 @@ export function WalletManagementTab() {
                   <SelectItem value="Tron">Tron (TRX)</SelectItem>
                   <SelectItem value="Solana">Solana (SOL)</SelectItem>
                   <SelectItem value="Bitcoin">Bitcoin (BTC)</SelectItem>
+                  <SelectItem value="APTOS">APTOS (APT)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

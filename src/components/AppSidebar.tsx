@@ -1,12 +1,19 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
+import { DraggableSidebarItem } from "@/components/DraggableSidebarItem";
+import { useState } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useToast } from "@/hooks/use-toast";
 
-// Menu items with required permissions
+// Menu items with required permissions - adding id field for sortable
 const items = [{
+  id: "dashboard",
   title: "Dashboard",
   url: "/dashboard",
   icon: Home,
@@ -14,6 +21,7 @@ const items = [{
   bgColor: "bg-blue-100",
   permissions: ["dashboard_view"]
 }, {
+  id: "sales",
   title: "Sales",
   url: "/sales",
   icon: TrendingUp,
@@ -21,6 +29,7 @@ const items = [{
   bgColor: "bg-emerald-100",
   permissions: ["sales_view", "sales_manage"]
 }, {
+  id: "purchase",
   title: "Purchase",
   url: "/purchase",
   icon: ShoppingCart,
@@ -28,6 +37,7 @@ const items = [{
   bgColor: "bg-purple-100",
   permissions: ["purchase_view", "purchase_manage"]
 }, {
+  id: "bams",
   title: "BAMS",
   url: "/bams",
   icon: Building2,
@@ -35,6 +45,7 @@ const items = [{
   bgColor: "bg-orange-100",
   permissions: ["bams_view", "bams_manage"]
 }, {
+  id: "clients",
   title: "Clients",
   url: "/clients",
   icon: Users,
@@ -42,6 +53,7 @@ const items = [{
   bgColor: "bg-cyan-100",
   permissions: ["clients_view", "clients_manage"]
 }, {
+  id: "leads",
   title: "Leads",
   url: "/leads",
   icon: UserPlus,
@@ -49,6 +61,7 @@ const items = [{
   bgColor: "bg-teal-100",
   permissions: ["leads_view", "leads_manage"]
 }, {
+  id: "management",
   title: "Management",
   url: "/management",
   icon: Network,
@@ -56,6 +69,7 @@ const items = [{
   bgColor: "bg-slate-100",
   permissions: ["hrms_view", "hrms_manage", "user_management_view"]
 }, {
+  id: "user-management",
   title: "User Management",
   url: "/user-management",
   icon: Settings,
@@ -63,6 +77,7 @@ const items = [{
   bgColor: "bg-indigo-100",
   permissions: ["user_management_view", "user_management_manage"]
 }, {
+  id: "hrms",
   title: "HRMS",
   url: "/hrms",
   icon: UserCheck,
@@ -70,6 +85,7 @@ const items = [{
   bgColor: "bg-pink-100",
   permissions: ["hrms_view", "hrms_manage"]
 }, {
+  id: "payroll",
   title: "Payroll",
   url: "/payroll",
   icon: Calculator,
@@ -77,6 +93,7 @@ const items = [{
   bgColor: "bg-blue-100",
   permissions: ["payroll_view", "payroll_manage"]
 }, {
+  id: "compliance",
   title: "Compliance",
   url: "/compliance",
   icon: Scale,
@@ -84,6 +101,7 @@ const items = [{
   bgColor: "bg-red-100",
   permissions: ["compliance_view", "compliance_manage"]
 }, {
+  id: "stock",
   title: "Stock Management",
   url: "/stock",
   icon: Package,
@@ -91,6 +109,7 @@ const items = [{
   bgColor: "bg-amber-100",
   permissions: ["stock_view", "stock_manage"]
 }, {
+  id: "accounting",
   title: "Accounting",
   url: "/accounting",
   icon: BookOpen,
@@ -98,6 +117,7 @@ const items = [{
   bgColor: "bg-yellow-100",
   permissions: ["accounting_view", "accounting_manage"]
 }, {
+  id: "video-kyc",
   title: "Video KYC",
   url: "/video-kyc",
   icon: Video,
@@ -105,6 +125,7 @@ const items = [{
   bgColor: "bg-violet-100",
   permissions: ["video_kyc_view", "video_kyc_manage"]
 }, {
+  id: "kyc-approvals",
   title: "KYC Approvals",
   url: "/kyc-approvals",
   icon: Shield,
@@ -112,6 +133,7 @@ const items = [{
   bgColor: "bg-blue-100",
   permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
 }, {
+  id: "profit-loss",
   title: "P&L",
   url: "/profit-loss",
   icon: TrendingUp,
@@ -119,6 +141,7 @@ const items = [{
   bgColor: "bg-teal-100",
   permissions: ["accounting_view", "accounting_manage"]
 }, {
+  id: "financials",
   title: "Financials",
   url: "/financials",
   icon: Calculator,
@@ -126,6 +149,7 @@ const items = [{
   bgColor: "bg-emerald-100",
   permissions: ["accounting_view", "accounting_manage"]
 }, {
+  id: "ems",
   title: "EMS",
   url: "/ems",
   icon: UserCheck,
@@ -133,6 +157,7 @@ const items = [{
   bgColor: "bg-indigo-100",
   permissions: ["hrms_view", "hrms_manage"]
 }, {
+  id: "statistics",
   title: "Statistics",
   url: "/statistics",
   icon: BarChart3,
@@ -142,20 +167,67 @@ const items = [{
 }];
 
 export function AppSidebar() {
-  const {
-    state,
-    toggleSidebar
-  } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
-  const {
-    hasAnyPermission,
-    isLoading
-  } = usePermissions();
+  const { hasAnyPermission, isLoading } = usePermissions();
+  const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
+  const { toast } = useToast();
   const isCollapsed = state === "collapsed";
+  const [isDragMode, setIsDragMode] = useState(false);
+  const [localItems, setLocalItems] = useState(items);
 
-  // Filter items based on user permissions
-  const visibleItems = items.filter(item => !isLoading && hasAnyPermission(item.permissions));
-  
+  // Configure drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Filter items based on user permissions and apply saved order
+  const visibleItems = applySidebarOrder(
+    localItems.filter(item => !isLoading && hasAnyPermission(item.permissions))
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = visibleItems.findIndex(item => item.id === active.id);
+      const newIndex = visibleItems.findIndex(item => item.id === over?.id);
+      
+      const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
+      setLocalItems(prevItems => {
+        // Update the full items array with the new order
+        const visibleIds = new Set(visibleItems.map(item => item.id));
+        const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
+        return [...newOrder, ...nonVisibleItems];
+      });
+      
+      // Save to database
+      saveSidebarOrder(newOrder);
+    }
+  };
+
+  const toggleDragMode = () => {
+    if (isDragMode) {
+      toast({
+        title: "Drag Mode Disabled",
+        description: "Sidebar order has been saved. You can now navigate normally.",
+      });
+    } else {
+      toast({
+        title: "Drag Mode Enabled", 
+        description: "Drag items to reorder them. Click the edit button again to save.",
+      });
+    }
+    setIsDragMode(!isDragMode);
+  };
+
   if (isLoading) {
     return (
       <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg">
@@ -204,31 +276,52 @@ export function AppSidebar() {
       
       <SidebarContent className="bg-white">
         <SidebarGroup>
+          {!isCollapsed && (
+            <div className="px-2 py-2">
+              <Button
+                variant={isDragMode ? "default" : "outline"}
+                size="sm"
+                onClick={toggleDragMode}
+                disabled={isSaving}
+                className="w-full flex items-center gap-2 text-xs"
+              >
+                {isDragMode ? (
+                  <>
+                    <Save className="h-3 w-3" />
+                    {isSaving ? "Saving..." : "Save Order"}
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="h-3 w-3" />
+                    Customize Order
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-2 px-2">
-              {visibleItems.map(item => {
-                const isActive = location.pathname === item.url;
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild className={`
-                        hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-xl group border-2 border-transparent hover:border-gray-200 shadow-sm hover:shadow-md
-                        ${isActive ? 'bg-blue-50 text-blue-700 font-semibold shadow-md border-blue-200 transform translate-x-1' : ''}
-                      `}>
-                      <Link to={item.url} className="flex items-center gap-3 px-3 py-3">
-                        <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200`}>
-                          <item.icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
-                        </div>
-                        {!isCollapsed && (
-                          <span className="font-medium text-sm truncate transition-all duration-200">
-                            {item.title}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={visibleItems.map(item => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <SidebarMenu className="space-y-2 px-2">
+                  {visibleItems.map(item => (
+                    <DraggableSidebarItem
+                      key={item.id}
+                      item={item}
+                      isCollapsed={isCollapsed}
+                      isDragMode={isDragMode}
+                    />
+                  ))}
+                </SidebarMenu>
+              </SortableContext>
+            </DndContext>
           </SidebarGroupContent>
         </SidebarGroup>
         

@@ -190,9 +190,15 @@ export function AppSidebar() {
   );
 
   // Filter items based on user permissions and apply saved order
-  const visibleItems = applySidebarOrder(
-    localItems.filter(item => !isLoading && hasAnyPermission(item.permissions))
-  );
+  const filteredItems = localItems.filter(item => !isLoading && hasAnyPermission(item.permissions));
+  const visibleItems = applySidebarOrder(filteredItems);
+  
+  console.log('AppSidebar: Items processing', {
+    localItemsCount: localItems.length,
+    filteredItemsCount: filteredItems.length,
+    visibleItemsCount: visibleItems.length,
+    isDragMode
+  });
 
   const handleDragEnd = (event: DragEndEvent) => {
     console.log('AppSidebar: handleDragEnd called', event);
@@ -218,21 +224,30 @@ export function AppSidebar() {
           return;
         }
         
-        const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
-        console.log('AppSidebar: New order created', newOrder.map(item => item.title));
-        
-        setLocalItems(prevItems => {
-          // Update the full items array with the new order
-          const visibleIds = new Set(visibleItems.map(item => item.id));
-          const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
-          const result = [...newOrder, ...nonVisibleItems];
-          console.log('AppSidebar: Updated local items', result.map(item => item.title));
-          return result;
-        });
-        
-        // Save to database
-        console.log('AppSidebar: Calling saveSidebarOrder');
-        saveSidebarOrder(newOrder);
+        try {
+          const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
+          console.log('AppSidebar: New order created', newOrder.map(item => item.title));
+          
+          // Update local state immediately for smooth UI
+          setLocalItems(prevItems => {
+            const visibleIds = new Set(visibleItems.map(item => item.id));
+            const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
+            const result = [...newOrder, ...nonVisibleItems];
+            console.log('AppSidebar: Updated local items', result.map(item => item.title));
+            return result;
+          });
+          
+          // Save to database (this will also invalidate cache)
+          console.log('AppSidebar: Calling saveSidebarOrder');
+          saveSidebarOrder(newOrder);
+        } catch (error) {
+          console.error('AppSidebar: Error in handleDragEnd', error);
+          toast({
+            title: "Error",
+            description: "Failed to reorder sidebar items. Please try again.",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error('AppSidebar: Error in handleDragEnd', error);
         toast({

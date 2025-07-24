@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,28 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Edit, Smartphone, Building, GripVertical } from "lucide-react";
+import { Plus, Edit, Smartphone, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 interface SalesPaymentMethod {
   id: string;
@@ -54,107 +35,6 @@ interface SalesPaymentMethod {
   settlement_days?: number;
 }
 
-// Sortable Payment Method Row Component
-function SortablePaymentMethodRow({ method, onEdit }: { method: SalesPaymentMethod; onEdit: (method: SalesPaymentMethod) => void }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: method.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  const getRiskBadgeColor = (risk: string) => {
-    switch (risk) {
-      case "High Risk": return "bg-red-100 text-red-800";
-      case "Medium Risk": return "bg-yellow-100 text-yellow-800";
-      case "Low Risk": return "bg-blue-100 text-blue-800";
-      case "No Risk": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  return (
-    <TableRow ref={setNodeRef} style={style} className="hover:bg-gray-50">
-      <TableCell>
-        <div className="flex items-center gap-2">
-          <div {...attributes} {...listeners} className="cursor-grab hover:cursor-grabbing">
-            <GripVertical className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-          </div>
-          {method.type === "UPI" ? (
-            <Smartphone className="h-4 w-4" />
-          ) : (
-            <Building className="h-4 w-4" />
-          )}
-          {method.type}
-        </div>
-      </TableCell>
-      <TableCell>
-        {method.type === "UPI" ? (
-          <div className="flex flex-col">
-            <span className="font-medium">{method.upi_id}</span>
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            <span className="font-medium">Bank Transfer</span>
-            <span className="text-sm text-gray-500">
-              Direct bank account payment
-            </span>
-          </div>
-        )}
-      </TableCell>
-      <TableCell>
-        {method.bank_accounts ? (
-          <div className="flex flex-col">
-            <span className="font-medium">{method.bank_accounts.account_name}</span>
-            <span className="text-sm text-gray-500">
-              {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
-            </span>
-          </div>
-        ) : (
-          <Badge variant="destructive">No Bank Account Linked</Badge>
-        )}
-      </TableCell>
-      <TableCell>
-        <Badge className={getRiskBadgeColor(method.risk_category)}>
-          {method.risk_category}
-        </Badge>
-      </TableCell>
-      <TableCell>₹{method.payment_limit.toLocaleString()}</TableCell>
-      <TableCell>
-        <div className="flex flex-col">
-          <span>₹{method.current_usage.toLocaleString()}</span>
-          <span className="text-xs text-gray-500">
-            ({((method.current_usage / method.payment_limit) * 100).toFixed(1)}%)
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>{method.frequency}</TableCell>
-      <TableCell>
-        <Badge variant={method.is_active ? "default" : "destructive"}>
-          {method.is_active ? "Active" : "Inactive"}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onEdit(method)}
-          className="flex items-center gap-1"
-        >
-          <Edit className="h-3 w-3" />
-          Edit
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
-
 export function PaymentMethodManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -162,7 +42,6 @@ export function PaymentMethodManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<SalesPaymentMethod | null>(null);
   const [step, setStep] = useState(1);
-  const [paymentMethodsOrder, setPaymentMethodsOrder] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     type: "UPI" as "UPI" | "Bank Account",
     upi_id: "",
@@ -186,16 +65,8 @@ export function PaymentMethodManagement() {
     return "#dc2626"; // Red
   };
 
-  // Drag and drop sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
   // Fetch sales payment methods
-  const { data: fetchedPaymentMethods, isLoading } = useQuery({
+  const { data: paymentMethods, isLoading } = useQuery({
     queryKey: ['sales_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -214,40 +85,6 @@ export function PaymentMethodManagement() {
       return data as SalesPaymentMethod[];
     },
   });
-
-  // Initialize and manage payment methods order
-  const paymentMethods = fetchedPaymentMethods ? 
-    paymentMethodsOrder.length > 0 
-      ? paymentMethodsOrder
-          .map(id => fetchedPaymentMethods.find(method => method.id === id))
-          .filter(Boolean) as SalesPaymentMethod[]
-      : fetchedPaymentMethods
-    : [];
-
-  // Update order when payment methods change
-  React.useEffect(() => {
-    if (fetchedPaymentMethods && paymentMethodsOrder.length === 0) {
-      setPaymentMethodsOrder(fetchedPaymentMethods.map(method => method.id));
-    }
-  }, [fetchedPaymentMethods, paymentMethodsOrder.length]);
-
-  // Handle drag end
-  function handleDragEnd(event: any) {
-    const { active, over } = event;
-
-    if (active.id !== over.id) {
-      const oldIndex = paymentMethodsOrder.indexOf(active.id);
-      const newIndex = paymentMethodsOrder.indexOf(over.id);
-      
-      const newOrder = arrayMove(paymentMethodsOrder, oldIndex, newIndex);
-      setPaymentMethodsOrder(newOrder);
-      
-      toast({
-        title: "Order Updated",
-        description: "Payment methods have been reordered according to your preference.",
-      });
-    }
-  }
 
   // Fetch active bank accounts for dropdown
   const { data: bankAccounts } = useQuery({
@@ -933,59 +770,107 @@ export function PaymentMethodManagement() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Sales Payment Methods
-            <Badge variant="outline" className="text-xs">
-              Drag & Drop to Reorder
-            </Badge>
-          </CardTitle>
+          <CardTitle>Sales Payment Methods</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="text-center py-8">Loading payment methods...</div>
           ) : (
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Payment Details</TableHead>
-                    <TableHead>Linked Bank Account</TableHead>
-                    <TableHead>Risk Category</TableHead>
-                    <TableHead>Limit</TableHead>
-                    <TableHead>Usage</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Payment Details</TableHead>
+                  <TableHead>Linked Bank Account</TableHead>
+                  <TableHead>Risk Category</TableHead>
+                  <TableHead>Limit</TableHead>
+                  <TableHead>Usage</TableHead>
+                  <TableHead>Frequency</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentMethods?.map((method) => (
+                  <TableRow key={method.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {method.type === "UPI" ? (
+                          <Smartphone className="h-4 w-4" />
+                        ) : (
+                          <Building className="h-4 w-4" />
+                        )}
+                        {method.type}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {method.type === "UPI" ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{method.upi_id}</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col">
+                          <span className="font-medium">Bank Transfer</span>
+                          <span className="text-sm text-gray-500">
+                            Direct bank account payment
+                          </span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {method.bank_accounts ? (
+                        <div className="flex flex-col">
+                          <span className="font-medium">{method.bank_accounts.account_name}</span>
+                          <span className="text-sm text-gray-500">
+                            {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant="destructive">No Bank Account Linked</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getRiskBadgeColor(method.risk_category)}>
+                        {method.risk_category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>₹{method.payment_limit.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>₹{method.current_usage.toLocaleString()}</span>
+                        <span className="text-xs text-gray-500">
+                          ({((method.current_usage / method.payment_limit) * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{method.frequency}</TableCell>
+                    <TableCell>
+                      <Badge variant={method.is_active ? "default" : "destructive"}>
+                        {method.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(method)}
+                        className="flex items-center gap-1"
+                      >
+                        <Edit className="h-3 w-3" />
+                        Edit
+                      </Button>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <SortableContext 
-                    items={paymentMethodsOrder}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {paymentMethods?.map((method) => (
-                      <SortablePaymentMethodRow
-                        key={method.id}
-                        method={method}
-                        onEdit={handleEdit}
-                      />
-                    ))}
-                  </SortableContext>
-                  {paymentMethods?.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                        No payment methods found. Add your first payment method to get started.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </DndContext>
+                ))}
+                {paymentMethods?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                      No payment methods found. Add your first payment method to get started.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

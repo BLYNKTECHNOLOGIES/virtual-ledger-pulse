@@ -25,6 +25,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     client_phone: '',
     product_id: '',
     warehouse_id: '',
+    wallet_id: '',
     quantity: '',
     price_per_unit: '',
     total_amount: 0,
@@ -47,9 +48,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   // Fetch wallets
   const { data: wallets } = useQuery({
-    queryKey: ['warehouses'],
+    queryKey: ['wallets'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*');
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('is_active', true);
       if (error) throw error;
       return data;
     },
@@ -75,6 +79,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           client_phone: data.client_phone,
           product_id: data.product_id,
           warehouse_id: data.warehouse_id,
+          wallet_id: data.wallet_id,
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
           total_amount: data.total_amount,
@@ -141,6 +146,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         client_phone: '',
         product_id: '',
         warehouse_id: '',
+        wallet_id: '',
         quantity: '',
         price_per_unit: '',
         total_amount: 0,
@@ -248,16 +254,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <div>
               <Label>Wallet</Label>
               <Select
-                value={formData.warehouse_id}
-                onValueChange={(value) => handleInputChange('warehouse_id', value)}
+                value={formData.wallet_id}
+                onValueChange={(value) => handleInputChange('wallet_id', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.name}
+                      {wallet.wallet_name} ({wallet.wallet_type})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -309,10 +315,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'}
+                      {method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
                     </SelectItem>
                   ))}
                 </SelectContent>

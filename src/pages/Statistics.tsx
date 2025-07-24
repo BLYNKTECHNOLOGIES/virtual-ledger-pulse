@@ -6,19 +6,19 @@ export default function Statistics() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-600 via-gray-600 to-zinc-700 text-white rounded-xl mb-6">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-200 via-gray-200 to-zinc-200 text-slate-800 rounded-xl mb-6">
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-slate-700 rounded-xl shadow-lg">
-                  <BarChart3 className="h-8 w-8 text-white" />
+                <div className="p-3 bg-slate-100 rounded-xl shadow-lg">
+                  <BarChart3 className="h-8 w-8 text-slate-700" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
                     Statistics & Analytics
                   </h1>
-                  <p className="text-slate-200 text-lg">
+                  <p className="text-slate-600 text-lg">
                     Comprehensive business insights and analytics
                   </p>
                 </div>

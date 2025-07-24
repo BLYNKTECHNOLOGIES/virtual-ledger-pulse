@@ -107,7 +107,7 @@ export default function Financials() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white rounded-xl mb-6">
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-200 via-teal-200 to-cyan-200 text-slate-800 rounded-xl mb-6">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -120,7 +120,7 @@ export default function Financials() {
                   <h1 className="text-3xl font-bold tracking-tight text-white">
                     Financial Management
                   </h1>
-                  <p className="text-emerald-200 text-lg">
+                  <p className="text-slate-600 text-lg">
                     Comprehensive financial overview and management
                   </p>
                 </div>

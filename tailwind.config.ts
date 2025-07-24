@@ -67,22 +67,10 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				'metric-sales': {
-					DEFAULT: 'hsl(var(--metric-sales))',
-					foreground: 'hsl(var(--metric-sales-foreground))'
-				},
-				'metric-orders': {
-					DEFAULT: 'hsl(var(--metric-orders))',
-					foreground: 'hsl(var(--metric-orders-foreground))'
-				},
-				'metric-clients': {
-					DEFAULT: 'hsl(var(--metric-clients))',
-					foreground: 'hsl(var(--metric-clients-foreground))'
-				},
-				'metric-cash': {
-					DEFAULT: 'hsl(var(--metric-cash))',
-					foreground: 'hsl(var(--metric-cash-foreground))'
-				}
+				'metric-sales-icon': 'hsl(var(--metric-sales-icon))',
+				'metric-orders-icon': 'hsl(var(--metric-orders-icon))',
+				'metric-clients-icon': 'hsl(var(--metric-clients-icon))',
+				'metric-cash-icon': 'hsl(var(--metric-cash-icon))'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

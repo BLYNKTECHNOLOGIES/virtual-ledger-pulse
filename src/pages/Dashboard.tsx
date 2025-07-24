@@ -406,81 +406,81 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Enhanced Metrics Cards Grid with Professional Colors */}
+        {/* Enhanced Metrics Cards Grid with Blue and White Theme */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Sales Card */}
-          <Card className="bg-metric-sales border-2 border-metric-sales shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-metric-sales-foreground/70 text-sm font-medium">Total Sales</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-metric-sales-foreground">₹{(metrics?.totalSales || 0).toLocaleString()}</p>
+                  <p className="text-slate-600 text-sm font-medium">Total Sales</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">₹{(metrics?.totalSales || 0).toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-metric-sales-foreground" />
-                    <span className="text-sm font-medium text-metric-sales-foreground/70">Period: {selectedPeriod}</span>
+                    <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-medium text-slate-500">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-metric-sales-foreground/10 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <DollarSign className="h-8 w-8 text-metric-sales-foreground" />
+                <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <DollarSign className="h-8 w-8 text-metric-sales-icon" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Sales Orders Card */}
-          <Card className="bg-metric-orders border-2 border-metric-orders shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-metric-orders-foreground/70 text-sm font-medium">Sales Orders</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-metric-orders-foreground">{metrics?.totalSalesOrders || 0}</p>
+                  <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-metric-orders-foreground" />
-                    <span className="text-sm font-medium text-metric-orders-foreground/70">Period: {selectedPeriod}</span>
+                    <ArrowUpIcon className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm font-medium text-slate-500">Period: {selectedPeriod}</span>
                   </div>
                 </div>
-                <div className="bg-metric-orders-foreground/10 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <TrendingUp className="h-8 w-8 text-metric-orders-foreground" />
+                <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Total Clients Card */}
-          <Card className="bg-metric-clients border-2 border-metric-clients shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-metric-clients-foreground/70 text-sm font-medium">Total Clients</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-metric-clients-foreground">{metrics?.totalClients || 0}</p>
+                  <p className="text-slate-600 text-sm font-medium">Total Clients</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalClients || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-metric-clients-foreground" />
-                    <span className="text-sm font-medium text-metric-clients-foreground/70">Verified: {metrics?.verifiedClients || 0}</span>
+                    <ArrowUpIcon className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
                   </div>
                 </div>
-                <div className="bg-metric-clients-foreground/10 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <Users className="h-8 w-8 text-metric-clients-foreground" />
+                <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <Users className="h-8 w-8 text-metric-clients-icon" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Total Cash Card */}
-          <Card className="bg-metric-cash border-2 border-metric-cash shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0 relative z-10">
-                  <p className="text-metric-cash-foreground/70 text-sm font-medium">Total Cash</p>
-                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-metric-cash-foreground">
+                  <p className="text-slate-600 text-sm font-medium">Total Cash</p>
+                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
                     ₹{(metrics?.totalCash || 0).toLocaleString()}
                   </div>
                   <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-metric-cash-foreground" />
-                    <span className="text-sm font-medium text-metric-cash-foreground/70">Banks + Stock</span>
+                    <ArrowUpIcon className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
                   </div>
                 </div>
-                <div className="bg-metric-cash-foreground/10 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
-                  <Wallet className="h-8 w-8 text-metric-cash-foreground" />
+                <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
+                  <Wallet className="h-8 w-8 text-metric-cash-icon" />
                 </div>
               </div>
             </CardContent>

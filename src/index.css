@@ -25,15 +25,11 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     
-    /* Professional pastel colors for metrics */
-    --metric-sales: 142 76% 85%;
-    --metric-sales-foreground: 142 76% 25%;
-    --metric-orders: 262 83% 85%;
-    --metric-orders-foreground: 262 83% 25%;
-    --metric-clients: 221 83% 85%;
-    --metric-clients-foreground: 221 83% 25%;
-    --metric-cash: 35 91% 85%;
-    --metric-cash-foreground: 35 91% 25%;
+    /* Clean blue and white theme */
+    --metric-sales-icon: 142 76% 36%;
+    --metric-orders-icon: 262 83% 48%;
+    --metric-clients-icon: 221 83% 53%;
+    --metric-cash-icon: 35 91% 41%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;

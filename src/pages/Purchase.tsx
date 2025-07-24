@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Download } from "lucide-react";
+import { Plus, Download, ShoppingBag } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,26 +46,31 @@ export default function Purchase() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="min-h-screen bg-slate-50 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">🛒 Purchase Order Management</h1>
-          <p className="text-gray-600 mt-1">Manage inventory purchases and supplier orders</p>
-        </div>
-        <div className="flex gap-2">
-          <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button onClick={() => setShowPurchaseOrderDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Purchase Order
-          </Button>
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white rounded-xl mb-6">
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-violet-700 rounded-xl shadow-lg">
+                  <ShoppingBag className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Purchase Order Management
+                  </h1>
+                  <p className="text-violet-200 text-lg">
+                    Manage inventory purchases and supplier orders
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      <div className="container mx-auto max-w-7xl">
       {/* Purchase Orders Tabs */}
       <Card className="w-full">
         <CardContent className="p-6">
@@ -111,6 +116,7 @@ export default function Purchase() {
         open={showPurchaseOrderDialog} 
         onOpenChange={setShowPurchaseOrderDialog}
       />
+      </div>
     </div>
   );
 }

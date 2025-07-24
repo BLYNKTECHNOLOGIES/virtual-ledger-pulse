@@ -2,16 +2,34 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, FileText } from "lucide-react";
+import { Calculator, FileText, DollarSign } from "lucide-react";
 import { SalaryPayoutTab } from "@/components/payroll/SalaryPayoutTab";
 import { CompliancePayrollTab } from "@/components/payroll/CompliancePayrollTab";
 
 export default function Payroll() {
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Payroll Management System</h1>
-        <p className="text-gray-600 mt-2">Employee compensation and compliance management</p>
+    <div className="min-h-screen bg-slate-50 p-6">
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-amber-600 via-yellow-600 to-orange-700 text-white rounded-xl mb-6">
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-amber-700 rounded-xl shadow-lg">
+                  <DollarSign className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Payroll Management
+                  </h1>
+                  <p className="text-amber-200 text-lg">
+                    Employee salary processing and compliance
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Tabs defaultValue="salary" className="space-y-6">

@@ -12,7 +12,31 @@ import { ReportsTab } from "@/components/accounting/ReportsTab";
 
 export default function Accounting() {
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50 p-6">
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-green-600 via-emerald-600 to-teal-700 text-white rounded-xl mb-6">
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-green-700 rounded-xl shadow-lg">
+                  <Calculator className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Accounting Management
+                  </h1>
+                  <p className="text-green-200 text-lg">
+                    Comprehensive accounting and financial records
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Accounting Management System</h1>
         <p className="text-gray-600 mt-2">Complete financial management and reporting</p>
@@ -70,6 +94,7 @@ export default function Accounting() {
           <ReportsTab />
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }

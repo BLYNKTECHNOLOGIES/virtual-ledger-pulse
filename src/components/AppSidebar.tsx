@@ -10,6 +10,7 @@ import { useState } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
+import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 
 // Menu items with required permissions - adding id field for sortable
 const items = [{
@@ -172,8 +173,8 @@ export function AppSidebar() {
   const { hasAnyPermission, isLoading } = usePermissions();
   const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
   const { toast } = useToast();
+  const { isDragMode } = useSidebarEdit();
   const isCollapsed = state === "collapsed";
-  const [isDragMode, setIsDragMode] = useState(false);
   const [localItems, setLocalItems] = useState(items);
 
   // Configure drag sensors
@@ -211,21 +212,6 @@ export function AppSidebar() {
       // Save to database
       saveSidebarOrder(newOrder);
     }
-  };
-
-  const toggleDragMode = () => {
-    if (isDragMode) {
-      toast({
-        title: "Drag Mode Disabled",
-        description: "Sidebar order has been saved. You can now navigate normally.",
-      });
-    } else {
-      toast({
-        title: "Drag Mode Enabled", 
-        description: "Drag items to reorder them. Click the edit button again to save.",
-      });
-    }
-    setIsDragMode(!isDragMode);
   };
 
   if (isLoading) {
@@ -276,30 +262,6 @@ export function AppSidebar() {
       
       <SidebarContent className="bg-white">
         <SidebarGroup>
-          {!isCollapsed && (
-            <div className="px-2 py-2">
-              <Button
-                variant={isDragMode ? "default" : "outline"}
-                size="sm"
-                onClick={toggleDragMode}
-                disabled={isSaving}
-                className="w-full flex items-center gap-2 text-xs"
-              >
-                {isDragMode ? (
-                  <>
-                    <Save className="h-3 w-3" />
-                    {isSaving ? "Saving..." : "Save Order"}
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="h-3 w-3" />
-                    Customize Order
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-          
           <SidebarGroupContent>
             <DndContext
               sensors={sensors}

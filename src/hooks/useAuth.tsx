@@ -203,6 +203,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           description: `Logged in successfully as ${authenticatedUser.roles?.join(', ') || 'User'}`,
         });
         
+        // Redirect to dashboard after successful login
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
+        
         return true;
       } else {
         console.log('Authentication failed');

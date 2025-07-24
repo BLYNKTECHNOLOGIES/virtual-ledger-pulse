@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -359,7 +359,30 @@ export default function Sales() {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-slate-50 p-6">
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 text-white rounded-xl mb-6">
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-emerald-700 rounded-xl shadow-lg">
+                  <ShoppingCart className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Sales Order Processing
+                  </h1>
+                  <p className="text-emerald-200 text-lg">
+                    Comprehensive sales order management and processing
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

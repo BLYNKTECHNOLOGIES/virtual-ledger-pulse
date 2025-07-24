@@ -70,6 +70,25 @@ export default function Purchase() {
         </div>
       </div>
 
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Purchase Orders</h2>
+          <p className="text-gray-600 mt-1">Manage your purchase orders and inventory</p>
+        </div>
+        <div className="flex gap-2">
+          <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={() => setShowPurchaseOrderDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Purchase Order
+          </Button>
+        </div>
+      </div>
+
       <div className="container mx-auto max-w-7xl">
       {/* Purchase Orders Tabs */}
       <Card className="w-full">

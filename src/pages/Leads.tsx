@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Edit, Trash2, Phone, Mail } from "lucide-react";
+import { Search, Edit, Trash2, Phone, Mail, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -172,7 +172,31 @@ export default function Leads() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-screen bg-slate-50 p-6">
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white rounded-xl mb-6">
+        <div className="relative px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-blue-700 rounded-xl shadow-lg">
+                  <UserPlus className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                    Lead Management
+                  </h1>
+                  <p className="text-blue-200 text-lg">
+                    Track and manage potential customer leads
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6 p-6">
       {/* Header Controls */}
       <Card>
         <CardHeader>
@@ -423,6 +447,7 @@ export default function Leads() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

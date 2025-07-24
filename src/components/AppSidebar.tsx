@@ -195,22 +195,54 @@ export function AppSidebar() {
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
+    console.log('AppSidebar: handleDragEnd called', event);
+    
     const { active, over } = event;
 
-    if (active.id !== over?.id) {
-      const oldIndex = visibleItems.findIndex(item => item.id === active.id);
-      const newIndex = visibleItems.findIndex(item => item.id === over?.id);
+    if (!active || !over) {
+      console.log('AppSidebar: No active or over element');
+      return;
+    }
+
+    if (active.id !== over.id) {
+      console.log('AppSidebar: Items reordered', { activeId: active.id, overId: over.id });
       
-      const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
-      setLocalItems(prevItems => {
-        // Update the full items array with the new order
-        const visibleIds = new Set(visibleItems.map(item => item.id));
-        const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
-        return [...newOrder, ...nonVisibleItems];
-      });
-      
-      // Save to database
-      saveSidebarOrder(newOrder);
+      try {
+        const oldIndex = visibleItems.findIndex(item => item.id === active.id);
+        const newIndex = visibleItems.findIndex(item => item.id === over.id);
+        
+        console.log('AppSidebar: Indices found', { oldIndex, newIndex });
+        
+        if (oldIndex === -1 || newIndex === -1) {
+          console.error('AppSidebar: Could not find item indices');
+          return;
+        }
+        
+        const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
+        console.log('AppSidebar: New order created', newOrder.map(item => item.title));
+        
+        setLocalItems(prevItems => {
+          // Update the full items array with the new order
+          const visibleIds = new Set(visibleItems.map(item => item.id));
+          const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
+          const result = [...newOrder, ...nonVisibleItems];
+          console.log('AppSidebar: Updated local items', result.map(item => item.title));
+          return result;
+        });
+        
+        // Save to database
+        console.log('AppSidebar: Calling saveSidebarOrder');
+        saveSidebarOrder(newOrder);
+      } catch (error) {
+        console.error('AppSidebar: Error in handleDragEnd', error);
+        toast({
+          title: "Error",
+          description: "Failed to reorder sidebar items. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      console.log('AppSidebar: No reorder needed - same position');
     }
   };
 

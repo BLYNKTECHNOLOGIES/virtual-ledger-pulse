@@ -1,8 +1,9 @@
-import { Bell, Settings, RotateCcw, Grid3X3, Globe, Edit3, X, Save } from "lucide-react";
+import { Bell, Settings, RotateCcw, Grid3X3, Globe, Edit3, X, Save, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { UserMenu } from "@/components/UserMenu";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ export function TopHeader() {
   const navigate = useNavigate();
   const { isDragMode, setIsDragMode } = useSidebarEdit();
   const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleViewWebsite = () => {
     navigate('/website/vasp-home');
@@ -47,14 +49,26 @@ export function TopHeader() {
     setIsDragMode(!isDragMode);
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      toast({
+        title: "Search",
+        description: `Searching for: ${searchQuery}`,
+      });
+      // Here you can implement actual search functionality
+      // For now, just showing a toast
+    }
+  };
+
   return (
     <header className="h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <button 
           onClick={handleDashboardClick}
-          className="text-2xl font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer"
+          className="text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer"
         >
-          Dashboard
+          BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.
         </button>
         
         {isDragMode && (
@@ -66,13 +80,16 @@ export function TopHeader() {
       </div>
       
       <div className="flex items-center gap-4">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <input
             type="text"
             placeholder="Search or type a command (⌘ + K)"
-            className="w-96 px-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white"
           />
-        </div>
+        </form>
         
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" className="p-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-2 border-gray-200 rounded-lg">

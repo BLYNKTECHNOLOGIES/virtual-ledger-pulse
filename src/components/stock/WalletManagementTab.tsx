@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Edit, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,7 @@ interface Wallet {
   wallet_name: string;
   wallet_address: string;
   wallet_type: string;
+  chain_name?: string;
   current_balance: number;
   total_received: number;
   total_sent: number;
@@ -88,6 +89,7 @@ export function WalletManagementTab() {
       wallet_name: string;
       wallet_address: string;
       wallet_type: string;
+      chain_name: string;
       current_balance: number;
     }) => {
       const { error } = await supabase
@@ -111,28 +113,27 @@ export function WalletManagementTab() {
     }
   });
 
-  // Update wallet mutation
-  const updateWalletMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Wallet> }) => {
+  // Delete wallet mutation
+  const deleteWalletMutation = useMutation({
+    mutationFn: async (walletId: string) => {
       const { error } = await supabase
         .from('wallets')
-        .update(updates)
-        .eq('id', id);
+        .delete()
+        .eq('id', walletId);
       
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Wallet updated successfully" });
+      toast({ title: "Success", description: "Wallet deleted successfully" });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
-      setEditingWallet(null);
     },
     onError: (error) => {
       toast({ 
         title: "Error", 
-        description: "Failed to update wallet", 
+        description: "Failed to delete wallet", 
         variant: "destructive" 
       });
-      console.error('Error updating wallet:', error);
+      console.error('Error deleting wallet:', error);
     }
   });
 
@@ -187,6 +188,27 @@ export function WalletManagementTab() {
     }
   });
 
+  // Copy address to clipboard
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied", description: "Wallet address copied to clipboard" });
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to copy address", 
+        variant: "destructive" 
+      });
+    }
+  };
+
+  // Delete wallet with confirmation
+  const handleDeleteWallet = (wallet: Wallet) => {
+    if (window.confirm(`Are you sure you want to delete wallet "${wallet.wallet_name}"? This action cannot be undone.`)) {
+      deleteWalletMutation.mutate(wallet.id);
+    }
+  };
+
   // Sync USDT stock mutation
   const syncStockMutation = useMutation({
     mutationFn: async () => {
@@ -212,6 +234,7 @@ export function WalletManagementTab() {
       wallet_name: '',
       wallet_address: '',
       wallet_type: 'USDT',
+      chain_name: '',
       current_balance: 0
     });
 
@@ -246,12 +269,28 @@ export function WalletManagementTab() {
               />
             </div>
             <div>
+              <Label htmlFor="chain_name">Chain Name</Label>
+              <Select value={formData.chain_name} onValueChange={(value) => setFormData({ ...formData, chain_name: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select chain" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                  <SelectItem value="Ethereum">Ethereum (ETH)</SelectItem>
+                  <SelectItem value="Binance Smart Chain">Binance Smart Chain (BSC)</SelectItem>
+                  <SelectItem value="Polygon">Polygon (MATIC)</SelectItem>
+                  <SelectItem value="Tron">Tron (TRX)</SelectItem>
+                  <SelectItem value="Solana">Solana (SOL)</SelectItem>
+                  <SelectItem value="Bitcoin">Bitcoin (BTC)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="wallet_type">Wallet Type</Label>
               <Select value={formData.wallet_type} onValueChange={(value) => setFormData({ ...formData, wallet_type: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   <SelectItem value="USDT">USDT</SelectItem>
                   <SelectItem value="BTC">Bitcoin</SelectItem>
                   <SelectItem value="ETH">Ethereum</SelectItem>
@@ -436,6 +475,7 @@ export function WalletManagementTab() {
                 <TableRow>
                   <TableHead>Wallet Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Chain</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Total Received</TableHead>
@@ -451,8 +491,23 @@ export function WalletManagementTab() {
                     <TableCell>
                       <Badge variant="outline">{wallet.wallet_type}</Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{wallet.chain_name || "N/A"}</Badge>
+                    </TableCell>
                     <TableCell className="font-mono text-sm">
-                      {wallet.wallet_address.substring(0, 10)}...{wallet.wallet_address.substring(wallet.wallet_address.length - 6)}
+                      <div className="flex items-center gap-2">
+                        <span>
+                          {wallet.wallet_address.substring(0, 10)}...{wallet.wallet_address.substring(wallet.wallet_address.length - 6)}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => copyToClipboard(wallet.wallet_address)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                     <TableCell>{wallet.current_balance.toLocaleString()}</TableCell>
                     <TableCell>{wallet.total_received.toLocaleString()}</TableCell>
@@ -463,11 +518,14 @@ export function WalletManagementTab() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => setEditingWallet(wallet)}>
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleDeleteWallet(wallet)}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

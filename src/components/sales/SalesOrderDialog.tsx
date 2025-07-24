@@ -30,13 +30,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const [formData, setFormData] = useState({
     order_number: "",
     client_name: "",
-    platform: "",
     product_id: "",
     warehouse_id: "",
     amount: 0,
-    quantity: 1,
-    price_per_unit: 0,
+    quantity: "",
+    price_per_unit: "",
     order_date: new Date().toISOString().split('T')[0],
+    order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
     delivery_date: "",
     payment_status: "PENDING",
     sales_payment_method_id: "",
@@ -95,10 +95,18 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Combine date and time into a single datetime string
+      const orderDateTime = orderData.order_time 
+        ? `${orderData.order_date}T${orderData.order_time}:00.000Z`
+        : `${orderData.order_date}T00:00:00.000Z`;
+      
       const { data, error } = await supabase
         .from('sales_orders')
         .insert([{
           ...orderData,
+          order_date: orderDateTime,
+          quantity: parseFloat(orderData.quantity) || 0,
+          price_per_unit: parseFloat(orderData.price_per_unit) || 0,
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
           created_by: user?.id,
         }])
@@ -108,14 +116,14 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       if (error) throw error;
 
       // Create warehouse stock movement for sales (OUT movement)
-      if (orderData.product_id && orderData.warehouse_id) {
+      if (orderData.product_id && orderData.warehouse_id && orderData.quantity) {
         await supabase
           .from('warehouse_stock_movements')
           .insert({
             warehouse_id: orderData.warehouse_id,
             product_id: orderData.product_id,
             movement_type: 'OUT',
-            quantity: orderData.quantity,
+            quantity: parseFloat(orderData.quantity),
             reason: 'Sales Order',
             reference_id: data.id,
             reference_type: 'sales_order',
@@ -194,13 +202,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     setFormData({
       order_number: "",
       client_name: "",
-      platform: "",
       product_id: "",
       warehouse_id: "",
       amount: 0,
-      quantity: 1,
-      price_per_unit: 0,
+      quantity: "",
+      price_per_unit: "",
       order_date: new Date().toISOString().split('T')[0],
+      order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
       delivery_date: "",
       payment_status: "PENDING",
       sales_payment_method_id: "",
@@ -250,15 +258,25 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     setFormData(prev => ({
       ...prev,
       amount,
-      price_per_unit: prev.quantity > 0 ? amount / prev.quantity : 0
+      price_per_unit: prev.quantity && parseFloat(prev.quantity) > 0 ? (amount / parseFloat(prev.quantity)).toString() : ""
     }));
   };
 
-  const handleQuantityChange = (quantity: number) => {
+  const handleQuantityChange = (quantity: string) => {
     setFormData(prev => ({
       ...prev,
       quantity,
-      price_per_unit: quantity > 0 ? prev.amount / quantity : 0
+      price_per_unit: quantity && parseFloat(quantity) > 0 ? (prev.amount / parseFloat(quantity)).toString() : ""
+    }));
+  };
+
+  const handlePricePerUnitChange = (pricePerUnit: string) => {
+    setFormData(prev => ({
+      ...prev,
+      price_per_unit: pricePerUnit,
+      amount: pricePerUnit && prev.quantity && parseFloat(pricePerUnit) > 0 && parseFloat(prev.quantity) > 0 
+        ? parseFloat(pricePerUnit) * parseFloat(prev.quantity) 
+        : prev.amount
     }));
   };
 
@@ -310,21 +328,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="platform">Platform</Label>
-                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, platform: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select platform" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {platforms?.map((platform) => (
-                        <SelectItem key={platform.id} value={platform.name}>
-                          {platform.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div>
                   <Label htmlFor="product_id">Product</Label>
@@ -374,8 +377,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                     <Input
                       id="quantity"
                       type="number"
+                      placeholder="Enter quantity"
                       value={formData.quantity}
-                      onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
                     />
                   </div>
                 </div>
@@ -386,9 +390,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                     id="price_per_unit"
                     type="number"
                     step="0.01"
-                    value={formData.price_per_unit.toFixed(2)}
-                    readOnly
-                    className="bg-gray-100"
+                    placeholder="Enter price per unit"
+                    value={formData.price_per_unit}
+                    onChange={(e) => handlePricePerUnitChange(e.target.value)}
                   />
                 </div>
               </div>
@@ -406,14 +410,25 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                     />
                   </div>
                   <div>
-                    <Label htmlFor="delivery_date">Delivery Date</Label>
+                    <Label htmlFor="order_time">Order Time *</Label>
                     <Input
-                      id="delivery_date"
-                      type="date"
-                      value={formData.delivery_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_date: e.target.value }))}
+                      id="order_time"
+                      type="time"
+                      value={formData.order_time}
+                      onChange={(e) => setFormData(prev => ({ ...prev, order_time: e.target.value }))}
+                      required
                     />
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="delivery_date">Delivery Date</Label>
+                  <Input
+                    id="delivery_date"
+                    type="date"
+                    value={formData.delivery_date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, delivery_date: e.target.value }))}
+                  />
                 </div>
 
                 <div>

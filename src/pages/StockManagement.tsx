@@ -10,15 +10,15 @@ import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
 
 export default function StockManagement() {
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-cyan-200 via-blue-200 to-indigo-200 text-slate-800 rounded-xl mb-6">
-        <div className="relative px-6 py-8">
+      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+        <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-cyan-100 rounded-xl shadow-lg">
-                  <Package className="h-8 w-8 text-cyan-700" />
+                <div className="p-3 bg-cyan-50 rounded-xl shadow-sm">
+                  <Package className="h-8 w-8 text-cyan-600" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-slate-800">

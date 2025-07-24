@@ -296,22 +296,21 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      {/* Hero Header with Professional Gradient Background */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 text-slate-800 rounded-xl mb-6">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative px-6 py-8">
+    <div className="min-h-screen bg-gray-50 p-6">
+      {/* Clean White Header */}
+      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+        <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-secondary rounded-xl shadow-lg">
-                  <BarChart3 className="h-8 w-8 text-secondary-foreground" />
+                <div className="p-3 bg-blue-50 rounded-xl shadow-sm">
+                  <BarChart3 className="h-8 w-8 text-blue-600" />
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-slate-800">
                     Welcome to Dashboard
                   </h1>
-                  <p className="text-slate-300 text-lg">
+                  <p className="text-slate-600 text-lg">
                     Monitor your business performance in real-time
                   </p>
                 </div>
@@ -319,16 +318,16 @@ export default function Dashboard() {
               
               {/* Quick Stats in Header */}
               <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-blue-800 text-white rounded-lg px-4 py-2 border-2 border-blue-700 shadow-md">
+                <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-4 py-2 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
+                    <Calendar className="h-4 w-4 text-blue-500" />
                     <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
                   </div>
                 </div>
-                <div className="bg-emerald-700 rounded-lg px-4 py-2 border-2 border-emerald-600 shadow-md">
+                <div className="bg-white border border-green-200 rounded-lg px-4 py-2 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    <span className="text-sm font-medium">System Active</span>
+                    <Zap className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-medium text-slate-700">System Active</span>
                   </div>
                 </div>
               </div>
@@ -336,8 +335,8 @@ export default function Dashboard() {
             
             {/* Enhanced Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Period Filter with Professional Design */}
-              <div className="flex gap-1 p-1 bg-secondary rounded-lg border-2 border-border">
+              {/* Period Filter with Clean Design */}
+              <div className="flex gap-1 p-1 bg-gray-50 rounded-lg border border-gray-200">
                 {["24h", "7d", "30d", "90d"].map((period) => (
                   <Button
                     key={period}
@@ -345,8 +344,8 @@ export default function Dashboard() {
                     size="sm"
                     onClick={() => setSelectedPeriod(period)}
                     className={selectedPeriod === period ? 
-                      "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 border-2 border-primary" : 
-                      "text-secondary-foreground hover:bg-muted border-2 border-transparent"
+                      "bg-blue-600 text-white shadow-sm hover:bg-blue-700 border border-blue-600" : 
+                      "text-slate-600 hover:bg-white border border-transparent"
                     }
                   >
                     {period}
@@ -361,8 +360,8 @@ export default function Dashboard() {
                   size="sm"
                   onClick={() => setIsEditMode(!isEditMode)}
                   className={isEditMode ? 
-                    "bg-amber-600 border-2 border-amber-500 text-white hover:bg-amber-700 shadow-md" : 
-                    "bg-card border-2 border-border text-foreground hover:bg-muted shadow-md"
+                    "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
+                    "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
                   }
                 >
                   <Settings className="h-4 w-4 mr-2" />
@@ -377,7 +376,7 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
-                  className="bg-card border-2 border-border text-foreground hover:bg-muted shadow-md"
+                  className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                   {isRefreshing ? 'Refreshing...' : 'Refresh'}

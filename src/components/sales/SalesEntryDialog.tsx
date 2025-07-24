@@ -23,15 +23,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     order_number: '',
     client_name: '',
     client_phone: '',
-    platform: '',
     product_id: '',
     warehouse_id: '',
-    quantity: 1,
-    price_per_unit: 0,
+    quantity: '',
+    price_per_unit: '',
     total_amount: 0,
     sales_payment_method_id: '',
     payment_status: 'COMPLETED',
     order_date: new Date().toISOString().split('T')[0],
+    order_time: new Date().toTimeString().slice(0, 5),
     description: ''
   });
 
@@ -73,7 +73,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           order_number: data.order_number,
           client_name: data.client_name,
           client_phone: data.client_phone,
-          platform: data.platform,
           product_id: data.product_id,
           warehouse_id: data.warehouse_id,
           quantity: data.quantity,
@@ -81,7 +80,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           total_amount: data.total_amount,
           sales_payment_method_id: data.sales_payment_method_id,
           payment_status: data.payment_status,
-          order_date: data.order_date,
+          order_date: `${data.order_date}T${data.order_time}:00.000Z`,
           description: data.description
         }])
         .select()
@@ -140,15 +139,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         order_number: '',
         client_name: '',
         client_phone: '',
-        platform: '',
         product_id: '',
         warehouse_id: '',
-        quantity: 1,
-        price_per_unit: 0,
+        quantity: '',
+        price_per_unit: '',
         total_amount: 0,
         sales_payment_method_id: '',
         payment_status: 'COMPLETED',
         order_date: new Date().toISOString().split('T')[0],
+        order_time: new Date().toTimeString().slice(0, 5),
         description: ''
       });
       onOpenChange(false);
@@ -168,9 +167,23 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-calculate total amount when quantity or price changes
-      if (field === 'quantity' || field === 'price_per_unit') {
-        updated.total_amount = updated.quantity * updated.price_per_unit;
+      // Auto-calculate based on what's available
+      if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
+        const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(updated.quantity) || 0;
+        const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
+        const total = field === 'total_amount' ? parseFloat(value) || 0 : updated.total_amount;
+        
+        if (field === 'quantity' && price > 0) {
+          updated.total_amount = qty * price;
+        } else if (field === 'price_per_unit' && qty > 0) {
+          updated.total_amount = qty * price;
+        } else if (field === 'total_amount') {
+          if (qty > 0 && total > 0) {
+            updated.price_per_unit = (total / qty).toFixed(2);
+          } else if (price > 0 && total > 0) {
+            updated.quantity = (total / price).toFixed(2);
+          }
+        }
       }
       
       return updated;
@@ -212,13 +225,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
-            <div>
-              <Label>Platform</Label>
-              <Input
-                value={formData.platform}
-                onChange={(e) => handleInputChange('platform', e.target.value)}
-              />
-            </div>
 
             <div>
               <Label>Product</Label>
@@ -263,10 +269,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Input
                 type="number"
                 value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
                 required
                 min="0"
                 step="0.01"
+                placeholder="Enter quantity"
               />
             </div>
 
@@ -275,10 +282,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Input
                 type="number"
                 value={formData.price_per_unit}
-                onChange={(e) => handleInputChange('price_per_unit', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleInputChange('price_per_unit', e.target.value)}
                 required
                 min="0"
                 step="0.01"
+                placeholder="Enter price per unit"
               />
             </div>
 
@@ -335,6 +343,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 type="date"
                 value={formData.order_date}
                 onChange={(e) => handleInputChange('order_date', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label>Order Time</Label>
+              <Input
+                type="time"
+                value={formData.order_time}
+                onChange={(e) => handleInputChange('order_time', e.target.value)}
               />
             </div>
           </div>

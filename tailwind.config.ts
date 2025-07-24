@@ -66,6 +66,22 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				'metric-sales': {
+					DEFAULT: 'hsl(var(--metric-sales))',
+					foreground: 'hsl(var(--metric-sales-foreground))'
+				},
+				'metric-orders': {
+					DEFAULT: 'hsl(var(--metric-orders))',
+					foreground: 'hsl(var(--metric-orders-foreground))'
+				},
+				'metric-clients': {
+					DEFAULT: 'hsl(var(--metric-clients))',
+					foreground: 'hsl(var(--metric-clients-foreground))'
+				},
+				'metric-cash': {
+					DEFAULT: 'hsl(var(--metric-cash))',
+					foreground: 'hsl(var(--metric-cash-foreground))'
 				}
 			},
 			borderRadius: {

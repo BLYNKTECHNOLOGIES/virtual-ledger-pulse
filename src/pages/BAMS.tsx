@@ -10,8 +10,8 @@ import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone } from "lucide-
 
 export default function BAMS() {
   return (
-    <div className="w-full h-full space-y-6 px-0">
-      <div className="flex items-center justify-start px-4">
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-start">
         <div className="flex items-center gap-3">
           <CreditCard className="h-8 w-8 text-blue-600" />
           <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">BAMS</h1>

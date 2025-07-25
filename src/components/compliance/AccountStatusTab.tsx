@@ -472,20 +472,25 @@ export function AccountStatusTab() {
                 type="button" 
                 onClick={async (e) => {
                   e.preventDefault();
-                  console.log('Button clicked directly!');
+                  console.log('=== START INVESTIGATION BUTTON CLICKED ===');
+                  console.log('Current investigation data:', investigationData);
+                  console.log('Selected account:', selectedAccount);
                   
                   // Validate required fields
                   if (!investigationData.type || !investigationData.reason.trim()) {
+                    console.log('Validation failed - missing fields');
                     toast({
-                      title: "Validation Error",
+                      title: "Validation Error", 
                       description: "Please fill in all required fields (Investigation Type and Reason).",
                       variant: "destructive",
                     });
-                    return;
+                    return; // Don't close dialog on validation failure
                   }
                   
+                  console.log('Validation passed, proceeding with investigation creation...');
+                  
                   try {
-                    console.log('Creating investigation...');
+                    console.log('Inserting investigation data...');
                     const { error } = await supabase
                       .from('account_investigations')
                       .insert({
@@ -500,36 +505,42 @@ export function AccountStatusTab() {
 
                     if (error) {
                       console.error('Database error:', error);
-                      throw error;
+                      toast({
+                        title: "Error",
+                        description: error.message || "Failed to start investigation. Please try again.",
+                        variant: "destructive",
+                      });
+                      return; // Don't close dialog on error
                     }
 
                     console.log('Investigation created successfully');
-                    
-                    // Invalidate queries to refresh data immediately
-                    const queryClient = useQueryClient();
-                    await queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
-                    await queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
                     
                     toast({
                       title: "Investigation Started",
                       description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
                     });
                     
-                    // Force close dialog and reset state
-                    setShowInvestigationDialog(false);
-                    setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
-                    setSelectedAccount(null);
-                    
-                    console.log('Dialog closed');
-                    
                   } catch (error: any) {
-                    console.error('Error creating investigation:', error);
+                    console.error('Unexpected error:', error);
                     toast({
                       title: "Error",
                       description: error.message || "Failed to start investigation. Please try again.",
                       variant: "destructive",
                     });
+                    return; // Don't close dialog on error
                   }
+                  
+                  // Only close dialog if we reach here (success case)
+                  console.log('Closing dialog and resetting state...');
+                  setShowInvestigationDialog(false);
+                  setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
+                  setSelectedAccount(null);
+                  console.log('Dialog should be closed now');
+                  
+                  // Refresh data
+                  const queryClient = useQueryClient();
+                  queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+                  queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
                 }}
               >
                 Start Investigation

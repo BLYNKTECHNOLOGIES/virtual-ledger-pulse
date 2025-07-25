@@ -29,7 +29,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     total_amount: '',
     contact_number: '',
     status: 'COMPLETED',
-    deduction_bank_account_id: ''
+    deduction_bank_account_id: '',
+    credit_wallet_id: ''
   });
 
   // Fetch purchase payment methods
@@ -73,6 +74,21 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     }
   });
 
+  // Fetch active wallets
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('is_active', true)
+        .order('wallet_name');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
@@ -103,6 +119,17 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         toast({
           title: "Error",
           description: "Please fill in all required fields including product and bank account for deduction",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Validate wallet selection for USDT products
+      const selectedProduct = products?.find(p => p.id === formData.product_id);
+      if (selectedProduct?.code === 'USDT' && !formData.credit_wallet_id) {
+        toast({
+          title: "Error", 
+          description: "Please select a wallet to credit the purchased USDT",
           variant: "destructive"
         });
         return;
@@ -166,15 +193,40 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       if (fetchError) throw fetchError;
 
-      // Update product stock (increase)
-      const { error: stockError } = await supabase
-        .from('products')
-        .update({
-          current_stock_quantity: currentProduct.current_stock_quantity + parseFloat(formData.quantity)
-        })
-        .eq('id', formData.product_id);
+      // Handle stock updates based on product type
+      const productForStock = products?.find(p => p.id === formData.product_id);
+      
+      if (productForStock?.code === 'USDT' && formData.credit_wallet_id) {
+        // For USDT, credit the selected wallet instead of updating product stock directly
+        const { error: walletError } = await supabase
+          .from('wallet_transactions')
+          .insert({
+            wallet_id: formData.credit_wallet_id,
+            transaction_type: 'CREDIT',
+            amount: parseFloat(formData.quantity),
+            reference_type: 'PURCHASE_ORDER',
+            reference_id: purchaseOrder.id,
+            description: `USDT purchased via purchase order ${orderNumber}`,
+            balance_before: 0, // Will be updated by trigger
+            balance_after: 0   // Will be updated by trigger
+          });
 
-      if (stockError) throw stockError;
+        if (walletError) throw walletError;
+
+        // Sync USDT stock with wallet balances
+        const { error: syncError } = await supabase.rpc('sync_usdt_stock');
+        if (syncError) throw syncError;
+      } else {
+        // For other products, update stock normally
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({
+            current_stock_quantity: currentProduct.current_stock_quantity + parseFloat(formData.quantity)
+          })
+          .eq('id', formData.product_id);
+
+        if (stockError) throw stockError;
+      }
 
       toast({
         title: "Success",
@@ -192,7 +244,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         total_amount: '',
         contact_number: '',
         status: 'COMPLETED',
-        deduction_bank_account_id: ''
+        deduction_bank_account_id: '',
+        credit_wallet_id: ''
       });
 
       setOpen(false);
@@ -342,6 +395,28 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </SelectContent>
             </Select>
           </div>
+
+          {/* Show wallet selection for USDT products */}
+          {products?.find(p => p.id === formData.product_id)?.code === 'USDT' && (
+            <div className="space-y-2">
+              <Label htmlFor="credit_wallet_id">Credit to Wallet *</Label>
+              <Select 
+                value={formData.credit_wallet_id} 
+                onValueChange={(value) => handleInputChange('credit_wallet_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select wallet to credit purchased USDT" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name} - {wallet.wallet_type} (₹{wallet.current_balance})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="contact_number">Contact Number</Label>

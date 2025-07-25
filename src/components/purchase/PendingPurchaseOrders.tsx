@@ -149,29 +149,73 @@ export function PendingPurchaseOrders() {
       
       if (updateError) throw updateError;
 
-      // Add stock to warehouse for each order item
+      // Get order items with product details
       const { data: orderItems, error: itemsError } = await supabase
         .from('purchase_order_items')
-        .select('*')
+        .select(`
+          *,
+          products (code, name)
+        `)
         .eq('purchase_order_id', orderId);
 
       if (itemsError) throw itemsError;
 
-      // Create warehouse stock movements for each item
+      // Process each item based on product type
       for (const item of orderItems || []) {
-        const { error: movementError } = await supabase
-          .from('warehouse_stock_movements')
-          .insert({
-            product_id: item.product_id,
-            warehouse_id: item.warehouse_id,
-            movement_type: 'IN',
-            quantity: item.quantity,
-            reference_type: 'PURCHASE_ORDER',
-            reference_id: orderId,
-            reason: `Purchase Order - ${order.order_number}`
-          });
+        const product = item.products;
+        
+        if (product?.code === 'USDT') {
+          // For USDT, find an active USDT wallet and credit it
+          const { data: usdtWallets, error: walletError } = await supabase
+            .from('wallets')
+            .select('*')
+            .eq('wallet_type', 'USDT')
+            .eq('is_active', true)
+            .limit(1);
 
-        if (movementError) throw movementError;
+          if (walletError) throw walletError;
+
+          if (usdtWallets && usdtWallets.length > 0) {
+            const wallet = usdtWallets[0];
+            
+            // Credit the wallet
+            const { error: transactionError } = await supabase
+              .from('wallet_transactions')
+              .insert({
+                wallet_id: wallet.id,
+                transaction_type: 'CREDIT',
+                amount: item.quantity,
+                reference_type: 'PURCHASE_ORDER',
+                reference_id: orderId,
+                description: `USDT purchased via purchase order ${order.order_number}`,
+                balance_before: 0, // Will be updated by trigger
+                balance_after: 0   // Will be updated by trigger
+              });
+
+            if (transactionError) throw transactionError;
+          }
+        } else {
+          // For non-USDT products, create warehouse stock movements
+          const { error: movementError } = await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: item.product_id,
+              warehouse_id: item.warehouse_id,
+              movement_type: 'IN',
+              quantity: item.quantity,
+              reference_type: 'PURCHASE_ORDER',
+              reference_id: orderId,
+              reason: `Purchase Order - ${order.order_number}`
+            });
+
+          if (movementError) throw movementError;
+        }
+      }
+
+      // Sync USDT stock with wallets
+      const { error: syncError } = await supabase.rpc('sync_usdt_stock');
+      if (syncError) {
+        console.warn('USDT sync failed but order completed:', syncError);
       }
 
       // Update payment method current usage
@@ -238,6 +282,9 @@ export function PendingPurchaseOrders() {
       queryClient.invalidateQueries({ queryKey: ['warehouse_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock'] });
       queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock_cards'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       closeDialog();
     },
     onError: (error: Error) => {

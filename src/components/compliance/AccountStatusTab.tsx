@@ -21,6 +21,7 @@ export function AccountStatusTab() {
     notes: ""
   });
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
@@ -99,7 +100,6 @@ export function AccountStatusTab() {
       }
 
       // Invalidate related queries to refresh data immediately
-      const queryClient = useQueryClient();
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
 
@@ -520,41 +520,39 @@ export function AccountStatusTab() {
                       description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
                     });
                     
-                    // Optimistic update - immediately add to activeInvestigations cache
-                    const queryClient = useQueryClient();
-                    const newInvestigation = {
-                      bank_account_id: selectedAccount.id,
-                      priority: investigationData.priority,
-                      investigation_type: investigationData.type,
-                      reason: investigationData.reason,
-                      created_at: new Date().toISOString()
-                    };
-                    
-                    queryClient.setQueryData(['active_investigations'], (oldData: any) => {
-                      return oldData ? [...oldData, newInvestigation] : [newInvestigation];
-                    });
-                    
-                  } catch (error: any) {
-                    console.error('Unexpected error:', error);
-                    toast({
-                      title: "Error",
-                      description: error.message || "Failed to start investigation. Please try again.",
-                      variant: "destructive",
-                    });
-                    return; // Don't close dialog on error
-                  }
-                  
-                  // Only close dialog if we reach here (success case)
-                  console.log('Closing dialog and resetting state...');
-                  setShowInvestigationDialog(false);
-                  setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
-                  setSelectedAccount(null);
-                  console.log('Dialog should be closed now');
-                  
-                  // Refresh data
-                  const queryClient = useQueryClient();
-                  queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
-                  queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+                     // Optimistic update - immediately add to activeInvestigations cache
+                     const newInvestigation = {
+                       bank_account_id: selectedAccount.id,
+                       priority: investigationData.priority,
+                       investigation_type: investigationData.type,
+                       reason: investigationData.reason,
+                       created_at: new Date().toISOString()
+                     };
+                     
+                     queryClient.setQueryData(['active_investigations'], (oldData: any) => {
+                       return oldData ? [...oldData, newInvestigation] : [newInvestigation];
+                     });
+                     
+                   } catch (error: any) {
+                     console.error('Unexpected error:', error);
+                     toast({
+                       title: "Error",
+                       description: error.message || "Failed to start investigation. Please try again.",
+                       variant: "destructive",
+                     });
+                     return; // Don't close dialog on error
+                   }
+                   
+                   // Only close dialog if we reach here (success case)
+                   console.log('Closing dialog and resetting state...');
+                   setShowInvestigationDialog(false);
+                   setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
+                   setSelectedAccount(null);
+                   console.log('Dialog should be closed now');
+                   
+                   // Refresh data
+                   queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+                   queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
                 }}
               >
                 Start Investigation

@@ -66,7 +66,7 @@ export function PaymentMethodManagement() {
   };
 
   // Fetch sales payment methods
-  const { data: paymentMethods, isLoading } = useQuery({
+  const { data: paymentMethods, isLoading: isLoadingPaymentMethods } = useQuery({
     queryKey: ['sales_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -87,7 +87,7 @@ export function PaymentMethodManagement() {
   });
 
   // Fetch active bank accounts for dropdown
-  const { data: bankAccounts } = useQuery({
+  const { data: bankAccounts, isLoading: isLoadingBankAccounts } = useQuery({
     queryKey: ['active_bank_accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -773,7 +773,7 @@ export function PaymentMethodManagement() {
           <CardTitle>Sales Payment Methods</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {(isLoadingPaymentMethods || isLoadingBankAccounts) ? (
             <div className="text-center py-8">Loading payment methods...</div>
           ) : (
             <Table>
@@ -818,7 +818,9 @@ export function PaymentMethodManagement() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {method.bank_accounts ? (
+                      {isLoadingBankAccounts ? (
+                        <div className="text-sm text-gray-500">Loading...</div>
+                      ) : method.bank_accounts ? (
                         <div className="flex flex-col">
                           <span className="font-medium">{method.bank_accounts.account_name}</span>
                           <span className="text-sm text-gray-500">

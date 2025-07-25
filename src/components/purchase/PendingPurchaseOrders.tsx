@@ -53,15 +53,7 @@ export function PendingPurchaseOrders() {
             min_limit,
             max_limit,
             payment_limit,
-            current_usage,
-            bank_accounts:bank_account_id (
-              id,
-              account_name,
-              account_number,
-              bank_name,
-              IFSC,
-              bank_account_holder_name
-            )
+            current_usage
           )
         `)
         .eq('status', 'PENDING')
@@ -84,11 +76,9 @@ export function PendingPurchaseOrders() {
         .select(`
           id,
           type,
-          bank_account_name,
-          bank_accounts!inner(id, account_name, account_number)
+          bank_account_name
         `)
-        .eq('is_active', true)
-        .eq('type', selectedOrder.payment_method_type === 'UPI' ? 'UPI' : 'Bank Transfer');
+        .eq('is_active', true);
       
       if (error) throw error;
       return data;
@@ -111,32 +101,7 @@ export function PendingPurchaseOrders() {
         ? order.net_payable_amount 
         : order.total_amount;
 
-      // Validate bank account balance before proceeding
-      if (selectedMethod.bank_accounts?.id) {
-        try {
-          await validateBankAccountBalance(selectedMethod.bank_accounts.id, amountToDeduct);
-        } catch (error) {
-          if (error instanceof ValidationError) {
-            throw error;
-          }
-          throw new Error('Failed to validate bank account balance');
-        }
-      }
-
-      let bankBalanceData = null;
-      // Get current balance for transaction recording
-      if (selectedMethod.bank_accounts?.id) {
-        const { data: fetchedBankData, error: fetchError } = await supabase
-          .from('bank_accounts')
-          .select('balance')
-          .eq('id', selectedMethod.bank_accounts.id)
-          .single();
-        
-        if (fetchError) throw fetchError;
-        bankBalanceData = fetchedBankData;
-      }
-
-      // Update order status
+      // Update order status first
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({ 
@@ -238,35 +203,6 @@ export function PendingPurchaseOrders() {
         .eq('id', paymentMethodId);
 
       if (updateMethodError) throw updateMethodError;
-
-      if (selectedMethod.bank_accounts?.id && bankBalanceData) {
-        const newBalance = bankBalanceData.balance - amountToDeduct;
-
-        const { error: balanceError } = await supabase
-          .from('bank_accounts')
-          .update({ 
-            balance: newBalance,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', selectedMethod.bank_accounts.id);
-        
-        if (balanceError) throw balanceError;
-
-        const { error: transactionError } = await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: selectedMethod.bank_accounts.id,
-            transaction_type: 'EXPENSE',
-            amount: amountToDeduct,
-            description: `Purchase Order Payment - ${order.order_number}${order.tds_applied ? ' (After TDS)' : ''}`,
-            transaction_date: new Date().toISOString().split('T')[0],
-            reference_number: order.order_number,
-            category: 'Purchase',
-            related_account_name: order.supplier_name
-          });
-
-        if (transactionError) throw transactionError;
-      }
     },
     onSuccess: () => {
       toast({
@@ -441,10 +377,7 @@ export function PendingPurchaseOrders() {
                 <SelectContent>
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.type === 'UPI' 
-                        ? `UPI - ${method.bank_account_name}` 
-                        : `Bank Transfer - ${method.bank_accounts?.account_name} (${method.bank_accounts?.account_number})`
-                      }
+                      {method.type} - {method.bank_account_name}
                     </SelectItem>
                   ))}
                 </SelectContent>

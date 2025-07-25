@@ -615,7 +615,131 @@ export function BankingCredentialsTab() {
                       </div>
                     ))}
                   </div>
+                ) : credential.credential_type === 'Net Banking' ? (
+                  // Show all Net Banking credentials
+                  <div className="space-y-3">
+                    {credential.customer_id && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Customer ID</Label>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-mono">
+                            {showPasswords[`${credential.id}_customer_id`] ? credential.customer_id : '••••••••'}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setShowPasswords(prev => ({
+                                ...prev,
+                                [`${credential.id}_customer_id`]: !prev[`${credential.id}_customer_id`]
+                              }))}
+                            >
+                              {showPasswords[`${credential.id}_customer_id`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(credential.customer_id || '', 'Customer ID')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {credential.login_id && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Net Banking ID</Label>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-mono">
+                            {showPasswords[`${credential.id}_login_id`] ? credential.login_id : '••••••••'}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setShowPasswords(prev => ({
+                                ...prev,
+                                [`${credential.id}_login_id`]: !prev[`${credential.id}_login_id`]
+                              }))}
+                            >
+                              {showPasswords[`${credential.id}_login_id`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(credential.login_id || '', 'Net Banking ID')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {credential.password && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Password</Label>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-mono">
+                            {showPasswords[`${credential.id}_password`] ? credential.password : '••••••••'}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setShowPasswords(prev => ({
+                                ...prev,
+                                [`${credential.id}_password`]: !prev[`${credential.id}_password`]
+                              }))}
+                            >
+                              {showPasswords[`${credential.id}_password`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(credential.password || '', 'Password')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {credential.transaction_password && (
+                      <div>
+                        <Label className="text-xs text-gray-500">Transaction Password</Label>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-mono">
+                            {showPasswords[`${credential.id}_transaction_password`] ? credential.transaction_password : '••••••••'}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setShowPasswords(prev => ({
+                                ...prev,
+                                [`${credential.id}_transaction_password`]: !prev[`${credential.id}_transaction_password`]
+                              }))}
+                            >
+                              {showPasswords[`${credential.id}_transaction_password`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => copyToClipboard(credential.transaction_password || '', 'Transaction Password')}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
+                  // Show single credential for other types
                   <div>
                     <Label className="text-xs text-gray-500">
                       {credential.credential_type === 'Other' ? credential.credential_name : credential.credential_type}

@@ -254,7 +254,7 @@ export function StockTransactionsTab() {
       supplier_name: w.wallets?.wallet_name || 'Wallet Transfer',
       reference_number: `WT-${w.id.slice(0, 8)}`,
       quantity: w.amount,
-      unit_price: 1, // For USDT, 1:1 ratio
+      unit_price: w.transaction_type?.includes('TRANSFER') ? null : 1, // Nil for transfers, ₹1 for manual adjustments
       total_amount: w.amount,
       products: usdtProduct ? {
         name: usdtProduct.name,
@@ -340,7 +340,7 @@ export function StockTransactionsTab() {
                           maximumFractionDigits: 3
                         })} {entry.products?.unit_of_measurement}
                       </td>
-                      <td className="py-3 px-4">₹{entry.unit_price || 0}</td>
+                      <td className="py-3 px-4">{entry.unit_price ? `₹${entry.unit_price}` : 'Nil'}</td>
                       <td className="py-3 px-4">₹{entry.total_amount || 0}</td>
                       <td className="py-3 px-4">{entry.supplier_name || '-'}</td>
                       <td className="py-3 px-4">{entry.reference_number || '-'}</td>

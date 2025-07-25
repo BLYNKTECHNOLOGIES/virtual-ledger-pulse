@@ -291,12 +291,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
-      <SidebarHeader className="p-4 border-b-2 border-gray-100 bg-blue-600">
-        <div className="flex items-center justify-center min-h-[60px]">
+      <SidebarHeader className={`p-4 border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-center'} min-h-[60px]`}>
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
-            className="h-12 w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg"
+            className={`h-12 w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-10' : 'h-12'}`}
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-3">
@@ -348,8 +348,8 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className="p-3 border-t-2 border-gray-100 bg-gray-50">
-        <div className="flex items-center justify-between">
+      <SidebarFooter className={`p-3 border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'px-2' : 'px-3'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isCollapsed && (
             <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
               © 2025 BLYNK Virtual Technologies

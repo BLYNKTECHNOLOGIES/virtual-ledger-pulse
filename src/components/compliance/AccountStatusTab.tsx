@@ -515,6 +515,11 @@ export function AccountStatusTab() {
 
                     console.log('Investigation created successfully');
                     
+                    toast({
+                      title: "Investigation Started",
+                      description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
+                    });
+                    
                     // Optimistic update - immediately add to activeInvestigations cache
                     const queryClient = useQueryClient();
                     const newInvestigation = {
@@ -527,11 +532,6 @@ export function AccountStatusTab() {
                     
                     queryClient.setQueryData(['active_investigations'], (oldData: any) => {
                       return oldData ? [...oldData, newInvestigation] : [newInvestigation];
-                    });
-                    
-                    toast({
-                      title: "Investigation Started",
-                      description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
                     });
                     
                   } catch (error: any) {

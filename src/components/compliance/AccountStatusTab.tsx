@@ -56,6 +56,16 @@ export function AccountStatusTab() {
   const handleSubmitInvestigation = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!investigationData.type || !investigationData.reason.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Investigation Type and Reason).",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('account_investigations')
@@ -80,13 +90,15 @@ export function AccountStatusTab() {
         description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
       });
       
+      // Reset form and close dialog
       setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
       setShowInvestigationDialog(false);
       setSelectedAccount(null);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Investigation creation error:', error);
       toast({
         title: "Error",
-        description: "Failed to start investigation. Please try again.",
+        description: error.message || "Failed to start investigation. Please try again.",
         variant: "destructive",
       });
     }

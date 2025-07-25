@@ -62,9 +62,9 @@ export function WalletManagementTab() {
     },
   });
 
-  // Fetch wallet transactions
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['wallet_transactions'],
+  // Fetch wallet transactions with real-time updates
+  const { data: transactions, isLoading: transactionsLoading, refetch: refetchTransactions } = useQuery({
+    queryKey: ['wallet_transactions_live'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wallet_transactions')
@@ -81,6 +81,8 @@ export function WalletManagementTab() {
       if (error) throw error;
       return data as WalletTransaction[];
     },
+    refetchInterval: 5000, // Live updates every 5 seconds
+    staleTime: 0,
   });
 
   // Add wallet mutation

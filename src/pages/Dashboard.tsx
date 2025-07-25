@@ -167,9 +167,9 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch warehouse stock data
+  // Fetch warehouse stock data with live updates
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
-    queryKey: ['warehouse_stock_with_usdt_sync', Date.now()], // Force refresh with timestamp
+    queryKey: ['warehouse_stock_live', Date.now()], // Always fresh
     queryFn: async () => {
       console.log('🔄 Dashboard: Syncing USDT stock first...');
       

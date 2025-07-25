@@ -174,8 +174,14 @@ export function StockTransactionsTab() {
         if (error) throw error;
       }
 
-      // Sync USDT stock with wallet balances
-      await supabase.rpc('sync_usdt_stock');
+      // Sync USDT stock with wallet balances after transaction
+      console.log('🔄 StockTransactions: Syncing USDT stock after manual adjustment...');
+      const { error: syncError } = await supabase.rpc('sync_usdt_stock');
+      if (syncError) {
+        console.error('❌ StockTransactions: USDT sync failed:', syncError);
+        throw syncError;
+      }
+      console.log('✅ StockTransactions: USDT stock synced successfully');
     },
     onSuccess: () => {
       toast({

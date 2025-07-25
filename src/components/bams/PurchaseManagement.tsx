@@ -182,6 +182,36 @@ export function PurchaseManagement() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate step 3 specific fields
+    if (step === 3) {
+      if (!formData.frequency) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a reset frequency.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (formData.frequency === "Custom" && !formData.custom_frequency) {
+        toast({
+          title: "Validation Error", 
+          description: "Please enter custom frequency hours.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (formData.type === "Bank Transfer" && !formData.beneficiariesPer24h) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter beneficiaries per 24 hours.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     if (editingMethod) {
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
     } else {

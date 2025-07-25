@@ -232,6 +232,48 @@ export function PaymentMethodManagement() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate step 3 specific fields
+    if (step >= 3) {
+      if (!formData.frequency) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a reset frequency.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (formData.frequency === "Custom" && !formData.custom_frequency) {
+        toast({
+          title: "Validation Error", 
+          description: "Please enter custom frequency hours.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Validate step 4 (payment gateway) specific fields
+    if (step === 4 && formData.payment_gateway) {
+      if (!formData.settlement_cycle) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a settlement cycle.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (formData.settlement_cycle === "Custom" && !formData.settlement_days) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter settlement days.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     // Additional validation
     if (!formData.bank_account_id) {
       toast({
@@ -246,24 +288,6 @@ export function PaymentMethodManagement() {
       toast({
         title: "Validation Error",
         description: "UPI ID is required for UPI payment methods.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.payment_gateway && !formData.settlement_cycle) {
-      toast({
-        title: "Validation Error",
-        description: "Settlement cycle is required when Payment Gateway is enabled.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (formData.payment_gateway && formData.settlement_cycle === "Custom" && !formData.settlement_days) {
-      toast({
-        title: "Validation Error",
-        description: "Settlement days is required for custom settlement cycle.",
         variant: "destructive",
       });
       return;

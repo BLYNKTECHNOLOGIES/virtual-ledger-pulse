@@ -23,7 +23,7 @@ interface BankAccount {
   IFSC: string;
   branch?: string;
   balance: number;
-  status: "ACTIVE" | "INACTIVE";
+  status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
   created_at: string;
@@ -62,7 +62,7 @@ export function BankAccountManagement() {
     ifsc_code: "",
     branch: "",
     balance: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
     bank_account_holder_name: ""
   });
 
@@ -90,6 +90,49 @@ export function BankAccountManagement() {
         .order('closure_date', { ascending: false });
       if (error) throw error;
       return data as ClosedBankAccount[];
+    }
+  });
+
+  // Fetch pending approval accounts
+  const { data: pendingAccounts, isLoading: isLoadingPending } = useQuery({
+    queryKey: ['pending_approval_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'PENDING_APPROVAL')
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data as BankAccount[];
+    }
+  });
+
+  // Approve account mutation
+  const approveAccountMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { error } = await supabase
+        .from('bank_accounts')
+        .update({
+          status: 'ACTIVE',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', accountId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account Approved",
+        description: "Bank account has been approved and is now active."
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve account",
+        variant: "destructive"
+      });
     }
   });
 
@@ -187,7 +230,7 @@ export function BankAccountManagement() {
       ifsc_code: account.IFSC || "",
       branch: account.branch || "",
       balance: account.balance.toString(),
-      status: account.status,
+      status: account.status as "ACTIVE" | "INACTIVE",
       bank_account_holder_name: account.bank_account_holder_name || ""
     });
     setIsAddDialogOpen(true);
@@ -341,7 +384,7 @@ export function BankAccountManagement() {
                   <Label htmlFor="status">Account Status *</Label>
                   <Select 
                     value={formData.status} 
-                    onValueChange={(value: "ACTIVE" | "INACTIVE") => setFormData(prev => ({ ...prev, status: value }))}
+                    onValueChange={(value: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL") => setFormData(prev => ({ ...prev, status: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -369,8 +412,9 @@ export function BankAccountManagement() {
       </div>
 
       <Tabs defaultValue="working" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="working">Working Bank Accounts ({bankAccounts?.length || 0})</TabsTrigger>
+          <TabsTrigger value="pending">Pending Approval ({pendingAccounts?.length || 0})</TabsTrigger>
           <TabsTrigger value="closed">Closed Accounts ({closedAccounts?.length || 0})</TabsTrigger>
         </TabsList>
         
@@ -533,6 +577,74 @@ export function BankAccountManagement() {
                       <TableRow>
                         <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                           No closed accounts found.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <Card>
+            <CardHeader>
+              <CardTitle>Accounts Pending Officer Approval</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingPending ? (
+                <div className="text-center py-8">Loading pending accounts...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Account Name</TableHead>
+                      <TableHead>Account Holder</TableHead>
+                      <TableHead>Bank Name</TableHead>
+                      <TableHead>Account Number</TableHead>
+                      <TableHead>IFSC Code</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingAccounts?.map((account) => (
+                      <TableRow key={account.id}>
+                        <TableCell className="font-medium">{account.account_name}</TableCell>
+                        <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
+                        <TableCell>{account.bank_name}</TableCell>
+                        <TableCell>{account.account_number}</TableCell>
+                        <TableCell>{account.IFSC}</TableCell>
+                        <TableCell>{account.branch || "-"}</TableCell>
+                        <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
+                          ₹{account.balance.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="default" 
+                            size="sm" 
+                            onClick={() => approveAccountMutation.mutate(account.id)}
+                            disabled={approveAccountMutation.isPending}
+                            className="flex items-center gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                            {approveAccountMutation.isPending ? "Approving..." : "Approve Account"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {pendingAccounts?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                          No accounts pending approval.
                         </TableCell>
                       </TableRow>
                     )}

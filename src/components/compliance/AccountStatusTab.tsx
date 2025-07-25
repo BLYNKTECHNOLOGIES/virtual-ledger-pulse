@@ -35,6 +35,19 @@ export function AccountStatusTab() {
     },
   });
 
+  // Fetch active investigations
+  const { data: activeInvestigations } = useQuery({
+    queryKey: ['active_investigations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('account_investigations')
+        .select('bank_account_id')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handleStartInvestigation = (account: any) => {
     setSelectedAccount(account);
     setShowInvestigationDialog(true);
@@ -99,8 +112,11 @@ export function AccountStatusTab() {
                   variant="outline" 
                   className="mt-2"
                   onClick={() => handleStartInvestigation(account)}
+                  disabled={activeInvestigations?.some(inv => inv.bank_account_id === account.id)}
                 >
-                  Start Investigation
+                  {activeInvestigations?.some(inv => inv.bank_account_id === account.id) 
+                    ? "Under Investigation" 
+                    : "Start Investigation"}
                 </Button>
               )}
             </div>
@@ -125,7 +141,7 @@ export function AccountStatusTab() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="compliance_review">Compliance Review</SelectItem>
-                    <SelectItem value="fraud_investigation">Fraud Investigation</SelectItem>
+                    <SelectItem value="cyber_lien">Cyber Lien</SelectItem>
                     <SelectItem value="account_verification">Account Verification</SelectItem>
                     <SelectItem value="transaction_review">Transaction Review</SelectItem>
                     <SelectItem value="kyc_validation">KYC Validation</SelectItem>

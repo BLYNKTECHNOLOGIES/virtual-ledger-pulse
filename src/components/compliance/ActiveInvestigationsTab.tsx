@@ -38,23 +38,37 @@ export function ActiveInvestigationsTab() {
   });
 
   const resolveInvestigationMutation = useMutation({
-    mutationFn: async ({ id, resolutionNotes }: { id: string; resolutionNotes: string }) => {
-      const { error } = await supabase
+    mutationFn: async ({ investigation, resolutionNotes }: { investigation: any; resolutionNotes: string }) => {
+      // First resolve the investigation
+      const { error: investigationError } = await supabase
         .from('account_investigations')
         .update({
           status: 'RESOLVED',
           resolved_at: new Date().toISOString(),
           resolution_notes: resolutionNotes
         })
-        .eq('id', id);
+        .eq('id', investigation.id);
       
-      if (error) throw error;
+      if (investigationError) throw investigationError;
+
+      // Then update the bank account status to PENDING_APPROVAL
+      const { error: accountError } = await supabase
+        .from('bank_accounts')
+        .update({
+          status: 'PENDING_APPROVAL',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', investigation.bank_account_id);
+      
+      if (accountError) throw accountError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
       toast({
         title: "Investigation Resolved",
-        description: "The investigation has been successfully resolved.",
+        description: "The investigation has been resolved and account moved to pending approval.",
       });
     },
   });
@@ -163,7 +177,7 @@ export function ActiveInvestigationsTab() {
           onOpenChange={setShowDetailsDialog}
           onResolve={(resolutionNotes) => {
             resolveInvestigationMutation.mutate({
-              id: selectedInvestigation.id,
+              investigation: selectedInvestigation,
               resolutionNotes
             });
             setShowDetailsDialog(false);

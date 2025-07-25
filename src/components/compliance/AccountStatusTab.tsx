@@ -92,119 +92,184 @@ export function AccountStatusTab() {
     }
   };
 
+  // Group accounts by status
+  const groupedAccounts = {
+    underInvestigation: bankAccounts?.filter(account => 
+      activeInvestigations?.some(inv => inv.bank_account_id === account.id)
+    ) || [],
+    active: bankAccounts?.filter(account => 
+      account.status === 'ACTIVE' && 
+      !activeInvestigations?.some(inv => inv.bank_account_id === account.id)
+    ) || [],
+    inactive: bankAccounts?.filter(account => 
+      account.status !== 'ACTIVE' && 
+      !activeInvestigations?.some(inv => inv.bank_account_id === account.id)
+    ) || []
+  };
+
+  const renderAccountCard = (account: any, isUnderInvestigation = false) => (
+    <div 
+      key={account.id} 
+      className={`border rounded-lg p-4 transition-all duration-200 ${
+        isUnderInvestigation 
+          ? 'border-orange-300 bg-orange-50 shadow-md ring-1 ring-orange-200' 
+          : 'border-gray-200 bg-white hover:shadow-sm'
+      }`}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h4 className={`font-medium ${isUnderInvestigation ? 'text-orange-900' : 'text-gray-900'}`}>
+            {account.bank_name}
+          </h4>
+          <p className={`text-sm ${isUnderInvestigation ? 'text-orange-700' : 'text-gray-600'}`}>
+            {account.account_name}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={account.status === 'ACTIVE' ? 'default' : 'destructive'}>
+            {account.status}
+          </Badge>
+          {isUnderInvestigation && (
+            <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
+              Under Investigation
+            </Badge>
+          )}
+        </div>
+      </div>
+      <p className={`text-sm mb-2 ${isUnderInvestigation ? 'text-orange-800' : 'text-gray-700'}`}>
+        Balance: ₹{Number(account.balance).toLocaleString()}
+      </p>
+      {account.status !== 'ACTIVE' && !isUnderInvestigation && (
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="w-full"
+          onClick={() => handleStartInvestigation(account)}
+        >
+          Start Investigation
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderAccountGroup = (title: string, accounts: any[], iconColor: string, isUnderInvestigation = false) => {
+    if (accounts.length === 0) return null;
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <div className={`w-3 h-3 rounded-full ${iconColor}`}></div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {title} ({accounts.length})
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {accounts.map(account => renderAccountCard(account, isUnderInvestigation))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Account Status</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {bankAccounts?.map((account) => (
-            <div key={account.id} className="border rounded-lg p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-medium">{account.bank_name}</h4>
-                  <p className="text-sm text-gray-600">{account.account_name}</p>
-                </div>
-                <Badge variant={account.status === 'ACTIVE' ? 'default' : 'destructive'}>
-                  {account.status}
-                </Badge>
-              </div>
-              <p className="text-sm">Balance: ₹{Number(account.balance).toLocaleString()}</p>
-              {account.status !== 'ACTIVE' && (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="mt-2"
-                  onClick={() => handleStartInvestigation(account)}
-                  disabled={activeInvestigations?.some(inv => inv.bank_account_id === account.id)}
-                >
-                  {activeInvestigations?.some(inv => inv.bank_account_id === account.id) 
-                    ? "Under Investigation" 
-                    : "Start Investigation"}
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <Dialog open={showInvestigationDialog} onOpenChange={setShowInvestigationDialog}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Start Investigation - {selectedAccount?.account_name}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmitInvestigation} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Investigation Type *</Label>
-                <Select 
-                  value={investigationData.type} 
-                  onValueChange={(value) => setInvestigationData(prev => ({ ...prev, type: value }))}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select investigation type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="compliance_review">Compliance Review</SelectItem>
-                    <SelectItem value="cyber_lien">Cyber Lien</SelectItem>
-                    <SelectItem value="account_verification">Account Verification</SelectItem>
-                    <SelectItem value="transaction_review">Transaction Review</SelectItem>
-                    <SelectItem value="kyc_validation">KYC Validation</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select 
-                  value={investigationData.priority} 
-                  onValueChange={(value) => setInvestigationData(prev => ({ ...prev, priority: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="LOW">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Reason for Investigation *</Label>
-                <Textarea
-                  value={investigationData.reason}
-                  onChange={(e) => setInvestigationData(prev => ({ ...prev, reason: e.target.value }))}
-                  placeholder="Enter the reason for starting this investigation"
-                  rows={3}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Additional Notes</Label>
-                <Textarea
-                  value={investigationData.notes}
-                  onChange={(e) => setInvestigationData(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Enter any additional notes"
-                  rows={2}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowInvestigationDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  Start Investigation
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+      <CardContent className="space-y-8">
+        {renderAccountGroup(
+          "Under Investigation", 
+          groupedAccounts.underInvestigation, 
+          "bg-orange-500",
+          true
+        )}
+        {renderAccountGroup(
+          "Active Accounts", 
+          groupedAccounts.active, 
+          "bg-green-500"
+        )}
+        {renderAccountGroup(
+          "Inactive Accounts", 
+          groupedAccounts.inactive, 
+          "bg-red-500"
+        )}
       </CardContent>
+      
+      <Dialog open={showInvestigationDialog} onOpenChange={setShowInvestigationDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Start Investigation - {selectedAccount?.account_name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitInvestigation} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Investigation Type *</Label>
+              <Select 
+                value={investigationData.type} 
+                onValueChange={(value) => setInvestigationData(prev => ({ ...prev, type: value }))}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select investigation type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="compliance_review">Compliance Review</SelectItem>
+                  <SelectItem value="cyber_lien">Cyber Lien</SelectItem>
+                  <SelectItem value="account_verification">Account Verification</SelectItem>
+                  <SelectItem value="transaction_review">Transaction Review</SelectItem>
+                  <SelectItem value="kyc_validation">KYC Validation</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select 
+                value={investigationData.priority} 
+                onValueChange={(value) => setInvestigationData(prev => ({ ...prev, priority: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reason for Investigation *</Label>
+              <Textarea
+                value={investigationData.reason}
+                onChange={(e) => setInvestigationData(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Enter the reason for starting this investigation"
+                rows={3}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Additional Notes</Label>
+              <Textarea
+                value={investigationData.notes}
+                onChange={(e) => setInvestigationData(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Enter any additional notes"
+                rows={2}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setShowInvestigationDialog(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                Start Investigation
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

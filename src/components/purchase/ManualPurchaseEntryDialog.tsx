@@ -62,14 +62,19 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   });
 
   // Fetch products
-  const { data: products } = useQuery({
+  const { data: products, isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      console.log('🔄 ManualPurchase: Fetching products...');
       const { data, error } = await supabase
         .from('products')
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ ManualPurchase: Products fetch error:', error);
+        throw error;
+      }
+      console.log('✅ ManualPurchase: Products fetched:', data);
       return data;
     }
   });
@@ -315,12 +320,20 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <SelectTrigger>
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
-              <SelectContent className="bg-white z-50">
-                {products?.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.name} - {product.code} (Stock: {product.current_stock_quantity})
-                  </SelectItem>
-                ))}
+              <SelectContent className="bg-white z-[60] border border-gray-200 shadow-lg">
+                {productsLoading ? (
+                  <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                ) : productsError ? (
+                  <SelectItem value="error" disabled>Error loading products</SelectItem>
+                ) : !products || products.length === 0 ? (
+                  <SelectItem value="empty" disabled>No products found</SelectItem>
+                ) : (
+                  products.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} - {product.code} (Stock: {product.current_stock_quantity})
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

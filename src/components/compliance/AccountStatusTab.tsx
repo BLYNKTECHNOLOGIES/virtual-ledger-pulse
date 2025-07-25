@@ -210,14 +210,14 @@ export function AccountStatusTab() {
     return (
       <div 
         key={account.id} 
-        className="border border-blue-300 bg-blue-50 shadow-md ring-1 ring-blue-200 rounded-lg p-4 transition-all duration-200"
+        className="border border-red-300 bg-red-50 shadow-md ring-1 ring-red-200 rounded-lg p-4 transition-all duration-200"
       >
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className="font-medium text-blue-900">
+            <h4 className="font-medium text-red-900">
               {account.bank_name}
             </h4>
-            <p className="text-sm text-blue-700">
+            <p className="text-sm text-red-700">
               {account.account_name}
             </p>
           </div>
@@ -228,12 +228,12 @@ export function AccountStatusTab() {
             <Badge variant="secondary" className={priorityBadgeStyle}>
               {priority} Priority
             </Badge>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+            <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
               Under Investigation
             </Badge>
           </div>
         </div>
-        <p className="text-sm mb-2 text-blue-800">
+        <p className="text-sm mb-2 text-red-800">
           Balance: ₹{Number(account.balance).toLocaleString()}
         </p>
       </div>
@@ -320,9 +320,9 @@ export function AccountStatusTab() {
         {groupedAccounts.underInvestigation.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
               <h3 className="text-lg font-semibold text-gray-900">
-                🔍 Under Investigation ({groupedAccounts.underInvestigation.length})
+                🚨 Under Investigation ({groupedAccounts.underInvestigation.length})
               </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

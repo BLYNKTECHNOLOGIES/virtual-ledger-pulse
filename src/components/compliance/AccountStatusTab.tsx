@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,6 +69,11 @@ export function AccountStatusTab() {
         });
 
       if (error) throw error;
+
+      // Invalidate related queries to refresh data immediately
+      const queryClient = useQueryClient();
+      queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
 
       toast({
         title: "Investigation Started",

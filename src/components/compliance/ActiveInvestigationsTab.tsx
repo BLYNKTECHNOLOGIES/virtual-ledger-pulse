@@ -115,6 +115,48 @@ export function ActiveInvestigationsTab() {
     }
   };
 
+  // Function to get priority-specific card styling
+  const getPriorityCardStyle = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return 'border-red-300 bg-red-50 shadow-md ring-1 ring-red-200';
+      case 'MEDIUM':
+        return 'border-orange-300 bg-orange-50 shadow-md ring-1 ring-orange-200';
+      case 'LOW':
+        return 'border-green-300 bg-green-50 shadow-md ring-1 ring-green-200';
+      default:
+        return 'border-gray-300 bg-gray-50 shadow-md ring-1 ring-gray-200';
+    }
+  };
+
+  // Function to get priority text colors
+  const getPriorityTextColor = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return { title: 'text-red-900', subtitle: 'text-red-700', balance: 'text-red-800' };
+      case 'MEDIUM':
+        return { title: 'text-orange-900', subtitle: 'text-orange-700', balance: 'text-orange-800' };
+      case 'LOW':
+        return { title: 'text-green-900', subtitle: 'text-green-700', balance: 'text-green-800' };
+      default:
+        return { title: 'text-gray-900', subtitle: 'text-gray-700', balance: 'text-gray-800' };
+    }
+  };
+
+  // Function to get priority badge styling
+  const getPriorityBadgeStyle = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'MEDIUM':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'LOW':
+        return 'bg-green-100 text-green-800 border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -180,20 +222,27 @@ export function ActiveInvestigationsTab() {
           </h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {investigations.map((investigation) => (
-            <Card key={investigation.id} className="border border-gray-200">
-              <CardContent className="p-4">
+          {investigations.map((investigation) => {
+            const cardStyle = getPriorityCardStyle(investigation.priority);
+            const textColors = getPriorityTextColor(investigation.priority);
+            const badgeStyle = getPriorityBadgeStyle(investigation.priority);
+            
+            return (
+              <div 
+                key={investigation.id} 
+                className={`border rounded-lg p-4 transition-all duration-200 ${cardStyle}`}
+              >
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h4 className="font-medium text-gray-900 mb-1">
+                    <h4 className={`font-medium mb-1 ${textColors.title}`}>
                       {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
                     </h4>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className={`text-sm mb-2 ${textColors.subtitle}`}>
                       {investigation.bank_accounts?.account_name || 'Unknown Account'}
                     </p>
                     <Badge 
-                      variant={getPriorityColor(investigation.priority)}
-                      className="flex items-center gap-1 w-fit"
+                      variant="secondary"
+                      className={`flex items-center gap-1 w-fit ${badgeStyle}`}
                     >
                       {getPriorityIcon(investigation.priority)}
                       {investigation.priority}
@@ -203,22 +252,22 @@ export function ActiveInvestigationsTab() {
                 
                 <div className="space-y-2 mb-4">
                   <div>
-                    <span className="text-xs font-medium text-gray-500">Type:</span>
-                    <p className="text-sm text-gray-900">{investigation.investigation_type || 'N/A'}</p>
+                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Type:</span>
+                    <p className={`text-sm ${textColors.title}`}>{investigation.investigation_type || 'N/A'}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500">Reason:</span>
-                    <p className="text-sm text-gray-900 line-clamp-2">{investigation.reason || 'No reason provided'}</p>
+                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Reason:</span>
+                    <p className={`text-sm line-clamp-2 ${textColors.title}`}>{investigation.reason || 'No reason provided'}</p>
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500">Started:</span>
-                    <p className="text-sm text-gray-900">
+                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Started:</span>
+                    <p className={`text-sm ${textColors.title}`}>
                       {investigation.created_at ? formatDate(investigation.created_at) : 'Unknown'}
                     </p>
                   </div>
                   {investigation.resolution_notes && (
                     <div>
-                      <span className="text-xs font-medium text-gray-500">Status:</span>
+                      <span className={`text-xs font-medium ${textColors.subtitle}`}>Status:</span>
                       <Badge variant="secondary" className="ml-1 bg-orange-100 text-orange-800">
                         Pending Banking Officer Approval
                       </Badge>
@@ -229,15 +278,21 @@ export function ActiveInvestigationsTab() {
                 <Button 
                   size="sm" 
                   variant="outline" 
-                  className="w-full"
+                  className={`w-full border-current ${
+                    investigation.priority === 'HIGH' 
+                      ? 'border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400' 
+                      : investigation.priority === 'MEDIUM'
+                      ? 'border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400'
+                      : 'border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400'
+                  }`}
                   onClick={() => handleViewDetails(investigation)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Details
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     );

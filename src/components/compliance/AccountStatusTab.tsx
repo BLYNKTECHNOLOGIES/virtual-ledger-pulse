@@ -404,7 +404,7 @@ export function AccountStatusTab() {
           <DialogHeader>
             <DialogTitle>Start Investigation - {selectedAccount?.account_name}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmitInvestigation} className="space-y-4" id="investigation-form">
+          <div className="space-y-4">{/* Removed form wrapper */}
             <div className="space-y-2">
               <Label>Investigation Type *</Label>
               <Select 
@@ -535,7 +535,7 @@ export function AccountStatusTab() {
                 Start Investigation
               </Button>
             </div>
-          </form>
+          </div>{/* Closed div instead of form */}
         </DialogContent>
       </Dialog>
     </Card>

@@ -43,15 +43,35 @@ export function AccountStatusTab() {
   const handleSubmitInvestigation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Here you would typically save the investigation to a database table
-    toast({
-      title: "Investigation Started",
-      description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
-    });
-    
-    setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
-    setShowInvestigationDialog(false);
-    setSelectedAccount(null);
+    try {
+      const { error } = await supabase
+        .from('account_investigations')
+        .insert({
+          bank_account_id: selectedAccount.id,
+          investigation_type: investigationData.type,
+          reason: investigationData.reason,
+          priority: investigationData.priority,
+          notes: investigationData.notes,
+          assigned_to: 'Current User' // In real app, get from auth
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Investigation Started",
+        description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
+      });
+      
+      setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
+      setShowInvestigationDialog(false);
+      setSelectedAccount(null);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start investigation. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

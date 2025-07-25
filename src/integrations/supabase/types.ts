@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_investigations: {
+        Row: {
+          assigned_to: string | null
+          bank_account_id: string
+          created_at: string
+          id: string
+          investigation_type: string
+          notes: string | null
+          priority: string
+          reason: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          bank_account_id: string
+          created_at?: string
+          id?: string
+          investigation_type: string
+          notes?: string | null
+          priority?: string
+          reason: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          bank_account_id?: string
+          created_at?: string
+          id?: string
+          investigation_type?: string
+          notes?: string | null
+          priority?: string
+          reason?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_investigations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           account_name: string
@@ -723,6 +776,91 @@ export type Database = {
             columns: ["applicant_id"]
             isOneToOne: false
             referencedRelation: "job_applicants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investigation_steps: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          id: string
+          investigation_id: string
+          notes: string | null
+          status: string
+          step_description: string | null
+          step_number: number
+          step_title: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          investigation_id: string
+          notes?: string | null
+          status?: string
+          step_description?: string | null
+          step_number: number
+          step_title: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          investigation_id?: string
+          notes?: string | null
+          status?: string
+          step_description?: string | null
+          step_number?: number
+          step_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_steps_investigation_id_fkey"
+            columns: ["investigation_id"]
+            isOneToOne: false
+            referencedRelation: "account_investigations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      investigation_updates: {
+        Row: {
+          attachment_urls: string[] | null
+          created_at: string
+          created_by: string | null
+          id: string
+          investigation_id: string
+          update_text: string
+          update_type: string
+        }
+        Insert: {
+          attachment_urls?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          investigation_id: string
+          update_text: string
+          update_type?: string
+        }
+        Update: {
+          attachment_urls?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          investigation_id?: string
+          update_text?: string
+          update_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_updates_investigation_id_fkey"
+            columns: ["investigation_id"]
+            isOneToOne: false
+            referencedRelation: "account_investigations"
             referencedColumns: ["id"]
           },
         ]

@@ -49,6 +49,20 @@ export function AccountStatusTab() {
     },
   });
 
+  // Fetch completed investigations
+  const { data: completedInvestigations } = useQuery({
+    queryKey: ['completed_investigations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('account_investigations')
+        .select('*, bank_accounts(bank_name, account_name)')
+        .eq('status', 'COMPLETED')
+        .order('resolved_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const handleStartInvestigation = (account: any) => {
     setSelectedAccount(account);
     setShowInvestigationDialog(true);
@@ -132,7 +146,7 @@ export function AccountStatusTab() {
     }
   };
 
-  // Group accounts by status and investigations by priority
+  // Group accounts by status
   const groupedAccounts = {
     underInvestigation: bankAccounts?.filter(account => 
       activeInvestigations?.some(inv => inv.bank_account_id === account.id)
@@ -145,22 +159,6 @@ export function AccountStatusTab() {
       account.status !== 'ACTIVE' && 
       !activeInvestigations?.some(inv => inv.bank_account_id === account.id)
     ) || []
-  };
-
-  // Group investigations by priority
-  const groupedInvestigations = {
-    high: groupedAccounts.underInvestigation.filter(account => {
-      const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
-      return investigation?.priority === 'HIGH';
-    }),
-    medium: groupedAccounts.underInvestigation.filter(account => {
-      const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
-      return investigation?.priority === 'MEDIUM';
-    }),
-    low: groupedAccounts.underInvestigation.filter(account => {
-      const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
-      return investigation?.priority === 'LOW';
-    })
   };
 
   // Function to get priority badge styling
@@ -331,53 +329,17 @@ export function AccountStatusTab() {
         <CardTitle>Account Status</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8">
-        {/* High Priority Investigations */}
-        {groupedInvestigations.high.length > 0 && (
+        {/* Under Investigation Section */}
+        {groupedAccounts.underInvestigation.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
               <h3 className="text-lg font-semibold text-gray-900">
-                🚨 High Priority Investigations ({groupedInvestigations.high.length})
+                🔍 Under Investigation ({groupedAccounts.underInvestigation.length})
               </h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedInvestigations.high.map(account => {
-                const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
-                return renderInvestigationCard(account, investigation);
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Medium Priority Investigations */}
-        {groupedInvestigations.medium.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                ⚠️ Medium Priority Investigations ({groupedInvestigations.medium.length})
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedInvestigations.medium.map(account => {
-                const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
-                return renderInvestigationCard(account, investigation);
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Low Priority Investigations */}
-        {groupedInvestigations.low.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                ℹ️ Low Priority Investigations ({groupedInvestigations.low.length})
-              </h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {groupedInvestigations.low.map(account => {
+              {groupedAccounts.underInvestigation.map(account => {
                 const investigation = activeInvestigations?.find(inv => inv.bank_account_id === account.id);
                 return renderInvestigationCard(account, investigation);
               })}
@@ -390,12 +352,60 @@ export function AccountStatusTab() {
           groupedAccounts.active, 
           "bg-green-500"
         )}
+        
         {renderAccountGroup(
           "Inactive Accounts", 
           groupedAccounts.inactive, 
           "bg-red-500",
           false,
           true
+        )}
+
+        {/* Past Cases Section */}
+        {completedInvestigations && completedInvestigations.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                📋 Past Cases ({completedInvestigations.length})
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {completedInvestigations.map(investigation => (
+                <div 
+                  key={investigation.id}
+                  className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-medium text-gray-900">
+                        {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        {investigation.bank_accounts?.account_name || 'Unknown Account'}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="secondary" className="bg-gray-100 text-gray-800 border-gray-200">
+                        COMPLETED
+                      </Badge>
+                      <Badge variant="secondary" className={getPriorityBadgeStyle(investigation.priority)}>
+                        {investigation.priority} Priority
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-xs space-y-1 text-gray-700">
+                    <p><span className="font-medium">Type:</span> {investigation.investigation_type?.replace('_', ' ')}</p>
+                    <p><span className="font-medium">Reason:</span> {investigation.reason}</p>
+                    <p><span className="font-medium">Resolved:</span> {investigation.resolved_at ? new Date(investigation.resolved_at).toLocaleDateString() : 'N/A'}</p>
+                    {investigation.resolution_notes && (
+                      <p><span className="font-medium">Resolution:</span> {investigation.resolution_notes}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </CardContent>
       

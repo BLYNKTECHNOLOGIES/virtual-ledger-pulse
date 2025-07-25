@@ -110,22 +110,35 @@ export function BankAccountManagement() {
   // Approve account mutation
   const approveAccountMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const { error } = await supabase
+      // Update account status to ACTIVE
+      const { error: accountError } = await supabase
         .from('bank_accounts')
         .update({
           status: 'ACTIVE',
           updated_at: new Date().toISOString()
         })
         .eq('id', accountId);
-      if (error) throw error;
+      if (accountError) throw accountError;
+
+      // Also resolve any related investigations
+      const { error: investigationError } = await supabase
+        .from('account_investigations')
+        .update({
+          status: 'RESOLVED',
+          resolved_at: new Date().toISOString()
+        })
+        .eq('bank_account_id', accountId)
+        .eq('status', 'ACTIVE');
+      if (investigationError) throw investigationError;
     },
     onSuccess: () => {
       toast({
         title: "Account Approved",
-        description: "Bank account has been approved and is now active."
+        description: "Bank account has been approved and is now active. Related investigations have been resolved."
       });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
     },
     onError: (error: any) => {
       toast({

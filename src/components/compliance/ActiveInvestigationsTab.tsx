@@ -39,19 +39,18 @@ export function ActiveInvestigationsTab() {
 
   const resolveInvestigationMutation = useMutation({
     mutationFn: async ({ investigation, resolutionNotes }: { investigation: any; resolutionNotes: string }) => {
-      // First resolve the investigation
+      // Update the investigation with resolution notes but keep it ACTIVE until banking officer approval
       const { error: investigationError } = await supabase
         .from('account_investigations')
         .update({
-          status: 'RESOLVED',
-          resolved_at: new Date().toISOString(),
-          resolution_notes: resolutionNotes
+          resolution_notes: resolutionNotes,
+          updated_at: new Date().toISOString()
         })
         .eq('id', investigation.id);
       
       if (investigationError) throw investigationError;
 
-      // Then update the bank account status to PENDING_APPROVAL
+      // Update the bank account status to PENDING_APPROVAL
       const { error: accountError } = await supabase
         .from('bank_accounts')
         .update({
@@ -67,8 +66,8 @@ export function ActiveInvestigationsTab() {
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
       toast({
-        title: "Investigation Resolved",
-        description: "The investigation has been resolved and account moved to pending approval.",
+        title: "Investigation Completed",
+        description: "Investigation completed and account moved to pending banking officer approval.",
       });
     },
   });
@@ -150,6 +149,14 @@ export function ActiveInvestigationsTab() {
                           {new Date(investigation.created_at).toLocaleDateString()}
                         </p>
                       </div>
+                      {investigation.resolution_notes && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">Status:</span>
+                          <Badge variant="secondary" className="ml-1 bg-orange-100 text-orange-800">
+                            Pending Banking Officer Approval
+                          </Badge>
+                        </div>
+                      )}
                     </div>
 
                     <Button 

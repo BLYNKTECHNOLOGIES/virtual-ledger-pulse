@@ -161,6 +161,88 @@ export function ActiveInvestigationsTab() {
     );
   }
 
+  // Group investigations by priority
+  const groupedInvestigations = {
+    high: investigations?.filter(inv => inv.priority === 'HIGH') || [],
+    medium: investigations?.filter(inv => inv.priority === 'MEDIUM') || [],
+    low: investigations?.filter(inv => inv.priority === 'LOW') || []
+  };
+
+  const renderInvestigationSection = (title: string, investigations: any[], priority: string, iconColor: string) => {
+    if (investigations.length === 0) return null;
+
+    return (
+      <div className="space-y-4 mb-8">
+        <div className="flex items-center gap-2 pb-2 border-b">
+          <div className={`w-3 h-3 rounded-full ${iconColor}`}></div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            {title} ({investigations.length})
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {investigations.map((investigation) => (
+            <Card key={investigation.id} className="border border-gray-200">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-gray-900 mb-1">
+                      {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {investigation.bank_accounts?.account_name || 'Unknown Account'}
+                    </p>
+                    <Badge 
+                      variant={getPriorityColor(investigation.priority)}
+                      className="flex items-center gap-1 w-fit"
+                    >
+                      {getPriorityIcon(investigation.priority)}
+                      {investigation.priority}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 mb-4">
+                  <div>
+                    <span className="text-xs font-medium text-gray-500">Type:</span>
+                    <p className="text-sm text-gray-900">{investigation.investigation_type || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500">Reason:</span>
+                    <p className="text-sm text-gray-900 line-clamp-2">{investigation.reason || 'No reason provided'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500">Started:</span>
+                    <p className="text-sm text-gray-900">
+                      {investigation.created_at ? formatDate(investigation.created_at) : 'Unknown'}
+                    </p>
+                  </div>
+                  {investigation.resolution_notes && (
+                    <div>
+                      <span className="text-xs font-medium text-gray-500">Status:</span>
+                      <Badge variant="secondary" className="ml-1 bg-orange-100 text-orange-800">
+                        Pending Banking Officer Approval
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => handleViewDetails(investigation)}
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Details
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -178,65 +260,25 @@ export function ActiveInvestigationsTab() {
               <p>All account investigations have been resolved.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {investigations.map((investigation) => (
-                <Card key={investigation.id} className="border border-gray-200">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 mb-1">
-                          {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-2">
-                          {investigation.bank_accounts?.account_name || 'Unknown Account'}
-                        </p>
-                        <Badge 
-                          variant={getPriorityColor(investigation.priority)}
-                          className="flex items-center gap-1 w-fit"
-                        >
-                          {getPriorityIcon(investigation.priority)}
-                          {investigation.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500">Type:</span>
-                        <p className="text-sm text-gray-900">{investigation.investigation_type || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500">Reason:</span>
-                        <p className="text-sm text-gray-900 line-clamp-2">{investigation.reason || 'No reason provided'}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500">Started:</span>
-                        <p className="text-sm text-gray-900">
-                          {investigation.created_at ? formatDate(investigation.created_at) : 'Unknown'}
-                        </p>
-                      </div>
-                      {investigation.resolution_notes && (
-                        <div>
-                          <span className="text-xs font-medium text-gray-500">Status:</span>
-                          <Badge variant="secondary" className="ml-1 bg-orange-100 text-orange-800">
-                            Pending Banking Officer Approval
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => handleViewDetails(investigation)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Details
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-8">
+              {renderInvestigationSection(
+                "🚨 High Priority Investigations", 
+                groupedInvestigations.high, 
+                "HIGH", 
+                "bg-red-500"
+              )}
+              {renderInvestigationSection(
+                "⚠️ Medium Priority Investigations", 
+                groupedInvestigations.medium, 
+                "MEDIUM", 
+                "bg-orange-500"
+              )}
+              {renderInvestigationSection(
+                "ℹ️ Low Priority Investigations", 
+                groupedInvestigations.low, 
+                "LOW", 
+                "bg-green-500"
+              )}
             </div>
           )}
         </CardContent>

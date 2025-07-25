@@ -152,15 +152,26 @@ export function StepCompletionDialog({
 
           <div>
             <Label htmlFor="completion-report">Completion Report (Optional)</Label>
-            <div className="mt-2">
-              <Input
-                id="completion-report"
-                type="file"
-                onChange={handleFileChange}
-                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-              />
-              <p className="text-xs text-gray-500 mt-1">
+            <div className="mt-2 space-y-2">
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById('completion-report')?.click()}
+                  className="w-full justify-start text-left"
+                  type="button"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {uploadedFile ? uploadedFile.name : "Choose File"}
+                </Button>
+                <Input
+                  id="completion-report"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
                 Upload PDF, Word document, text file, or image (max 10MB)
               </p>
             </div>

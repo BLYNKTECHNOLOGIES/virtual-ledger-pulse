@@ -147,21 +147,35 @@ export function AccountStatusTab() {
     ) || []
   };
 
-  const renderAccountCard = (account: any, isUnderInvestigation = false) => (
+  const renderAccountCard = (account: any, isUnderInvestigation = false, isInactive = false) => (
     <div 
       key={account.id} 
       className={`border rounded-lg p-4 transition-all duration-200 ${
         isUnderInvestigation 
           ? 'border-orange-300 bg-orange-50 shadow-md ring-1 ring-orange-200' 
+          : isInactive
+          ? 'border-red-200 bg-red-50 hover:shadow-sm hover:bg-red-55'
           : 'border-gray-200 bg-white hover:shadow-sm'
       }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div>
-          <h4 className={`font-medium ${isUnderInvestigation ? 'text-orange-900' : 'text-gray-900'}`}>
+          <h4 className={`font-medium ${
+            isUnderInvestigation 
+              ? 'text-orange-900' 
+              : isInactive 
+              ? 'text-red-900' 
+              : 'text-gray-900'
+          }`}>
             {account.bank_name}
           </h4>
-          <p className={`text-sm ${isUnderInvestigation ? 'text-orange-700' : 'text-gray-600'}`}>
+          <p className={`text-sm ${
+            isUnderInvestigation 
+              ? 'text-orange-700' 
+              : isInactive 
+              ? 'text-red-700' 
+              : 'text-gray-600'
+          }`}>
             {account.account_name}
           </p>
         </div>
@@ -176,14 +190,20 @@ export function AccountStatusTab() {
           )}
         </div>
       </div>
-      <p className={`text-sm mb-2 ${isUnderInvestigation ? 'text-orange-800' : 'text-gray-700'}`}>
+      <p className={`text-sm mb-2 ${
+        isUnderInvestigation 
+          ? 'text-orange-800' 
+          : isInactive 
+          ? 'text-red-800' 
+          : 'text-gray-700'
+      }`}>
         Balance: ₹{Number(account.balance).toLocaleString()}
       </p>
       {account.status !== 'ACTIVE' && !isUnderInvestigation && (
         <Button 
           size="sm" 
           variant="outline" 
-          className="w-full"
+          className="w-full border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400"
           onClick={() => handleStartInvestigation(account)}
         >
           Start Investigation
@@ -192,7 +212,7 @@ export function AccountStatusTab() {
     </div>
   );
 
-  const renderAccountGroup = (title: string, accounts: any[], iconColor: string, isUnderInvestigation = false) => {
+  const renderAccountGroup = (title: string, accounts: any[], iconColor: string, isUnderInvestigation = false, isInactive = false) => {
     if (accounts.length === 0) return null;
     
     return (
@@ -204,7 +224,7 @@ export function AccountStatusTab() {
           </h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {accounts.map(account => renderAccountCard(account, isUnderInvestigation))}
+          {accounts.map(account => renderAccountCard(account, isUnderInvestigation, isInactive))}
         </div>
       </div>
     );
@@ -230,7 +250,9 @@ export function AccountStatusTab() {
         {renderAccountGroup(
           "Inactive Accounts", 
           groupedAccounts.inactive, 
-          "bg-red-500"
+          "bg-red-500",
+          false,
+          true
         )}
       </CardContent>
       

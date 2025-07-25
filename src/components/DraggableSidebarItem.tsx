@@ -51,7 +51,7 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
           ${isCollapsed ? 'justify-center' : ''}
         `}
       >
-        <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}>
+        <div className={`flex items-center w-full ${isCollapsed ? 'justify-start pl-2 py-3' : 'gap-3 px-3 py-3'}`}>
           {isDragMode && !isCollapsed && (
             <div 
               {...attributes}
@@ -63,7 +63,7 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
               <GripVertical className="h-4 w-4 text-gray-400" />
             </div>
           )}
-          <Link to={item.url} className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+          <Link to={item.url} className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-start' : 'gap-3'}`}>
             <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
               <item.icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
             </div>

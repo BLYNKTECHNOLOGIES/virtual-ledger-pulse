@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, Play, Plus } from "lucide-react";
+import { CheckCircle, Clock, Play, Plus, FileText } from "lucide-react";
+import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
   investigation: any;
@@ -26,6 +27,8 @@ export function InvestigationDetailsDialog({
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [newUpdate, setNewUpdate] = useState("");
   const [showResolutionForm, setShowResolutionForm] = useState(false);
+  const [selectedStep, setSelectedStep] = useState<any>(null);
+  const [showStepCompletionDialog, setShowStepCompletionDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -93,14 +96,15 @@ export function InvestigationDetailsDialog({
 
   // Complete step mutation
   const completeStepMutation = useMutation({
-    mutationFn: async ({ stepId, notes }: { stepId: string; notes?: string }) => {
+    mutationFn: async ({ stepId, notes, reportUrl }: { stepId: string; notes?: string; reportUrl?: string }) => {
       const { error } = await supabase
         .from('investigation_steps')
         .update({
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
           completed_by: 'Current User', // In real app, get from auth
-          notes
+          notes,
+          completion_report_url: reportUrl
         })
         .eq('id', stepId);
       
@@ -138,8 +142,13 @@ export function InvestigationDetailsDialog({
     },
   });
 
-  const handleCompleteStep = (stepId: string) => {
-    completeStepMutation.mutate({ stepId });
+  const handleCompleteStep = (step: any) => {
+    setSelectedStep(step);
+    setShowStepCompletionDialog(true);
+  };
+
+  const handleStepCompletion = (stepId: string, notes: string, reportUrl?: string) => {
+    completeStepMutation.mutate({ stepId, notes, reportUrl });
   };
 
   const handleAddUpdate = () => {
@@ -229,6 +238,19 @@ export function InvestigationDetailsDialog({
                       {step.notes && (
                         <p className="text-sm text-blue-600 italic">Notes: {step.notes}</p>
                       )}
+                      {step.completion_report_url && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <FileText className="h-4 w-4 text-green-600" />
+                          <a 
+                            href={step.completion_report_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-green-600 hover:underline"
+                          >
+                            View Completion Report
+                          </a>
+                        </div>
+                      )}
                       {step.completed_at && (
                         <p className="text-xs text-gray-500">
                           Completed on {new Date(step.completed_at).toLocaleDateString()}
@@ -239,7 +261,7 @@ export function InvestigationDetailsDialog({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleCompleteStep(step.id)}
+                        onClick={() => handleCompleteStep(step)}
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Complete
@@ -329,6 +351,16 @@ export function InvestigationDetailsDialog({
             </CardContent>
           </Card>
         </div>
+
+        {/* Step Completion Dialog */}
+        {selectedStep && (
+          <StepCompletionDialog
+            open={showStepCompletionDialog}
+            onOpenChange={setShowStepCompletionDialog}
+            step={selectedStep}
+            onComplete={handleStepCompletion}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

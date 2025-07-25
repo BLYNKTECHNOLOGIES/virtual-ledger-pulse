@@ -784,6 +784,7 @@ export type Database = {
         Row: {
           completed_at: string | null
           completed_by: string | null
+          completion_report_url: string | null
           created_at: string
           id: string
           investigation_id: string
@@ -796,6 +797,7 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           completed_by?: string | null
+          completion_report_url?: string | null
           created_at?: string
           id?: string
           investigation_id: string
@@ -808,6 +810,7 @@ export type Database = {
         Update: {
           completed_at?: string | null
           completed_by?: string | null
+          completion_report_url?: string | null
           created_at?: string
           id?: string
           investigation_id?: string

@@ -677,7 +677,12 @@ export function PurchaseManagement() {
                   </Button>
                 ) : (
                   <Button 
-                    type="submit" 
+                    type="button" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      console.log('Submit button clicked on step:', step);
+                      handleSubmit(e);
+                    }}
                     disabled={createMethodMutation.isPending || updateMethodMutation.isPending}
                   >
                     {createMethodMutation.isPending || updateMethodMutation.isPending ? 

@@ -291,12 +291,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
-      <SidebarHeader className={`p-4 border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'px-2' : 'px-4'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-center'} min-h-[60px]`}>
+      <SidebarHeader className={`border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'p-2' : 'p-4'}`}>
+        <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
             alt="Blynk Virtual Technologies Logo" 
-            className={`h-12 w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-10' : 'h-12'}`}
+            className={`w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
           />
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 ml-3">
@@ -319,7 +319,7 @@ export function AppSidebar() {
                 items={visibleItems.map(item => item.id)}
                 strategy={verticalListSortingStrategy}
               >
-                <SidebarMenu className="space-y-2 px-2">
+                <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-1' : 'px-2'}`}>
                   {visibleItems.map(item => (
                     <DraggableSidebarItem
                       key={item.id}
@@ -348,8 +348,8 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className={`p-3 border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'px-2' : 'px-3'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+      <SidebarFooter className={`border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'p-1' : 'p-3'}`}>
+        <div className="flex items-center justify-center">
           {!isCollapsed && (
             <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
               © 2025 BLYNK Virtual Technologies
@@ -359,7 +359,7 @@ export function AppSidebar() {
             variant="ghost" 
             size="sm" 
             onClick={toggleSidebar} 
-            className="text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200"
+            className={`text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
           >
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>

@@ -48,9 +48,10 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
           ${isActive ? 'bg-blue-50 text-blue-700 font-semibold shadow-md border-blue-200 transform translate-x-1' : ''}
           ${isDragMode ? 'cursor-grab active:cursor-grabbing' : ''}
           ${isDragging ? 'opacity-50 z-50' : ''}
+          ${isCollapsed ? 'justify-center' : ''}
         `}
       >
-        <div className="flex items-center gap-3 px-3 py-3 w-full">
+        <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}>
           {isDragMode && !isCollapsed && (
             <div 
               {...attributes}
@@ -62,8 +63,8 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
               <GripVertical className="h-4 w-4 text-gray-400" />
             </div>
           )}
-          <Link to={item.url} className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0`}>
+          <Link to={item.url} className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+            <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
               <item.icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
             </div>
             {!isCollapsed && (

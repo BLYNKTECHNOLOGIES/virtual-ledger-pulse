@@ -362,6 +362,11 @@ export function AccountStatusTab() {
 
                     console.log('Investigation created successfully');
                     
+                    // Invalidate queries to refresh data immediately
+                    const queryClient = useQueryClient();
+                    await queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+                    await queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+                    
                     toast({
                       title: "Investigation Started",
                       description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,

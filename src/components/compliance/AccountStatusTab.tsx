@@ -56,8 +56,13 @@ export function AccountStatusTab() {
   const handleSubmitInvestigation = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== INVESTIGATION SUBMISSION DEBUG ===');
+    console.log('Form data:', investigationData);
+    console.log('Selected account:', selectedAccount);
+    
     // Validate required fields
     if (!investigationData.type || !investigationData.reason.trim()) {
+      console.log('Validation failed - missing required fields');
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields (Investigation Type and Reason).",
@@ -66,24 +71,39 @@ export function AccountStatusTab() {
       return;
     }
     
+    console.log('Validation passed, attempting database insert...');
+    
     try {
-      const { error } = await supabase
+      const insertData = {
+        bank_account_id: selectedAccount.id,
+        investigation_type: investigationData.type,
+        reason: investigationData.reason,
+        priority: investigationData.priority,
+        notes: investigationData.notes,
+        assigned_to: 'Current User', // In real app, get from auth
+        status: 'ACTIVE'
+      };
+      
+      console.log('Insert data:', insertData);
+      
+      const { data, error } = await supabase
         .from('account_investigations')
-        .insert({
-          bank_account_id: selectedAccount.id,
-          investigation_type: investigationData.type,
-          reason: investigationData.reason,
-          priority: investigationData.priority,
-          notes: investigationData.notes,
-          assigned_to: 'Current User' // In real app, get from auth
-        });
+        .insert(insertData)
+        .select();
 
-      if (error) throw error;
+      console.log('Database response:', { data, error });
+
+      if (error) {
+        console.error('Database error details:', error);
+        throw error;
+      }
 
       // Invalidate related queries to refresh data immediately
       const queryClient = useQueryClient();
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+
+      console.log('Investigation created successfully, closing dialog...');
 
       toast({
         title: "Investigation Started",
@@ -94,8 +114,16 @@ export function AccountStatusTab() {
       setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
       setShowInvestigationDialog(false);
       setSelectedAccount(null);
+      
+      console.log('Dialog should be closed now');
     } catch (error: any) {
-      console.error('Investigation creation error:', error);
+      console.error('=== INVESTIGATION ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error details:', error.details);
+      console.error('Error hint:', error.hint);
+      console.error('Error code:', error.code);
+      
       toast({
         title: "Error",
         description: error.message || "Failed to start investigation. Please try again.",
@@ -211,7 +239,7 @@ export function AccountStatusTab() {
           <DialogHeader>
             <DialogTitle>Start Investigation - {selectedAccount?.account_name}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmitInvestigation} className="space-y-4">
+          <form onSubmit={handleSubmitInvestigation} className="space-y-4" id="investigation-form">
             <div className="space-y-2">
               <Label>Investigation Type *</Label>
               <Select 
@@ -275,7 +303,13 @@ export function AccountStatusTab() {
               <Button type="button" variant="outline" onClick={() => setShowInvestigationDialog(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button 
+                type="submit" 
+                onClick={(e) => {
+                  console.log('Button clicked!');
+                  // Allow form submission to proceed
+                }}
+              >
                 Start Investigation
               </Button>
             </div>

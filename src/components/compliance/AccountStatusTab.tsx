@@ -326,10 +326,62 @@ export function AccountStatusTab() {
                 Cancel
               </Button>
               <Button 
-                type="submit" 
-                onClick={(e) => {
-                  console.log('Button clicked!');
-                  // Allow form submission to proceed
+                type="button" 
+                onClick={async (e) => {
+                  e.preventDefault();
+                  console.log('Button clicked directly!');
+                  
+                  // Validate required fields
+                  if (!investigationData.type || !investigationData.reason.trim()) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please fill in all required fields (Investigation Type and Reason).",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  
+                  try {
+                    console.log('Creating investigation...');
+                    const { error } = await supabase
+                      .from('account_investigations')
+                      .insert({
+                        bank_account_id: selectedAccount.id,
+                        investigation_type: investigationData.type,
+                        reason: investigationData.reason,
+                        priority: investigationData.priority,
+                        notes: investigationData.notes,
+                        assigned_to: 'Current User',
+                        status: 'ACTIVE'
+                      });
+
+                    if (error) {
+                      console.error('Database error:', error);
+                      throw error;
+                    }
+
+                    console.log('Investigation created successfully');
+                    
+                    toast({
+                      title: "Investigation Started",
+                      description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,
+                    });
+                    
+                    // Force close dialog and reset state
+                    setShowInvestigationDialog(false);
+                    setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
+                    setSelectedAccount(null);
+                    
+                    console.log('Dialog closed');
+                    
+                  } catch (error: any) {
+                    console.error('Error creating investigation:', error);
+                    toast({
+                      title: "Error",
+                      description: error.message || "Failed to start investigation. Please try again.",
+                      variant: "destructive",
+                    });
+                  }
                 }}
               >
                 Start Investigation

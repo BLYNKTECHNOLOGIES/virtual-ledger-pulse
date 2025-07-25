@@ -18,17 +18,21 @@ export function ProductListingTab() {
 
   // Fetch products and sync USDT stock
   const { data: products, isLoading, refetch } = useQuery({
-    queryKey: ['products_listing', searchTerm],
+    queryKey: ['products_listing_force_refresh', searchTerm, Date.now()], // Force refresh with timestamp
     queryFn: async () => {
-      console.log('Fetching products...');
+      console.log('🔄 Fetching products...');
       
       // Sync USDT stock first
+      console.log('🔄 Syncing USDT stock...');
       const { error: syncError } = await supabase.rpc('sync_usdt_stock');
       if (syncError) {
-        console.error('Error syncing USDT stock:', syncError);
+        console.error('❌ Error syncing USDT stock:', syncError);
+      } else {
+        console.log('✅ USDT stock synced successfully');
       }
       
       // Fetch all products
+      console.log('🔄 Fetching products from database...');
       let query = supabase
         .from('products')
         .select('*')
@@ -40,9 +44,24 @@ export function ProductListingTab() {
 
       const { data: productsData, error: productsError } = await query;
       
-      if (productsError) throw productsError;
+      if (productsError) {
+        console.error('❌ Error fetching products:', productsError);
+        throw productsError;
+      }
+
+      console.log('📊 Raw products data:', productsData);
+
+      // Log USDT product specifically
+      const usdtProduct = productsData?.find(p => p.code === 'USDT');
+      if (usdtProduct) {
+        console.log('💰 USDT Product:', {
+          current_stock_quantity: usdtProduct.current_stock_quantity,
+          updated_at: usdtProduct.updated_at
+        });
+      }
 
       // Get warehouse stock movements for warehouse distribution display
+      console.log('🔄 Fetching warehouse movements...');
       const { data: movements, error: movementsError } = await supabase
         .from('warehouse_stock_movements')
         .select(`
@@ -54,7 +73,7 @@ export function ProductListingTab() {
         `);
 
       if (movementsError) {
-        console.error('Error fetching movements:', movementsError);
+        console.error('❌ Error fetching movements:', movementsError);
         // Don't throw error, just continue without warehouse data
       }
 
@@ -95,11 +114,12 @@ export function ProductListingTab() {
         warehouse_stocks: warehouseDistribution.get(product.id) || []
       })) || [];
 
-      console.log('Products with warehouse distribution:', productsWithDistribution);
+      console.log('✅ Final products with distribution:', productsWithDistribution);
       return productsWithDistribution;
     },
-    refetchInterval: 10000, // Refetch every 10 seconds to keep stock updated
+    refetchInterval: 5000, // Refetch every 5 seconds
     staleTime: 0, // Always consider data stale to force fresh fetches
+    gcTime: 0, // Don't cache at all (new name for cacheTime)
   });
 
   const handleEdit = (product: any) => {

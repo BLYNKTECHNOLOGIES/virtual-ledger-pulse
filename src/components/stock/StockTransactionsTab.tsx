@@ -72,6 +72,39 @@ export function StockTransactionsTab() {
     },
   });
 
+  // Fetch wallet transactions for stock movements
+  const { data: walletTransactions } = useQuery({
+    queryKey: ['wallet_stock_transactions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select(`
+          *,
+          wallets(wallet_name, wallet_type)
+        `)
+        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Get USDT product info for wallet transactions
+  const { data: usdtProduct } = useQuery({
+    queryKey: ['usdt_product'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('code', 'USDT')
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch wallets for transfer options
   const { data: wallets } = useQuery({
     queryKey: ['wallets'],
@@ -178,19 +211,31 @@ export function StockTransactionsTab() {
         return <Badge className="bg-red-100 text-red-800">Stock Out</Badge>;
       case 'PURCHASE':
         return <Badge className="bg-blue-100 text-blue-800">Purchase</Badge>;
+      case 'TRANSFER_IN':
+        return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
+      case 'TRANSFER_OUT':
+        return <Badge className="bg-orange-100 text-orange-800">Transfer Out</Badge>;
+      case 'CREDIT':
+        return <Badge className="bg-green-100 text-green-800">Manual Credit</Badge>;
+      case 'DEBIT':
+        return <Badge className="bg-red-100 text-red-800">Manual Debit</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
   };
 
-  // Combine transactions and purchase entries
+  // Combine all transactions
   const allEntries = [
+    // Regular stock transactions
     ...(transactions || []).map(t => ({
       ...t,
       type: 'transaction',
       date: t.transaction_date,
-      supplier_name: t.supplier_customer_name
+      supplier_name: t.supplier_customer_name,
+      transaction_type: t.transaction_type,
+      products: t.products
     })),
+    // Purchase entries
     ...(purchaseEntries || []).map(p => ({
       ...p,
       type: 'purchase',
@@ -198,7 +243,24 @@ export function StockTransactionsTab() {
       date: p.purchase_orders?.order_date,
       supplier_name: p.purchase_orders?.supplier_name,
       reference_number: p.purchase_orders?.order_number,
-      total_amount: p.total_price
+      total_amount: p.total_price,
+      products: p.products
+    })),
+    // Wallet transactions (convert to stock transaction format)
+    ...(walletTransactions || []).map(w => ({
+      ...w,
+      type: 'wallet',
+      date: w.created_at,
+      supplier_name: w.wallets?.wallet_name || 'Wallet Transfer',
+      reference_number: `WT-${w.id.slice(0, 8)}`,
+      quantity: w.amount,
+      unit_price: 1, // For USDT, 1:1 ratio
+      total_amount: w.amount,
+      products: usdtProduct ? {
+        name: usdtProduct.name,
+        code: usdtProduct.code,
+        unit_of_measurement: usdtProduct.unit_of_measurement
+      } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Pieces' }
     }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 

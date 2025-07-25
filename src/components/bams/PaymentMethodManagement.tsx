@@ -52,7 +52,6 @@ export function PaymentMethodManagement() {
     maxLimit: "10000000",
     frequency: "" as "24 hours" | "Daily" | "48 hours" | "Custom" | "",
     custom_frequency: "",
-    beneficiariesPer24h: "",
     payment_gateway: false,
     settlement_cycle: "" as "Instant Settlement" | "T+1 Day" | "Custom" | "",
     settlement_days: ""
@@ -121,7 +120,7 @@ export function PaymentMethodManagement() {
           max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          beneficiaries_per_24h: null,
           payment_gateway: methodData.payment_gateway,
           settlement_cycle: methodData.payment_gateway ? methodData.settlement_cycle : null,
           settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
@@ -178,7 +177,7 @@ export function PaymentMethodManagement() {
           max_limit: parseFloat(methodData.maxLimit),
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
-          beneficiaries_per_24h: methodData.type === "Bank Account" ? parseInt(methodData.beneficiariesPer24h || "5") : null,
+          beneficiaries_per_24h: null,
           payment_gateway: methodData.payment_gateway,
           settlement_cycle: methodData.payment_gateway ? methodData.settlement_cycle : null,
           settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
@@ -289,7 +288,7 @@ export function PaymentMethodManagement() {
       maxLimit: (method as any).max_limit?.toString() || "10000000",
       frequency: method.frequency,
       custom_frequency: method.custom_frequency || "",
-      beneficiariesPer24h: (method as any).beneficiaries_per_24h?.toString() || "5",
+      
       payment_gateway: method.payment_gateway || false,
       settlement_cycle: method.settlement_cycle || "",
       settlement_days: method.settlement_days?.toString() || ""
@@ -309,7 +308,7 @@ export function PaymentMethodManagement() {
       maxLimit: "10000000",
       frequency: "" as any, // Start empty
       custom_frequency: "",
-      beneficiariesPer24h: "", // Start empty
+      
       payment_gateway: false,
       settlement_cycle: "",
       settlement_days: ""
@@ -654,23 +653,6 @@ export function PaymentMethodManagement() {
                     </div>
                   )}
 
-                  {formData.type === "Bank Account" && (
-                    <div>
-                      <Label htmlFor="beneficiariesPer24h">Beneficiaries per 24 Hours *</Label>
-                      <Input
-                        id="beneficiariesPer24h"
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={formData.beneficiariesPer24h}
-                        onChange={(e) => setFormData(prev => ({ ...prev, beneficiariesPer24h: e.target.value }))}
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Maximum number of unique beneficiaries allowed per 24 hours
-                      </p>
-                    </div>
-                  )}
 
                   <div className="p-3 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-800">

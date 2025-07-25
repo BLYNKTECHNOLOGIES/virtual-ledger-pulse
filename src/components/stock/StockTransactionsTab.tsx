@@ -4,14 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, Filter, Plus, ArrowLeftRight } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 export function StockTransactionsTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [adjustmentData, setAdjustmentData] = useState({
+    fromWallet: "",
+    toWallet: "",
+    amount: "",
+    description: "",
+    transactionType: "TRANSFER"
+  });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ['stock_transactions', searchTerm, filterType],
@@ -56,6 +72,104 @@ export function StockTransactionsTab() {
     },
   });
 
+  // Fetch wallets for transfer options
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('is_active', true)
+        .order('wallet_name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Manual stock adjustment mutation
+  const manualAdjustmentMutation = useMutation({
+    mutationFn: async (adjustmentData: any) => {
+      const amount = parseFloat(adjustmentData.amount);
+      
+      if (adjustmentData.transactionType === 'TRANSFER') {
+        // Create debit transaction for source wallet
+        const { error: debitError } = await supabase
+          .from('wallet_transactions')
+          .insert({
+            wallet_id: adjustmentData.fromWallet,
+            transaction_type: 'TRANSFER_OUT',
+            amount: amount,
+            reference_type: 'MANUAL_TRANSFER',
+            reference_id: null,
+            description: `Transfer to another wallet: ${adjustmentData.description}`,
+            balance_before: 0, // Will be calculated by trigger
+            balance_after: 0   // Will be calculated by trigger
+          });
+
+        if (debitError) throw debitError;
+
+        // Create credit transaction for destination wallet
+        const { error: creditError } = await supabase
+          .from('wallet_transactions')
+          .insert({
+            wallet_id: adjustmentData.toWallet,
+            transaction_type: 'TRANSFER_IN',
+            amount: amount,
+            reference_type: 'MANUAL_TRANSFER',
+            reference_id: null,
+            description: `Transfer from another wallet: ${adjustmentData.description}`,
+            balance_before: 0, // Will be calculated by trigger
+            balance_after: 0   // Will be calculated by trigger
+          });
+
+        if (creditError) throw creditError;
+      } else {
+        // Single wallet adjustment (CREDIT or DEBIT)
+        const { error } = await supabase
+          .from('wallet_transactions')
+          .insert({
+            wallet_id: adjustmentData.fromWallet,
+            transaction_type: adjustmentData.transactionType,
+            amount: amount,
+            reference_type: 'MANUAL_ADJUSTMENT',
+            reference_id: null,
+            description: adjustmentData.description,
+            balance_before: 0, // Will be calculated by trigger
+            balance_after: 0   // Will be calculated by trigger
+          });
+
+        if (error) throw error;
+      }
+
+      // Sync USDT stock with wallet balances
+      await supabase.rpc('sync_usdt_stock');
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Manual stock adjustment completed successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setShowAdjustmentDialog(false);
+      setAdjustmentData({
+        fromWallet: "",
+        toWallet: "",
+        amount: "",
+        description: "",
+        transactionType: "TRANSFER"
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete manual adjustment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const getTransactionBadge = (type: string) => {
     switch (type) {
       case 'IN':
@@ -94,6 +208,13 @@ export function StockTransactionsTab() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Stock Transactions</CardTitle>
+            <Button 
+              onClick={() => setShowAdjustmentDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <ArrowLeftRight className="h-4 w-4 mr-2" />
+              Manual Adjustment
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -175,6 +296,121 @@ export function StockTransactionsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Manual Stock Adjustment Dialog */}
+      <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Manual Stock Adjustment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Transaction Type</Label>
+              <Select 
+                value={adjustmentData.transactionType} 
+                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, transactionType: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TRANSFER">Transfer Between Wallets</SelectItem>
+                  <SelectItem value="CREDIT">Add Stock (Credit)</SelectItem>
+                  <SelectItem value="DEBIT">Remove Stock (Debit)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>From Wallet {adjustmentData.transactionType !== 'CREDIT' ? '*' : ''}</Label>
+              <Select 
+                value={adjustmentData.fromWallet} 
+                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, fromWallet: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source wallet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name} ({wallet.wallet_type}) - ₹{wallet.current_balance}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {adjustmentData.transactionType === 'TRANSFER' && (
+              <div className="space-y-2">
+                <Label>To Wallet *</Label>
+                <Select 
+                  value={adjustmentData.toWallet} 
+                  onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, toWallet: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select destination wallet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets?.filter(w => w.id !== adjustmentData.fromWallet).map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        {wallet.wallet_name} ({wallet.wallet_type}) - ₹{wallet.current_balance}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Amount *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="Enter amount"
+                value={adjustmentData.amount}
+                onChange={(e) => setAdjustmentData(prev => ({ ...prev, amount: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                placeholder="Enter reason for adjustment"
+                value={adjustmentData.description}
+                onChange={(e) => setAdjustmentData(prev => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAdjustmentDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (!adjustmentData.fromWallet || !adjustmentData.amount || 
+                      (adjustmentData.transactionType === 'TRANSFER' && !adjustmentData.toWallet)) {
+                    toast({
+                      title: "Validation Error",
+                      description: "Please fill in all required fields",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  manualAdjustmentMutation.mutate(adjustmentData);
+                }}
+                disabled={manualAdjustmentMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {manualAdjustmentMutation.isPending ? "Processing..." : "Submit Adjustment"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

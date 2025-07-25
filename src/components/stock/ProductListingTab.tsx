@@ -16,13 +16,19 @@ export function ProductListingTab() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const { toast } = useToast();
 
-  // Fetch products with actual warehouse stock quantities
+  // Fetch products and sync USDT stock
   const { data: products, isLoading, refetch } = useQuery({
-    queryKey: ['products_with_warehouse_stock', searchTerm],
+    queryKey: ['products_listing', searchTerm],
     queryFn: async () => {
-      console.log('Fetching products with warehouse stock...');
+      console.log('Fetching products...');
       
-      // First get all products
+      // Sync USDT stock first
+      const { error: syncError } = await supabase.rpc('sync_usdt_stock');
+      if (syncError) {
+        console.error('Error syncing USDT stock:', syncError);
+      }
+      
+      // Fetch all products
       let query = supabase
         .from('products')
         .select('*')
@@ -36,7 +42,7 @@ export function ProductListingTab() {
       
       if (productsError) throw productsError;
 
-      // Get warehouse stock movements to calculate actual stock
+      // Get warehouse stock movements for warehouse distribution display
       const { data: movements, error: movementsError } = await supabase
         .from('warehouse_stock_movements')
         .select(`
@@ -49,71 +55,51 @@ export function ProductListingTab() {
 
       if (movementsError) {
         console.error('Error fetching movements:', movementsError);
-        throw movementsError;
+        // Don't throw error, just continue without warehouse data
       }
 
-      console.log('Raw movements data:', movements);
-
-      // Calculate actual stock per product per warehouse
-      const stockMap = new Map<string, Map<string, number>>();
+      // Calculate warehouse distribution for display
+      const warehouseDistribution = new Map<string, Array<{warehouse_id: string, warehouse_name: string, quantity: number}>>();
       
       movements?.forEach(movement => {
-        if (!stockMap.has(movement.product_id)) {
-          stockMap.set(movement.product_id, new Map());
+        if (!warehouseDistribution.has(movement.product_id)) {
+          warehouseDistribution.set(movement.product_id, []);
         }
         
-        const productStocks = stockMap.get(movement.product_id)!;
-        const warehouseId = movement.warehouse_id;
+        const existingEntry = warehouseDistribution.get(movement.product_id)!
+          .find(entry => entry.warehouse_id === movement.warehouse_id);
         
-        if (!productStocks.has(warehouseId)) {
-          productStocks.set(warehouseId, 0);
-        }
-        
-        const currentStock = productStocks.get(warehouseId)!;
-        
-        if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-          productStocks.set(warehouseId, currentStock + movement.quantity);
-        } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-          productStocks.set(warehouseId, Math.max(0, currentStock - movement.quantity));
+        if (existingEntry) {
+          if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
+            existingEntry.quantity += movement.quantity;
+          } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
+            existingEntry.quantity = Math.max(0, existingEntry.quantity - movement.quantity);
+          }
+        } else {
+          const warehouse = movements?.find(m => m.warehouse_id === movement.warehouse_id)?.warehouses;
+          const quantity = (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') 
+            ? movement.quantity 
+            : -movement.quantity;
+          
+          warehouseDistribution.get(movement.product_id)!.push({
+            warehouse_id: movement.warehouse_id,
+            warehouse_name: warehouse?.name || 'Unknown',
+            quantity: Math.max(0, quantity)
+          });
         }
       });
 
-      // Attach calculated stock to products and sync with database
-      const productsWithStock = await Promise.all(productsData?.map(async (product) => {
-        const productStocks = stockMap.get(product.id);
-        let totalStock = 0;
-        const warehouseStocks: Array<{warehouse_id: string, warehouse_name: string, quantity: number}> = [];
-        
-        if (productStocks) {
-          productStocks.forEach((quantity, warehouseId) => {
-            totalStock += quantity;
-            const warehouse = movements?.find(m => m.warehouse_id === warehouseId)?.warehouses;
-            warehouseStocks.push({
-              warehouse_id: warehouseId,
-              warehouse_name: warehouse?.name || 'Unknown',
-              quantity
-            });
-          });
-        }
+      // Attach warehouse distribution to products
+      const productsWithDistribution = productsData?.map(product => ({
+        ...product,
+        warehouse_stocks: warehouseDistribution.get(product.id) || []
+      })) || [];
 
-        // Update the product's current_stock_quantity to match calculated total
-        await supabase
-          .from('products')
-          .update({ current_stock_quantity: totalStock })
-          .eq('id', product.id);
-
-        return {
-          ...product,
-          calculated_stock: totalStock,
-          current_stock_quantity: totalStock, // Ensure consistency
-          warehouse_stocks: warehouseStocks
-        };
-      }) || []);
-
-      console.log('Products with calculated stock:', productsWithStock);
-      return productsWithStock;
+      console.log('Products with warehouse distribution:', productsWithDistribution);
+      return productsWithDistribution;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds to keep stock updated
+    refetchInterval: 10000, // Refetch every 10 seconds to keep stock updated
+    staleTime: 0, // Always consider data stale to force fresh fetches
   });
 
   const handleEdit = (product: any) => {
@@ -203,7 +189,7 @@ export function ProductListingTab() {
                     <td className="py-3 px-4">₹{product.cost_price}</td>
                     <td className="py-3 px-4">₹{product.selling_price}</td>
                     <td className="py-3 px-4 font-semibold">
-                      {parseFloat((product.calculated_stock || 0).toString()).toLocaleString('en-IN', {
+                      {parseFloat((product.current_stock_quantity || 0).toString()).toLocaleString('en-IN', {
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 3
                       })} {product.unit_of_measurement}
@@ -225,7 +211,7 @@ export function ProductListingTab() {
                       )}
                     </td>
                     <td className="py-3 px-4">{product.unit_of_measurement}</td>
-                    <td className="py-3 px-4">{getStockStatus(product.calculated_stock || 0)}</td>
+                    <td className="py-3 px-4">{getStockStatus(product.current_stock_quantity || 0)}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(product)}>

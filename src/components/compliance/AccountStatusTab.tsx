@@ -236,17 +236,6 @@ export function AccountStatusTab() {
         <p className="text-sm mb-2 text-blue-800">
           Balance: ₹{Number(account.balance).toLocaleString()}
         </p>
-        <div className="mt-3 text-xs space-y-1">
-          <p className="font-medium text-blue-700">
-            Type: {investigation?.investigation_type?.replace('_', ' ') || 'N/A'}
-          </p>
-          <p className="text-blue-700">
-            Reason: {investigation?.reason || 'N/A'}
-          </p>
-          <p className="text-blue-700">
-            Started: {investigation?.created_at ? new Date(investigation.created_at).toLocaleDateString() : 'N/A'}
-          </p>
-        </div>
       </div>
     );
   };

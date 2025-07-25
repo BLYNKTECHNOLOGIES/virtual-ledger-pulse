@@ -205,21 +205,19 @@ export function AccountStatusTab() {
 
   const renderInvestigationCard = (account: any, investigation: any) => {
     const priority = investigation?.priority || 'MEDIUM';
-    const cardStyle = getPriorityCardStyle(priority);
-    const textColors = getPriorityTextColor(priority);
     const priorityBadgeStyle = getPriorityBadgeStyle(priority);
 
     return (
       <div 
         key={account.id} 
-        className={`border rounded-lg p-4 transition-all duration-200 ${cardStyle}`}
+        className="border border-blue-300 bg-blue-50 shadow-md ring-1 ring-blue-200 rounded-lg p-4 transition-all duration-200"
       >
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className={`font-medium ${textColors.title}`}>
+            <h4 className="font-medium text-blue-900">
               {account.bank_name}
             </h4>
-            <p className={`text-sm ${textColors.subtitle}`}>
+            <p className="text-sm text-blue-700">
               {account.account_name}
             </p>
           </div>
@@ -235,17 +233,17 @@ export function AccountStatusTab() {
             </Badge>
           </div>
         </div>
-        <p className={`text-sm mb-2 ${textColors.balance}`}>
+        <p className="text-sm mb-2 text-blue-800">
           Balance: ₹{Number(account.balance).toLocaleString()}
         </p>
         <div className="mt-3 text-xs space-y-1">
-          <p className={`font-medium ${textColors.subtitle}`}>
+          <p className="font-medium text-blue-700">
             Type: {investigation?.investigation_type?.replace('_', ' ') || 'N/A'}
           </p>
-          <p className={textColors.subtitle}>
+          <p className="text-blue-700">
             Reason: {investigation?.reason || 'N/A'}
           </p>
-          <p className={textColors.subtitle}>
+          <p className="text-blue-700">
             Started: {investigation?.created_at ? new Date(investigation.created_at).toLocaleDateString() : 'N/A'}
           </p>
         </div>

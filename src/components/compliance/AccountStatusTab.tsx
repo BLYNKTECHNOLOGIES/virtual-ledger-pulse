@@ -515,6 +515,20 @@ export function AccountStatusTab() {
 
                     console.log('Investigation created successfully');
                     
+                    // Optimistic update - immediately add to activeInvestigations cache
+                    const queryClient = useQueryClient();
+                    const newInvestigation = {
+                      bank_account_id: selectedAccount.id,
+                      priority: investigationData.priority,
+                      investigation_type: investigationData.type,
+                      reason: investigationData.reason,
+                      created_at: new Date().toISOString()
+                    };
+                    
+                    queryClient.setQueryData(['active_investigations'], (oldData: any) => {
+                      return oldData ? [...oldData, newInvestigation] : [newInvestigation];
+                    });
+                    
                     toast({
                       title: "Investigation Started",
                       description: `Investigation "${investigationData.type}" started for ${selectedAccount?.account_name}`,

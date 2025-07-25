@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 interface PaymentGateway {
   id: string;
   type: string;
+  upi_id?: string;
   risk_category: string;
   payment_limit: number;
   current_usage: number;
@@ -30,7 +31,7 @@ export function AvailablePaymentGateways() {
     try {
       const { data, error } = await supabase
         .from('sales_payment_methods')
-        .select('*')
+        .select('id, type, upi_id, risk_category, payment_limit, current_usage, is_active, settlement_cycle, settlement_days, payment_gateway')
         .eq('payment_gateway', true)
         .eq('is_active', true);
 
@@ -85,7 +86,7 @@ export function AvailablePaymentGateways() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
-                {gateway.type}
+                {gateway.type === "UPI" && gateway.upi_id ? gateway.upi_id : gateway.type}
               </CardTitle>
               <Badge variant={gateway.is_active ? "default" : "secondary"}>
                 {gateway.is_active ? "Active" : "Inactive"}

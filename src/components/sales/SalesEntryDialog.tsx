@@ -256,7 +256,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => {
+          console.log('🔥 FORM SUBMIT EVENT TRIGGERED!');
+          handleSubmit(e);
+        }} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Order Number *</Label>
@@ -432,6 +435,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <Button 
               type="submit" 
               disabled={createSalesOrderMutation.isPending}
+              onClick={() => console.log('🚀 Create Order button clicked!')}
             >
               {createSalesOrderMutation.isPending ? "Creating..." : "Create Order"}
             </Button>

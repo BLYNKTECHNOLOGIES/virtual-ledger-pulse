@@ -308,22 +308,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         }
       }
 
-      // Update product sales statistics if product is selected
-      if (selectedProduct) {
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({
-            total_sales: (selectedProduct.total_sales || 0) + finalOrderData.quantity,
-            average_selling_price: selectedProduct.total_sales > 0 
-              ? ((selectedProduct.average_selling_price || 0) * selectedProduct.total_sales + finalOrderData.price * finalOrderData.quantity) / (selectedProduct.total_sales + finalOrderData.quantity)
-              : finalOrderData.price
-          })
-          .eq('id', selectedProduct.id);
-
-        if (stockError) {
-          console.error('Error updating product sales statistics:', stockError);
-        }
-      }
 
       return salesOrder;
     },
@@ -339,6 +323,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       resetFlow();
       onOpenChange(false);
     },

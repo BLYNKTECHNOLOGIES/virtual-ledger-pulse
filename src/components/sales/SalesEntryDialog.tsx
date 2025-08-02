@@ -160,31 +160,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       }
 
-      // Update product sales statistics if product is selected and payment is completed
-      if (data.product_id && data.payment_status === 'COMPLETED') {
-        const { data: product } = await supabase
-          .from('products')
-          .select('total_sales, average_selling_price')
-          .eq('id', data.product_id)
-          .single();
-
-        if (product) {
-          const newTotalSales = (product.total_sales || 0) + parseFloat(data.quantity);
-          const newAverageSellingPrice = product.total_sales > 0 
-            ? ((product.average_selling_price || 0) * product.total_sales + parseFloat(data.price_per_unit) * parseFloat(data.quantity)) / newTotalSales
-            : parseFloat(data.price_per_unit);
-
-          await supabase
-            .from('products')
-            .update({
-              total_sales: newTotalSales,
-              average_selling_price: newAverageSellingPrice,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', data.product_id);
-        }
-      }
-
       return result;
     },
     onSuccess: () => {
@@ -193,6 +168,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       setFormData({
         order_number: '',
         client_name: '',

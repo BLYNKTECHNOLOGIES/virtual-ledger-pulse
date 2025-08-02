@@ -170,8 +170,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       return result;
     },
     onSuccess: () => {
+      console.log('🎉 Sales order created successfully - onSuccess callback triggered');
+      console.log('🔄 Calling onOpenChange(false) to close dialog');
       toast({ title: "Success", description: "Sales order created successfully" });
       onOpenChange(false); // Close the dialog immediately
+      console.log('✅ Dialog should be closed now');
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
@@ -197,13 +200,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       });
     },
     onError: (error) => {
-      console.error('Error creating sales order:', error);
+      console.error('❌ Error creating sales order:', error);
+      console.log('🚫 onError callback triggered - dialog will NOT close automatically');
       toast({ title: "Error", description: "Failed to create sales order", variant: "destructive" });
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('📝 Starting sales order creation mutation with data:', formData);
     createSalesOrderMutation.mutate(formData);
   };
 

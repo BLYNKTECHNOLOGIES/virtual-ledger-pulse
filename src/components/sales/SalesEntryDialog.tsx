@@ -24,7 +24,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     client_name: '',
     client_phone: '',
     product_id: '',
-    warehouse_id: '',
     wallet_id: '',
     platform: '',
     quantity: '',
@@ -60,18 +59,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('is_active', true);
-      if (error) throw error;
-      return data;
-    },
-  });
 
   // Fetch payment methods
   const { data: paymentMethods } = useQuery({
@@ -101,7 +88,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           client_name: data.client_name,
           client_phone: data.client_phone || null,
           product_id: data.product_id || null,
-          warehouse_id: data.warehouse_id || null,
           wallet_id: data.wallet_id || null,
           platform: data.platform || null,
           quantity: data.quantity,
@@ -159,16 +145,30 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       }
 
-      // Update product stock if product is selected and payment is completed
+      // Process wallet deduction if wallet is selected and payment is completed
+      if (data.wallet_id && data.payment_status === 'COMPLETED') {
+        // Use the function to process wallet deduction which will also sync USDT stock
+        const { error: walletError } = await supabase.rpc('process_sales_order_wallet_deduction', {
+          sales_order_id: result.id,
+          wallet_id: data.wallet_id,
+          usdt_amount: parseFloat(data.quantity)
+        });
+
+        if (walletError) {
+          console.error('Error processing wallet deduction:', walletError);
+          throw new Error(`Wallet deduction failed: ${walletError.message}`);
+        }
+      }
+
+      // Update product sales statistics if product is selected and payment is completed
       if (data.product_id && data.payment_status === 'COMPLETED') {
         const { data: product } = await supabase
           .from('products')
-          .select('current_stock_quantity, total_sales, average_selling_price')
+          .select('total_sales, average_selling_price')
           .eq('id', data.product_id)
           .single();
 
         if (product) {
-          const newStockQuantity = product.current_stock_quantity - parseFloat(data.quantity);
           const newTotalSales = (product.total_sales || 0) + parseFloat(data.quantity);
           const newAverageSellingPrice = product.total_sales > 0 
             ? ((product.average_selling_price || 0) * product.total_sales + parseFloat(data.price_per_unit) * parseFloat(data.quantity)) / newTotalSales
@@ -177,43 +177,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           await supabase
             .from('products')
             .update({
-              current_stock_quantity: newStockQuantity,
               total_sales: newTotalSales,
               average_selling_price: newAverageSellingPrice,
               updated_at: new Date().toISOString()
             })
             .eq('id', data.product_id);
-
-          // Create stock transaction record
-          await supabase
-            .from('stock_transactions')
-            .insert({
-              product_id: data.product_id,
-              transaction_type: 'SALE',
-              quantity: -parseFloat(data.quantity), // Negative for outgoing stock
-              unit_price: parseFloat(data.price_per_unit),
-              total_amount: data.total_amount,
-              transaction_date: data.order_date,
-              supplier_customer_name: data.client_name,
-              reference_number: data.order_number,
-              reason: 'Manual Sales Entry'
-            });
-
-          // Create warehouse stock movement if warehouse is specified
-          if (data.warehouse_id) {
-            await supabase
-              .from('warehouse_stock_movements')
-              .insert({
-                product_id: data.product_id,
-                warehouse_id: data.warehouse_id,
-                movement_type: 'OUT',
-                quantity: parseFloat(data.quantity),
-                reference_type: 'SALES_ORDER',
-                reference_id: result.id,
-                reason: `Sales Order - ${data.order_number}`,
-                created_at: new Date().toISOString()
-              });
-          }
         }
       }
 
@@ -223,14 +191,13 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       toast({ title: "Success", description: "Sales order created successfully" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_movements'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       setFormData({
         order_number: '',
         client_name: '',
         client_phone: '',
         product_id: '',
-        warehouse_id: '',
         wallet_id: '',
         platform: '',
         quantity: '',
@@ -347,24 +314,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               </Select>
             </div>
 
-            <div>
-              <Label>Warehouse</Label>
-              <Select
-                value={formData.warehouse_id}
-                onValueChange={(value) => handleInputChange('warehouse_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
-                  {warehouses?.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div>
               <Label>Wallet</Label>

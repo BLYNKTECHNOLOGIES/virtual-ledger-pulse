@@ -308,12 +308,11 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         }
       }
 
-      // Update product stock if product is selected
+      // Update product sales statistics if product is selected
       if (selectedProduct) {
         const { error: stockError } = await supabase
           .from('products')
           .update({
-            current_stock_quantity: selectedProduct.current_stock_quantity - finalOrderData.quantity,
             total_sales: (selectedProduct.total_sales || 0) + finalOrderData.quantity,
             average_selling_price: selectedProduct.total_sales > 0 
               ? ((selectedProduct.average_selling_price || 0) * selectedProduct.total_sales + finalOrderData.price * finalOrderData.quantity) / (selectedProduct.total_sales + finalOrderData.quantity)
@@ -322,46 +321,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           .eq('id', selectedProduct.id);
 
         if (stockError) {
-          console.error('Error updating product stock:', stockError);
-        }
-
-        // Create stock transaction record
-        const { error: stockTransactionError } = await supabase
-          .from('stock_transactions')
-          .insert({
-            product_id: selectedProduct.id,
-            transaction_type: 'SALE',
-            quantity: -finalOrderData.quantity, // Negative for outgoing stock
-            unit_price: finalOrderData.price,
-            total_amount: parseFloat(orderAmount) || 0,
-            transaction_date: new Date().toISOString().split('T')[0],
-            supplier_customer_name: selectedClient?.name || newClientData.name,
-           reference_number: finalOrderData.order_number,
-           reason: 'Sales Order'
-         });
-
-        if (stockTransactionError) {
-          console.error('Error creating stock transaction:', stockTransactionError);
-        }
-
-        // Create warehouse stock movement if warehouse is specified
-        if (finalOrderData.warehouseId) {
-          const { error: warehouseMovementError } = await supabase
-            .from('warehouse_stock_movements')
-            .insert({
-              product_id: selectedProduct.id,
-              warehouse_id: finalOrderData.warehouseId,
-              movement_type: 'OUT',
-              quantity: finalOrderData.quantity,
-              reference_type: 'SALES_ORDER',
-              reference_id: salesOrder.id,
-              reason: `Sales Order - ${finalOrderData.order_number}`,
-              created_at: new Date().toISOString()
-            });
-
-          if (warehouseMovementError) {
-            console.error('Error creating warehouse movement:', warehouseMovementError);
-          }
+          console.error('Error updating product sales statistics:', stockError);
         }
       }
 
@@ -377,8 +337,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_movements'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       resetFlow();

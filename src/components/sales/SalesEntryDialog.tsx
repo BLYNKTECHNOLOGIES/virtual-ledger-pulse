@@ -22,8 +22,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   // Generate unique order number
   const generateOrderNumber = () => {
     const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `ORD-${timestamp}-${random}`;
+    const random = Math.random().toString(36).substring(2, 12); // Longer random string
+    const counter = Math.floor(Math.random() * 10000); // Add extra randomness
+    return `SO-${timestamp}-${random}-${counter}`;
   };
 
   const [formData, setFormData] = useState({

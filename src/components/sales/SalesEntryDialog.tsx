@@ -63,7 +63,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const { data: paymentMethods } = useQuery({
     queryKey: ['sales_payment_methods'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('sales_payment_methods').select('*').eq('is_active', true);
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(
+            account_name,
+            bank_name
+          )
+        `)
+        .eq('is_active', true);
       if (error) throw error;
       return data;
     },
@@ -318,7 +327,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
+                      {method.bank_accounts ? method.bank_accounts.account_name : method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -77,7 +77,15 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
   const { data: paymentMethods } = useQuery({
     queryKey: ['sales_payment_methods'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('sales_payment_methods').select('*');
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(
+            account_name,
+            bank_name
+          )
+        `);
       if (error) throw error;
       return data;
     },
@@ -286,7 +294,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
                     <SelectContent>
                       {paymentMethods?.map((method) => (
                         <SelectItem key={method.id} value={method.id}>
-                          {method.type} - {method.risk_category}
+                          {method.bank_accounts ? method.bank_accounts.account_name : method.type} - {method.risk_category}
                         </SelectItem>
                       ))}
                     </SelectContent>

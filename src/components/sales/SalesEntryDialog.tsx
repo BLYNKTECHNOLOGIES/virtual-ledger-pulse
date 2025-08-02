@@ -19,8 +19,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Generate unique order number
+  const generateOrderNumber = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8);
+    return `ORD-${timestamp}-${random}`;
+  };
+
   const [formData, setFormData] = useState({
-    order_number: '',
+    order_number: generateOrderNumber(),
     client_name: '',
     client_phone: '',
     product_id: '',
@@ -172,7 +179,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       // Force a full page refresh to ensure all components show updated data
       setTimeout(() => window.location.reload(), 1000);
       setFormData({
-        order_number: '',
+        order_number: generateOrderNumber(),
         client_name: '',
         client_phone: '',
         product_id: '',

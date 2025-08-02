@@ -217,6 +217,10 @@ export function StockTransactionsTab() {
         return <Badge className="bg-red-100 text-red-800">Stock Out</Badge>;
       case 'PURCHASE':
         return <Badge className="bg-blue-100 text-blue-800">Purchase</Badge>;
+      case 'Sales':
+        return <Badge className="bg-emerald-100 text-emerald-800">Sales</Badge>;
+      case 'SALES_ORDER':
+        return <Badge className="bg-emerald-100 text-emerald-800">Sales</Badge>;
       case 'TRANSFER_IN':
         return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
       case 'TRANSFER_OUT':
@@ -306,6 +310,8 @@ export function StockTransactionsTab() {
                 <SelectItem value="IN">Stock In</SelectItem>
                 <SelectItem value="OUT">Stock Out</SelectItem>
                 <SelectItem value="PURCHASE">Purchase Orders</SelectItem>
+                <SelectItem value="Sales">Sales</SelectItem>
+                <SelectItem value="SALES_ORDER">Sales Orders</SelectItem>
               </SelectContent>
             </Select>
           </div>

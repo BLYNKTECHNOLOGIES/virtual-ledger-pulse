@@ -26,6 +26,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     product_id: '',
     warehouse_id: '',
     wallet_id: '',
+    platform: '',
     quantity: '',
     price_per_unit: '',
     total_amount: 0,
@@ -89,6 +90,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           product_id: data.product_id || null,
           warehouse_id: data.warehouse_id || null,
           wallet_id: data.wallet_id || null,
+          platform: data.platform || null,
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
           total_amount: data.total_amount,
@@ -156,6 +158,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         product_id: '',
         warehouse_id: '',
         wallet_id: '',
+        platform: '',
         quantity: '',
         price_per_unit: '',
         total_amount: 0,
@@ -181,6 +184,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
+      
+      // Auto-populate platform when wallet is selected
+      if (field === 'wallet_id' && value && wallets) {
+        const selectedWallet = wallets.find(w => w.id === value);
+        if (selectedWallet) {
+          // Extract platform name from wallet name (e.g., "BINANCE SS" -> "BINANCE")
+          const platformName = selectedWallet.wallet_name.split(' ')[0];
+          updated.platform = platformName;
+        }
+      }
       
       // Auto-calculate based on what's available
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {

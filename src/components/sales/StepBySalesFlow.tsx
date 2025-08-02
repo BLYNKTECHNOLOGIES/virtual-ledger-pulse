@@ -202,12 +202,22 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
       const walletId = selectedClient?.walletId || newClientData.walletId;
       
+      // Get platform from wallet if available
+      let platform = finalOrderData.platform;
+      if (walletId && wallets) {
+        const selectedWallet = wallets.find(w => w.id === walletId);
+        if (selectedWallet) {
+          platform = selectedWallet.wallet_name.split(' ')[0]; // Extract platform from wallet name
+        }
+      }
+      
       // Prepare the complete sales order data
       const salesOrderData = {
         order_number: finalOrderData.order_number,
         client_name: selectedClient?.name || newClientData.name,
         client_phone: selectedClient?.phone || newClientData.phone,
         wallet_id: walletId || null,
+        platform: platform || null,
         usdt_amount: usdtAmount,
         product_id: selectedProduct?.id || null,
         warehouse_id: finalOrderData.warehouseId,

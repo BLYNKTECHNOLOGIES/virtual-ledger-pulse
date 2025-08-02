@@ -187,31 +187,52 @@ export function ProductCardListingTab() {
                       </div>
                     </div>
                     
-                    {/* Wallet Breakdown */}
+                    {/* Wallet Holdings */}
                     {asset.wallet_stocks && asset.wallet_stocks.length > 0 && (
-                      <div className="bg-slate-50 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Wallet className="h-3 w-3 text-slate-600" />
-                          <span className="font-semibold text-slate-700 text-xs">Wallet Holdings</span>
+                      <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="p-1.5 bg-blue-500 rounded-lg">
+                            <Wallet className="h-3 w-3 text-white" />
+                          </div>
+                          <span className="font-semibold text-slate-800 text-sm">Portfolio Distribution</span>
                         </div>
-                        <div className="space-y-1">
-                          {asset.wallet_stocks.slice(0, 2).map((ws: any, index: number) => (
-                            <div key={index} className="space-y-1">
-                              <div className="flex justify-between items-center">
-                                <span className="text-slate-600 text-xs truncate">Wallet: {ws.wallet_name}</span>
-                                 <span className="font-semibold text-slate-800 text-xs">
-                                   {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
-                                     minimumFractionDigits: 0,
-                                     maximumFractionDigits: 2
-                                   })}
-                                 </span>
+                        
+                        <div className="grid gap-2">
+                          {asset.wallet_stocks.slice(0, 3).map((ws: any, index: number) => (
+                            <div key={index} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                                  <div className="flex-1">
+                                    <div className="font-medium text-slate-800 text-xs truncate">
+                                      {ws.wallet_name}
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-slate-500 text-xs">Exchange</span>
+                                      <div className="w-1 h-1 rounded-full bg-green-400"></div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-bold text-slate-800 text-sm">
+                                    {parseFloat(ws.quantity.toString()).toLocaleString('en-IN', {
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 2
+                                    })}
+                                  </div>
+                                  <div className="text-slate-500 text-xs">
+                                    {((ws.quantity / (asset.calculated_stock || 1)) * 100).toFixed(1)}%
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-slate-500 text-xs">Linked to: {ws.linked_to}</div>
                             </div>
                           ))}
-                          {asset.wallet_stocks.length > 2 && (
-                            <div className="text-center text-slate-500 text-xs">
-                              +{asset.wallet_stocks.length - 2} more wallets
+                          
+                          {asset.wallet_stocks.length > 3 && (
+                            <div className="bg-white/50 rounded-lg p-2 text-center border border-blue-100">
+                              <span className="text-slate-500 text-xs font-medium">
+                                +{asset.wallet_stocks.length - 3} more exchanges
+                              </span>
                             </div>
                           )}
                         </div>

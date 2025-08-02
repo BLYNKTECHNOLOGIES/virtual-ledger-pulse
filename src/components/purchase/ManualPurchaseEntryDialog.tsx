@@ -116,16 +116,25 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 handleSubmit called with formData:', formData);
     setLoading(true);
 
     try {
       // Validate required fields
       if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.deduction_bank_account_id || !formData.product_id) {
+        console.log('❌ Validation failed:', {
+          supplier_name: !!formData.supplier_name,
+          quantity: !!formData.quantity,
+          price_per_unit: !!formData.price_per_unit,
+          deduction_bank_account_id: !!formData.deduction_bank_account_id,
+          product_id: !!formData.product_id
+        });
         toast({
           title: "Error",
           description: "Please fill in all required fields including product and bank account for deduction",
           variant: "destructive"
         });
+        setLoading(false);
         return;
       }
 
@@ -229,6 +238,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         if (stockError) throw stockError;
       }
 
+      console.log('✅ Purchase order created successfully:', orderNumber);
+      
       toast({
         title: "Success",
         description: `Purchase order ${orderNumber} created successfully and stock updated`

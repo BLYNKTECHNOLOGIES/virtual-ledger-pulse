@@ -379,28 +379,21 @@ export default function Sales() {
                 </div>
               </div>
             </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+              <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Manual Sales Entry
+              </Button>
+              <Button onClick={() => setShowStepByStepFlow(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                New Order
+              </Button>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Sales Order Processing</h1>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Manual Sales Entry
-          </Button>
-          <Button onClick={() => setShowStepByStepFlow(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Order
-          </Button>
         </div>
       </div>
 

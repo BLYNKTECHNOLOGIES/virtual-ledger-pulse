@@ -209,6 +209,33 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('📝 Starting sales order creation mutation with data:', formData);
+    
+    // Manual validation for required fields
+    if (!formData.order_number.trim()) {
+      console.log('❌ Validation failed: Order number is required');
+      toast({ title: "Validation Error", description: "Order number is required", variant: "destructive" });
+      return;
+    }
+    
+    if (!formData.client_name.trim()) {
+      console.log('❌ Validation failed: Customer name is required');
+      toast({ title: "Validation Error", description: "Customer name is required", variant: "destructive" });
+      return;
+    }
+    
+    if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
+      console.log('❌ Validation failed: Valid quantity is required');
+      toast({ title: "Validation Error", description: "Valid quantity is required", variant: "destructive" });
+      return;
+    }
+    
+    if (!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) {
+      console.log('❌ Validation failed: Valid price per unit is required');
+      toast({ title: "Validation Error", description: "Valid price per unit is required", variant: "destructive" });
+      return;
+    }
+    
+    console.log('✅ Validation passed, calling mutation');
     createSalesOrderMutation.mutate(formData);
   };
 
@@ -256,10 +283,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={(e) => {
-          console.log('🔥 FORM SUBMIT EVENT TRIGGERED!');
-          handleSubmit(e);
-        }} className="space-y-4">
+        <form 
+          onSubmit={(e) => {
+            console.log('🔥 FORM SUBMIT EVENT TRIGGERED!');
+            handleSubmit(e);
+          }} 
+          className="space-y-4"
+          noValidate
+        >
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Order Number *</Label>

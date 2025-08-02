@@ -1,16 +1,14 @@
 
-import { HeroSection } from '../HeroSection';
-import { ServicesSection } from '../ServicesSection';
-import { TestimonialsSection } from '../TestimonialsSection';
-import { CTASection } from '../CTASection';
+import { ModernHeroSection } from '../ModernHeroSection';
+import { ModernFeaturesSection } from '../ModernFeaturesSection';
+import { ModernServicesSection } from '../ModernServicesSection';
 
 export function HomePage() {
   return (
     <div className="min-h-screen">
-      <HeroSection />
-      <ServicesSection />
-      <TestimonialsSection />
-      <CTASection />
+      <ModernHeroSection />
+      <ModernFeaturesSection />
+      <ModernServicesSection />
     </div>
   );
 }

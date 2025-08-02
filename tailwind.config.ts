@@ -70,7 +70,12 @@ export default {
 				'metric-sales-icon': 'hsl(var(--metric-sales-icon))',
 				'metric-orders-icon': 'hsl(var(--metric-orders-icon))',
 				'metric-clients-icon': 'hsl(var(--metric-clients-icon))',
-				'metric-cash-icon': 'hsl(var(--metric-cash-icon))'
+				'metric-cash-icon': 'hsl(var(--metric-cash-icon))',
+				'crypto-bitcoin': 'hsl(var(--crypto-bitcoin))',
+				'crypto-ethereum': 'hsl(var(--crypto-ethereum))',
+				'success': 'hsl(var(--success))',
+				'warning': 'hsl(var(--warning))',
+				'info': 'hsl(var(--info))'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

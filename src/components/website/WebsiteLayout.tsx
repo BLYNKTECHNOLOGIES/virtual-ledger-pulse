@@ -1,6 +1,6 @@
 
-import { Navbar } from './Navbar';
-import { Footer } from './Footer';
+import { ModernNavbar } from './ModernNavbar';
+import { ModernFooter } from './ModernFooter';
 
 interface WebsiteLayoutProps {
   children: React.ReactNode;
@@ -9,11 +9,11 @@ interface WebsiteLayoutProps {
 export function WebsiteLayout({ children }: WebsiteLayoutProps) {
   return (
     <div className="min-h-screen w-full">
-      <Navbar />
+      <ModernNavbar />
       <main className="w-full">
         {children}
       </main>
-      <Footer />
+      <ModernFooter />
     </div>
   );
 }

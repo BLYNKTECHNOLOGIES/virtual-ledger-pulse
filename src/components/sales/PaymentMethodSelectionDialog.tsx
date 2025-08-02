@@ -103,7 +103,9 @@ export function PaymentMethodSelectionDialog({
             ) : (
               <Building className="h-4 w-4 text-blue-600" />
             )}
-            <span className="font-medium">{method.type}</span>
+            <span className="font-medium">
+              {method.bank_accounts ? method.bank_accounts.account_name : method.type}
+            </span>
           </div>
           <Badge variant="outline" className="text-green-600">
             Available: ₹{(method.payment_limit - method.current_usage).toLocaleString()}

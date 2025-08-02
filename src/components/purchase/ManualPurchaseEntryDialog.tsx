@@ -217,10 +217,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           });
 
         if (walletError) throw walletError;
-
-        // Sync USDT stock with wallet balances
-        const { error: syncError } = await supabase.rpc('sync_usdt_stock');
-        if (syncError) throw syncError;
       } else {
         // For other products, update stock normally
         const { error: stockError } = await supabase

@@ -336,12 +336,32 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             total_amount: parseFloat(orderAmount) || 0,
             transaction_date: new Date().toISOString().split('T')[0],
             supplier_customer_name: selectedClient?.name || newClientData.name,
-            reference_number: finalOrderData.order_number,
-            reason: 'Sales Order'
-          });
+           reference_number: finalOrderData.order_number,
+           reason: 'Sales Order'
+         });
 
         if (stockTransactionError) {
           console.error('Error creating stock transaction:', stockTransactionError);
+        }
+
+        // Create warehouse stock movement if warehouse is specified
+        if (finalOrderData.warehouseId) {
+          const { error: warehouseMovementError } = await supabase
+            .from('warehouse_stock_movements')
+            .insert({
+              product_id: selectedProduct.id,
+              warehouse_id: finalOrderData.warehouseId,
+              movement_type: 'OUT',
+              quantity: finalOrderData.quantity,
+              reference_type: 'SALES_ORDER',
+              reference_id: salesOrder.id,
+              reason: `Sales Order - ${finalOrderData.order_number}`,
+              created_at: new Date().toISOString()
+            });
+
+          if (warehouseMovementError) {
+            console.error('Error creating warehouse movement:', warehouseMovementError);
+          }
         }
       }
 
@@ -358,6 +378,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['warehouse_stock_movements'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       resetFlow();

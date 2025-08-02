@@ -22,6 +22,8 @@ export function ProductCardListingTab() {
       // Sync stock data first
       await supabase.rpc('sync_product_warehouse_stock');
       
+      console.log('Stock sync completed');
+      
       // Get all assets
       let query = supabase
         .from('products')

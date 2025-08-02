@@ -80,7 +80,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .gt('current_stock_quantity', 0);
+        .order('name');
       
       if (error) throw error;
       return data;

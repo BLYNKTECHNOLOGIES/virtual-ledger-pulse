@@ -152,22 +152,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderNumber = generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
 
-      // Create bank transaction to deduct amount
-      const { error: transactionError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: formData.deduction_bank_account_id,
-          transaction_type: 'EXPENSE',
-          amount: totalAmount,
-          description: `Purchase order: ${orderNumber} - ${formData.supplier_name}`,
-          transaction_date: formData.order_date,
-          category: 'Purchase',
-          reference_number: orderNumber
-        });
+      console.log('📝 Creating purchase order with data:', {
+        orderNumber,
+        totalAmount,
+        supplier_name: formData.supplier_name,
+        product_id: formData.product_id
+      });
 
-      if (transactionError) throw transactionError;
-
-      // Create purchase order
+      // Create purchase order directly without bank transaction
       const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
@@ -183,7 +175,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('❌ Purchase order creation failed:', orderError);
+        throw orderError;
+      }
+
+      console.log('✅ Purchase order created:', purchaseOrder);
 
       // Create purchase order item
       const { error: itemError } = await supabase

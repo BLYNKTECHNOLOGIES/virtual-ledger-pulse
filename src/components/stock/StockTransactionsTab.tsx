@@ -218,9 +218,9 @@ export function StockTransactionsTab() {
       case 'PURCHASE':
         return <Badge className="bg-blue-100 text-blue-800">Purchase</Badge>;
       case 'Sales':
-        return <Badge className="bg-emerald-100 text-emerald-800">Sales</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Sales</Badge>;
       case 'SALES_ORDER':
-        return <Badge className="bg-emerald-100 text-emerald-800">Sales</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Sales</Badge>;
       case 'TRANSFER_IN':
         return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
       case 'TRANSFER_OUT':

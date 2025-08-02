@@ -171,6 +171,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Sales order created successfully" });
+      onOpenChange(false); // Close the dialog immediately
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
@@ -194,7 +195,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         order_time: new Date().toTimeString().slice(0, 5),
         description: ''
       });
-      onOpenChange(false);
     },
     onError: (error) => {
       console.error('Error creating sales order:', error);

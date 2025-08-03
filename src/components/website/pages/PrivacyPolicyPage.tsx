@@ -17,7 +17,7 @@ export function PrivacyPolicyPage() {
               Comprehensive Data Protection and Privacy Framework for P2P Cryptocurrency Trading
             </p>
             <p className="text-muted-foreground">
-              <strong>Effective Date:</strong> January 1, 2024 | <strong>Last Updated:</strong> January 1, 2024 | <strong>Version:</strong> 2.0
+              <strong>Effective Date:</strong> August 3, 2025 | <strong>Last Updated:</strong> August 3, 2025 | <strong>Version:</strong> 2.0
             </p>
           </div>
         </div>
@@ -631,7 +631,7 @@ export function PrivacyPolicyPage() {
                       India
                     </p>
                     <p><strong className="text-foreground">CIN:</strong> U62099MP2025PTC074915</p>
-                    <p><strong className="text-foreground">GSTIN:</strong> [GST Registration Number]</p>
+                    <p><strong className="text-foreground">GSTIN:</strong> 23AANCB2572J1ZK</p>
                     <p><strong className="text-foreground">Phone:</strong> +91-XXX-XXX-XXXX</p>
                     <p><strong className="text-foreground">Fax:</strong> +91-XXX-XXX-XXXX</p>
                   </div>
@@ -693,9 +693,9 @@ export function PrivacyPolicyPage() {
                   </p>
                   <div className="space-y-2">
                     <p className="text-muted-foreground"><strong>Current Policy Version:</strong> 2.0</p>
-                    <p className="text-muted-foreground"><strong>Effective Date:</strong> January 1, 2024</p>
-                    <p className="text-muted-foreground"><strong>Last Comprehensive Review:</strong> January 1, 2024</p>
-                    <p className="text-muted-foreground"><strong>Next Scheduled Review:</strong> July 1, 2024</p>
+                    <p className="text-muted-foreground"><strong>Effective Date:</strong> August 3, 2025</p>
+                    <p className="text-muted-foreground"><strong>Last Comprehensive Review:</strong> August 3, 2025</p>
+                    <p className="text-muted-foreground"><strong>Next Scheduled Review:</strong> July 1, 2026</p>
                     <p className="text-muted-foreground"><strong>Regulatory Compliance:</strong> DPDP Act 2023, PMLA 2002, IT Act 2000, FIU-IND Guidelines, RBI Regulations</p>
                     <p className="text-muted-foreground"><strong>International Standards:</strong> ISO 27001, SOC 2 Type II, Privacy by Design</p>
                   </div>

@@ -92,29 +92,30 @@ export function LiveCryptoRates() {
 
     const fetchCryptoData = async () => {
       try {
-        setError(null);
+        console.log('Starting crypto data fetch...');
         
-        // Add cache-busting parameter to ensure fresh data
-        const timestamp = Date.now();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${supportedCryptos.join(',')}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h&_=${timestamp}`,
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${supportedCryptos.join(',')}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`,
           {
             headers: {
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
+              'Accept': 'application/json'
             },
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+            signal: controller.signal
           }
         );
+        
+        clearTimeout(timeoutId);
+        console.log('Fetch response received:', response.status, response.ok);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Live crypto data fetched:', data);
+        console.log('Data parsed successfully, items:', data.length);
         
         // Ensure we have valid data
         if (Array.isArray(data) && data.length > 0) {
@@ -132,14 +133,17 @@ export function LiveCryptoRates() {
       } catch (err) {
         console.error('Error fetching crypto data:', err);
         
-        // If we have no data and fetch fails, use fallback data
+        // Only show error if we have no data at all (no cached data and no current data)
         if (cryptoData.length === 0) {
           console.log('Using fallback data due to fetch failure');
           setCryptoData(fallbackData);
           setLastFetchTime(new Date());
+          setError('Using fallback data. Unable to connect to live rates.');
+        } else {
+          // We have cached data, so don't show error state
+          console.log('Fetch failed but using existing cached data');
+          setError(null);
         }
-        
-        setError('Using cached data. Live rates temporarily unavailable.');
       } finally {
         setLoading(false);
       }

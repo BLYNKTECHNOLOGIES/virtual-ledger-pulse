@@ -17,38 +17,72 @@ export function ModernNavbar() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const tradersServices = [
-    { name: 'P2P Trading Platform', path: '/website/p2p-trading' },
-    { name: 'Buy/Sell USDT with INR', path: '/website/buy-sell-usdt' },
-    { name: 'Supported Payment Methods', path: '/website/payment-methods' },
-    { name: 'Getting Started Guide', path: '/website/getting-started' },
-    { name: 'KYC for Individuals', path: '/website/individual-kyc' },
-    { name: 'Safety Tips for Retail Traders', path: '/website/safety-tips' }
-  ];
+  const tradersDropdown = {
+    sections: [
+      {
+        title: "P2P TRADING",
+        items: [
+          { name: 'P2P Trading Platform', path: '/website/p2p-trading', description: 'Trade directly with verified users' },
+          { name: 'Buy USDT with INR', path: '/website/buy-usdt', description: 'Instant USDT purchases' },
+          { name: 'Sell Crypto for INR', path: '/website/sell-crypto', description: 'Quick INR settlements' },
+        ]
+      },
+      {
+        title: "PAYMENT METHODS",
+        items: [
+          { name: 'UPI & Bank Transfer', path: '/website/payment-methods', description: 'Multiple payment options' },
+          { name: 'Getting Started Guide', path: '/website/getting-started', description: 'Complete onboarding help' },
+        ]
+      },
+      {
+        title: "SECURITY & COMPLIANCE",
+        items: [
+          { name: 'KYC for Individuals', path: '/website/individual-kyc', description: 'Complete identity verification' },
+          { name: 'Safety Tips', path: '/website/safety-tips', description: 'Secure trading practices' },
+        ]
+      }
+    ]
+  };
 
-  const businessServices = [
-    { name: 'Bulk Buy/Sell USDT, BTC, ETH', path: '/website/bulk-trading' },
-    { name: 'INR Settlement for Institutions', path: '/website/institutional-settlement' },
-    { name: 'Custom Rates & Instant Settlement', path: '/website/custom-rates' },
-    { name: 'Corporate Account KYC', path: '/website/corporate-kyc' },
-    { name: 'Dedicated Manager & SLAs', path: '/website/dedicated-support' }
-  ];
+  const businessDropdown = {
+    sections: [
+      {
+        title: "BULK TRADING",
+        items: [
+          { name: 'Bulk Buy/Sell USDT, BTC, ETH', path: '/website/bulk-trading', description: 'High-volume transactions' },
+          { name: 'Custom Rates & Pricing', path: '/website/custom-rates', description: 'Negotiated institutional rates' },
+        ]
+      },
+      {
+        title: "ENTERPRISE SERVICES",
+        items: [
+          { name: 'INR Settlement for Institutions', path: '/website/institutional-settlement', description: 'Corporate banking integration' },
+          { name: 'Dedicated Account Manager', path: '/website/dedicated-support', description: 'Personal relationship manager' },
+          { name: 'Corporate KYC', path: '/website/corporate-kyc', description: 'Business verification process' },
+        ]
+      }
+    ]
+  };
 
-  const compliancePages = [
-    { name: 'Indian KYC Norms', path: '/website/kyc-norms' },
-    { name: 'AML/CFT Policy', path: '/website/aml-policy' },
-    { name: 'Data Privacy & Storage Policy', path: '/website/privacy-policy' },
-    { name: 'FATF & VASP Guidelines', path: '/website/vasp-guidelines' },
-    { name: 'RBI/SEBI Notifications', path: '/website/regulatory-notifications' }
-  ];
-
-  const resourcesPages = [
-    { name: 'Help Center / Support Portal', path: '/website/help-center' },
-    { name: 'Frequently Asked Questions', path: '/website/faq' },
-    { name: 'Blog: Product & Security Updates', path: '/website/blog' },
-    { name: 'Learn: Crypto Trading 101', path: '/website/learn-crypto' },
-    { name: 'API Access', path: '/website/api-access' }
-  ];
+  const resourcesDropdown = {
+    sections: [
+      {
+        title: "SUPPORT",
+        items: [
+          { name: 'Help Center', path: '/website/help-center', description: 'Complete support portal' },
+          { name: 'FAQ', path: '/website/faq', description: 'Frequently asked questions' },
+        ]
+      },
+      {
+        title: "LEARN",
+        items: [
+          { name: 'Crypto Trading 101', path: '/website/learn-crypto', description: 'Beginner trading guide' },
+          { name: 'Blog & Updates', path: '/website/blog', description: 'Latest news and insights' },
+          { name: 'API Documentation', path: '/website/api-access', description: 'Developer resources' },
+        ]
+      }
+    ]
+  };
 
   return (
     <>
@@ -104,19 +138,37 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'traders' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg py-2 z-50"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
                     onMouseEnter={() => setActiveDropdown('traders')}
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    {tradersServices.map((service) => (
-                      <Link
-                        key={service.path}
-                        to={service.path}
-                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
-                        {service.name}
-                      </Link>
-                    ))}
+                    <div className="grid grid-cols-1 gap-8">
+                      {tradersDropdown.sections.map((section, index) => (
+                        <div key={index}>
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                            {section.title}
+                          </h3>
+                          <div className="space-y-1">
+                            {section.items.map((item) => (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground mt-1">
+                                    {item.description}
+                                  </span>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -133,19 +185,37 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'businesses' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg py-2 z-50"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
                     onMouseEnter={() => setActiveDropdown('businesses')}
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    {businessServices.map((service) => (
-                      <Link
-                        key={service.path}
-                        to={service.path}
-                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
-                        {service.name}
-                      </Link>
-                    ))}
+                    <div className="grid grid-cols-1 gap-8">
+                      {businessDropdown.sections.map((section, index) => (
+                        <div key={index}>
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                            {section.title}
+                          </h3>
+                          <div className="space-y-1">
+                            {section.items.map((item) => (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground mt-1">
+                                    {item.description}
+                                  </span>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -172,19 +242,37 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'resources' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg py-2 z-50"
+                    className="absolute top-full left-0 mt-2 w-[400px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
                     onMouseEnter={() => setActiveDropdown('resources')}
                     onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    {resourcesPages.map((resource) => (
-                      <Link
-                        key={resource.path}
-                        to={resource.path}
-                        className="block px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                      >
-                        {resource.name}
-                      </Link>
-                    ))}
+                    <div className="grid grid-cols-1 gap-8">
+                      {resourcesDropdown.sections.map((section, index) => (
+                        <div key={index}>
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                            {section.title}
+                          </h3>
+                          <div className="space-y-1">
+                            {section.items.map((item) => (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground mt-1">
+                                    {item.description}
+                                  </span>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -240,32 +328,42 @@ export function ModernNavbar() {
 
                 <div>
                   <div className="font-medium text-foreground mb-2">For Traders</div>
-                  <div className="space-y-2 ml-4">
-                    {tradersServices.map((service) => (
-                      <Link
-                        key={service.path}
-                        to={service.path}
-                        className="block text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {service.name}
-                      </Link>
+                  <div className="space-y-3 ml-4">
+                    {tradersDropdown.sections.map((section) => (
+                      <div key={section.title}>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">{section.title}</div>
+                        {section.items.map((item) => (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>
                 
                 <div>
                   <div className="font-medium text-foreground mb-2">For Businesses</div>
-                  <div className="space-y-2 ml-4">
-                    {businessServices.map((service) => (
-                      <Link
-                        key={service.path}
-                        to={service.path}
-                        className="block text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {service.name}
-                      </Link>
+                  <div className="space-y-3 ml-4">
+                    {businessDropdown.sections.map((section) => (
+                      <div key={section.title}>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">{section.title}</div>
+                        {section.items.map((item) => (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -280,16 +378,21 @@ export function ModernNavbar() {
 
                 <div>
                   <div className="font-medium text-foreground mb-2">Resources</div>
-                  <div className="space-y-2 ml-4">
-                    {resourcesPages.map((resource) => (
-                      <Link
-                        key={resource.path}
-                        to={resource.path}
-                        className="block text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {resource.name}
-                      </Link>
+                  <div className="space-y-3 ml-4">
+                    {resourcesDropdown.sections.map((section) => (
+                      <div key={section.title}>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">{section.title}</div>
+                        {section.items.map((item) => (
+                          <Link
+                            key={item.path}
+                            to={item.path}
+                            className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </div>

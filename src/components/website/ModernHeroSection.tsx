@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Bitcoin, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowRight, Bitcoin, Wallet, TrendingUp, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function ModernHeroSection() {
@@ -160,12 +160,34 @@ export function ModernHeroSection() {
 
         {/* Supported Cryptocurrencies */}
         <div className="mt-20 text-center">
-          <div className="text-sm text-muted-foreground mb-6">Supported Cryptocurrencies</div>
-          <div className="flex justify-center items-center gap-8 opacity-60">
-            {['Bitcoin', 'Ethereum', 'Litecoin', 'Bitcoin Cash', 'Dogecoin'].map((crypto, index) => (
-              <div key={crypto} className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-muted rounded-full"></div>
-                <span className="text-sm text-muted-foreground hidden sm:inline">{crypto}</span>
+          <div className="text-sm text-muted-foreground mb-8">Supported Cryptocurrencies</div>
+          <div className="flex justify-center items-center gap-8 flex-wrap">
+            {[
+              { name: 'Bitcoin', symbol: 'BTC', color: 'hsl(var(--crypto-bitcoin))', icon: Bitcoin },
+              { name: 'Ethereum', symbol: 'ETH', color: 'hsl(var(--crypto-ethereum))', icon: null },
+              { name: 'Litecoin', symbol: 'LTC', color: 'hsl(204, 100%, 50%)', icon: null },
+              { name: 'Bitcoin Cash', symbol: 'BCH', color: 'hsl(120, 100%, 35%)', icon: null },
+              { name: 'Dogecoin', symbol: 'DOGE', color: 'hsl(45, 100%, 50%)', icon: null },
+              { name: 'USDT', symbol: 'USDT', color: 'hsl(120, 100%, 40%)', icon: DollarSign },
+              { name: 'USD Coin', symbol: 'USDC', color: 'hsl(210, 100%, 50%)', icon: DollarSign }
+            ].map((crypto) => (
+              <div key={crypto.symbol} className="flex flex-col items-center gap-3 group hover:scale-105 transition-transform">
+                <div 
+                  className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg"
+                  style={{ backgroundColor: crypto.color }}
+                >
+                  {crypto.icon ? (
+                    <crypto.icon className="w-6 h-6 text-white" />
+                  ) : (
+                    <span className="text-white text-lg font-bold">
+                      {crypto.symbol.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{crypto.name}</div>
+                  <div className="text-xs text-muted-foreground">{crypto.symbol}</div>
+                </div>
               </div>
             ))}
           </div>

@@ -23,6 +23,8 @@ interface ProfitLossData {
   profitMargin: number;
   salesCount: number;
   npmTotal: number;
+  totalCOGS?: number;
+  totalOtherExpenses?: number;
 }
 
 export default function ProfitLoss() {
@@ -127,11 +129,12 @@ export default function ProfitLoss() {
         .select('product_id, quantity, unit_price, created_at')
         .order('created_at', { ascending: true });
 
-      // Get expenses from bank transactions
+      // Get other expenses from bank transactions (excluding purchase category)
       const { data: expenseData } = await supabase
         .from('bank_transactions')
         .select('amount')
         .eq('transaction_type', 'EXPENSE')
+        .neq('category', 'Purchase')  // Exclude purchase transactions
         .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
         .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
 
@@ -143,30 +146,35 @@ export default function ProfitLoss() {
         .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
         .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
 
+      // Calculate Cost of Goods Sold from purchase orders
+      const totalCOGS = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+
       // Calculate NPM using FIFO logic with available data
       const npmTotal = calculateNPMWithFIFO(salesItems || [], purchaseItems || []);
 
       // Calculate metrics
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalExpense = expenseData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
+      const totalOtherExpenses = expenseData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
       
-      // Gross profit is NPM (profits from operations only)
-      const grossProfit = npmTotal;
+      // Gross profit calculation: Revenue - COGS or NPM (whichever is available)
+      const grossProfit = npmTotal !== 0 ? npmTotal : (totalRevenue - totalCOGS);
       
-      // Net profit = Gross Profit - Expenses + Income
-      const netProfit = grossProfit - totalExpense + totalIncome;
+      // Net profit = Gross Profit - Other Expenses + Other Income
+      const netProfit = grossProfit - totalOtherExpenses + totalIncome;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
       return {
         totalRevenue,
-        totalExpense,
+        totalExpense: totalCOGS + totalOtherExpenses, // Include both COGS and other expenses for display
         totalIncome,
         grossProfit,
         netProfit,
         profitMargin,
         salesCount: salesData?.length || 0,
-        npmTotal
+        npmTotal,
+        totalCOGS,
+        totalOtherExpenses
       } as ProfitLossData;
     },
   });
@@ -329,15 +337,24 @@ export default function ProfitLoss() {
                     </div>
                   </div>
 
+                  {/* Cost of Goods Sold Section */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Cost of Goods Sold</h3>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">Purchase Orders (COGS)</span>
+                      <span className="font-semibold text-red-600">-{formatCurrency(profitLossData?.totalCOGS || 0)}</span>
+                    </div>
+                  </div>
+
                   {/* NPM/Gross Profit Section */}
                   <div className="border-b border-gray-200 pb-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Gross Profit (NPM)</h3>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Net Profit Made (FIFO)</span>
+                      <span className="text-gray-700">Revenue - COGS</span>
                       <span className="font-semibold text-green-600">{formatCurrency(profitLossData?.grossProfit || 0)}</span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
-                      Calculated using First In First Out logic for cost basis
+                      {profitLossData?.npmTotal !== 0 ? 'Calculated using FIFO logic' : 'Simple Revenue - COGS calculation'}
                     </p>
                   </div>
 
@@ -346,12 +363,12 @@ export default function ProfitLoss() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Other Income & Expenses</h3>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Total Income (from income tab)</span>
+                        <span className="text-gray-700">Other Income</span>
                         <span className="font-semibold text-green-600">+{formatCurrency(profitLossData?.totalIncome || 0)}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Total Expenses (from expense tab)</span>
-                        <span className="font-semibold text-red-600">-{formatCurrency(profitLossData?.totalExpense || 0)}</span>
+                        <span className="text-gray-700">Other Expenses</span>
+                        <span className="font-semibold text-red-600">-{formatCurrency(profitLossData?.totalOtherExpenses || 0)}</span>
                       </div>
                     </div>
                   </div>

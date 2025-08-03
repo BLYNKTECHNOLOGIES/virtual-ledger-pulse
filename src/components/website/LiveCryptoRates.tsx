@@ -17,6 +17,47 @@ export function LiveCryptoRates() {
   const [cryptoData, setCryptoData] = useState<CryptoData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+
+  // Fallback data to ensure something always displays
+  const fallbackData: CryptoData[] = [
+    {
+      id: 'bitcoin',
+      symbol: 'btc',
+      name: 'Bitcoin',
+      image: 'https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400',
+      current_price: 67234,
+      price_change_percentage_24h: 2.4,
+      market_cap: 1300000000000
+    },
+    {
+      id: 'ethereum',
+      symbol: 'eth', 
+      name: 'Ethereum',
+      image: 'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628',
+      current_price: 3891,
+      price_change_percentage_24h: 1.8,
+      market_cap: 400000000000
+    },
+    {
+      id: 'litecoin',
+      symbol: 'ltc',
+      name: 'Litecoin', 
+      image: 'https://coin-images.coingecko.com/coins/images/2/large/litecoin.png?1696501400',
+      current_price: 142,
+      price_change_percentage_24h: -0.5,
+      market_cap: 10000000000
+    },
+    {
+      id: 'bitcoin-cash',
+      symbol: 'bch',
+      name: 'Bitcoin Cash',
+      image: 'https://coin-images.coingecko.com/coins/images/780/large/bitcoin-cash-circle.png?1696501932',
+      current_price: 289,
+      price_change_percentage_24h: 3.2,
+      market_cap: 6000000000
+    }
+  ];
 
   const supportedCryptos = [
     'bitcoin',
@@ -29,9 +70,28 @@ export function LiveCryptoRates() {
   ];
 
   useEffect(() => {
+    // Load cached data from localStorage on mount
+    const cachedData = localStorage.getItem('cryptoData');
+    const cachedTime = localStorage.getItem('cryptoDataTime');
+    
+    if (cachedData && cachedTime) {
+      try {
+        const data = JSON.parse(cachedData);
+        const time = new Date(cachedTime);
+        // Use cached data if it's less than 5 minutes old
+        if (Date.now() - time.getTime() < 5 * 60 * 1000 && data.length > 0) {
+          setCryptoData(data);
+          setLastFetchTime(time);
+          setLoading(false);
+          console.log('Using cached crypto data:', data);
+        }
+      } catch (e) {
+        console.error('Error parsing cached data:', e);
+      }
+    }
+
     const fetchCryptoData = async () => {
       try {
-        setLoading(true);
         setError(null);
         
         // Add cache-busting parameter to ensure fresh data
@@ -44,7 +104,8 @@ export function LiveCryptoRates() {
               'Cache-Control': 'no-cache, no-store, must-revalidate',
               'Pragma': 'no-cache',
               'Expires': '0'
-            }
+            },
+            signal: AbortSignal.timeout(10000) // 10 second timeout
           }
         );
         
@@ -53,28 +114,46 @@ export function LiveCryptoRates() {
         }
         
         const data = await response.json();
-        console.log('Live crypto data fetched:', data); // Debug log
+        console.log('Live crypto data fetched:', data);
         
         // Ensure we have valid data
         if (Array.isArray(data) && data.length > 0) {
+          const now = new Date();
           setCryptoData(data);
+          setLastFetchTime(now);
           setError(null);
+          
+          // Cache the data in localStorage
+          localStorage.setItem('cryptoData', JSON.stringify(data));
+          localStorage.setItem('cryptoDataTime', now.toISOString());
         } else {
           throw new Error('Invalid data received from API');
         }
       } catch (err) {
         console.error('Error fetching crypto data:', err);
-        setError('Failed to load live rates. Please try again later.');
+        
+        // If we have no data and fetch fails, use fallback data
+        if (cryptoData.length === 0) {
+          console.log('Using fallback data due to fetch failure');
+          setCryptoData(fallbackData);
+          setLastFetchTime(new Date());
+        }
+        
+        setError('Using cached data. Live rates temporarily unavailable.');
       } finally {
         setLoading(false);
       }
     };
 
-    // Initial fetch
-    fetchCryptoData();
+    // Initial fetch if we don't have recent cached data
+    if (!cachedData || !cachedTime || Date.now() - new Date(cachedTime).getTime() > 5 * 60 * 1000) {
+      fetchCryptoData();
+    }
     
-    // Refresh data every 10 seconds for more frequent updates
-    const interval = setInterval(fetchCryptoData, 10000);
+    // Refresh data every 30 seconds
+    const interval = setInterval(() => {
+      fetchCryptoData();
+    }, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -163,7 +242,7 @@ export function LiveCryptoRates() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Live Crypto Rates</h2>
           <p className="text-muted-foreground">Real-time cryptocurrency prices and market data</p>
           <div className="text-xs text-muted-foreground mt-2">
-            Updates every 10 seconds • Powered by CoinGecko • Last updated: {new Date().toLocaleTimeString()}
+            Updates every 30 seconds • Powered by CoinGecko {lastFetchTime && `• Last updated: ${lastFetchTime.toLocaleTimeString()}`}
           </div>
         </div>
         

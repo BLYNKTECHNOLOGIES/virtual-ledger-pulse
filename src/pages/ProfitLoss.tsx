@@ -118,8 +118,8 @@ export default function ProfitLoss() {
       // Get purchase order items for FIFO calculation
       const { data: purchaseItems } = await supabase
         .from('purchase_order_items')
-        .select('product_id, quantity, unit_price, created_at')
-        .order('created_at', { ascending: true }); // FIFO ordering
+        .select('product_id, quantity, unit_price')
+        .order('id', { ascending: true }); // Use id for ordering since created_at doesn't exist
 
       // Get sales order items for NPM calculation
       const { data: salesItems } = await supabase

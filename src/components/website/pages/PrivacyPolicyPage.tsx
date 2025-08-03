@@ -1,4 +1,4 @@
-import { Shield, Lock, Eye, Users, Database, Globe, Phone, Mail, MapPin, AlertTriangle, FileText, Gavel, Clock } from 'lucide-react';
+import { Shield, Lock, Eye, Users, Database, Globe, Phone, Mail, MapPin, AlertTriangle, FileText, Gavel, Clock, Brain, Wifi, CreditCard, UserCheck } from 'lucide-react';
 
 export function PrivacyPolicyPage() {
   return (
@@ -14,7 +14,7 @@ export function PrivacyPolicyPage() {
               Privacy Policy
             </h1>
             <p className="text-xl text-muted-foreground mb-4">
-              Comprehensive Data Protection and Privacy Framework
+              Comprehensive Data Protection and Privacy Framework for P2P Cryptocurrency Trading
             </p>
             <p className="text-muted-foreground">
               <strong>Effective Date:</strong> January 1, 2024 | <strong>Last Updated:</strong> January 1, 2024 | <strong>Version:</strong> 2.0
@@ -54,6 +54,7 @@ export function PrivacyPolicyPage() {
                   <p><strong>Processing:</strong> Any operation performed on personal data, including collection, recording, organization, structuring, storage, adaptation, retrieval, consultation, use, disclosure, dissemination, restriction, erasure, or destruction.</p>
                   <p><strong>VASP:</strong> Virtual Asset Service Provider as defined under applicable Indian and international regulations for entities providing services related to virtual assets including cryptocurrency trading, wallet services, and related financial services.</p>
                   <p><strong>KYC:</strong> Know Your Customer procedures mandated under Indian law for identity verification, risk assessment, and customer due diligence.</p>
+                  <p><strong>AML:</strong> Anti-Money Laundering measures and procedures required under the Prevention of Money Laundering Act 2002 and FIU-IND guidelines.</p>
                 </div>
               </div>
             </div>
@@ -68,296 +69,360 @@ export function PrivacyPolicyPage() {
             
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p className="text-lg">
-                We process personal data only when we have a valid legal basis under applicable data protection laws including the Information Technology Act 2000, Digital Personal Data Protection Act 2023, and international standards where applicable. Our processing activities are grounded in specific legal bases that ensure compliance with Indian and international privacy regulations.
+                We process personal data only when we have a valid legal basis under applicable data protection laws including the Information Technology Act 2000, Digital Personal Data Protection Act 2023, and international standards where applicable. Our processing activities are grounded in specific legal bases that ensure compliance with Indian and international privacy regulations while enabling us to provide secure cryptocurrency trading services.
               </p>
 
               <div className="space-y-6">
                 <div>
                   <h3 className="text-xl font-semibold text-foreground mb-4">2.1 Regulatory Compliance and Legal Obligations</h3>
                   <p>
-                    As a VASP operating in India, we are subject to numerous legal obligations that require the processing of personal data. This includes compliance with PMLA requirements for customer due diligence, FIU-IND reporting obligations for suspicious transactions, income tax reporting requirements under the Income Tax Act 1961, RBI guidelines for digital payments, FEMA compliance for foreign exchange transactions, and other applicable financial services regulations. We also process data to comply with court orders, regulatory investigations, and law enforcement requests under the Code of Criminal Procedure 1973 and other applicable laws.
+                    As a VASP operating in India, we are subject to numerous legal obligations that require the processing of personal data. This includes compliance with PMLA requirements for customer due diligence and ongoing monitoring, FIU-IND reporting obligations for suspicious and cash transactions, income tax reporting requirements under the Income Tax Act 1961 including TDS deduction and filing, RBI guidelines for digital payments and virtual asset transactions, FEMA compliance for foreign exchange transactions and cross-border payments, securities regulations under SEBI for relevant investment activities, and other applicable financial services regulations. We also process data to comply with court orders, regulatory investigations, and law enforcement requests under the Code of Criminal Procedure 1973, Indian Evidence Act 1872, and other applicable laws governing financial crimes and cybersecurity.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">2.2 Contractual Necessity</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">2.2 Contractual Necessity and Service Provision</h3>
                   <p>
-                    We process personal data that is necessary for the performance of our Terms of Service and to provide the Services you have requested. This includes account creation, identity verification through Aadhaar-based eKYC, transaction processing using UPI and IMPS systems, customer support, and platform security measures. Without this processing, we cannot provide our cryptocurrency trading services effectively or comply with the regulatory framework governing VASPs in India.
+                    We process personal data that is necessary for the performance of our Terms of Service and to provide the Services you have requested. This includes account creation and management with secure authentication systems, identity verification through comprehensive KYC processes including Aadhaar-based eKYC and document verification, transaction processing using UPI, IMPS, RTGS, and other payment systems authorized by RBI, cryptocurrency wallet management and blockchain transaction processing, customer support and dispute resolution services, platform security and fraud prevention measures, and regulatory compliance monitoring and reporting. Without this processing, we cannot provide our cryptocurrency trading services effectively, ensure user account security, or comply with the extensive regulatory framework governing VASPs and financial service providers in India.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">2.3 Consent</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">2.3 Explicit Consent and User Authorization</h3>
                   <p>
-                    We process certain categories of personal data based on your explicit consent, particularly for marketing communications, optional features like portfolio analytics, non-essential cookies for user experience enhancement, precise location tracking for fraud prevention, and biometric data for enhanced security. You have the right to withdraw your consent at any time through your account settings or by contacting our Data Protection Officer. Withdrawal of consent does not affect the lawfulness of processing based on consent before its withdrawal.
+                    We process certain categories of personal data based on your explicit consent, particularly for optional services and enhanced features. Consent-based processing includes marketing communications and promotional content delivery through email, SMS, and push notifications, optional features like advanced portfolio analytics, trading insights, and market research participation, non-essential cookies for user experience enhancement and behavioral analytics, precise location tracking for fraud prevention and security verification, biometric data collection for enhanced security measures including facial recognition and fingerprint authentication, social media integration and sharing features, and third-party service integrations for enhanced functionality. You have the right to withdraw your consent at any time through your account settings, cookie preferences, or by contacting our Data Protection Officer. Withdrawal of consent does not affect the lawfulness of processing based on consent before its withdrawal and will not impact essential service functionality.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">2.4 Legitimate Interests</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">2.4 Legitimate Interests and Business Operations</h3>
                   <p>
-                    We process personal data for legitimate business interests that are not overridden by your privacy rights. These interests include fraud prevention and security measures using advanced analytics, improving our Services through usage analytics and user behavior analysis, conducting business development activities, protecting our legal rights and intellectual property, ensuring network and information security, and preventing money laundering and terrorist financing. We conduct periodic balancing tests to ensure that our legitimate interests do not outweigh your fundamental rights and freedoms.
+                    We process personal data for legitimate business interests that are not overridden by your privacy rights, ensuring we conduct appropriate balancing tests and impact assessments. Legitimate interests include comprehensive fraud prevention and security measures using advanced analytics and machine learning algorithms, improving our Services through usage analytics, user behavior analysis, and platform optimization, conducting business development activities including market research and competitive analysis, protecting our legal rights and intellectual property including enforcement of terms of service and legal agreements, ensuring network and information security through monitoring and threat detection, preventing money laundering and terrorist financing through transaction monitoring and risk assessment, maintaining business continuity and disaster recovery capabilities, and conducting internal audit and compliance monitoring activities. We regularly review our legitimate interests processing to ensure continued appropriateness and conduct privacy impact assessments for new processing activities that may affect user rights.
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 3. KYC/AML Data and Financial Record Handling */}
-          <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <FileText className="h-8 w-8 text-primary" />
-              3. KYC/AML Data and Financial Record Handling
-            </h2>
-            
-            <div className="space-y-6 text-muted-foreground leading-relaxed">
-              <p className="text-lg">
-                As a VASP operating under Indian jurisdiction, we maintain comprehensive KYC and AML procedures that involve the collection, processing, and retention of extensive financial and personal information. These procedures are mandated by the Prevention of Money Laundering Act (PMLA) 2002, FIU-IND guidelines, RBI Master Directions, and other applicable regulations, and are essential for maintaining the integrity of the financial system and preventing financial crimes.
-              </p>
-
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">3.1 Comprehensive KYC Documentation Requirements</h3>
-                  <p>
-                    Our KYC process involves comprehensive identity verification that includes collecting and verifying Aadhaar cards with biometric authentication, PAN cards with income tax database verification, passport and visa documentation for foreign nationals, voter ID cards and driving licenses as additional proof, bank account statements for last six months, salary certificates and employment verification letters, and income tax returns for previous two years. We conduct address verification through utility bills, rental agreements, bank statements, and property documents. Live photograph verification includes selfie with document verification, video KYC through authorized intermediaries, and biometric verification using fingerprint and facial recognition technology where legally permitted.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">3.2 Enhanced Due Diligence and Risk Assessment</h3>
-                  <p>
-                    We implement risk-based KYC procedures that include enhanced due diligence for high-net-worth individuals with transaction volumes exceeding specified thresholds, politically exposed persons (PEPs) screening through global databases, sanctions list screening against UNSC, EU, OFAC, and other international lists, adverse media screening for negative news and litigation history, and source of wealth verification for large transactions. Our risk assessment framework evaluates customer risk profiles based on geographic location, transaction patterns, occupation and business activity, source of funds and wealth, and relationships with high-risk entities. We maintain detailed risk assessment documentation and conduct periodic reviews as mandated by regulatory guidelines.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">3.3 Transaction Monitoring and Suspicious Activity Reporting</h3>
-                  <p>
-                    We implement sophisticated anti-money laundering monitoring systems that analyze transaction patterns using machine learning algorithms, identify suspicious activities through behavioral analysis and pattern recognition, generate automated alerts for manual review by compliance officers, maintain comprehensive audit trails with blockchain integration for transparency, and ensure timely reporting to FIU-IND within prescribed timelines. Our AML procedures include ongoing customer monitoring with real-time transaction analysis, periodic review of customer risk profiles with automated triggers, screening against sanctions lists and politically exposed persons databases with daily updates, and maintaining detailed records of all compliance activities including investigation reports and regulatory correspondence.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">3.4 Cross-Border Transaction Compliance</h3>
-                  <p>
-                    For transactions involving international elements, we implement enhanced monitoring procedures that include verification of source and destination of funds through correspondent banking networks, compliance with foreign exchange regulations under FEMA 1999, screening for sanctions and embargo compliance across multiple international databases, reporting to FEMA authorities for transactions exceeding specified limits, and maintenance of detailed records for cross-border transaction analysis. We also ensure compliance with international standards including FATF recommendations, correspondent banking requirements, and bilateral regulatory agreements between India and other jurisdictions.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 4. What Information We Collect */}
+          {/* 3. What Information We Collect */}
           <section>
             <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
               <Database className="h-8 w-8 text-primary" />
-              4. What Information We Collect
+              3. What Information We Collect
             </h2>
             
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p className="text-lg">
-                We collect various types of information to provide, maintain, protect, and improve our Services, comply with legal obligations under Indian law, and ensure the security and integrity of our cryptocurrency trading platform. The information we collect falls into several categories, each serving specific purposes in delivering secure and compliant P2P cryptocurrency trading services while adhering to FIU-IND guidelines and PMLA requirements.
+                We collect various types of information to provide, maintain, protect, and improve our Services, comply with legal obligations under Indian law, and ensure the security and integrity of our cryptocurrency trading platform. The information we collect falls into several categories, each serving specific purposes in delivering secure and compliant P2P cryptocurrency trading services while adhering to FIU-IND guidelines, PMLA requirements, and DPDP Act provisions.
               </p>
 
               <div className="space-y-8">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.1 Personal Identification and KYC Information</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">3.1 Personal Identification and KYC Information</h3>
                   <p>
-                    As mandated by Indian KYC and AML regulations under PMLA 2002 and FIU-IND guidelines, we collect comprehensive personal identification information to verify your identity, assess risk, and comply with regulatory requirements. This includes your full legal name as it appears on government-issued identification documents, date of birth, gender as per official records, nationality and citizenship status, current residential address with postal code, permanent address if different from current address, father's/spouse's name as required by banking regulations, and contact information including primary and alternate email addresses, mobile phone numbers with SMS verification, and landline numbers where available. We also collect photographs and selfies for biometric verification, signatures in digital format for document authentication, and occupation details including employer information, designation, and nature of business or profession.
+                    As mandated by Indian KYC and AML regulations under PMLA 2002 and FIU-IND guidelines, we collect comprehensive personal identification information to verify your identity, assess risk, and comply with regulatory requirements. This includes your full legal name as it appears on government-issued identification documents, date of birth and age verification, gender as per official records, nationality and citizenship status with supporting documentation, current residential address with postal code and proof of address verification, permanent address if different from current address with appropriate documentation, father's name or spouse's name as required by banking regulations and government norms, and comprehensive contact information including primary and alternate email addresses with verification, mobile phone numbers with SMS and OTP verification, landline numbers where available, and emergency contact details. We also collect high-resolution photographs and live selfies for biometric verification and fraud prevention, digital signatures for document authentication and regulatory compliance, and detailed occupation information including employer details, designation, nature of business or profession, and income verification documentation.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.2 Government-Issued Documentation and Regulatory Compliance</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">3.2 Government-Issued Documentation and Regulatory Compliance</h3>
                   <p>
-                    In compliance with PMLA requirements, IT Act 2000, and FIU-IND guidelines, we collect and securely store copies of government-issued identification documents including Permanent Account Number (PAN) cards with income tax database verification, Aadhaar cards with UIDAI verification and biometric authentication, passports with embassy verification for foreign nationals, voter ID cards, driving licenses, and any other government-issued photo identification. We also collect supporting documentation such as utility bills not older than three months, bank statements for the last six months, rental agreements or property ownership documents, employment certificates and salary slips, income tax returns for the previous two years, and Form 16 or other income proof documents. All document collection is performed through secure, encrypted channels with end-to-end encryption and stored with enterprise-grade security measures including access controls and audit logging.
+                    In compliance with PMLA requirements, IT Act 2000, FIU-IND guidelines, and DPDP Act provisions, we collect and securely store copies of government-issued identification documents and supporting paperwork. This includes Permanent Account Number (PAN) cards with income tax database verification and validation, Aadhaar cards with UIDAI verification, biometric authentication, and demographic data validation, passports with embassy verification and apostille validation for foreign nationals, voter ID cards issued by the Election Commission of India, driving licenses with transport authority verification, and any other government-issued photo identification acceptable under RBI guidelines. We also collect comprehensive supporting documentation such as utility bills not older than three months for address verification, bank statements for the last six months for financial assessment and transaction pattern analysis, rental agreements or property ownership documents for address confirmation, employment certificates and salary slips for income verification, income tax returns for the previous two years with computation details, Form 16 or other income proof documents issued by employers, and GST registration documents for business accounts and professional traders. All document collection is performed through secure, encrypted channels with end-to-end encryption, multi-factor authentication, and stored with enterprise-grade security measures including access controls, audit logging, and compliance monitoring.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.3 Financial and Banking Information</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">3.3 Financial and Banking Information</h3>
                   <p>
-                    To facilitate INR transactions and comply with banking regulations under RBI guidelines, we collect detailed financial information including bank account numbers with MICR code verification, IFSC codes and bank branch details, account holder names with bank verification, bank statements for transaction analysis, UPI IDs and virtual payment addresses, credit and debit card information for payment processing, net banking credentials (securely tokenized), and wallet information for integrated payment services. We also collect information about your income sources including salary certificates, business income proofs, investment portfolios, estimated annual income, estimated transaction volumes and frequency, the purpose of cryptocurrency trading activities, source of funds declarations, and wealth statements for high-value transactions. This information is essential for regulatory reporting under FEMA, transaction monitoring for AML compliance, and ensuring adherence to RBI guidelines for digital payments.
+                    To facilitate INR transactions and comply with banking regulations under RBI guidelines, we collect detailed financial information and banking details. This includes complete bank account information with account numbers, MICR code verification, and account holder name validation, IFSC codes and detailed bank branch information with location and contact details, comprehensive bank statements for transaction analysis and risk assessment, UPI IDs and virtual payment addresses with verification through authorized UPI service providers, credit and debit card information for payment processing with secure tokenization, net banking credentials through secure banking APIs and authorized payment gateways, and integrated wallet information for various payment services including Paytm, PhonePe, Google Pay, and other RBI-authorized payment systems. We also collect detailed information about your income sources including salary certificates with employer verification, business income proof with GST returns and audit reports, investment portfolio details with statements from authorized intermediaries, estimated annual income with supporting documentation, estimated transaction volumes and frequency based on financial capacity assessment, comprehensive purpose declarations for cryptocurrency trading activities, detailed source of funds declarations with supporting evidence, and wealth statements for high-value transactions including assets, liabilities, and net worth calculations. This information is essential for regulatory reporting under FEMA and income tax regulations, comprehensive transaction monitoring for AML compliance, and ensuring strict adherence to RBI guidelines for digital payments and virtual asset transactions.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.4 Biometric and Advanced Authentication Data</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">3.4 Cryptocurrency and Blockchain Transaction Data</h3>
                   <p>
-                    For enhanced security and compliance with digital identity verification standards under the IT Act 2000 and Aadhaar Authentication regulations, we may collect biometric information including facial recognition data through live selfie verification with liveness detection, facial geometry mapping for identity verification, voice patterns for phone-based authentication and verification calls, and fingerprint data where supported by your device and legally permitted. We also collect authentication credentials including usernames and encrypted passwords, security questions and encrypted answers, two-factor authentication tokens and backup codes, device-specific authentication certificates, and behavioral biometrics such as typing patterns and device usage patterns. All biometric data is processed in accordance with applicable privacy laws, UIDAI guidelines, and industry best practices including encryption at rest and in transit, limited access controls, and regular security audits.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.5 Cryptocurrency and Blockchain Transaction Data</h3>
-                  <p>
-                    We collect comprehensive information about your cryptocurrency transactions, trading activities, and blockchain interactions. This includes cryptocurrency wallet addresses (both receiving and sending), transaction amounts in various cryptocurrencies and their INR equivalent values, transaction timestamps with precise time zone information, blockchain transaction hashes and confirmation details, transaction fees and gas costs, trading volumes and frequency patterns, order history including buy/sell orders, limit orders, and market orders, settlement details and completion confirmations, and counterparty information in P2P trades including reputation scores and trading history. We also track your portfolio information including cryptocurrency holdings, historical balances, profit and loss calculations, trading performance metrics, risk assessment scores based on trading patterns, and compliance flags for suspicious activities. This data is essential for regulatory compliance under PMLA, fraud prevention, tax reporting assistance, and providing comprehensive trading analytics to users.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.6 Technical and Device Information</h3>
-                  <p>
-                    We automatically collect comprehensive technical information about your devices and how you interact with our Services for security, performance optimization, and fraud prevention. This includes detailed IP addresses with geolocation data, browser types and versions with security patch information, operating systems and their versions, device identifiers including IMEI numbers (with consent), mobile network information including carrier details and network type, screen resolution and device characteristics, time zone settings and system language preferences, browser plug-in types and versions, installed applications information (with consent), and device security settings including biometric capabilities and security patch levels. We also collect extensive log data including access times with precise timestamps, pages viewed and interaction patterns, time spent on different sections, click-through rates and navigation paths, search queries within our platform, feature usage analytics, error logs and crash reports with stack traces, API usage patterns and request/response logs, and security event logs including failed login attempts and suspicious activities.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.7 Location and Geolocation Data</h3>
-                  <p>
-                    For security, compliance, and fraud prevention purposes mandated by AML regulations, we collect comprehensive location information including your general geographic location based on IP address analysis, precise location data from mobile devices (with explicit consent), time zone information and travel patterns, location history when relevant to transaction verification and risk assessment, Wi-Fi network information for device fingerprinting, cellular tower information for location verification, and GPS coordinates when accessing our services from mobile devices. This information helps us comply with geographic restrictions under FEMA and other regulations, detect suspicious activities such as account takeovers and location-based fraud, provide location-relevant services including local payment methods and currency preferences, ensure compliance with sanctions and embargo lists, and implement risk-based authentication based on unusual location patterns.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">4.8 Communication and Customer Support Data</h3>
-                  <p>
-                    We collect and maintain comprehensive records of all communications and customer support interactions as required by regulatory guidelines and for service improvement. This includes customer support conversations and ticket histories with complete transcripts, live chat messages with timestamps and user identification, email communications and automated responses with delivery confirmations, phone call recordings (with consent and legal notice), video call recordings for video KYC and support sessions, feedback submissions and survey responses with analytics, review and rating data, social media interactions when you mention or tag our official accounts, and correspondence related to complaints and grievance redressal. We also maintain records of notification preferences, communication consent status, language preferences for multilingual support, communication frequency settings, and opt-out requests with timestamps. All communication data is stored securely with appropriate retention periods as mandated by Indian law and regulatory guidelines.
+                    We collect comprehensive information about your cryptocurrency transactions, trading activities, and blockchain interactions for regulatory compliance, security monitoring, and service provision. This includes all cryptocurrency wallet addresses (both receiving and sending) with ownership verification and risk assessment, detailed transaction amounts in various cryptocurrencies and their INR equivalent values at the time of transaction, precise transaction timestamps with time zone information and blockchain confirmation details, comprehensive blockchain transaction hashes and block numbers for permanent reference and audit trails, transaction fees and gas costs with network-specific details, detailed trading volumes and frequency patterns for risk assessment and regulatory reporting, complete order history including buy orders, sell orders, limit orders, market orders, and stop-loss orders with execution details, settlement information and completion confirmations with banking integration details, and counterparty information in P2P trades including reputation scores, trading history, and compliance verification. We also maintain detailed portfolio information including cryptocurrency holdings across different wallets and addresses, historical balance information with daily snapshots, comprehensive profit and loss calculations with tax implications, trading performance metrics and analytics, automated risk assessment scores based on trading patterns and transaction behavior, compliance flags for suspicious activities with investigation records, and cross-reference information with known addresses and entities for enhanced due diligence. This data is essential for regulatory compliance under PMLA and income tax regulations, comprehensive fraud prevention and security monitoring, tax reporting assistance for users and regulatory authorities, and providing detailed trading analytics and performance insights to enhance user experience while maintaining regulatory compliance.
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 5. How We Collect Information */}
+          {/* 4. How We Collect Information */}
           <section>
             <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
               <Globe className="h-8 w-8 text-primary" />
-              5. How We Collect Information
+              4. How We Collect Information
             </h2>
             
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p className="text-lg">
-                We employ multiple sophisticated and secure collection methods to gather information necessary for providing our Services, ensuring compliance with regulatory requirements under Indian law, and maintaining platform security. Our collection practices are transparent, secure, legally compliant, and designed to minimize data collection to what is necessary for legitimate business purposes while maximizing user control and privacy protection.
+                We employ multiple sophisticated and secure collection methods to gather information necessary for providing our Services, ensuring compliance with regulatory requirements under Indian law, and maintaining platform security. Our collection practices are transparent, secure, legally compliant, and designed to minimize data collection to what is necessary for legitimate business purposes while maximizing user control and privacy protection in accordance with DPDP Act principles and international privacy standards.
               </p>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">5.1 Direct Collection from Users Through Secure Channels</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">4.1 Direct Collection Through Secure User Interfaces</h3>
                   <p>
-                    The majority of personal information is collected directly from you through various secure touchpoints during your interaction with our Services. This includes information provided during account registration through our secure web platform and mobile applications with SSL/TLS encryption, comprehensive KYC verification processes including document upload through encrypted channels, biometric verification through authorized service providers, profile updates and account management through authenticated sessions, customer support interactions via secure communication channels, survey responses and feedback submissions with data validation, voluntary information sharing through user-initiated actions, participation in promotional activities with clear consent mechanisms, referral program participation with privacy protection for referred users, and engagement with our educational content and resources with usage analytics. We also collect information during video KYC sessions conducted by authorized personnel, in-person verification at authorized centers where applicable, and through secure API interactions when you connect external services to your account.
+                    The majority of personal information is collected directly from you through various secure touchpoints during your interaction with our Services. This includes comprehensive information provided during account registration through our secure web platform and mobile applications with end-to-end SSL/TLS encryption and advanced security measures, detailed KYC verification processes including secure document upload through encrypted channels, real-time biometric verification through authorized service providers with liveness detection and anti-spoofing measures, continuous profile updates and account management through authenticated sessions with multi-factor authentication, comprehensive customer support interactions via secure communication channels including encrypted chat, secure email, and verified phone calls, detailed survey responses and feedback submissions with data validation and privacy protection, voluntary information sharing through user-initiated actions with clear consent mechanisms, active participation in promotional activities with transparent data usage policies and clear consent management, referral program participation with privacy protection for both referrers and referred users, and ongoing engagement with our educational content and resources with detailed usage analytics and personalization features. We also collect information during supervised video KYC sessions conducted by trained and authorized personnel with recording capabilities for compliance verification, in-person verification at authorized service centers and partner locations where applicable with proper documentation and audit trails, and through secure API interactions when you choose to connect external services to your account with comprehensive authorization and permission management systems.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">5.2 Automated Collection Technologies and Security Systems</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">4.2 Automated Collection Technologies and Security Systems</h3>
                   <p>
-                    We use various advanced automated technologies to collect information about your device and usage patterns while maintaining strict privacy controls. This includes sophisticated cookies and web beacons with granular consent management, session recording tools for user experience optimization (with anonymization), mobile application analytics SDKs with privacy-preserving features, comprehensive security monitoring systems including behavioral analysis, fraud detection algorithms using machine learning with privacy preservation, real-time transaction monitoring systems for AML compliance, and automated risk assessment tools based on transaction patterns. We also employ device fingerprinting technologies for security verification, geofencing and location-based security measures, API logging and monitoring systems, and automated compliance checking systems that flag potential violations of regulatory requirements. All automated collection is performed with appropriate user notice and consent where required by law.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">5.3 Third-Party Sources and Regulatory Integrations</h3>
-                  <p>
-                    We may collect information from trusted third-party sources to verify your identity, prevent fraud, and comply with regulatory requirements under Indian law. This includes data from government databases such as UIDAI for Aadhaar verification, income tax databases for PAN validation, passport databases for document verification, and voter registration databases for identity confirmation. We also collect information from credit agencies and financial institutions for creditworthiness assessment, banking partners for payment processing and account verification, blockchain networks and cryptocurrency exchanges for transaction validation and compliance screening, security vendors specializing in fraud prevention and anti-money laundering, KYC service providers authorized by regulatory bodies, and sanctions screening databases including UNSC, OFAC, EU, and other international lists. We ensure that all third-party data collection is performed with appropriate legal basis, data processing agreements, and privacy protection measures.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">5.4 API Integrations and Connected Services</h3>
-                  <p>
-                    When you choose to connect external services, wallets, or applications to our platform, we collect information through authorized API connections with robust security measures. This includes cryptocurrency wallet addresses and transaction histories from connected hardware and software wallets, portfolio information from integrated cryptocurrency tracking services, bank account details from connected financial institutions through secure banking APIs, trading data from other cryptocurrency exchanges (with your authorization), tax calculation services for automated reporting assistance, and identity verification services for enhanced KYC compliance. All API data collection is performed with explicit user authorization, appropriate OAuth 2.0 and similar security protocols, comprehensive data encryption in transit and at rest, regular security audits of integration partners, and clear documentation of data sharing scope and purposes. Users maintain full control over connected services and can revoke access at any time through their account settings.
+                    We use various advanced automated technologies to collect information about your device and usage patterns while maintaining strict privacy controls and user consent where required by law. This includes sophisticated cookies and web beacons with granular consent management and comprehensive user control mechanisms, advanced session recording tools for user experience optimization with automatic anonymization and privacy protection features, specialized mobile application analytics SDKs with privacy-preserving configurations and data minimization practices, comprehensive security monitoring systems including behavioral analysis, anomaly detection, and threat intelligence integration, advanced fraud detection algorithms using machine learning and artificial intelligence with privacy-preserving techniques and bias mitigation measures, real-time transaction monitoring systems for AML compliance with automated risk scoring and alert generation, and automated risk assessment tools based on transaction patterns, user behavior, and regulatory requirements with human oversight and appeal mechanisms. We also employ sophisticated device fingerprinting technologies for security verification and fraud prevention without storing personally identifiable information, advanced geofencing and location-based security measures with user consent and privacy protection, comprehensive API logging and monitoring systems for security and compliance purposes, automated compliance checking systems that flag potential violations of regulatory requirements with immediate escalation procedures, and intelligent chatbot and customer service automation with natural language processing and secure data handling. All automated collection is performed with appropriate user notice and consent where required by law, comprehensive privacy impact assessments, and regular auditing to ensure continued compliance with privacy regulations and user expectations.
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 6. How We Use the Collected Information */}
+          {/* 5. How We Use the Collected Information */}
           <section>
             <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
               <Lock className="h-8 w-8 text-primary" />
-              6. How We Use the Collected Information
+              5. How We Use the Collected Information
             </h2>
             
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p className="text-lg">
-                We use the collected information to provide, maintain, protect, and improve our Services while ensuring strict compliance with regulatory requirements under Indian law and maintaining the highest standards of security and user experience. Our data usage practices are designed to be transparent, purposeful, legally compliant, and aligned with user expectations while fulfilling our obligations as a VASP operating in India.
+                We use the collected information to provide, maintain, protect, and improve our Services while ensuring strict compliance with regulatory requirements under Indian law and maintaining the highest standards of security and user experience. Our data usage practices are designed to be transparent, purposeful, legally compliant, and aligned with user expectations while fulfilling our obligations as a VASP operating in India under comprehensive regulatory oversight.
               </p>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">6.1 Core Service Provision and Platform Operations</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">5.1 Core Service Provision and Platform Operations</h3>
                   <p>
-                    We use your information to provide comprehensive cryptocurrency trading services including account creation and management with multi-level security, identity verification and KYC compliance as mandated by PMLA and FIU-IND guidelines, transaction processing and settlement through secure banking channels and UPI systems, sophisticated order matching in P2P trades with risk assessment, secure digital wallet management with multi-signature security, comprehensive trading history and analytics with tax reporting assistance, personalized customer support and technical assistance through multiple channels, and continuous platform maintenance and updates with security patches. This usage extends to providing real-time market data and analysis, facilitating cross-border transactions in compliance with FEMA regulations, managing escrow services for secure P2P trading, implementing automated trading features with risk controls, and providing educational resources about cryptocurrency trading and regulatory compliance.
+                    We use your information to provide comprehensive cryptocurrency trading services and maintain platform functionality. This includes account creation and management with multi-level security, identity verification and comprehensive KYC compliance as mandated by PMLA and FIU-IND guidelines, transaction processing and settlement through secure banking channels, UPI systems, and authorized payment gateways, sophisticated order matching in P2P trades with advanced risk assessment and counterparty verification, secure digital wallet management with multi-signature security and cold storage integration, comprehensive trading history and analytics with detailed tax reporting assistance, personalized customer support and technical assistance through multiple channels with multilingual capabilities, and continuous platform maintenance and updates with security patches and feature enhancements. This usage extends to providing real-time market data and analysis with price discovery and liquidity management, facilitating cross-border transactions in compliance with FEMA regulations and international standards, managing comprehensive escrow services for secure P2P trading with dispute resolution mechanisms, implementing automated trading features with sophisticated risk controls and user-defined parameters, providing extensive educational resources about cryptocurrency trading, blockchain technology, and regulatory compliance, and maintaining robust business continuity and disaster recovery capabilities to ensure uninterrupted service availability.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">6.2 Comprehensive Regulatory Compliance and Reporting</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">5.2 Comprehensive Regulatory Compliance and Reporting</h3>
                   <p>
-                    Your information is extensively used to comply with regulatory requirements applicable to VASPs in India and internationally. This includes conducting comprehensive customer due diligence and ongoing monitoring as required by PMLA 2002, generating and submitting suspicious transaction reports (STRs) and cash transaction reports (CTRs) to FIU-IND within prescribed timelines, maintaining detailed transaction records for regulatory inspection and audit purposes, reporting tax-related information to income tax authorities including TDS deduction and filing, ensuring compliance with RBI guidelines for digital payments and virtual asset transactions, and responding to regulatory inquiries and investigations from various authorities. We also use information for FEMA compliance reporting for cross-border transactions, sanctions screening against international lists, filing returns and reports with various regulatory bodies, maintaining audit trails for compliance verification, and implementing know-your-transaction (KYT) procedures for enhanced due diligence.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">6.3 Advanced Security and Fraud Prevention</h3>
-                  <p>
-                    We employ your personal information in sophisticated security measures to protect your account and maintain platform integrity. This includes real-time monitoring for suspicious activities and potential fraud using machine learning algorithms, implementing multi-factor authentication and advanced device recognition systems, conducting comprehensive risk assessments for transactions based on behavioral patterns and historical data, preventing unauthorized access and account takeovers through behavioral analysis, detecting and preventing money laundering activities through transaction pattern analysis, maintaining detailed audit trails for security investigations and forensic analysis, and implementing dynamic security controls based on risk assessment. Our security systems also use information for geolocation-based access controls, device fingerprinting for fraud detection, social engineering attack prevention, phishing detection and prevention, and coordinating with law enforcement agencies for cybercrime investigation when legally required.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">6.4 Platform Improvement and Advanced Analytics</h3>
-                  <p>
-                    We analyze usage patterns and user behavior to continuously improve our Services while maintaining strict privacy protections. This includes conducting comprehensive platform performance analytics with anonymized data, identifying and fixing technical issues through error analysis and user feedback, developing new features and services based on user needs and market trends, optimizing user interfaces and user experience through A/B testing and usability studies, conducting market research and trend analysis for service enhancement, personalizing content and recommendations while respecting privacy preferences, and implementing predictive analytics for better service delivery. Our analytics also extend to cryptocurrency market analysis for user benefit, risk modeling for enhanced security, performance optimization for faster transaction processing, and research and development for innovative financial services while ensuring all analytics comply with privacy regulations and user consent requirements.
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">6.5 Communication and Customer Engagement</h3>
-                  <p>
-                    We use your contact information to maintain comprehensive communication about your account and our Services. This includes sending transaction confirmations and security alerts with detailed information, providing multi-channel customer support and technical assistance in multiple languages, sharing important policy and regulatory updates affecting your account, delivering educational content about cryptocurrency trading and regulatory compliance, sending marketing communications and promotional offers (with explicit consent), providing tax-related information and assistance during filing season, and facilitating community engagement through user forums and educational webinars. We maintain separate communication preferences for different types of messages including transactional notifications, security alerts, regulatory updates, educational content, and marketing communications, allowing users granular control over what they receive and through which channels.
+                    Your information is extensively used to comply with the complex regulatory requirements applicable to VASPs in India and internationally. This includes conducting comprehensive customer due diligence and ongoing monitoring as required by PMLA 2002 with detailed risk assessment and profile updates, generating and submitting suspicious transaction reports (STRs) and cash transaction reports (CTRs) to FIU-IND within prescribed timelines with complete transaction analysis and supporting documentation, maintaining detailed transaction records for regulatory inspection and audit purposes with comprehensive data retention and retrieval systems, reporting tax-related information to income tax authorities including TDS deduction, filing, and comprehensive transaction reporting for tax compliance, ensuring strict compliance with RBI guidelines for digital payments and virtual asset transactions including reporting and monitoring requirements, and responding to regulatory inquiries and investigations from various authorities including FIU-IND, income tax department, enforcement directorate, and other law enforcement agencies. We also use information for FEMA compliance reporting for cross-border transactions with detailed documentation and approval procedures, comprehensive sanctions screening against international lists including UNSC, OFAC, EU, and other relevant databases, filing detailed returns and reports with various regulatory bodies including quarterly and annual compliance reports, maintaining comprehensive audit trails for compliance verification and regulatory examination, implementing sophisticated know-your-transaction (KYT) procedures for enhanced due diligence and risk management, and coordinating with international regulatory bodies for cross-border compliance and information sharing agreements.
                   </p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 7. Information Sharing and Disclosure */}
+          {/* 6. Cookies and Web Beacons */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8">7. Information Sharing and Disclosure</h2>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Wifi className="h-8 w-8 text-primary" />
+              6. Cookies and Web Beacons
+            </h2>
             
             <div className="space-y-6 text-muted-foreground leading-relaxed">
               <p className="text-lg">
-                We maintain strict controls over the sharing and disclosure of personal information in accordance with Indian privacy laws and international standards. We do not sell, rent, or trade personal information to third parties for their commercial purposes. Information sharing is limited to specific circumstances that are necessary for service provision, regulatory compliance mandated by Indian law, user protection, or with explicit user consent, and is always conducted with appropriate safeguards, legal protections, and contractual obligations.
+                We use cookies, web beacons, and similar tracking technologies to enhance user experience, improve our Services, ensure security, maintain regulatory compliance, and prevent fraud. These technologies help us understand user behavior, prevent unauthorized access, maintain session security, provide personalized services, and comply with AML monitoring requirements while respecting user privacy preferences and providing granular control over data collection in accordance with Indian privacy laws and international standards.
               </p>
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">7.1 Mandatory Regulatory and Law Enforcement Disclosures</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">6.1 Essential Cookies for Platform Functionality</h3>
                   <p>
-                    We are legally obligated to share certain information with regulatory authorities and law enforcement agencies as mandated by Indian law. This includes reporting suspicious transactions and cash transactions to FIU-IND as required by PMLA 2002 with detailed transaction analysis and customer information, providing comprehensive transaction records and customer data to income tax authorities for tax compliance and investigation purposes, responding to court orders, summons, and legal process issued by competent courts and tribunals, cooperating with law enforcement investigations including CBI, ED, and state police forces with appropriate legal documentation, sharing information with RBI and other financial regulators as required by banking and financial services regulations, complying with FEMA reporting requirements for cross-border transactions and foreign exchange compliance, and participating in international regulatory cooperation agreements and mutual legal assistance treaties. All such disclosures are made strictly in accordance with applicable laws, with appropriate legal review and documentation, and with consideration for user privacy rights within the bounds of legal requirements.
+                    We deploy essential cookies that are strictly necessary for platform functionality and security compliance under Indian law. Essential cookies include session management cookies that maintain user authentication and secure sessions during platform usage with automatic timeout and security monitoring, authentication tokens for multi-factor authentication and device recognition with encrypted storage and regular rotation, security cookies for fraud prevention and account protection against unauthorized access with real-time threat detection, load balancing cookies for platform stability and optimal performance distribution across our server infrastructure, regulatory compliance cookies for AML monitoring and transaction tracking as required by PMLA with detailed audit logging, and user preference cookies for language settings, timezone configuration, accessibility features, and basic platform customization. These cookies are legally required for providing our Services and cannot be disabled without significantly affecting core platform functionality, user security, and our ability to comply with regulatory obligations under Indian financial services law.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">7.2 Service Providers and Business Partners</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">6.2 Analytics and Performance Enhancement Cookies</h3>
                   <p>
-                    We share information with carefully selected and rigorously vetted third-party service providers who assist us in delivering our Services under strict contractual obligations. This includes cloud infrastructure providers such as AWS, Google Cloud, and Microsoft Azure for secure data storage and processing with data localization compliance, payment processors and banking partners including major Indian banks and payment gateways for INR transactions and UPI processing, specialized identity verification services authorized by regulatory bodies for KYC compliance and document verification, cybersecurity vendors providing threat detection, prevention, and incident response services, customer support platforms and communication tools for multi-channel user assistance, analytics providers for platform improvement and user experience optimization with data anonymization, and legal and compliance service providers for regulatory guidance and audit support. All service providers are bound by comprehensive data processing agreements requiring strict adherence to privacy protection standards, data minimization principles, security requirements equivalent to our own standards, and compliance with Indian data protection laws.
+                    With appropriate consent, we utilize analytics cookies to understand user behavior and improve our Services while maintaining strict privacy protection. Analytics cookies include Google Analytics cookies for comprehensive usage statistics, user journey analysis, and platform performance monitoring with enhanced privacy settings and data anonymization, proprietary analytics cookies for detailed trading pattern analysis and user engagement metrics with privacy-preserving techniques, feature usage tracking cookies for product development and user experience optimization with data aggregation and anonymization, error tracking and debugging cookies for technical issue identification and resolution with automated privacy protection, A/B testing cookies for feature testing and user experience experimentation with statistical analysis and privacy safeguards, and security analytics cookies for fraud detection and suspicious activity monitoring with machine learning algorithms and privacy preservation. All analytics data is processed with advanced privacy-preserving techniques including differential privacy, k-anonymity, data aggregation, and comprehensive anonymization to ensure individual users cannot be re-identified from analytics datasets while maintaining the analytical value for service improvement and regulatory compliance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 7. Marketing Communications & Opt-Outs */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Mail className="h-8 w-8 text-primary" />
+              7. Marketing Communications & Opt-Outs
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We provide comprehensive control over marketing communications and promotional content, ensuring full compliance with Indian telecommunications regulations, TRAI guidelines for commercial communications, Consumer Protection Act provisions, and international standards for email marketing. Users maintain complete autonomy over their communication preferences with granular controls, easy opt-out mechanisms for all non-essential communications, and transparent information about how their contact information is used for marketing purposes.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">7.1 Types of Marketing Communications</h3>
+                  <p>
+                    Our marketing communications include comprehensive educational newsletters about cryptocurrency markets, blockchain technology, regulatory updates, and trading strategies with expert analysis and market insights, promotional emails about new features, trading opportunities, and platform enhancements with clear value propositions, SMS notifications for time-sensitive market alerts and promotional offers (with explicit consent and TRAI compliance), push notifications through our mobile applications for personalized trading insights and market updates, social media content and advertising on platforms where you have engaged with our content including Facebook, Instagram, LinkedIn, and Twitter, webinar invitations and educational event notifications including expert speaker sessions and regulatory update briefings, referral program communications and rewards notifications with clear terms and privacy protection, seasonal promotional campaigns with special offers and trading incentives, and personalized recommendations based on trading patterns and user preferences. All marketing communications are clearly identified as promotional content, include comprehensive unsubscribe mechanisms, comply with TRAI regulations for commercial communications and DND preferences, respect user preferences for frequency and timing of communications, and provide clear value to recipients through relevant and timely information about cryptocurrency trading and market developments.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">7.3 Business Transactions and Corporate Changes</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">7.2 Comprehensive Opt-Out Mechanisms and User Control</h3>
                   <p>
-                    In the event of significant corporate changes such as merger, acquisition, reorganization, or sale of assets, personal information may be transferred as part of the business transaction in accordance with applicable laws. We commit to providing substantial advance notice of any such transaction through multiple communication channels, ensuring that the receiving entity maintains equivalent or higher levels of privacy protection and security standards, conducting thorough due diligence on data protection practices of the acquiring entity, negotiating appropriate data protection clauses in transaction agreements, and providing users with clear options regarding the continued processing of their personal information including the right to request data deletion where legally permissible. Users will be notified of any material changes to data handling practices resulting from such transactions with at least 60 days advance notice, and appropriate choices will be provided regarding consent to new processing arrangements, migration of data to new systems, or discontinuation of services where requested.
+                    We provide multiple easy-to-use opt-out mechanisms for all marketing communications with immediate effect and comprehensive user control over communication preferences. This includes one-click unsubscribe links in all promotional emails with immediate processing and confirmation, SMS opt-out through reply with "STOP," "UNSUBSCRIBE," or other standard keywords with automatic processing, comprehensive account settings dashboard for granular control over communication preferences with category-specific controls for different types of content, customer support assisted opt-out through phone, email, or chat support with immediate processing and confirmation, automatic opt-out processing within 24 hours of any unsubscribe request with system-wide updates, push notification preference management through mobile app settings with real-time updates, social media advertising preference control through platform-specific tools and our privacy settings, and separate preference management for different types of communications including market alerts, educational content, promotional offers, event notifications, and regulatory updates. Users can also set communication frequency preferences, choose preferred communication channels, manage time-based preferences for different types of messages, and maintain separate settings for different product categories and service types while ensuring that essential account and security communications remain unaffected by marketing opt-out preferences.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 8. AI Usage for KYC Screening and Fraud Prevention */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Brain className="h-8 w-8 text-primary" />
+              8. AI Usage for KYC Screening and Fraud Prevention
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We utilize advanced artificial intelligence and machine learning technologies to enhance KYC verification processes, detect fraudulent activities, prevent money laundering, and ensure regulatory compliance while maintaining user privacy and providing transparency about automated decision-making processes. Our AI systems are designed with privacy-by-design principles, comprehensive human oversight mechanisms, bias detection and mitigation measures, and extensive audit capabilities to ensure fair, accurate, and legally compliant processing of user data.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">8.1 AI-Powered KYC and Document Verification</h3>
+                  <p>
+                    We employ sophisticated AI technologies for automated KYC processing and document verification to improve efficiency, accuracy, and user experience while maintaining strict regulatory compliance and privacy protection. AI-powered KYC includes advanced optical character recognition (OCR) for automatic extraction of information from government-issued documents with high accuracy rates, error detection capabilities, and format standardization across different document types, state-of-the-art facial recognition and liveness detection for identity verification and prevention of document fraud using advanced biometric algorithms with anti-spoofing measures and demographic bias mitigation, comprehensive document authenticity verification using machine learning models trained to detect forged, manipulated, or fraudulent documents with continuous model updates and accuracy improvements, automated risk scoring based on document quality, consistency checks, cross-reference verification with government databases, and behavioral pattern analysis, and intelligent workflow automation for KYC processing with human oversight for complex cases, appeals, and edge cases requiring manual review. All AI processing includes comprehensive explainability features to provide clear reasoning for automated decisions, maintains detailed audit trails for regulatory compliance and user transparency, implements advanced bias detection and mitigation measures to ensure fair treatment across all user demographics and geographic regions, and provides clear appeal mechanisms for users who disagree with automated decisions or require human review of their applications.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">7.4 User Consent and Authorized Disclosures</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">8.2 Advanced Fraud Detection and Prevention Systems</h3>
                   <p>
-                    We may share information with explicit user consent or at user direction through our platform features and integrations. This includes sharing information with third-party applications or services that users choose to connect to their accounts through secure API integrations, providing information to financial advisors, accountants, or tax consultants upon user request with appropriate verification procedures, sharing anonymized or aggregated data for research, industry analysis, or academic purposes with privacy protection measures, facilitating social features such as referral programs or community interactions with appropriate privacy controls, and enabling integration with external portfolio management tools or tax calculation services with user authorization. Users maintain complete control over these disclosures through granular permission settings, can review and modify connected services at any time, receive clear information about data sharing scope and purposes, and can revoke authorization through simple account management tools with immediate effect on future data sharing.
+                    Our AI-powered fraud detection systems continuously monitor user behavior, transaction patterns, and platform interactions to identify potential fraudulent activities and protect user accounts from unauthorized access and financial crimes. Advanced fraud detection includes real-time behavioral analysis using sophisticated machine learning algorithms to detect unusual account access patterns, device fingerprinting anomalies, and location-based suspicious activities, comprehensive transaction pattern analysis for identifying potentially suspicious activities including money laundering, terrorist financing, structuring, and other financial crimes with regulatory compliance monitoring, automated risk scoring for transactions and user activities with dynamic threshold adjustment based on risk assessment, user profiling, and regulatory requirements, predictive analytics for identifying potential account takeovers, social engineering attacks, phishing attempts, and other security threats using ensemble learning methods and threat intelligence integration, intelligent alert generation with sophisticated prioritization and escalation procedures for human review and investigation with case management capabilities, and comprehensive fraud prevention measures including real-time transaction blocking, account protection protocols, and user notification systems. Our fraud prevention systems maintain exceptionally low false positive rates through continuous model refinement, feature engineering, and feedback loop optimization, provide clear explanations for flagged activities and risk decisions, include comprehensive appeal processes for users who believe they have been incorrectly identified as engaging in suspicious behavior, and integrate seamlessly with our customer support and compliance teams for efficient resolution of fraud-related issues while maintaining user privacy and regulatory compliance throughout the entire process.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 9. User Rights Under DPDP Act and International Laws */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <UserCheck className="h-8 w-8 text-primary" />
+              9. User Rights Under DPDP Act and International Laws
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                Under the Digital Personal Data Protection Act 2023, Information Technology Act 2000, and other applicable privacy laws, you have comprehensive rights regarding your personal data. We are committed to facilitating the exercise of these rights through user-friendly mechanisms, clear processes, timely responses, and transparent communication while balancing these rights with regulatory obligations, legitimate business interests, and security requirements in accordance with Indian law and international standards.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">9.1 Right to Access and Data Portability</h3>
+                  <p>
+                    You have the comprehensive right to access your personal data and receive detailed information about how we process it, with mechanisms for both self-service access and assisted retrieval. Access rights include obtaining complete copies of all personal data we hold about you in structured, commonly used, and machine-readable formats including JSON, CSV, and PDF formats, receiving comprehensive information about the purposes of processing, categories of data, retention periods, sharing practices, and automated decision-making with detailed explanations of logic and consequences, accessing your complete transaction history, trading records, and account activity with detailed timestamps, amounts, and counterparty information, downloading your KYC documents and verification records through secure authenticated channels with audit logging, requesting information about automated decision-making including risk scoring, fraud detection, and algorithmic processing with explanations of the logic involved, and obtaining details about data sharing with third parties including purposes, legal basis, and safeguards implemented. Data portability allows you to receive your data in standard formats for transfer to other service providers, subject to technical feasibility and regulatory compliance requirements, with assistance for complex data exports and migration support. We provide comprehensive self-service data access through your account dashboard with immediate download capabilities, detailed data export tools with customizable date ranges and data categories, and manual assistance available for complex requests, historical data retrieval, and specialized export formats with dedicated customer support for data portability requests.
                   </p>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-semibold text-foreground mb-4">7.5 Emergency and Safety Disclosures</h3>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">9.2 Right to Correction and Data Accuracy</h3>
                   <p>
-                    In exceptional circumstances involving immediate threats to health, safety, or security, we may disclose personal information without prior consent as permitted by law. This includes emergency situations involving potential harm to users or others, suspected terrorist financing or national security threats requiring immediate intervention, situations involving imminent financial fraud or cybersecurity attacks, medical emergencies where user safety is at risk, and legal obligations to prevent serious crimes or protect public safety. All emergency disclosures are subject to strict internal review procedures, limited to information directly relevant to the emergency situation, documented with detailed justification and legal basis, reported to relevant authorities as required, and followed by user notification as soon as legally permissible and safe to do so.
+                    You have the comprehensive right to correct inaccurate or incomplete personal data and update your information as circumstances change, with immediate effect on platform functionality and regulatory compliance. Correction rights include updating basic profile information including name, address, contact details, and communication preferences through your account settings with real-time synchronization, correcting errors in KYC documentation through our secure verification update process with appropriate document submission and verification procedures, modifying communication preferences and marketing consent settings with immediate effect across all communication channels, updating financial information including bank account details and payment preferences through secure verification processes with multi-factor authentication, correcting inaccuracies in transaction records through our comprehensive dispute resolution process with proper documentation and investigation procedures, and updating emergency contact information and security settings with immediate security protocol updates. We implement real-time updates for most data categories with immediate system synchronization, maintain comprehensive audit trails of all corrections for regulatory compliance and security monitoring, provide immediate confirmation of updates through secure communication channels, and ensure that corrections are propagated across all relevant systems and third-party integrations. Complex corrections may require additional verification and documentation to ensure accuracy and prevent fraud, with dedicated support staff available to assist with verification processes and dispute resolution procedures.
                   </p>
                 </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">9.3 Right to Erasure and Data Deletion</h3>
+                  <p>
+                    You have the right to request deletion of your personal data, subject to legal and regulatory limitations applicable to financial service providers and VASPs operating under Indian law. Erasure rights include requesting immediate deletion of marketing and communication data with immediate effect on future processing and communication, removing optional account information and preferences not required for regulatory compliance or security purposes, deleting social media linkages and third-party integrations through account management tools with immediate disconnection, requesting account closure with deletion of non-essential data while maintaining regulatory records as required by law, and removing biometric data and optional security features with appropriate security impact notifications. Important limitations include mandatory retention requirements for KYC data (5 years from account closure), transaction records (5 years from transaction date), compliance documentation as mandated by PMLA and income tax regulations, audit trails required for regulatory inspection, and security logs necessary for ongoing fraud prevention and investigation. We provide clear, detailed information about what can and cannot be deleted with specific legal citations and regulatory requirements, implement comprehensive pseudonymization for retained data where possible to minimize privacy impact, ensure that deleted data is permanently removed from active systems with secure deletion protocols, and maintain secure archived copies only for regulatory compliance purposes with restricted access and enhanced security measures. Users receive detailed confirmation of deletion activities and clear timelines for complete data removal from all systems.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 10. Information Security Measures */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Shield className="h-8 w-8 text-primary" />
+              10. Information Security Measures
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We implement comprehensive, multi-layered security measures to protect your personal information and cryptocurrency assets from unauthorized access, theft, manipulation, and disclosure. Our security framework combines industry-leading technologies, rigorous operational procedures, continuous monitoring, regular auditing, and incident response capabilities to ensure the highest levels of protection for user data and platform integrity in accordance with international security standards, Indian regulatory requirements, and best practices for financial service providers.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">10.1 Advanced Encryption and Data Protection</h3>
+                  <p>
+                    We employ state-of-the-art encryption technologies and data protection measures throughout our platform infrastructure with regular updates and security enhancements. Encryption measures include military-grade AES-256 encryption for all data at rest including databases, file storage, backup systems, and archived records with separate key management and regular key rotation, TLS 1.3 encryption for all data in transit between user devices and our servers with perfect forward secrecy and certificate pinning, comprehensive end-to-end encryption for sensitive communications including customer support conversations and verification processes, advanced database-level encryption with separate key management systems using hardware security modules (HSMs) and multi-party key management, encrypted backup storage with geographically distributed key management and secure key escrow procedures, and sophisticated field-level encryption for highly sensitive data including PAN numbers, Aadhaar details, biometric information, and financial account details. All encryption keys are managed through dedicated, certified key management systems with strict role-based access controls, automated key rotation schedules, secure key backup and recovery procedures, and comprehensive audit logging of all key management activities for regulatory compliance and security monitoring.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">10.2 Comprehensive Access Controls and Authentication</h3>
+                  <p>
+                    We implement sophisticated access control systems and multi-factor authentication to prevent unauthorized access to user accounts and platform infrastructure. Access controls include mandatory two-factor authentication (2FA) for all user accounts with support for TOTP, SMS, hardware tokens, and biometric authentication, advanced role-based access control (RBAC) for internal systems with principle of least privilege implementation and regular access reviews, comprehensive biometric authentication options including fingerprint recognition, facial recognition, and voice authentication where supported by user devices, intelligent device recognition and trusted device management with behavioral analysis and anomaly detection, IP whitelisting and geolocation controls for enhanced account security with user-configurable settings, session management with automatic logout, concurrent session monitoring, and suspicious activity detection, and advanced authentication protocols including OAuth 2.0, SAML, and proprietary security measures for API access and third-party integrations. Internal access controls include sophisticated privileged access management (PAM) for administrative functions with just-in-time access provisioning, comprehensive audit logging of all access attempts and administrative actions with real-time monitoring, regular access reviews and certification processes to ensure appropriate permissions, and emergency access procedures with proper authorization and logging for critical system maintenance and incident response.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Contact Information */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <Phone className="h-8 w-8 text-primary" />
+              Contact Information - Data Protection Officer
+            </h2>
+            
+            <div className="bg-primary/5 p-8 rounded-lg border border-primary/20">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Mail className="h-5 w-5 text-primary" />
+                    Privacy and Data Protection Inquiries
+                  </h3>
+                  <div className="space-y-3 text-muted-foreground">
+                    <p><strong className="text-foreground">Email:</strong> privacy@blynkcrypto.in</p>
+                    <p><strong className="text-foreground">Data Protection Officer:</strong> dpo@blynkcrypto.in</p>
+                    <p><strong className="text-foreground">Compliance Officer:</strong> compliance@blynkcrypto.in</p>
+                    <p><strong className="text-foreground">Grievance Officer:</strong> grievance@blynkcrypto.in</p>
+                    <p><strong className="text-foreground">Response Time:</strong> Within 72 hours for all privacy requests</p>
+                    <p><strong className="text-foreground">Support Hours:</strong> Monday to Friday, 9:00 AM - 6:00 PM IST</p>
+                    <p><strong className="text-foreground">Emergency Contact:</strong> Available 24/7 for data breach notifications</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    Registered Office and Legal Address
+                  </h3>
+                  <div className="space-y-3 text-muted-foreground">
+                    <p>
+                      <strong className="text-foreground">Blynk Virtual Technologies Private Limited</strong><br />
+                      First Floor Balwant Arcade, Plot No. 15<br />
+                      Maharana Pratap Nagar, Zone II<br />
+                      Bhopal, 462011, Madhya Pradesh<br />
+                      India
+                    </p>
+                    <p><strong className="text-foreground">CIN:</strong> U62099MP2025PTC074915</p>
+                    <p><strong className="text-foreground">GSTIN:</strong> [GST Registration Number]</p>
+                    <p><strong className="text-foreground">Phone:</strong> +91-XXX-XXX-XXXX</p>
+                    <p><strong className="text-foreground">Fax:</strong> +91-XXX-XXX-XXXX</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 p-6 bg-background/50 rounded-lg border">
+                <h4 className="text-lg font-semibold text-foreground mb-3">For Data Subject Requests Under DPDP Act 2023, Please Include:</h4>
+                <ul className="space-y-2 text-muted-foreground text-sm">
+                  <li>• Your full legal name as per government-issued identification</li>
+                  <li>• Registered email address and verified mobile number</li>
+                  <li>• Specific nature of your privacy request (access, portability, correction, erasure, etc.)</li>
+                  <li>• Account verification information (we may request additional KYC verification for security)</li>
+                  <li>• Preferred method of response (secure email, registered post, in-person collection)</li>
+                  <li>• Any supporting documentation relevant to your request</li>
+                  <li>• Clear statement of consent for processing your request</li>
+                  <li>• Preferred language for response (English, Hindi, or other regional languages)</li>
+                </ul>
               </div>
             </div>
           </section>
@@ -373,22 +438,23 @@ export function PrivacyPolicyPage() {
               <div>
                 <h3 className="text-xl font-semibold text-foreground mb-4">Governing Law and Jurisdiction</h3>
                 <p>
-                  This Privacy Policy and all matters relating to your privacy rights and our data processing activities shall be governed by and construed in accordance with the laws of India, including but not limited to the Information Technology Act 2000, Digital Personal Data Protection Act 2023, Prevention of Money Laundering Act 2002, Indian Contract Act 1872, and other applicable central and state laws. Any disputes arising out of or in connection with this Privacy Policy shall be subject to the exclusive jurisdiction of the courts in Bhopal, Madhya Pradesh, India. However, we retain the right to bring proceedings against you for breach of this Privacy Policy in your country of residence or any other relevant country.
+                  This Privacy Policy and all matters relating to your privacy rights and our data processing activities shall be governed by and construed in accordance with the laws of India, including but not limited to the Information Technology Act 2000, Digital Personal Data Protection Act 2023, Prevention of Money Laundering Act 2002, Indian Contract Act 1872, Consumer Protection Act 2019, and other applicable central and state laws, rules, and regulations. Any disputes arising out of or in connection with this Privacy Policy, including disputes relating to data processing, privacy rights, or regulatory compliance, shall be subject to the exclusive jurisdiction of the courts in Bhopal, Madhya Pradesh, India. However, we retain the right to bring proceedings against you for breach of this Privacy Policy in your country of residence or any other relevant country with appropriate jurisdiction. For international users, we will comply with applicable international privacy laws and treaties while maintaining primary compliance with Indian data protection regulations.
                 </p>
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
                 <h3 className="text-lg font-semibold text-foreground mb-3">Material Changes Notification Process</h3>
                 <p className="text-muted-foreground mb-3">
-                  For material changes to this Policy that may affect your rights or how we process your personal data, we will provide at least 30 days advance notice through multiple channels:
+                  For material changes to this Policy that may significantly affect your rights or how we process your personal data, we will provide at least 30 days advance notice through multiple channels:
                 </p>
                 <ul className="space-y-1 text-muted-foreground">
-                  <li>• Email notification to your registered email address with delivery confirmation</li>
-                  <li>• Prominent banner notice on our website and mobile applications</li>
-                  <li>• In-app notifications with acknowledgment requirements for active users</li>
-                  <li>• SMS notification to your registered mobile number for critical changes</li>
+                  <li>• Email notification to your registered email address with delivery confirmation and read receipts</li>
+                  <li>• Prominent banner notice on our website and mobile applications with acknowledgment requirements</li>
+                  <li>• In-app notifications with acknowledgment requirements for active users and push notifications</li>
+                  <li>• SMS notification to your registered mobile number for critical changes affecting user rights</li>
                   <li>• Publication in leading English and Hindi newspapers for significant policy overhauls</li>
                   <li>• Updated version history with detailed change summaries and impact assessments</li>
+                  <li>• Personal communication through customer support for high-value or frequent users</li>
                 </ul>
               </div>
 
@@ -396,14 +462,15 @@ export function PrivacyPolicyPage() {
                 <h3 className="text-2xl font-bold text-foreground mb-4 text-center">Thank You for Trusting Blynk with Your Privacy</h3>
                 <div className="text-center space-y-4">
                   <p className="text-muted-foreground max-w-4xl mx-auto">
-                    Your privacy and data security are fundamental to our mission of providing secure, compliant, and user-centric cryptocurrency trading services in India. We are committed to maintaining the highest standards of data protection, regulatory compliance, and transparency in all our operations. This comprehensive Privacy Policy reflects our dedication to protecting your personal information while enabling us to provide innovative financial services in the evolving digital asset ecosystem.
+                    Your privacy and data security are fundamental to our mission of providing secure, compliant, and user-centric cryptocurrency trading services in India. We are committed to maintaining the highest standards of data protection, regulatory compliance, and transparency in all our operations. This comprehensive Privacy Policy reflects our dedication to protecting your personal information while enabling us to provide innovative financial services in the evolving digital asset ecosystem under the regulatory framework established by Indian authorities.
                   </p>
                   <div className="space-y-2">
                     <p className="text-muted-foreground"><strong>Current Policy Version:</strong> 2.0</p>
                     <p className="text-muted-foreground"><strong>Effective Date:</strong> January 1, 2024</p>
                     <p className="text-muted-foreground"><strong>Last Comprehensive Review:</strong> January 1, 2024</p>
                     <p className="text-muted-foreground"><strong>Next Scheduled Review:</strong> July 1, 2024</p>
-                    <p className="text-muted-foreground"><strong>Regulatory Compliance:</strong> DPDP Act 2023, PMLA 2002, IT Act 2000, FIU-IND Guidelines</p>
+                    <p className="text-muted-foreground"><strong>Regulatory Compliance:</strong> DPDP Act 2023, PMLA 2002, IT Act 2000, FIU-IND Guidelines, RBI Regulations</p>
+                    <p className="text-muted-foreground"><strong>International Standards:</strong> ISO 27001, SOC 2 Type II, Privacy by Design</p>
                   </div>
                 </div>
               </div>

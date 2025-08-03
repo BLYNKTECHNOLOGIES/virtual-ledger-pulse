@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Bitcoin, Wallet, TrendingUp, DollarSign } from 'lucide-react';
+import { ArrowRight, Bitcoin, Wallet, TrendingUp, DollarSign, Shield, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function ModernHeroSection() {
@@ -17,19 +17,20 @@ export function ModernHeroSection() {
           <div className="space-y-8">
             {/* Trust Badge */}
             <div className="inline-flex items-center gap-2 bg-muted px-4 py-2 rounded-full text-sm text-muted-foreground">
-              <span className="text-primary font-semibold">Over 1 million</span>
-              <span>wallets created</span>
+              <span className="text-primary font-semibold">KYC Verified</span>
+              <span>P2P Trading Platform</span>
             </div>
 
             {/* Main Headline */}
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                Take back control of{' '}
-                <span className="text-primary">your crypto.</span>
+                Buy & Sell Crypto Instantly with{' '}
+                <span className="text-primary">INR in India</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Buy, store, swap, sell, and spend your assets. All from one powerful crypto app. 
-                No centralized exchange, no excessive markups, just true control across the top chains.
+                Trusted P2P Crypto Platform | Instant INR Settlements | KYC Compliant
+                <br />
+                Trade Bitcoin, Ethereum, and USDT directly with verified users through our secure escrow system.
               </p>
             </div>
 
@@ -38,17 +39,17 @@ export function ModernHeroSection() {
               <Button 
                 size="lg" 
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
-                onClick={() => navigate('/website/download')}
+                onClick={() => navigate('/website/register')}
               >
-                Get the App
+                Start Trading Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline"
-                onClick={() => navigate('/website/features')}
+                onClick={() => navigate('/website/contact')}
               >
-                Learn More
+                Contact Sales
               </Button>
             </div>
 
@@ -57,11 +58,11 @@ export function ModernHeroSection() {
               <div className="bg-card border border-border rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Wallet className="h-5 w-5 text-primary" />
+                    <Shield className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">HODL Pay</h3>
-                    <p className="text-sm text-muted-foreground">Unlock spending power without selling your crypto</p>
+                    <h3 className="font-semibold text-foreground">Escrow Protection</h3>
+                    <p className="text-sm text-muted-foreground">Every P2P trade secured with escrow system</p>
                   </div>
                 </div>
               </div>
@@ -69,82 +70,87 @@ export function ModernHeroSection() {
               <div className="bg-card border border-border rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 bg-success/10 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="h-5 w-5 text-success" />
+                    <Clock className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">Multi-Chain Support</h3>
-                    <p className="text-sm text-muted-foreground">Arbitrum, Optimism & Base now supported</p>
+                    <h3 className="font-semibold text-foreground">Instant INR Settlement</h3>
+                    <p className="text-sm text-muted-foreground">UPI, IMPS & NEFT transfers within minutes</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right Content - App Preview */}
+          {/* Right Content - Dashboard Preview */}
           <div className="relative">
-            <div className="relative mx-auto max-w-md">
-              {/* Phone Mockup */}
-              <div className="relative bg-card border border-border rounded-3xl p-2 shadow-2xl">
-                <div className="bg-gradient-to-br from-background to-muted rounded-2xl p-6 space-y-6">
+            <div className="relative mx-auto max-w-lg">
+              {/* Dashboard Mockup */}
+              <div className="relative bg-card border border-border rounded-xl p-6 shadow-2xl">
+                <div className="bg-gradient-to-br from-background to-muted rounded-lg p-6 space-y-6">
                   {/* Header */}
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">Portfolio Balance</div>
-                    <div className="flex gap-1">
-                      <div className="w-3 h-3 bg-success rounded-full"></div>
-                      <div className="w-3 h-3 bg-warning rounded-full"></div>
-                      <div className="w-3 h-3 bg-destructive rounded-full"></div>
+                    <div className="text-sm text-muted-foreground">P2P Trading Dashboard</div>
+                    <div className="flex gap-2">
+                      <div className="px-2 py-1 bg-success/20 text-success text-xs rounded">Live</div>
                     </div>
                   </div>
                   
-                  {/* Balance */}
+                  {/* Trading Pair */}
                   <div className="space-y-2">
-                    <div className="text-3xl font-bold text-foreground">$98,140.12</div>
+                    <div className="text-sm text-muted-foreground">BTC/INR</div>
+                    <div className="text-3xl font-bold text-foreground">₹84,15,420</div>
                     <div className="flex items-center gap-2">
-                      <div className="text-success text-sm font-medium">+2.4%</div>
-                      <div className="text-sm text-muted-foreground">24h</div>
+                      <div className="text-success text-sm font-medium">+₹12,340</div>
+                      <div className="text-sm text-muted-foreground">+1.49% today</div>
                     </div>
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="grid grid-cols-4 gap-3">
-                    {['Buy', 'Sell', 'Send', 'Swap'].map((action) => (
-                      <div key={action} className="bg-muted rounded-lg p-3 text-center">
-                        <div className="text-xs text-muted-foreground">{action}</div>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-primary/10 rounded-lg p-4 text-center border border-primary/20">
+                      <div className="text-sm font-medium text-primary">Buy BTC</div>
+                      <div className="text-xs text-muted-foreground mt-1">Via UPI/IMPS</div>
+                    </div>
+                    <div className="bg-destructive/10 rounded-lg p-4 text-center border border-destructive/20">
+                      <div className="text-sm font-medium text-destructive">Sell BTC</div>
+                      <div className="text-xs text-muted-foreground mt-1">Instant INR</div>
+                    </div>
                   </div>
 
-                  {/* Crypto Holdings */}
+                  {/* Recent Orders */}
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[hsl(var(--crypto-bitcoin))] rounded-full flex items-center justify-center">
-                          <Bitcoin className="w-4 h-4 text-white" />
+                    <div className="text-sm font-medium text-foreground">Recent P2P Orders</div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-[hsl(var(--crypto-bitcoin))] rounded-full flex items-center justify-center">
+                            <Bitcoin className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">Buy 0.001 BTC</div>
+                            <div className="text-xs text-muted-foreground">Completed</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium">Bitcoin</div>
-                          <div className="text-xs text-muted-foreground">0.00320 BTC</div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">₹8,415</div>
+                          <div className="text-xs text-success">Success</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">$2,139.04</div>
-                        <div className="text-xs text-success">+2.7%</div>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-[hsl(var(--crypto-ethereum))] rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">E</span>
+                      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-[hsl(var(--crypto-ethereum))] rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">E</span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">Sell 0.05 ETH</div>
+                            <div className="text-xs text-muted-foreground">Processing</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-medium">Ethereum</div>
-                          <div className="text-xs text-muted-foreground">0.245 ETH</div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">₹14,250</div>
+                          <div className="text-xs text-warning">Pending</div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">$10,245.32</div>
-                        <div className="text-xs text-success">+3.2%</div>
                       </div>
                     </div>
                   </div>

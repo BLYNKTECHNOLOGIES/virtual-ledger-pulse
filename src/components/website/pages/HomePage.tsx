@@ -3,6 +3,7 @@ import { ModernHeroSection } from '../ModernHeroSection';
 import { ModernFeaturesSection } from '../ModernFeaturesSection';
 import { ModernServicesSection } from '../ModernServicesSection';
 import { LiveCryptoRates } from '../LiveCryptoRates';
+import { SecurityComplianceSection } from '../SecurityComplianceSection';
 
 export function HomePage() {
   return (

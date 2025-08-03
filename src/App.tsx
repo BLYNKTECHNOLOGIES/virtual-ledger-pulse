@@ -46,6 +46,7 @@ import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
+import { ScrollToTop } from './components/ScrollToTop';
 
 const router = createBrowserRouter([
   {
@@ -440,6 +441,7 @@ function App() {
   return (
     <React.StrictMode>
       <RouterProvider router={router} />
+      <ScrollToTop />
     </React.StrictMode>
   );
 }

@@ -127,7 +127,7 @@ export function ModernNavbar() {
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground tracking-tight hover:text-primary transition-colors italic" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                <span className="text-2xl font-bold text-foreground tracking-tight hover:text-primary transition-colors italic">
                   blynk
                 </span>
                 <div className="flex items-center gap-1">

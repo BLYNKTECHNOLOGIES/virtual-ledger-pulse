@@ -99,35 +99,33 @@ export default function ProfitLoss() {
     return totalNPM;
   };
 
-  // Fetch P&L data with proper NPM calculation
+  // Fetch P&L data with proper NPM calculation using FIFO
   const { data: profitLossData, isLoading } = useQuery({
     queryKey: ['profit_loss_npm', selectedPeriod],
     queryFn: async () => {
-      // Get sales data
-      const { data: salesData } = await supabase
+      // Get sales orders data
+      const { data: salesOrders } = await supabase
         .from('sales_orders')
-        .select('id, total_amount, order_date, product_id, quantity, price_per_unit')
-        .gte('order_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('order_date', format(endDate, 'yyyy-MM-dd'));
-
-      // Get purchase data  
-      const { data: purchaseData } = await supabase
-        .from('purchase_orders')
         .select('id, total_amount, order_date')
         .gte('order_date', format(startDate, 'yyyy-MM-dd'))
         .lte('order_date', format(endDate, 'yyyy-MM-dd'));
 
-      // Get purchase order items for FIFO calculation
-      const { data: purchaseItems } = await supabase
-        .from('purchase_order_items')
-        .select('product_id, quantity, unit_price')
-        .order('id', { ascending: true }); // Use id for ordering since created_at doesn't exist
-
-      // Get sales order items for NPM calculation
+      // Get sales order items separately
       const { data: salesItems } = await supabase
         .from('sales_order_items')
-        .select('product_id, quantity, unit_price, created_at')
-        .order('created_at', { ascending: true });
+        .select('sales_order_id, product_id, quantity, unit_price');
+
+      // Get all purchase order items for FIFO calculation (ordered by creation)
+      const { data: purchaseItems } = await supabase
+        .from('purchase_order_items')
+        .select('product_id, quantity, unit_price, purchase_order_id')
+        .order('id', { ascending: true });
+
+      // Get purchase orders to link with items
+      const { data: purchaseOrders } = await supabase
+        .from('purchase_orders')
+        .select('id, order_date')
+        .order('order_date', { ascending: true });
 
       // Get other expenses from bank transactions (excluding purchase category)
       const { data: expenseData } = await supabase
@@ -146,33 +144,76 @@ export default function ProfitLoss() {
         .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
         .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
 
-      // Calculate Cost of Goods Sold from purchase orders
-      const totalCOGS = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      // Create purchase items with dates for proper FIFO
+      const purchaseItemsWithDates = purchaseItems?.map(item => {
+        const order = purchaseOrders?.find(po => po.id === item.purchase_order_id);
+        return {
+          ...item,
+          date: order?.order_date || '1970-01-01',
+          remaining: item.quantity
+        };
+      }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
 
-      // Calculate NPM using FIFO logic with available data
-      const npmTotal = calculateNPMWithFIFO(salesItems || [], purchaseItems || []);
+      // Calculate COGS and NPM using FIFO logic for actual sales
+      let totalCOGS = 0;
+      let totalQuantitySold = 0;
+      const purchasesByProduct = new Map();
+
+      // Group purchases by product
+      purchaseItemsWithDates.forEach(purchase => {
+        if (!purchasesByProduct.has(purchase.product_id)) {
+          purchasesByProduct.set(purchase.product_id, []);
+        }
+        purchasesByProduct.get(purchase.product_id).push(purchase);
+      });
+
+      // Filter sales items for period sales orders
+      const periodSalesOrderIds = salesOrders?.map(order => order.id) || [];
+      const periodSalesItems = salesItems?.filter(item => 
+        periodSalesOrderIds.includes(item.sales_order_id)
+      ) || [];
+
+      // Calculate COGS for each sale using FIFO
+      periodSalesItems.forEach(item => {
+        const productPurchases = purchasesByProduct.get(item.product_id) || [];
+        let remainingQty = item.quantity;
+        let itemCOGS = 0;
+
+        // Use FIFO to calculate cost basis for this sale
+        for (let purchase of productPurchases) {
+          if (remainingQty <= 0) break;
+          
+          const qtyToUse = Math.min(remainingQty, purchase.remaining);
+          itemCOGS += qtyToUse * purchase.unit_price;
+          purchase.remaining -= qtyToUse;
+          remainingQty -= qtyToUse;
+        }
+
+        totalCOGS += itemCOGS;
+        totalQuantitySold += item.quantity;
+      });
 
       // Calculate metrics
-      const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      const totalRevenue = salesOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const totalOtherExpenses = expenseData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
       
-      // Gross profit calculation: Revenue - COGS or NPM (whichever is available)
-      const grossProfit = npmTotal !== 0 ? npmTotal : (totalRevenue - totalCOGS);
+      // NPM = Revenue - COGS (using FIFO)
+      const grossProfit = totalRevenue - totalCOGS;
       
-      // Net profit = Gross Profit - Other Expenses + Other Income
+      // Net profit = Gross Profit - Other Expenses + Other Income  
       const netProfit = grossProfit - totalOtherExpenses + totalIncome;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
       return {
         totalRevenue,
-        totalExpense: totalCOGS + totalOtherExpenses, // Include both COGS and other expenses for display
+        totalExpense: totalOtherExpenses, // Only actual expenses, not COGS
         totalIncome,
         grossProfit,
         netProfit,
         profitMargin,
-        salesCount: salesData?.length || 0,
-        npmTotal,
+        salesCount: salesOrders?.length || 0,
+        npmTotal: grossProfit, // NPM is the gross profit using FIFO
         totalCOGS,
         totalOtherExpenses
       } as ProfitLossData;

@@ -15,6 +15,19 @@ export function ModernNavbar() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const isActive = (path: string) => location.pathname === path;
 
   const tradersDropdown = {
@@ -127,21 +140,19 @@ export function ModernNavbar() {
               </Link>
 
               {/* For Traders Dropdown */}
-              <div className="relative group">
+              <div className="relative group dropdown-container">
                 <button
                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  onMouseEnter={() => setActiveDropdown('traders')}
-                  onMouseLeave={() => setActiveDropdown(null)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveDropdown(activeDropdown === 'traders' ? null : 'traders');
+                  }}
                 >
                   For Traders
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", activeDropdown === 'traders' && "rotate-180")} />
                 </button>
                 {activeDropdown === 'traders' && (
-                  <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
-                    onMouseEnter={() => setActiveDropdown('traders')}
-                    onMouseLeave={() => setActiveDropdown(null)}
-                  >
+                  <div className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-800 border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in">
                     <div className="grid grid-cols-1 gap-8">
                       {tradersDropdown.sections.map((section, index) => (
                         <div key={index}>
@@ -154,6 +165,7 @@ export function ModernNavbar() {
                                 key={item.path}
                                 to={item.path}
                                 className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                onClick={() => setActiveDropdown(null)}
                               >
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
@@ -174,21 +186,19 @@ export function ModernNavbar() {
               </div>
 
               {/* For Businesses Dropdown */}
-              <div className="relative group">
+              <div className="relative group dropdown-container">
                 <button
                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  onMouseEnter={() => setActiveDropdown('businesses')}
-                  onMouseLeave={() => setActiveDropdown(null)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveDropdown(activeDropdown === 'businesses' ? null : 'businesses');
+                  }}
                 >
                   For Businesses
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", activeDropdown === 'businesses' && "rotate-180")} />
                 </button>
                 {activeDropdown === 'businesses' && (
-                  <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
-                    onMouseEnter={() => setActiveDropdown('businesses')}
-                    onMouseLeave={() => setActiveDropdown(null)}
-                  >
+                  <div className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-800 border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in">
                     <div className="grid grid-cols-1 gap-8">
                       {businessDropdown.sections.map((section, index) => (
                         <div key={index}>
@@ -201,6 +211,7 @@ export function ModernNavbar() {
                                 key={item.path}
                                 to={item.path}
                                 className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                onClick={() => setActiveDropdown(null)}
                               >
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
@@ -231,21 +242,19 @@ export function ModernNavbar() {
               </Link>
 
               {/* Resources Dropdown */}
-              <div className="relative group">
+              <div className="relative group dropdown-container">
                 <button
                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  onMouseEnter={() => setActiveDropdown('resources')}
-                  onMouseLeave={() => setActiveDropdown(null)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setActiveDropdown(activeDropdown === 'resources' ? null : 'resources');
+                  }}
                 >
                   Resources
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", activeDropdown === 'resources' && "rotate-180")} />
                 </button>
                 {activeDropdown === 'resources' && (
-                  <div 
-                    className="absolute top-full left-0 mt-2 w-[400px] bg-white border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
-                    onMouseEnter={() => setActiveDropdown('resources')}
-                    onMouseLeave={() => setActiveDropdown(null)}
-                  >
+                  <div className="absolute top-full left-0 mt-2 w-[400px] bg-white dark:bg-gray-800 border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in">
                     <div className="grid grid-cols-1 gap-8">
                       {resourcesDropdown.sections.map((section, index) => (
                         <div key={index}>
@@ -258,6 +267,7 @@ export function ModernNavbar() {
                                 key={item.path}
                                 to={item.path}
                                 className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                onClick={() => setActiveDropdown(null)}
                               >
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">

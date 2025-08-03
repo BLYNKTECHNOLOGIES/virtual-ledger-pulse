@@ -365,7 +365,234 @@ export function PrivacyPolicyPage() {
             </div>
           </section>
 
-          {/* Contact Information */}
+          {/* 11. Blockchain Transaction Information */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <CreditCard className="h-8 w-8 text-primary" />
+              11. Blockchain Transaction Information
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                Cryptocurrency transactions occur on public blockchain networks, which creates unique privacy considerations and data handling requirements under Indian law and international standards. We provide comprehensive information about how blockchain transactions relate to personal data, what information is publicly available on blockchain networks, how we handle blockchain-related data in compliance with privacy regulations, and what users can expect regarding privacy and transparency in cryptocurrency transactions.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">11.1 Public Nature of Blockchain Networks and Privacy Implications</h3>
+                  <p>
+                    Blockchain networks are generally public and transparent, meaning that transaction information is permanently recorded on distributed ledgers and publicly viewable by anyone with access to blockchain explorers and analytical tools. Public blockchain data includes cryptocurrency wallet addresses for sending and receiving transactions with permanent immutable records, transaction amounts in the respective cryptocurrency denominations with precise decimal accuracy, exact timestamps of transaction confirmation on the blockchain network with block height information, transaction fees paid to miners or validators with gas price details, comprehensive transaction hashes and block numbers for permanent reference and verification, and the complete transaction flow between different wallet addresses with input and output analysis. While blockchain addresses are pseudonymous rather than directly identifying individuals, they can potentially be linked to personal identities through various sophisticated analysis techniques including clustering analysis of address relationships, timing correlation with known activities, exchange transaction linking through deposit and withdrawal patterns, cross-referencing with known address databases and sanctions lists, and behavioral pattern analysis across multiple transactions. We provide comprehensive education to users about the public nature of blockchain transactions, their permanent and immutable characteristics, potential privacy implications and risks, and best practices for maintaining privacy within the cryptocurrency ecosystem through our educational resources, user guides, and regular communication updates.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">11.2 Transaction Monitoring and Regulatory Compliance</h3>
+                  <p>
+                    We monitor blockchain transactions comprehensively for compliance with Indian AML laws, international sanctions, and platform security requirements while balancing user privacy considerations with regulatory obligations under PMLA and FIU-IND guidelines. Transaction monitoring includes comprehensive screening of all transactions against sanctions lists and known illicit addresses using advanced blockchain analytics tools and real-time updates, detailed analysis of transaction patterns for AML compliance as required by PMLA with automated risk scoring and manual review procedures, systematic tracking of fund flows for regulatory reporting and suspicious activity detection with complete audit trails, identification of potentially suspicious activities through behavioral analysis, pattern recognition, and machine learning algorithms, maintenance of comprehensive records of all monitored transactions for regulatory inspection and law enforcement cooperation, and coordination with law enforcement and regulatory authorities when required by law with proper legal procedures and documentation. This monitoring is essential for maintaining our VASP operating permissions, ensuring platform security and user protection, protecting users and the platform from financial crimes and regulatory violations, and complying with the extensive regulatory framework governing cryptocurrency transactions in India including reporting obligations to FIU-IND and other relevant authorities.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 12. Third-Party Services and Integrations */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">12. Third-Party Services and Integrations</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We integrate with various third-party services to provide comprehensive cryptocurrency trading services, ensure regulatory compliance, and enhance user experience. These integrations are carefully selected based on security standards, privacy protection measures, and regulatory compliance requirements under Indian law. We maintain strict contractual obligations with all third-party providers to ensure your data is protected and used only for authorized purposes.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">12.1 Payment Gateway and Banking Integrations</h3>
+                  <p>
+                    We integrate with authorized Indian payment gateways and banking services to facilitate INR transactions and comply with RBI regulations. Payment integrations include UPI service providers authorized by NPCI for instant payments and real-time settlement, major Indian banks for IMPS, NEFT, and RTGS transactions with secure API integration, authorized payment gateways including Razorpay, Payu, CCAvenue, and others for card transactions, digital wallet services including Paytm, PhonePe, Google Pay, and other RBI-authorized payment systems, and banking APIs for account verification, balance inquiry, and transaction processing with end-to-end encryption. All payment integrations are secured through tokenization, PCI DSS compliance, and comprehensive fraud monitoring with real-time transaction verification and risk assessment.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">12.2 KYC and Identity Verification Services</h3>
+                  <p>
+                    We partner with authorized KYC service providers to ensure comprehensive identity verification and regulatory compliance. KYC integrations include UIDAI-authorized Aadhaar verification services for biometric authentication and demographic verification, income tax database integration for PAN verification and validation, specialized document verification services for passport, driving license, and other government-issued documents, video KYC service providers authorized by RBI for remote customer onboarding, and biometric verification services for enhanced security and fraud prevention. All KYC providers are bound by strict data protection agreements and must comply with Indian privacy laws and regulatory requirements.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">12.3 Security and Compliance Services</h3>
+                  <p>
+                    We utilize specialized security and compliance services to maintain platform integrity and regulatory adherence. Security integrations include cybersecurity vendors for threat detection, prevention, and incident response, blockchain analytics platforms for transaction monitoring and AML compliance, fraud detection services using machine learning and artificial intelligence, and compliance monitoring tools for regulatory reporting and audit management. All security providers undergo rigorous security assessments and are bound by comprehensive confidentiality agreements with regular security audits and compliance reviews.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 13. Data Storage, Transfer, and Retention (Expanded) */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">13. Data Storage, Transfer, and Retention</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We implement comprehensive data storage, transfer, and retention practices that comply with Indian data localization requirements, international security standards, and regulatory mandates for financial services. Our data management practices are designed to ensure security, availability, integrity, and compliance while respecting user privacy rights and providing transparency about data handling throughout its lifecycle.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">13.1 Data Localization and Storage Infrastructure</h3>
+                  <p>
+                    Our primary data storage infrastructure is located within India to comply with RBI data localization requirements for payment system operators and financial service providers. Data storage includes secure data centers in Mumbai, Bangalore, and Delhi with ISO 27001 certification, comprehensive physical security measures, and 24/7 monitoring, cloud infrastructure with leading providers including AWS Asia Pacific (Mumbai) and Google Cloud India with strict data residency guarantees and compliance certifications, encrypted databases with AES-256 encryption at rest and comprehensive access controls with role-based permissions, automated backup systems with geographically distributed backup locations within India and real-time synchronization, comprehensive disaster recovery infrastructure with multiple availability zones and automatic failover capabilities, and specialized secure storage for sensitive documents including KYC documentation with enhanced encryption, access logging, and audit trails. All storage infrastructure maintains 99.9% uptime guarantees with SLA monitoring, undergoes regular security audits and penetration testing by certified professionals, and implements comprehensive monitoring, incident response, and business continuity capabilities with detailed documentation and regular testing procedures.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">13.2 Comprehensive Data Retention Policies</h3>
+                  <p>
+                    We maintain detailed data retention policies that balance regulatory requirements with user privacy rights and operational efficiency. Retention periods include KYC and identity verification data retained for five years after account closure as mandated by PMLA regulations with secure archival and restricted access, comprehensive transaction records and financial data retained for five years from transaction date for regulatory compliance, audit purposes, and tax reporting assistance, customer communication records including support conversations retained for three years for dispute resolution and regulatory inspection with comprehensive indexing and search capabilities, marketing and analytics data retained for two years or until user withdrawal of consent with immediate deletion upon consent withdrawal, comprehensive security logs and audit trails retained for seven years for forensic analysis, regulatory compliance, and incident investigation, tax-related documentation retained as per income tax regulations and user requirements with specialized secure storage, and blockchain transaction records maintained permanently due to the immutable nature of blockchain technology with appropriate privacy protection measures. Users can request earlier deletion of certain data categories where legally permissible and not required for regulatory compliance, and we provide annual data retention reviews, automated deletion of expired data in accordance with our retention schedules, and comprehensive documentation of all retention and deletion activities for audit and compliance purposes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 14. Children's Privacy */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">14. Children's Privacy</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                Our Services are not intended for individuals under the age of 18 years, and we do not knowingly collect, process, or store personal information from minors. This policy is in compliance with the Digital Personal Data Protection Act 2023, Information Technology Act 2000, and other applicable Indian laws regarding children's privacy and protection. We have implemented comprehensive measures to prevent minors from accessing our cryptocurrency trading platform and to immediately address any inadvertent collection of children's data.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">14.1 Age Verification and Prevention Measures</h3>
+                  <p>
+                    We implement robust age verification measures to prevent minors from creating accounts or accessing our Services. Age verification includes mandatory date of birth verification during account registration with cross-reference against government-issued identification documents, comprehensive KYC procedures that require government-issued photo identification proving age majority, additional verification for users who appear to be close to the minimum age requirement with enhanced documentation requirements, automated systems that flag and prevent account creation for users under 18 years of age, and regular audit and monitoring of user accounts to identify any potential underage users with immediate account suspension and investigation procedures. All age verification processes are designed to be thorough while maintaining user privacy and complying with applicable data protection laws.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">14.2 Inadvertent Collection and Immediate Response Procedures</h3>
+                  <p>
+                    In the unlikely event that we discover we have inadvertently collected personal information from a minor, we have established immediate response procedures to protect the child's privacy and comply with legal requirements. Response procedures include immediate suspension of the account upon discovery of underage use with prevention of further access to Services, prompt notification to parents or legal guardians where contact information is available with explanation of the situation and our response, immediate deletion of all personal information related to the minor's account except where retention is required by law for regulatory compliance, comprehensive investigation to determine how the underage account was created and implementation of additional safeguards to prevent similar occurrences, and coordination with legal authorities where required by law or where there are concerns about the minor's safety or welfare. We encourage parents and guardians to monitor their children's internet activities and to contact us immediately if they believe their child has provided personal information to our platform without proper age verification.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 15. Biometric and OTP-based Authentication */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">15. Biometric and OTP-based Authentication</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We utilize advanced biometric authentication and OTP-based verification systems to enhance security, prevent fraud, and comply with Indian digital identity regulations. These authentication methods are implemented with strict privacy protection measures, user consent requirements, and compliance with UIDAI guidelines and other applicable Indian laws governing biometric data collection and processing.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">15.1 Biometric Authentication and Data Protection</h3>
+                  <p>
+                    We implement biometric authentication with the highest levels of privacy protection and security. Biometric systems include facial recognition technology for identity verification during KYC processes with liveness detection and anti-spoofing measures, fingerprint authentication where supported by user devices with local storage and encrypted transmission, voice recognition for phone-based verification and customer support authentication, and Aadhaar-based biometric authentication through authorized UIDAI service providers with strict compliance to UIDAI guidelines and data protection requirements. All biometric data is processed with explicit user consent, encrypted using advanced encryption algorithms, stored with enhanced security measures including access controls and audit logging, and used only for the specific purposes disclosed to users with comprehensive audit trails and regular security assessments.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">15.2 OTP and Multi-Factor Authentication Systems</h3>
+                  <p>
+                    We utilize comprehensive OTP and multi-factor authentication systems to ensure account security and transaction verification. OTP systems include SMS-based OTP for account verification and transaction authorization with secure delivery through authorized telecom providers, email-based OTP for account recovery and security verification with encrypted delivery and time-based expiration, TOTP (Time-based One-Time Password) support for enhanced security using authenticator apps with industry-standard algorithms, and hardware token support for high-security requirements with certified security devices and comprehensive backup procedures. All OTP systems include rate limiting to prevent abuse, secure generation and transmission with encryption, comprehensive logging for security monitoring and audit purposes, and user-friendly backup and recovery mechanisms to ensure account accessibility while maintaining security standards.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 16. International Data Transfers */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">16. International Data Transfers</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                While we primarily store and process data within India in compliance with data localization requirements, certain limited data transfers may occur internationally for specific business purposes, regulatory compliance, or technical requirements. All international data transfers are conducted with appropriate safeguards, legal protections, and user consent where required by applicable laws.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">16.1 Limited International Data Transfers and Safeguards</h3>
+                  <p>
+                    International data transfers are limited to specific circumstances and conducted with comprehensive safeguards. Transfer circumstances include blockchain transaction processing where cryptocurrency networks are inherently global and decentralized, sanctions screening and compliance verification using international databases and security services, cybersecurity threat intelligence and incident response coordination with global security providers, regulatory compliance and reporting for international cooperation agreements and mutual legal assistance treaties, and technical support and infrastructure management for global service providers with Indian operations. All international transfers include comprehensive data processing agreements with equivalent privacy protection standards, standard contractual clauses or adequacy decisions where applicable, encryption and security measures during transfer and storage, limited purpose and duration with clear data retention and deletion schedules, and regular monitoring and audit of international service providers to ensure continued compliance with privacy protection standards.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">16.2 Cross-Border Regulatory Compliance</h3>
+                  <p>
+                    We ensure compliance with both Indian and applicable international regulations for any cross-border data transfers. Compliance measures include adherence to RBI guidelines for data localization with primary data storage within India, compliance with international sanctions and anti-money laundering requirements through authorized global databases, coordination with international law enforcement and regulatory authorities as required by mutual legal assistance treaties and regulatory cooperation agreements, implementation of privacy protection measures that meet or exceed Indian standards for any international processing, and regular assessment of international data protection laws and regulations to ensure continued compliance with evolving global privacy standards. We provide transparency about any international data transfers through this privacy policy and direct user notifications where required by law.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 17. Data Breach Notification Policy */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
+              <AlertTriangle className="h-8 w-8 text-primary" />
+              17. Data Breach Notification Policy
+            </h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                We have established comprehensive data breach response and notification procedures in compliance with the Digital Personal Data Protection Act 2023, Information Technology Act 2000, and other applicable Indian laws. Our breach response framework is designed to minimize impact, protect user data, ensure regulatory compliance, and maintain transparency throughout the incident response process.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">17.1 Incident Detection and Response Procedures</h3>
+                  <p>
+                    We maintain comprehensive incident detection and response capabilities to identify and address potential data breaches immediately. Detection systems include 24/7 security monitoring with automated threat detection and real-time alerting, comprehensive audit logging and analysis with machine learning-based anomaly detection, regular security assessments and penetration testing with immediate escalation procedures, employee training and reporting mechanisms for potential security incidents, and coordinated incident response procedures with defined roles, responsibilities, and escalation paths. Upon detection of a potential breach, we immediately activate our incident response team, conduct preliminary assessment and containment procedures, preserve evidence for investigation and regulatory reporting, and begin comprehensive impact assessment and user notification procedures in accordance with legal requirements and best practices.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">17.2 User and Regulatory Notification Requirements</h3>
+                  <p>
+                    We are committed to prompt and transparent notification of data breaches in accordance with Indian law and regulatory requirements. Notification procedures include immediate notification to relevant regulatory authorities including CERT-In and other applicable agencies within required timeframes, comprehensive user notification for breaches that may pose significant risk to user rights and interests with clear information about the nature of the breach, data involved, and protective measures taken, detailed communication about steps taken to address the breach and prevent future incidents, guidance for users on protective measures they can take to protect their accounts and personal information, and ongoing updates throughout the investigation and remediation process. All notifications include clear, non-technical language explaining the nature of the incident, comprehensive information about affected data and potential risks, detailed steps taken to address the breach and enhance security, and specific recommendations for users to protect their accounts and personal information with dedicated support channels for breach-related inquiries and assistance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 18. Consent and Withdrawal Mechanisms */}
+          <section>
+            <h2 className="text-3xl font-bold text-foreground mb-8">18. Consent and Withdrawal Mechanisms</h2>
+            
+            <div className="space-y-6 text-muted-foreground leading-relaxed">
+              <p className="text-lg">
+                Under the Digital Personal Data Protection Act 2023 and other applicable Indian privacy laws, we ensure that all data processing based on consent is conducted with clear, informed, and freely given consent. We provide comprehensive mechanisms for users to provide consent and withdraw consent at any time, with immediate effect on data processing activities while maintaining essential service functionality and regulatory compliance.
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">18.1 Informed Consent and Granular Control</h3>
+                  <p>
+                    We obtain informed consent through clear, understandable language and granular control mechanisms. Consent processes include detailed explanation of data processing purposes with specific use cases and benefits, granular consent options for different categories of data processing including marketing, analytics, and optional features, clear information about data sharing with third parties and user control over such sharing, comprehensive explanation of user rights and withdrawal mechanisms with easy access to consent management tools, and regular consent renewal and confirmation procedures to ensure continued user agreement with data processing activities. All consent is obtained through active user engagement rather than pre-checked boxes or assumed consent, with clear documentation of consent decisions and regular opportunities for users to review and modify their consent preferences through user-friendly account management interfaces.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">18.2 Consent Withdrawal and Data Processing Impact</h3>
+                  <p>
+                    Users can withdraw consent at any time through multiple mechanisms with immediate effect on future data processing. Withdrawal mechanisms include comprehensive account settings with granular control over different types of consent, one-click withdrawal options for marketing and optional data processing, customer support assisted withdrawal with immediate processing and confirmation, and clear information about the impact of consent withdrawal on service functionality and user experience. Upon consent withdrawal, we immediately cease the relevant data processing activities, update our systems to reflect the withdrawal with comprehensive audit logging, provide confirmation of the withdrawal and its effective date, and continue to provide essential services based on other legal grounds including contractual necessity and regulatory compliance requirements. We ensure that consent withdrawal does not affect the lawfulness of processing based on consent before its withdrawal and maintain clear records of all consent decisions and withdrawals for regulatory compliance and user transparency.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
           <section>
             <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
               <Phone className="h-8 w-8 text-primary" />

@@ -1,24 +1,29 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   TrendingUp, 
   TrendingDown, 
   DollarSign, 
-  PieChart, 
-  BarChart3, 
-  Calendar,
   FileText,
   Download,
-  Eye,
-  ArrowUpIcon,
-  ArrowDownIcon
+  Calculator
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+
+interface ProfitLossData {
+  totalRevenue: number;
+  totalExpense: number;
+  totalIncome: number;
+  grossProfit: number;
+  netProfit: number;
+  profitMargin: number;
+  salesCount: number;
+  npmTotal: number;
+}
 
 export default function ProfitLoss() {
   const [selectedPeriod, setSelectedPeriod] = useState("current_month");
@@ -44,50 +49,125 @@ export default function ProfitLoss() {
 
   const { start: startDate, end: endDate } = getDateRange();
 
-  // Fetch P&L data
+  // Calculate NPM using FIFO logic
+  const calculateNPMWithFIFO = (salesData: any[], purchaseData: any[]) => {
+    // Group purchases by product and sort by date (FIFO)
+    const purchasesByProduct = new Map();
+    
+    purchaseData.forEach(purchase => {
+      if (!purchasesByProduct.has(purchase.product_id)) {
+        purchasesByProduct.set(purchase.product_id, []);
+      }
+      purchasesByProduct.get(purchase.product_id).push({
+        quantity: purchase.quantity,
+        unit_price: purchase.unit_price,
+        date: purchase.created_at,
+        remaining: purchase.quantity
+      });
+    });
+
+    // Sort purchases by date for FIFO
+    purchasesByProduct.forEach((purchases, productId) => {
+      purchases.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    });
+
+    let totalNPM = 0;
+
+    // Calculate NPM for each sale using FIFO
+    salesData.forEach(sale => {
+      const productPurchases = purchasesByProduct.get(sale.product_id) || [];
+      let saleQuantity = sale.quantity;
+      let totalCost = 0;
+
+      // Use FIFO to calculate cost basis
+      for (let purchase of productPurchases) {
+        if (saleQuantity <= 0) break;
+        
+        const quantityToUse = Math.min(saleQuantity, purchase.remaining);
+        totalCost += quantityToUse * purchase.unit_price;
+        purchase.remaining -= quantityToUse;
+        saleQuantity -= quantityToUse;
+      }
+
+      const saleRevenue = sale.quantity * sale.unit_price;
+      const npm = saleRevenue - totalCost;
+      totalNPM += npm;
+    });
+
+    return totalNPM;
+  };
+
+  // Fetch P&L data with proper NPM calculation
   const { data: profitLossData, isLoading } = useQuery({
-    queryKey: ['profit_loss_data', selectedPeriod],
+    queryKey: ['profit_loss_npm', selectedPeriod],
     queryFn: async () => {
-      // Get sales revenue
+      // Get sales data
       const { data: salesData } = await supabase
         .from('sales_orders')
-        .select('total_amount, order_date')
+        .select('id, total_amount, order_date, product_id, quantity, price_per_unit')
         .gte('order_date', format(startDate, 'yyyy-MM-dd'))
         .lte('order_date', format(endDate, 'yyyy-MM-dd'));
 
-      // Get purchase costs
+      // Get purchase data  
       const { data: purchaseData } = await supabase
         .from('purchase_orders')
-        .select('total_amount, order_date')
+        .select('id, total_amount, order_date')
         .gte('order_date', format(startDate, 'yyyy-MM-dd'))
         .lte('order_date', format(endDate, 'yyyy-MM-dd'));
 
-      // Get employee costs
-      const { data: payrollData } = await supabase
-        .from('payslips')
-        .select('net_salary, month_year')
-        .like('month_year', `%${format(startDate, 'yyyy')}%`);
+      // Get purchase order items for FIFO calculation
+      const { data: purchaseItems } = await supabase
+        .from('purchase_order_items')
+        .select('product_id, quantity, unit_price, created_at')
+        .order('created_at', { ascending: true }); // FIFO ordering
 
+      // Get sales order items for NPM calculation
+      const { data: salesItems } = await supabase
+        .from('sales_order_items')
+        .select('product_id, quantity, unit_price, created_at')
+        .order('created_at', { ascending: true });
+
+      // Get expenses from bank transactions
+      const { data: expenseData } = await supabase
+        .from('bank_transactions')
+        .select('amount')
+        .eq('transaction_type', 'EXPENSE')
+        .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
+
+      // Get income from bank transactions
+      const { data: incomeData } = await supabase
+        .from('bank_transactions')
+        .select('amount')
+        .eq('transaction_type', 'INCOME')
+        .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
+
+      // Calculate NPM using FIFO logic with available data
+      const npmTotal = calculateNPMWithFIFO(salesItems || [], purchaseItems || []);
+
+      // Calculate metrics
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalCOGS = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalPayroll = payrollData?.reduce((sum, payslip) => sum + Number(payslip.net_salary), 0) || 0;
+      const totalExpense = expenseData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
+      const totalIncome = incomeData?.reduce((sum, transaction) => sum + Number(transaction.amount), 0) || 0;
       
-      const grossProfit = totalRevenue - totalCOGS;
-      const operatingExpenses = totalPayroll + (totalRevenue * 0.15); // Estimate other expenses as 15% of revenue
-      const netProfit = grossProfit - operatingExpenses;
+      // Gross profit is NPM (profits from operations only)
+      const grossProfit = npmTotal;
+      
+      // Net profit = Gross Profit - Expenses + Income
+      const netProfit = grossProfit - totalExpense + totalIncome;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
       return {
         totalRevenue,
-        totalCOGS,
+        totalExpense,
+        totalIncome,
         grossProfit,
-        operatingExpenses,
-        totalPayroll,
         netProfit,
         profitMargin,
         salesCount: salesData?.length || 0,
-        purchaseCount: purchaseData?.length || 0
-      };
+        npmTotal
+      } as ProfitLossData;
     },
   });
 
@@ -106,22 +186,22 @@ export default function ProfitLoss() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
-      <div className="relative overflow-hidden bg-indigo-600 text-white rounded-xl mb-6">
-        <div className="relative px-6 py-8">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="px-6 py-6">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-indigo-700 rounded-xl shadow-lg">
-                  <PieChart className="h-8 w-8 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Calculator className="h-6 w-6 text-gray-700" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-white">
+                  <h1 className="text-2xl font-bold text-gray-900">
                     Profit & Loss Statement
                   </h1>
-                  <p className="text-indigo-200 text-lg">
-                    Monitor your company's financial performance
+                  <p className="text-gray-600">
+                    NPM-based financial performance analysis
                   </p>
                 </div>
               </div>
@@ -129,7 +209,7 @@ export default function ProfitLoss() {
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-48 bg-white text-gray-900">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -140,24 +220,10 @@ export default function ProfitLoss() {
                 </SelectContent>
               </Select>
               
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white border-2 border-indigo-400 text-indigo-600 hover:bg-indigo-50 shadow-md"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white border-2 border-indigo-400 text-indigo-600 hover:bg-indigo-50 shadow-md"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Detailed View
-                </Button>
-              </div>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
             </div>
           </div>
         </div>
@@ -165,84 +231,71 @@ export default function ProfitLoss() {
 
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
                   {formatCurrency(profitLossData?.totalRevenue || 0)}
                 </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <ArrowUpIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{getPeriodLabel()}</span>
-                </div>
+                <p className="text-sm text-gray-500 mt-1">{getPeriodLabel()}</p>
               </div>
-              <div className="bg-emerald-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <DollarSign className="h-8 w-8" />
+              <div className="p-3 bg-blue-50 rounded-full">
+                <DollarSign className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-red-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-red-100 text-sm font-medium">Total Expenses</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                  {formatCurrency((profitLossData?.totalCOGS || 0) + (profitLossData?.operatingExpenses || 0))}
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCurrency(profitLossData?.totalExpense || 0)}
                 </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <ArrowDownIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{getPeriodLabel()}</span>
-                </div>
+                <p className="text-sm text-gray-500 mt-1">From expense entries</p>
               </div>
-              <div className="bg-red-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <TrendingDown className="h-8 w-8" />
+              <div className="p-3 bg-red-50 rounded-full">
+                <TrendingDown className="h-5 w-5 text-red-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-blue-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-blue-100 text-sm font-medium">Gross Profit</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Gross Profit (NPM)</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
                   {formatCurrency(profitLossData?.grossProfit || 0)}
                 </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="text-sm font-medium">{getPeriodLabel()}</span>
-                </div>
+                <p className="text-sm text-gray-500 mt-1">From operations only</p>
               </div>
-              <div className="bg-blue-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <BarChart3 className="h-8 w-8" />
+              <div className="p-3 bg-green-50 rounded-full">
+                <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className={`${(profitLossData?.netProfit || 0) >= 0 ? 'bg-indigo-600' : 'bg-orange-600'} text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300`}>
+        <Card className="bg-white border border-gray-200 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className={`${(profitLossData?.netProfit || 0) >= 0 ? 'text-indigo-100' : 'text-orange-100'} text-sm font-medium`}>Net Profit</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Net Profit</p>
+                <p className={`text-2xl font-bold mt-1 ${(profitLossData?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(profitLossData?.netProfit || 0)}
                 </p>
-                <div className="flex items-center gap-1 mt-2">
-                  {(profitLossData?.netProfit || 0) >= 0 ? 
-                    <ArrowUpIcon className="h-4 w-4" /> : 
-                    <ArrowDownIcon className="h-4 w-4" />
-                  }
-                  <span className="text-sm font-medium">{profitLossData?.profitMargin.toFixed(1)}% Margin</span>
-                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  {profitLossData?.profitMargin?.toFixed(1)}% margin
+                </p>
               </div>
-              <div className={`${(profitLossData?.netProfit || 0) >= 0 ? 'bg-indigo-700' : 'bg-orange-700'} p-3 rounded-xl shadow-lg flex-shrink-0`}>
-                <PieChart className="h-8 w-8" />
+              <div className={`p-3 rounded-full ${(profitLossData?.netProfit || 0) >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <Calculator className={`h-5 w-5 ${(profitLossData?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`} />
               </div>
             </div>
           </CardContent>
@@ -252,86 +305,69 @@ export default function ProfitLoss() {
       {/* Detailed P&L Statement */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <div className="xl:col-span-2">
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 bg-indigo-700 rounded-lg shadow-md">
-                  <FileText className="h-6 w-6" />
-                </div>
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="border-b border-gray-200">
+              <CardTitle className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-gray-700" />
                 Profit & Loss Statement - {getPeriodLabel()}
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-8">
+            <CardContent className="p-6">
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300 mx-auto"></div>
                   <p className="mt-2 text-gray-600">Loading financial data...</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {/* Revenue Section */}
-                  <div className="border-b pb-4">
+                  <div className="border-b border-gray-200 pb-4">
                     <h3 className="text-lg font-semibold text-gray-900 mb-3">Revenue</h3>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Sales Revenue</span>
-                      <span className="font-semibold text-emerald-600">{formatCurrency(profitLossData?.totalRevenue || 0)}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                      <span className="font-semibold text-gray-900">Total Revenue</span>
-                      <span className="font-bold text-emerald-600 text-lg">{formatCurrency(profitLossData?.totalRevenue || 0)}</span>
+                      <span className="text-gray-700">Total Sales Revenue</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(profitLossData?.totalRevenue || 0)}</span>
                     </div>
                   </div>
 
-                  {/* Cost of Goods Sold */}
-                  <div className="border-b pb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Cost of Goods Sold</h3>
+                  {/* NPM/Gross Profit Section */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Gross Profit (NPM)</h3>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Purchase Costs</span>
-                      <span className="font-semibold text-red-600">{formatCurrency(profitLossData?.totalCOGS || 0)}</span>
+                      <span className="text-gray-700">Net Profit Made (FIFO)</span>
+                      <span className="font-semibold text-green-600">{formatCurrency(profitLossData?.grossProfit || 0)}</span>
                     </div>
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                      <span className="font-semibold text-gray-900">Total COGS</span>
-                      <span className="font-bold text-red-600 text-lg">{formatCurrency(profitLossData?.totalCOGS || 0)}</span>
-                    </div>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Calculated using First In First Out logic for cost basis
+                    </p>
                   </div>
 
-                  {/* Gross Profit */}
-                  <div className="border-b pb-4 bg-blue-50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-gray-900 text-lg">Gross Profit</span>
-                      <span className="font-bold text-blue-600 text-xl">{formatCurrency(profitLossData?.grossProfit || 0)}</span>
-                    </div>
-                  </div>
-
-                  {/* Operating Expenses */}
-                  <div className="border-b pb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Operating Expenses</h3>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Employee Salaries</span>
-                      <span className="font-semibold text-red-600">{formatCurrency(profitLossData?.totalPayroll || 0)}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-gray-700">Other Operating Expenses</span>
-                      <span className="font-semibold text-red-600">{formatCurrency((profitLossData?.operatingExpenses || 0) - (profitLossData?.totalPayroll || 0))}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
-                      <span className="font-semibold text-gray-900">Total Operating Expenses</span>
-                      <span className="font-bold text-red-600 text-lg">{formatCurrency(profitLossData?.operatingExpenses || 0)}</span>
+                  {/* Other Income & Expenses */}
+                  <div className="border-b border-gray-200 pb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Other Income & Expenses</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700">Total Income (from income tab)</span>
+                        <span className="font-semibold text-green-600">+{formatCurrency(profitLossData?.totalIncome || 0)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-700">Total Expenses (from expense tab)</span>
+                        <span className="font-semibold text-red-600">-{formatCurrency(profitLossData?.totalExpense || 0)}</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Net Profit */}
-                  <div className={`${(profitLossData?.netProfit || 0) >= 0 ? 'bg-indigo-50' : 'bg-orange-50'} p-4 rounded-lg`}>
+                  <div className="bg-gray-50 p-4 rounded-lg">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-900 text-xl">Net Profit</span>
-                      <span className={`font-bold text-2xl ${(profitLossData?.netProfit || 0) >= 0 ? 'text-indigo-600' : 'text-orange-600'}`}>
+                      <span className="font-bold text-gray-900 text-lg">Net Profit</span>
+                      <span className={`font-bold text-xl ${(profitLossData?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatCurrency(profitLossData?.netProfit || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center mt-2">
-                      <span className="text-sm text-gray-600">Profit Margin</span>
-                      <span className={`text-sm font-semibold ${(profitLossData?.netProfit || 0) >= 0 ? 'text-indigo-600' : 'text-orange-600'}`}>
-                        {profitLossData?.profitMargin.toFixed(2)}%
+                      <span className="text-sm text-gray-600">Calculation: Gross Profit - Expenses + Income</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        Margin: {profitLossData?.profitMargin?.toFixed(2)}%
                       </span>
                     </div>
                   </div>
@@ -341,61 +377,53 @@ export default function ProfitLoss() {
           </Card>
         </div>
 
-        {/* Summary & Quick Stats */}
-        <div className="space-y-6">
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="h-5 w-5" />
-                Period Summary
-              </CardTitle>
+        {/* Summary Panel */}
+        <div>
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardHeader className="border-b border-gray-200">
+              <CardTitle className="text-lg">Period Summary</CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Period</span>
-                  <Badge className="bg-indigo-100 text-indigo-800">{getPeriodLabel()}</Badge>
+                  <span className="font-medium text-gray-900">{getPeriodLabel()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Sales Orders</span>
-                  <span className="font-semibold">{profitLossData?.salesCount || 0}</span>
+                  <span className="font-medium text-gray-900">{profitLossData?.salesCount || 0}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Purchase Orders</span>
-                  <span className="font-semibold">{profitLossData?.purchaseCount || 0}</span>
+                  <span className="text-sm text-gray-600">Calculation Method</span>
+                  <span className="font-medium text-gray-900">FIFO (NPM)</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Profit Margin</span>
-                  <Badge className={`${(profitLossData?.profitMargin || 0) >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                    {profitLossData?.profitMargin.toFixed(1)}%
-                  </Badge>
+                  <span className={`font-medium ${(profitLossData?.profitMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {profitLossData?.profitMargin?.toFixed(1)}%
+                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <TrendingUp className="h-5 w-5" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Full Report
-              </Button>
-              <Button variant="outline" className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                <BarChart3 className="h-4 w-4 mr-2" />
-                View Charts
-              </Button>
-              <Button variant="outline" className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                <Download className="h-4 w-4 mr-2" />
-                Export to Excel
-              </Button>
-            </CardContent>
-          </Card>
+          
+          <div className="mt-6">
+            <Card className="bg-white border border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-200">
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-3">
+                <Button className="w-full">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Generate Report
+                </Button>
+                <Button variant="outline" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Excel
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

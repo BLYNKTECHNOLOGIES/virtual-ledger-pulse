@@ -441,7 +441,6 @@ function App() {
   return (
     <React.StrictMode>
       <RouterProvider router={router} />
-      <ScrollToTop />
     </React.StrictMode>
   );
 }

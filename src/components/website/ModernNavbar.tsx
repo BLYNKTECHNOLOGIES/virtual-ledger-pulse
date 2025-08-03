@@ -119,18 +119,18 @@ export function ModernNavbar() {
           <div className="flex justify-between items-center h-16">
             {/* Logo & Tagline */}
             <Link to="/website" className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center border border-border/20">
                 <img 
-                  src="/lovable-uploads/ccc39631-ab56-4707-8178-a7821ff55706.png" 
-                  alt="Blynk Virtual Technologies"
+                  src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
+                  alt="Blynk"
                   className="h-8 w-8 object-contain"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground">BLYNK VIRTUAL</span>
+                <span className="text-xl font-bold text-foreground">Blynk</span>
                 <div className="flex items-center gap-1">
                   <Flag className="h-3 w-3 text-green-600" />
-                  <span className="text-xs text-muted-foreground">Technologies • India</span>
+                  <span className="text-xs text-muted-foreground">VASP • India</span>
                 </div>
               </div>
             </Link>

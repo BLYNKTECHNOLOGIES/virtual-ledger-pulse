@@ -4,21 +4,20 @@ export function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary/5 py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="flex justify-center mb-6">
-              <Shield className="h-16 w-16 text-primary" />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+      <div className="border-b border-border/50">
+        <div className="container mx-auto px-4 py-12">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6">
               Privacy Policy
             </h1>
             <p className="text-xl text-muted-foreground mb-4">
               Comprehensive Data Protection and Privacy Framework for P2P Cryptocurrency Trading
             </p>
-            <p className="text-muted-foreground">
-              <strong>Effective Date:</strong> August 3, 2025 | <strong>Last Updated:</strong> August 3, 2025 | <strong>Version:</strong> 2.0
-            </p>
+            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+              <span><strong>Effective Date:</strong> August 3, 2025</span>
+              <span><strong>Last Updated:</strong> August 3, 2025</span>
+              <span><strong>Version:</strong> 2.0</span>
+            </div>
           </div>
         </div>
       </div>

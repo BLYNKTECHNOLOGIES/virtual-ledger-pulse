@@ -28,8 +28,7 @@ export function PrivacyPolicyPage() {
           
           {/* 1. Introduction and Definitions */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Eye className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               1. Introduction and Definitions
             </h2>
             
@@ -39,7 +38,7 @@ export function PrivacyPolicyPage() {
               </p>
 
               <p>
-                As a Virtual Asset Service Provider (VASP) operating under Indian jurisdiction and complying with global standards, we adhere to the highest levels of data protection, privacy, and regulatory compliance. We are registered under the Ministry of Corporate Affairs, India, bearing Company Identification Number (CIN) U62099MP2025PTC074915, and operate in full compliance with the Financial Intelligence Unit - India (FIU-IND) guidelines, Prevention of Money Laundering Act (PMLA) 2002, Information Technology Act 2000, Digital Personal Data Protection Act 2023, and other applicable laws and regulations.
+                As a Virtual Asset Service Provider (VASP) operating under Indian jurisdiction and complying with global standards, we adhere to the highest levels of data protection, privacy, and regulatory compliance. We are registered under the <a href="#" className="text-blue-600 hover:text-blue-800 underline">Ministry of Corporate Affairs, India</a>, bearing Company Identification Number (CIN) U62099MP2025PTC074915, and operate in full compliance with the <a href="#" className="text-blue-600 hover:text-blue-800 underline">Financial Intelligence Unit - India (FIU-IND)</a> guidelines, <a href="#" className="text-blue-600 hover:text-blue-800 underline">Prevention of Money Laundering Act (PMLA) 2002</a>, <a href="#" className="text-blue-600 hover:text-blue-800 underline">Information Technology Act 2000</a>, <a href="#" className="text-blue-600 hover:text-blue-800 underline">Digital Personal Data Protection Act 2023</a>, and other applicable laws and regulations.
               </p>
 
               <p>
@@ -61,8 +60,7 @@ export function PrivacyPolicyPage() {
 
           {/* 2. Legal Basis for Processing Personal Data */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Gavel className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               2. Legal Basis for Processing Personal Data
             </h2>
             
@@ -105,8 +103,7 @@ export function PrivacyPolicyPage() {
 
           {/* 3. What Information We Collect */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Database className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               3. What Information We Collect
             </h2>
             
@@ -149,8 +146,7 @@ export function PrivacyPolicyPage() {
 
           {/* 4. How We Collect Information */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Globe className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               4. How We Collect Information
             </h2>
             
@@ -179,8 +175,7 @@ export function PrivacyPolicyPage() {
 
           {/* 5. How We Use the Collected Information */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Lock className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               5. How We Use the Collected Information
             </h2>
             
@@ -209,8 +204,7 @@ export function PrivacyPolicyPage() {
 
           {/* 6. Cookies and Web Beacons */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Wifi className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               6. Cookies and Web Beacons
             </h2>
             
@@ -239,8 +233,7 @@ export function PrivacyPolicyPage() {
 
           {/* 7. Marketing Communications & Opt-Outs */}
           <section>
-            <h2 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-3">
-              <Mail className="h-8 w-8 text-primary" />
+            <h2 className="text-3xl font-bold text-foreground mb-8">
               7. Marketing Communications & Opt-Outs
             </h2>
             

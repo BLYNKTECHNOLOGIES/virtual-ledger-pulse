@@ -46,7 +46,6 @@ import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
-import { ScrollToTop } from './components/ScrollToTop';
 
 const router = createBrowserRouter([
   {

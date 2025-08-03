@@ -33,15 +33,19 @@ export function ModernFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Company Info */}
           <div className="lg:col-span-2 space-y-4">
-            <Link to="/website" className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-lg">V</span>
+            <Link to="/website" className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center border border-border/20">
+                <img 
+                  src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
+                  alt="Blynk"
+                  className="h-6 w-6 object-contain"
+                />
               </div>
-              <span className="text-xl font-bold text-foreground">VASPCorp</span>
+              <span className="text-xl font-bold text-foreground italic">blynk</span>
             </Link>
             
             <p className="text-muted-foreground max-w-md">
-              <strong className="text-foreground">VASPCorp</strong><br />
+              <strong className="text-foreground italic">blynk</strong><br />
               Registered Virtual Asset Service Provider (VASP) in India.<br />
               We provide secure, compliant, and efficient P2P crypto services with instant INR settlements.
             </p>
@@ -184,7 +188,7 @@ export function ModernFooter() {
         {/* Bottom Bar */}
         <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            © {currentYear} VASPCorp. All rights reserved. | Registered in India | VASP ID: VASP-IN-2024-001
+            © {currentYear} <span className="italic">blynk</span>. All rights reserved. | Registered in India | VASP ID: VASP-IN-2024-001
           </div>
           
           <div className="flex items-center gap-6 text-sm">

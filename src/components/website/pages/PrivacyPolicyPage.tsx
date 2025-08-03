@@ -24,10 +24,80 @@ export function PrivacyPolicyPage() {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-6xl mx-auto space-y-16">
+        <div className="max-w-7xl mx-auto flex gap-12">
+          {/* Sidebar Navigation */}
+          <div className="w-80 flex-shrink-0">
+            <div className="sticky top-8">
+              <nav className="space-y-2">
+                <a href="#introduction" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Introduction and Definitions
+                </a>
+                <a href="#legal-basis" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Legal Basis for Processing Personal Data
+                </a>
+                <a href="#information-collect" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  What Information We Collect
+                </a>
+                <a href="#how-collect" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  How We Collect Information
+                </a>
+                <a href="#how-use" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  How We Use the Collected Information
+                </a>
+                <a href="#cookies" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Cookies and Web Beacons
+                </a>
+                <a href="#marketing" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Marketing Communications & Opt-Outs
+                </a>
+                <a href="#ai-usage" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  AI Usage for KYC Screening and Fraud Prevention
+                </a>
+                <a href="#user-rights" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  User Rights Under DPDP Act
+                </a>
+                <a href="#security" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Information Security Measures
+                </a>
+                <a href="#blockchain" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Blockchain Transaction Information
+                </a>
+                <a href="#third-party" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Third-Party Services and Integrations
+                </a>
+                <a href="#data-storage" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Data Storage, Transfer, and Retention
+                </a>
+                <a href="#children-privacy" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Children's Privacy
+                </a>
+                <a href="#biometric-auth" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Biometric and OTP-based Authentication
+                </a>
+                <a href="#international-transfers" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  International Data Transfers
+                </a>
+                <a href="#breach-notification" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Data Breach Notification Policy
+                </a>
+                <a href="#consent" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Consent and Withdrawal Mechanisms
+                </a>
+                <a href="#contact" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Contact Information
+                </a>
+                <a href="#policy-updates" className="block text-blue-600 hover:text-blue-800 font-medium py-2 px-3 rounded-lg hover:bg-blue-50 transition-colors">
+                  Policy Updates and Governing Law
+                </a>
+              </nav>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 space-y-16">
           
           {/* 1. Introduction and Definitions */}
-          <section>
+          <section id="introduction">
             <h2 className="text-3xl font-bold text-foreground mb-8">
               1. Introduction and Definitions
             </h2>
@@ -59,7 +129,7 @@ export function PrivacyPolicyPage() {
           </section>
 
           {/* 2. Legal Basis for Processing Personal Data */}
-          <section>
+          <section id="legal-basis">
             <h2 className="text-3xl font-bold text-foreground mb-8">
               2. Legal Basis for Processing Personal Data
             </h2>
@@ -102,7 +172,7 @@ export function PrivacyPolicyPage() {
           </section>
 
           {/* 3. What Information We Collect */}
-          <section>
+          <section id="information-collect">
             <h2 className="text-3xl font-bold text-foreground mb-8">
               3. What Information We Collect
             </h2>
@@ -145,7 +215,7 @@ export function PrivacyPolicyPage() {
           </section>
 
           {/* 4. How We Collect Information */}
-          <section>
+          <section id="how-collect">
             <h2 className="text-3xl font-bold text-foreground mb-8">
               4. How We Collect Information
             </h2>
@@ -174,7 +244,7 @@ export function PrivacyPolicyPage() {
           </section>
 
           {/* 5. How We Use the Collected Information */}
-          <section>
+          <section id="how-use">
             <h2 className="text-3xl font-bold text-foreground mb-8">
               5. How We Use the Collected Information
             </h2>
@@ -696,6 +766,7 @@ export function PrivacyPolicyPage() {
             </div>
           </section>
 
+          </div>
         </div>
       </div>
     </div>

@@ -32,29 +32,49 @@ export function LiveCryptoRates() {
     const fetchCryptoData = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+        // Add cache-busting parameter to ensure fresh data
+        const timestamp = Date.now();
         const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${supportedCryptos.join(',')}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h`
+          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${supportedCryptos.join(',')}&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h&_=${timestamp}`,
+          {
+            headers: {
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          }
         );
         
         if (!response.ok) {
-          throw new Error('Failed to fetch crypto data');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        setCryptoData(data);
-        setError(null);
+        console.log('Live crypto data fetched:', data); // Debug log
+        
+        // Ensure we have valid data
+        if (Array.isArray(data) && data.length > 0) {
+          setCryptoData(data);
+          setError(null);
+        } else {
+          throw new Error('Invalid data received from API');
+        }
       } catch (err) {
-        setError('Failed to load live rates. Please try again later.');
         console.error('Error fetching crypto data:', err);
+        setError('Failed to load live rates. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
+    // Initial fetch
     fetchCryptoData();
     
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchCryptoData, 30000);
+    // Refresh data every 10 seconds for more frequent updates
+    const interval = setInterval(fetchCryptoData, 10000);
     
     return () => clearInterval(interval);
   }, []);
@@ -143,7 +163,7 @@ export function LiveCryptoRates() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Live Crypto Rates</h2>
           <p className="text-muted-foreground">Real-time cryptocurrency prices and market data</p>
           <div className="text-xs text-muted-foreground mt-2">
-            Updates every 30 seconds • Powered by CoinGecko
+            Updates every 10 seconds • Powered by CoinGecko • Last updated: {new Date().toLocaleTimeString()}
           </div>
         </div>
         

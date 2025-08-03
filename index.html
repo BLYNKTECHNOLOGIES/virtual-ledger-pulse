@@ -36,12 +36,33 @@
     <!-- Disable auto-zoom on iOS -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- Force load Inter font -->
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-      * { font-family: 'Inter', sans-serif !important; }
-      html, body { font-family: 'Inter', sans-serif !important; }
-    </style>
+    <!-- Force load Inter font with JavaScript -->
+    <script>
+      // Force reload fonts and clear cache
+      const fontLink = document.createElement('link');
+      fontLink.rel = 'stylesheet';
+      fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap&_=' + Date.now();
+      document.head.appendChild(fontLink);
+      
+      // Debug font loading
+      console.log('Font loading initiated at:', Date.now());
+      
+      // Apply font immediately when DOM is ready
+      document.addEventListener('DOMContentLoaded', function() {
+        const style = document.createElement('style');
+        style.textContent = `
+          * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+          html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+        `;
+        document.head.appendChild(style);
+        console.log('Inter font applied with JavaScript at:', Date.now());
+        
+        // Force reflow
+        document.body.style.display = 'none';
+        document.body.offsetHeight;
+        document.body.style.display = '';
+      });
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   </head>

@@ -38,7 +38,7 @@ export function DirectoryTab() {
   const { data: allTransactions, isLoading } = useQuery({
     queryKey: ['all_transactions'],
     queryFn: async () => {
-      // Bank transactions
+      // Bank transactions - exclude Purchase category to avoid duplicates with purchase orders
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
@@ -53,6 +53,7 @@ export function DirectoryTab() {
           created_at,
           bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
         `)
+        .neq('category', 'Purchase')  // Exclude purchase transactions as they're shown as purchase orders
         .order('transaction_date', { ascending: false });
 
       if (bankError) throw bankError;

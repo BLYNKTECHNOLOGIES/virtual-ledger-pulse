@@ -322,11 +322,6 @@ export function ModernNavbar() {
           )}
         </div>
       </nav>
-      
-      {/* Live Price Ticker */}
-      <div className="bg-slate-50 border-b border-border/40">
-        <LiveCryptoRates />
-      </div>
     </>
   );
 }

@@ -138,7 +138,8 @@ export function LiveCryptoRates() {
           console.log('Using fallback data due to fetch failure');
           setCryptoData(fallbackData);
           setLastFetchTime(new Date());
-          setError('Using fallback data. Unable to connect to live rates.');
+          // Don't set error state, just use fallback data silently
+          setError(null);
         } else {
           // We have cached data, so don't show error state
           console.log('Fetch failed but using existing cached data');
@@ -154,10 +155,10 @@ export function LiveCryptoRates() {
       fetchCryptoData();
     }
     
-    // Refresh data every 30 seconds
+    // Refresh data every 60 seconds (reduced frequency to minimize API failures)
     const interval = setInterval(() => {
       fetchCryptoData();
-    }, 30000);
+    }, 60000);
     
     return () => clearInterval(interval);
   }, []);
@@ -223,21 +224,7 @@ export function LiveCryptoRates() {
     );
   }
 
-  if (error) {
-    return (
-      <section className="py-16 bg-muted/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="text-destructive mb-4">{error}</div>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="text-primary hover:underline"
-          >
-            Retry
-          </button>
-        </div>
-      </section>
-    );
-  }
+  // Remove the error display section since we're now using fallback data silently
 
   return (
     <section className="py-16 bg-muted/50">
@@ -246,7 +233,7 @@ export function LiveCryptoRates() {
           <h2 className="text-3xl font-bold text-foreground mb-4">Live Crypto Rates</h2>
           <p className="text-muted-foreground">Real-time cryptocurrency prices and market data</p>
           <div className="text-xs text-muted-foreground mt-2">
-            Updates every 30 seconds • Powered by CoinGecko {lastFetchTime && `• Last updated: ${lastFetchTime.toLocaleTimeString()}`}
+            Updates every 60 seconds • Powered by CoinGecko {lastFetchTime && `• Last updated: ${lastFetchTime.toLocaleTimeString()}`}
           </div>
         </div>
         

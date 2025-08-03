@@ -118,19 +118,21 @@ export function ModernNavbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo & Tagline */}
-            <Link to="/website" className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-white rounded-lg flex items-center justify-center border border-border/20">
+            <Link to="/website" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+              <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center border border-border/20 shadow-sm">
                 <img 
                   src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
                   alt="Blynk"
-                  className="h-8 w-8 object-contain"
+                  className="h-10 w-10 object-contain"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-foreground">Blynk</span>
+                <span className="text-2xl font-bold text-foreground tracking-tight hover:text-primary transition-colors" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                  blynk
+                </span>
                 <div className="flex items-center gap-1">
                   <Flag className="h-3 w-3 text-green-600" />
-                  <span className="text-xs text-muted-foreground">VASP • India</span>
+                  <span className="text-xs text-muted-foreground font-medium">VASP • India</span>
                 </div>
               </div>
             </Link>

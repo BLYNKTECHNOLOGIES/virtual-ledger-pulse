@@ -361,6 +361,8 @@ export type Database = {
       }
       clients: {
         Row: {
+          aadhar_back_url: string | null
+          aadhar_front_url: string | null
           assigned_operator: string | null
           buying_purpose: string | null
           client_id: string
@@ -376,11 +378,15 @@ export type Database = {
           kyc_status: string
           monthly_limit: number | null
           name: string
+          other_documents_urls: string[] | null
+          pan_card_url: string | null
           phone: string | null
           risk_appetite: string
           updated_at: string
         }
         Insert: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
           assigned_operator?: string | null
           buying_purpose?: string | null
           client_id: string
@@ -396,11 +402,15 @@ export type Database = {
           kyc_status?: string
           monthly_limit?: number | null
           name: string
+          other_documents_urls?: string[] | null
+          pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string
           updated_at?: string
         }
         Update: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
           assigned_operator?: string | null
           buying_purpose?: string | null
           client_id?: string
@@ -416,6 +426,8 @@ export type Database = {
           kyc_status?: string
           monthly_limit?: number | null
           name?: string
+          other_documents_urls?: string[] | null
+          pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string
           updated_at?: string

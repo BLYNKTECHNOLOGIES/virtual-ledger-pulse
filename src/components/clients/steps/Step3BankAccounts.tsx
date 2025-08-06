@@ -14,10 +14,7 @@ interface Step3BankAccountsProps {
 interface BankAccount {
   id: string;
   bankName: string;
-  accountNumber: string;
-  accountHolderName: string;
-  ifscCode: string;
-  accountType: string;
+  lastFourDigits: string;
   isCustomBank: boolean;
 }
 
@@ -31,10 +28,7 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
     const newAccount: BankAccount = {
       id: Date.now().toString(),
       bankName: "",
-      accountNumber: "",
-      accountHolderName: "",
-      ifscCode: "",
-      accountType: "SAVINGS",
+      lastFourDigits: "",
       isCustomBank
     };
     
@@ -139,54 +133,18 @@ export function Step3BankAccounts({ formData, setFormData }: Step3BankAccountsPr
               </div>
 
               <div>
-                <Label>Account Type</Label>
-                <Select 
-                  value={account.accountType} 
-                  onValueChange={(value) => updateBankAccount(account.id, 'accountType', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SAVINGS">Savings</SelectItem>
-                    <SelectItem value="CURRENT">Current</SelectItem>
-                    <SelectItem value="SALARY">Salary</SelectItem>
-                    <SelectItem value="OVERDRAFT">Overdraft</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Account Number *</Label>
+                <Label>Last 4 Digits of Account *</Label>
                 <Input
-                  value={account.accountNumber}
-                  onChange={(e) => updateBankAccount(account.id, 'accountNumber', e.target.value)}
-                  placeholder="Enter account number"
+                  value={account.lastFourDigits}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                    updateBankAccount(account.id, 'lastFourDigits', value);
+                  }}
+                  placeholder="Enter last 4 digits"
+                  maxLength={4}
                   required
                 />
               </div>
-
-              <div>
-                <Label>Account Holder Name *</Label>
-                <Input
-                  value={account.accountHolderName}
-                  onChange={(e) => updateBankAccount(account.id, 'accountHolderName', e.target.value)}
-                  placeholder="Enter account holder name"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="w-1/2">
-              <Label>IFSC Code *</Label>
-              <Input
-                value={account.ifscCode}
-                onChange={(e) => updateBankAccount(account.id, 'ifscCode', e.target.value)}
-                placeholder="Enter IFSC code"
-                required
-              />
             </div>
           </div>
         ))}

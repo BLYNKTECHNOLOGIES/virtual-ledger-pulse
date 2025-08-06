@@ -41,6 +41,7 @@ import EMS from './pages/EMS';
 import Management from './pages/Management';
 import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
+import RiskManagement from './pages/RiskManagement';
 import NotFound from './pages/NotFound';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
@@ -427,8 +428,22 @@ const router = createBrowserRouter([
            </AuthCheck>
          </AuthProvider>
        </QueryProvider>
-     ),
-   },
+      ),
+    },
+    {
+      path: "/risk-management",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <Layout>
+                <RiskManagement />
+              </Layout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
    // Catch-all route for 404 errors
   {
     path: "*",

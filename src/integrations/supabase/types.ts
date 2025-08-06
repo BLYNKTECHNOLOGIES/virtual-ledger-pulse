@@ -2346,6 +2346,192 @@ export type Database = {
           },
         ]
       }
+      rekyc_requests: {
+        Row: {
+          aadhar_back_url: string | null
+          aadhar_front_url: string | null
+          bank_statement_url: string | null
+          created_at: string | null
+          id: string
+          pan_card_url: string | null
+          review_decision: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          risk_flag_id: string | null
+          status: string | null
+          submitted_at: string | null
+          updated_at: string | null
+          user_id: string | null
+          user_notes: string | null
+          vkyc_completed: boolean | null
+          vkyc_completed_at: string | null
+          vkyc_video_url: string | null
+        }
+        Insert: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          bank_statement_url?: string | null
+          created_at?: string | null
+          id?: string
+          pan_card_url?: string | null
+          review_decision?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flag_id?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          user_notes?: string | null
+          vkyc_completed?: boolean | null
+          vkyc_completed_at?: string | null
+          vkyc_video_url?: string | null
+        }
+        Update: {
+          aadhar_back_url?: string | null
+          aadhar_front_url?: string | null
+          bank_statement_url?: string | null
+          created_at?: string | null
+          id?: string
+          pan_card_url?: string | null
+          review_decision?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          risk_flag_id?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          user_notes?: string | null
+          vkyc_completed?: boolean | null
+          vkyc_completed_at?: string | null
+          vkyc_video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rekyc_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rekyc_requests_risk_flag_id_fkey"
+            columns: ["risk_flag_id"]
+            isOneToOne: false
+            referencedRelation: "risk_flags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rekyc_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_detection_logs: {
+        Row: {
+          details: Json | null
+          detected_at: string | null
+          detection_type: string
+          flagged: boolean | null
+          id: string
+          risk_score: number | null
+          user_id: string | null
+        }
+        Insert: {
+          details?: Json | null
+          detected_at?: string | null
+          detection_type: string
+          flagged?: boolean | null
+          id?: string
+          risk_score?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          details?: Json | null
+          detected_at?: string | null
+          detection_type?: string
+          flagged?: boolean | null
+          id?: string
+          risk_score?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_detection_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_flags: {
+        Row: {
+          admin_notes: string | null
+          created_at: string | null
+          flag_reason: string
+          flag_type: string
+          flagged_on: string | null
+          id: string
+          resolved_by: string | null
+          resolved_on: string | null
+          risk_score: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string | null
+          flag_reason: string
+          flag_type: string
+          flagged_on?: string | null
+          id?: string
+          resolved_by?: string | null
+          resolved_on?: string | null
+          risk_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string | null
+          flag_reason?: string
+          flag_type?: string
+          flagged_on?: string | null
+          id?: string
+          resolved_by?: string | null
+          resolved_on?: string | null
+          risk_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_flags_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_flags_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string | null
@@ -3243,6 +3429,10 @@ export type Database = {
         Args: { account_id_param: string }
         Returns: boolean
       }
+      calculate_user_risk_score: {
+        Args: { user_uuid: string }
+        Returns: number
+      }
       create_role_with_permissions: {
         Args: {
           role_name: string
@@ -3317,6 +3507,15 @@ export type Database = {
       sync_usdt_stock: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      update_risk_flag_status: {
+        Args: {
+          flag_id: string
+          new_status: string
+          admin_id?: string
+          notes?: string
+        }
+        Returns: boolean
       }
       update_role_permissions: {
         Args: {

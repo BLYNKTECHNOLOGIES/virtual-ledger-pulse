@@ -102,6 +102,14 @@ const items = [{
   bgColor: "bg-red-100",
   permissions: ["compliance_view", "compliance_manage"]
 }, {
+  id: "risk-management",
+  title: "Risk Management",
+  url: "/risk-management",
+  icon: Shield,
+  color: "text-yellow-600",
+  bgColor: "bg-yellow-100",
+  permissions: ["compliance_view", "compliance_manage"]
+}, {
   id: "stock",
   title: "Stock Management",
   url: "/stock",

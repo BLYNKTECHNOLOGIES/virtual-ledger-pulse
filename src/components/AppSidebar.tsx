@@ -295,7 +295,7 @@ export function AppSidebar() {
         <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
           <img 
             src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
-            alt="Blynk Virtual Technologies Logo" 
+            alt="BLYNK Virtual Technologies Logo" 
             className={`w-auto flex-shrink-0 bg-white/10 p-2 rounded-lg shadow-lg ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
           />
           {!isCollapsed && (

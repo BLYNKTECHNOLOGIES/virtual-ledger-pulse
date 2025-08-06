@@ -20,15 +20,22 @@ interface AddClientDialogProps {
 
 export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const { toast } = useToast();
+  
+  // Auto-generate client ID
+  const generateClientId = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `CL${timestamp}${random}`;
+  };
+
   const [formData, setFormData] = useState({
     name: '',
-    client_id: '',
+    client_id: generateClientId(),
     email: '',
     phone: '',
     client_type: '',
     risk_appetite: 'MEDIUM',
-    kyc_status: 'PENDING',
-    assigned_operator: '',
+    assigned_rm: '',
     buying_purpose: '',
     first_order_value: '',
     monthly_limit: '',
@@ -41,13 +48,12 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const resetForm = () => {
     setFormData({
       name: '',
-      client_id: '',
+      client_id: generateClientId(),
       email: '',
       phone: '',
       client_type: '',
       risk_appetite: 'MEDIUM',
-      kyc_status: 'PENDING',
-      assigned_operator: '',
+      assigned_rm: '',
       buying_purpose: '',
       first_order_value: '',
       monthly_limit: '',
@@ -65,9 +71,6 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       if (!formData.name.trim()) {
         throw new Error("Client name is required");
       }
-      if (!formData.client_id.trim()) {
-        throw new Error("Client ID is required");
-      }
       if (!formData.client_type) {
         throw new Error("Client type is required");
       }
@@ -81,8 +84,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           phone: formData.phone.trim() || null,
           client_type: formData.client_type,
           risk_appetite: formData.risk_appetite,
-          kyc_status: formData.kyc_status,
-          assigned_operator: formData.assigned_operator.trim() || null,
+          kyc_status: 'VERIFIED', // Auto-set to VERIFIED since KYC is already done
+          assigned_operator: formData.assigned_rm.trim() || null,
           buying_purpose: formData.buying_purpose.trim() || null,
           first_order_value: formData.first_order_value ? Number(formData.first_order_value) : null,
           monthly_limit: formData.monthly_limit ? Number(formData.monthly_limit) : null,
@@ -138,13 +141,13 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
             </div>
             
             <div>
-              <Label htmlFor="client_id">Client ID *</Label>
+              <Label htmlFor="client_id">Client ID</Label>
               <Input
                 id="client_id"
                 value={formData.client_id}
-                onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                required
-                placeholder="Enter unique client ID"
+                disabled
+                className="bg-gray-50"
+                placeholder="Auto-generated"
               />
             </div>
           </div>
@@ -182,7 +185,6 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 <SelectContent>
                   <SelectItem value="INDIVIDUAL">Individual</SelectItem>
                   <SelectItem value="BUSINESS">Business</SelectItem>
-                  <SelectItem value="CORPORATE">Corporate</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -203,30 +205,14 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="kyc_status">KYC Status</Label>
-              <Select value={formData.kyc_status} onValueChange={(value) => setFormData({ ...formData, kyc_status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="VERIFIED">Verified</SelectItem>
-                  <SelectItem value="REJECTED">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="assigned_operator">Assigned Operator</Label>
-              <Input
-                id="assigned_operator"
-                value={formData.assigned_operator}
-                onChange={(e) => setFormData({ ...formData, assigned_operator: e.target.value })}
-                placeholder="Enter operator name"
-              />
-            </div>
+          <div>
+            <Label htmlFor="assigned_rm">Assigned RM</Label>
+            <Input
+              id="assigned_rm"
+              value={formData.assigned_rm}
+              onChange={(e) => setFormData({ ...formData, assigned_rm: e.target.value })}
+              placeholder="Enter relationship manager name"
+            />
           </div>
 
           <div>

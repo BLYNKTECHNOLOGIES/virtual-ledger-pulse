@@ -41,6 +41,11 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     monthly_limit: '',
     current_month_used: '0',
     date_of_onboarding: new Date(),
+    // KYC Documents
+    pan_card_file: null as File | null,
+    aadhar_front_file: null as File | null,
+    aadhar_back_file: null as File | null,
+    other_docs_files: [] as File[],
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +64,21 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       monthly_limit: '',
       current_month_used: '0',
       date_of_onboarding: new Date(),
+      // KYC Documents
+      pan_card_file: null,
+      aadhar_front_file: null,
+      aadhar_back_file: null,
+      other_docs_files: [],
     });
+  };
+
+  const uploadFile = async (file: File, bucket: string, path: string) => {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file);
+    
+    if (error) throw error;
+    return data.path;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,6 +92,44 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       }
       if (!formData.client_type) {
         throw new Error("Client type is required");
+      }
+      if (!formData.pan_card_file) {
+        throw new Error("PAN Card is required");
+      }
+      if (!formData.aadhar_front_file) {
+        throw new Error("Aadhar Card (Front) is required");
+      }
+      if (!formData.aadhar_back_file) {
+        throw new Error("Aadhar Card (Back) is required");
+      }
+
+      // Upload KYC documents
+      let panCardUrl = null;
+      let aadharFrontUrl = null;
+      let aadharBackUrl = null;
+      let otherDocsUrls: string[] = [];
+
+      if (formData.pan_card_file) {
+        const panPath = `clients/${formData.client_id}/pan_card_${Date.now()}.${formData.pan_card_file.name.split('.').pop()}`;
+        panCardUrl = await uploadFile(formData.pan_card_file, 'kyc-documents', panPath);
+      }
+
+      if (formData.aadhar_front_file) {
+        const aadharFrontPath = `clients/${formData.client_id}/aadhar_front_${Date.now()}.${formData.aadhar_front_file.name.split('.').pop()}`;
+        aadharFrontUrl = await uploadFile(formData.aadhar_front_file, 'kyc-documents', aadharFrontPath);
+      }
+
+      if (formData.aadhar_back_file) {
+        const aadharBackPath = `clients/${formData.client_id}/aadhar_back_${Date.now()}.${formData.aadhar_back_file.name.split('.').pop()}`;
+        aadharBackUrl = await uploadFile(formData.aadhar_back_file, 'kyc-documents', aadharBackPath);
+      }
+
+      // Upload other documents
+      for (let i = 0; i < formData.other_docs_files.length; i++) {
+        const file = formData.other_docs_files[i];
+        const otherDocPath = `clients/${formData.client_id}/other_doc_${i}_${Date.now()}.${file.name.split('.').pop()}`;
+        const url = await uploadFile(file, 'kyc-documents', otherDocPath);
+        otherDocsUrls.push(url);
       }
 
       const { error } = await supabase
@@ -91,6 +148,10 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           monthly_limit: formData.monthly_limit ? Number(formData.monthly_limit) : null,
           current_month_used: Number(formData.current_month_used) || 0,
           date_of_onboarding: format(formData.date_of_onboarding, 'yyyy-MM-dd'),
+          pan_card_url: panCardUrl,
+          aadhar_front_url: aadharFrontUrl,
+          aadhar_back_url: aadharBackUrl,
+          other_documents_urls: otherDocsUrls.length > 0 ? otherDocsUrls : null,
         }]);
 
       if (error) {
@@ -122,7 +183,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Client</DialogTitle>
         </DialogHeader>
@@ -277,6 +338,85 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* KYC Documents Section */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-lg font-semibold text-gray-900">KYC Documents</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="pan_card">PAN Card *</Label>
+                <Input
+                  id="pan_card"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setFormData({ ...formData, pan_card_file: file });
+                  }}
+                  required
+                />
+                {formData.pan_card_file && (
+                  <p className="text-sm text-green-600 mt-1">✓ {formData.pan_card_file.name}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="aadhar_front">Aadhar Card (Front) *</Label>
+                <Input
+                  id="aadhar_front"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setFormData({ ...formData, aadhar_front_file: file });
+                  }}
+                  required
+                />
+                {formData.aadhar_front_file && (
+                  <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_front_file.name}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="aadhar_back">Aadhar Card (Back) *</Label>
+                <Input
+                  id="aadhar_back"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setFormData({ ...formData, aadhar_back_file: file });
+                  }}
+                  required
+                />
+                {formData.aadhar_back_file && (
+                  <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_back_file.name}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="other_docs">Other Documents</Label>
+                <Input
+                  id="other_docs"
+                  type="file"
+                  accept="image/*,.pdf"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    setFormData({ ...formData, other_docs_files: files });
+                  }}
+                />
+                {formData.other_docs_files.length > 0 && (
+                  <div className="text-sm text-green-600 mt-1">
+                    ✓ {formData.other_docs_files.length} file(s) selected
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

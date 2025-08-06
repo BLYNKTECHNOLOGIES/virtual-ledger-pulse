@@ -1190,35 +1190,50 @@ export type Database = {
       }
       leads: {
         Row: {
+          contact_channel: string | null
+          contact_channel_value: string | null
           contact_number: string | null
           created_at: string
           description: string | null
           estimated_order_value: number | null
+          follow_up_date: string | null
+          follow_up_notes: string | null
           id: string
+          lead_type: string | null
           name: string
-          source: string | null
+          price_quoted: number | null
           status: string
           updated_at: string
         }
         Insert: {
+          contact_channel?: string | null
+          contact_channel_value?: string | null
           contact_number?: string | null
           created_at?: string
           description?: string | null
           estimated_order_value?: number | null
+          follow_up_date?: string | null
+          follow_up_notes?: string | null
           id?: string
+          lead_type?: string | null
           name: string
-          source?: string | null
+          price_quoted?: number | null
           status?: string
           updated_at?: string
         }
         Update: {
+          contact_channel?: string | null
+          contact_channel_value?: string | null
           contact_number?: string | null
           created_at?: string
           description?: string | null
           estimated_order_value?: number | null
+          follow_up_date?: string | null
+          follow_up_notes?: string | null
           id?: string
+          lead_type?: string | null
           name?: string
-          source?: string | null
+          price_quoted?: number | null
           status?: string
           updated_at?: string
         }

@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, Edit, Trash2, Phone, Mail, UserPlus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Edit, Trash2, Phone, Mail, UserPlus, TrendingUp, CheckCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
+import { useNavigate } from "react-router-dom";
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,12 +26,18 @@ export default function Leads() {
     name: "",
     contact_number: "",
     estimated_order_value: "",
-    source: "",
+    lead_type: "",
+    contact_channel: "",
+    contact_channel_value: "",
+    price_quoted: "",
+    follow_up_date: "",
+    follow_up_notes: "",
     description: "",
     status: ""
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: leads, refetch } = useQuery({
     queryKey: ['leads', timeFilter],
@@ -114,7 +122,12 @@ export default function Leads() {
       name: lead.name || "",
       contact_number: lead.contact_number || "",
       estimated_order_value: lead.estimated_order_value?.toString() || "",
-      source: lead.source || "",
+      lead_type: lead.lead_type || "",
+      contact_channel: lead.contact_channel || "",
+      contact_channel_value: lead.contact_channel_value || "",
+      price_quoted: lead.price_quoted?.toString() || "",
+      follow_up_date: lead.follow_up_date || "",
+      follow_up_notes: lead.follow_up_notes || "",
       description: lead.description || "",
       status: lead.status || "NEW"
     });
@@ -129,7 +142,8 @@ export default function Leads() {
         leadId: leadToEdit.id,
         data: {
           ...editFormData,
-          estimated_order_value: editFormData.estimated_order_value ? Number(editFormData.estimated_order_value) : 0
+          estimated_order_value: editFormData.estimated_order_value ? Number(editFormData.estimated_order_value) : 0,
+          price_quoted: editFormData.price_quoted ? Number(editFormData.price_quoted) : 0
         }
       });
       setShowEditDialog(false);
@@ -153,8 +167,23 @@ export default function Leads() {
   const filteredLeads = leads?.filter(lead =>
     lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (lead.contact_number && lead.contact_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (lead.contact_channel_value && lead.contact_channel_value.toLowerCase().includes(searchTerm.toLowerCase()))
   ) || [];
+
+  const handleConvertLead = (lead: any) => {
+    if (lead.lead_type === 'BUY') {
+      navigate('/purchase');
+    } else if (lead.lead_type === 'SELL') {
+      navigate('/sales');
+    }
+    
+    // Update lead status to converted
+    updateMutation.mutate({
+      leadId: lead.id,
+      data: { status: 'CONVERTED' }
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -269,12 +298,36 @@ export default function Leads() {
                       {lead.contact_number}
                     </p>
                   )}
-                  <p className="text-sm font-medium text-green-600">
-                    Est. Value: ₹{lead.estimated_order_value?.toLocaleString() || '0'}
-                  </p>
-                  {lead.source && (
-                    <p className="text-xs text-gray-500">Source: {lead.source}</p>
+                  
+                  <div className="flex items-center gap-2">
+                    {lead.lead_type && (
+                      <Badge variant={lead.lead_type === 'BUY' ? 'destructive' : 'default'} className="text-xs">
+                        {lead.lead_type}
+                      </Badge>
+                    )}
+                    <p className="text-sm font-medium text-green-600">
+                      EOV: ₹{lead.estimated_order_value?.toLocaleString() || '0'}
+                    </p>
+                  </div>
+                  
+                  {lead.price_quoted > 0 && (
+                    <p className="text-sm font-medium text-blue-600">
+                      Quoted: ₹{lead.price_quoted?.toLocaleString()}
+                    </p>
                   )}
+                  
+                  {lead.contact_channel && (
+                    <p className="text-xs text-gray-500">
+                      {lead.contact_channel.replace('_', ' ')}: {lead.contact_channel_value}
+                    </p>
+                  )}
+                  
+                  {lead.follow_up_date && (
+                    <p className="text-xs text-orange-600">
+                      Follow-up: {new Date(lead.follow_up_date).toLocaleDateString()}
+                    </p>
+                  )}
+                  
                   {lead.description && (
                     <p className="text-xs text-gray-600">{lead.description}</p>
                   )}
@@ -305,6 +358,17 @@ export default function Leads() {
                       Delete
                     </Button>
                   </div>
+                  
+                  {lead.status !== 'CONVERTED' && lead.lead_type && (
+                    <Button 
+                      size="sm" 
+                      className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleConvertLead(lead)}
+                    >
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Convert
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -364,13 +428,75 @@ export default function Leads() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-lead-type">Lead Type</Label>
+                <Select value={editFormData.lead_type} onValueChange={(value) => setEditFormData(prev => ({ ...prev, lead_type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BUY">Buy</SelectItem>
+                    <SelectItem value="SELL">Sell</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-price-quoted">Price Quoted</Label>
+                <Input
+                  id="edit-price-quoted"
+                  type="number"
+                  step="0.01"
+                  value={editFormData.price_quoted}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, price_quoted: e.target.value }))}
+                  placeholder="Enter quoted price"
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="edit-source">Source</Label>
+              <Label htmlFor="edit-contact-channel">Contact Channel</Label>
+              <Select value={editFormData.contact_channel} onValueChange={(value) => setEditFormData(prev => ({ ...prev, contact_channel: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select contact channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                  <SelectItem value="DIRECT_CALL">Direct Call</SelectItem>
+                  <SelectItem value="BINANCE_CHAT">Binance Chat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-contact-channel-value">Contact Channel Value</Label>
               <Input
-                id="edit-source"
-                value={editFormData.source}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, source: e.target.value }))}
-                placeholder="Enter lead source"
+                id="edit-contact-channel-value"
+                value={editFormData.contact_channel_value}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, contact_channel_value: e.target.value }))}
+                placeholder="Enter contact details"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-follow-up-date">Follow-up Date</Label>
+              <Input
+                id="edit-follow-up-date"
+                type="date"
+                value={editFormData.follow_up_date}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-follow-up-notes">Follow-up Notes</Label>
+              <Textarea
+                id="edit-follow-up-notes"
+                value={editFormData.follow_up_notes}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, follow_up_notes: e.target.value }))}
+                rows={2}
+                placeholder="Enter follow-up notes"
               />
             </div>
 

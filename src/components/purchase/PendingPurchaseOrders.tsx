@@ -76,7 +76,8 @@ export function PendingPurchaseOrders() {
         .select(`
           id,
           type,
-          bank_account_name
+          bank_account_name,
+          upi_id
         `)
         .eq('is_active', true);
       
@@ -377,7 +378,10 @@ export function PendingPurchaseOrders() {
                 <SelectContent>
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.type} - {method.bank_account_name}
+                      {method.type === 'UPI' && method.upi_id 
+                        ? `${method.upi_id} (${method.type})` 
+                        : `${method.type} - ${method.bank_account_name}`
+                      }
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -294,7 +294,12 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
                     <SelectContent>
                       {paymentMethods?.map((method) => (
                         <SelectItem key={method.id} value={method.id}>
-                          {method.bank_accounts ? method.bank_accounts.account_name : method.type} - {method.risk_category}
+                          {method.type === 'UPI' && method.upi_id 
+                            ? `${method.upi_id} - ${method.risk_category}` 
+                            : method.bank_accounts 
+                              ? `${method.bank_accounts.account_name} - ${method.risk_category}` 
+                              : `${method.type} - ${method.risk_category}`
+                          }
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -47,6 +47,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         .from('purchase_payment_methods')
         .select(`
           *,
+          upi_id,
           bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name, bank_name, balance)
         `)
         .eq('is_active', true)
@@ -304,7 +305,12 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                     {purchasePaymentMethods?.map((method) => (
                       <SelectItem key={method.id} value={method.id}>
                         <div className="flex flex-col">
-                          <span>{method.bank_account_name || 'Unnamed Method'}</span>
+                          <span>
+                            {method.type === 'UPI' && method.upi_id 
+                              ? method.upi_id 
+                              : method.bank_account_name || 'Unnamed Method'
+                            }
+                          </span>
                           <span className="text-xs text-gray-500">
                             Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
                           </span>

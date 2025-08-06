@@ -407,7 +407,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.bank_accounts ? method.bank_accounts.account_name : method.type} {method.payment_gateway ? '(Gateway)' : '(Direct)'} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
+                      {method.type === 'UPI' && method.upi_id 
+                        ? `${method.upi_id} (${method.risk_category})` 
+                        : method.bank_accounts 
+                          ? `${method.bank_accounts.account_name} (${method.risk_category})` 
+                          : `${method.type} (${method.risk_category})`
+                      } - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
                     </SelectItem>
                   ))}
                 </SelectContent>

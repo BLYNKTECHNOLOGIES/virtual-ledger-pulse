@@ -119,7 +119,10 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
-        .select('*')
+        .select(`
+          *,
+          upi_id
+        `)
         .eq('is_active', true)
         .order('type');
       
@@ -492,7 +495,10 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
                 <SelectContent>
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.type} - {method.bank_account_name}
+                      {method.type === 'UPI' && method.upi_id 
+                        ? `${method.upi_id} (${method.type})` 
+                        : `${method.type} - ${method.bank_account_name}`
+                      }
                     </SelectItem>
                   ))}
                 </SelectContent>

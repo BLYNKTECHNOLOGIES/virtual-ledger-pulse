@@ -376,8 +376,10 @@ export type Database = {
           first_order_value: number | null
           id: string
           kyc_status: string
+          linked_bank_accounts: Json | null
           monthly_limit: number | null
           name: string
+          operator_notes: string | null
           other_documents_urls: string[] | null
           pan_card_url: string | null
           phone: string | null
@@ -400,8 +402,10 @@ export type Database = {
           first_order_value?: number | null
           id?: string
           kyc_status?: string
+          linked_bank_accounts?: Json | null
           monthly_limit?: number | null
           name: string
+          operator_notes?: string | null
           other_documents_urls?: string[] | null
           pan_card_url?: string | null
           phone?: string | null
@@ -424,8 +428,10 @@ export type Database = {
           first_order_value?: number | null
           id?: string
           kyc_status?: string
+          linked_bank_accounts?: Json | null
           monthly_limit?: number | null
           name?: string
+          operator_notes?: string | null
           other_documents_urls?: string[] | null
           pan_card_url?: string | null
           phone?: string | null

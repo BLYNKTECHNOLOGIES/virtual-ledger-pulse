@@ -1,17 +1,14 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Step1BasicInfo } from "./steps/Step1BasicInfo";
+import { Step2KYCDocuments } from "./steps/Step2KYCDocuments";
+import { Step3BankAccounts } from "./steps/Step3BankAccounts";
+import { Step4OperatorNotes } from "./steps/Step4OperatorNotes";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -20,7 +17,9 @@ interface AddClientDialogProps {
 
 export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const { toast } = useToast();
-  
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Auto-generate client ID
   const generateClientId = () => {
     const timestamp = Date.now().toString().slice(-6);
@@ -46,9 +45,11 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     aadhar_front_file: null as File | null,
     aadhar_back_file: null as File | null,
     other_docs_files: [] as File[],
+    // Bank Accounts
+    linked_bank_accounts: [] as any[],
+    // Operator Notes
+    operator_notes: '',
   });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setFormData({
@@ -69,7 +70,12 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       aadhar_front_file: null,
       aadhar_back_file: null,
       other_docs_files: [],
+      // Bank Accounts
+      linked_bank_accounts: [],
+      // Operator Notes
+      operator_notes: '',
     });
+    setCurrentStep(1);
   };
 
   const uploadFile = async (file: File, bucket: string, path: string) => {
@@ -81,28 +87,83 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     return data.path;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateStep = (step: number) => {
+    switch (step) {
+      case 1:
+        if (!formData.name.trim()) {
+          toast({
+            title: "Validation Error",
+            description: "Client name is required",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.client_type) {
+          toast({
+            title: "Validation Error",
+            description: "Client type is required",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 2:
+        if (!formData.pan_card_file) {
+          toast({
+            title: "Validation Error",
+            description: "PAN Card is required",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.aadhar_front_file) {
+          toast({
+            title: "Validation Error",
+            description: "Aadhar Card (Front) is required",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (!formData.aadhar_back_file) {
+          toast({
+            title: "Validation Error",
+            description: "Aadhar Card (Back) is required",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+
+      case 3:
+        // Bank accounts are optional, so always valid
+        return true;
+
+      case 4:
+        // Operator notes are optional, so always valid
+        return true;
+
+      default:
+        return true;
+    }
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, 4));
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async () => {
+    if (!validateStep(4)) return;
+
     setIsSubmitting(true);
 
     try {
-      // Validation
-      if (!formData.name.trim()) {
-        throw new Error("Client name is required");
-      }
-      if (!formData.client_type) {
-        throw new Error("Client type is required");
-      }
-      if (!formData.pan_card_file) {
-        throw new Error("PAN Card is required");
-      }
-      if (!formData.aadhar_front_file) {
-        throw new Error("Aadhar Card (Front) is required");
-      }
-      if (!formData.aadhar_back_file) {
-        throw new Error("Aadhar Card (Back) is required");
-      }
-
       // Upload KYC documents
       let panCardUrl = null;
       let aadharFrontUrl = null;
@@ -152,6 +213,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           aadhar_front_url: aadharFrontUrl,
           aadhar_back_url: aadharBackUrl,
           other_documents_urls: otherDocsUrls.length > 0 ? otherDocsUrls : null,
+          linked_bank_accounts: formData.linked_bank_accounts,
+          operator_notes: formData.operator_notes.trim() || null,
         }]);
 
       if (error) {
@@ -181,253 +244,95 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     }
   };
 
+  const handleClose = () => {
+    onOpenChange(false);
+    resetForm();
+  };
+
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return <Step1BasicInfo formData={formData} setFormData={setFormData} />;
+      case 2:
+        return <Step2KYCDocuments formData={formData} setFormData={setFormData} />;
+      case 3:
+        return <Step3BankAccounts formData={formData} setFormData={setFormData} />;
+      case 4:
+        return <Step4OperatorNotes formData={formData} setFormData={setFormData} />;
+      default:
+        return null;
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 1:
+        return "Basic Information";
+      case 2:
+        return "KYC Documents";
+      case 3:
+        return "Bank Accounts";
+      case 4:
+        return "Review & Notes";
+      default:
+        return "";
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Client</DialogTitle>
+          <DialogTitle className="flex items-center gap-3">
+            <span>Add New Client</span>
+            <span className="text-sm font-normal text-gray-500">
+              Step {currentStep} of 4 - {getStepTitle()}
+            </span>
+          </DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="name">Client Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                placeholder="Enter client name"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="client_id">Client ID</Label>
-              <Input
-                id="client_id"
-                value={formData.client_id}
-                disabled
-                className="bg-gray-50"
-                placeholder="Auto-generated"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Enter email address"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="Enter phone number"
-              />
-            </div>
-          </div>
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+          <div 
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${(currentStep / 4) * 100}%` }}
+          />
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="client_type">Client Type *</Label>
-              <Select value={formData.client_type} onValueChange={(value) => setFormData({ ...formData, client_type: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INDIVIDUAL">Individual</SelectItem>
-                  <SelectItem value="BUSINESS">Business</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="risk_appetite">Risk Appetite</Label>
-              <Select value={formData.risk_appetite} onValueChange={(value) => setFormData({ ...formData, risk_appetite: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="NO_RISK">No Risk</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        {/* Step Content */}
+        <div className="min-h-[400px]">
+          {renderStepContent()}
+        </div>
 
-          <div>
-            <Label htmlFor="assigned_rm">Assigned RM</Label>
-            <Input
-              id="assigned_rm"
-              value={formData.assigned_rm}
-              onChange={(e) => setFormData({ ...formData, assigned_rm: e.target.value })}
-              placeholder="Enter relationship manager name"
-            />
-          </div>
+        {/* Navigation Buttons */}
+        <div className="flex justify-between pt-6 border-t">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={currentStep === 1 ? handleClose : prevStep}
+            disabled={isSubmitting}
+          >
+            {currentStep === 1 ? (
+              "Cancel"
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4 mr-2" />
+                Previous
+              </>
+            )}
+          </Button>
 
-          <div>
-            <Label htmlFor="buying_purpose">Buying Purpose</Label>
-            <Input
-              id="buying_purpose"
-              value={formData.buying_purpose}
-              onChange={(e) => setFormData({ ...formData, buying_purpose: e.target.value })}
-              placeholder="Enter buying purpose"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="first_order_value">First Order Value</Label>
-              <Input
-                id="first_order_value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.first_order_value}
-                onChange={(e) => setFormData({ ...formData, first_order_value: e.target.value })}
-                placeholder="Enter first order value"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="monthly_limit">Monthly Limit</Label>
-              <Input
-                id="monthly_limit"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.monthly_limit}
-                onChange={(e) => setFormData({ ...formData, monthly_limit: e.target.value })}
-                placeholder="Enter monthly limit"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Date of Onboarding</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !formData.date_of_onboarding && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {formData.date_of_onboarding ? format(formData.date_of_onboarding, "PPP") : "Pick a date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={formData.date_of_onboarding}
-                  onSelect={(date) => setFormData({ ...formData, date_of_onboarding: date || new Date() })}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* KYC Documents Section */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-lg font-semibold text-gray-900">KYC Documents</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="pan_card">PAN Card *</Label>
-                <Input
-                  id="pan_card"
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setFormData({ ...formData, pan_card_file: file });
-                  }}
-                  required
-                />
-                {formData.pan_card_file && (
-                  <p className="text-sm text-green-600 mt-1">✓ {formData.pan_card_file.name}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="aadhar_front">Aadhar Card (Front) *</Label>
-                <Input
-                  id="aadhar_front"
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setFormData({ ...formData, aadhar_front_file: file });
-                  }}
-                  required
-                />
-                {formData.aadhar_front_file && (
-                  <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_front_file.name}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="aadhar_back">Aadhar Card (Back) *</Label>
-                <Input
-                  id="aadhar_back"
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setFormData({ ...formData, aadhar_back_file: file });
-                  }}
-                  required
-                />
-                {formData.aadhar_back_file && (
-                  <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_back_file.name}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="other_docs">Other Documents</Label>
-                <Input
-                  id="other_docs"
-                  type="file"
-                  accept="image/*,.pdf"
-                  multiple
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    setFormData({ ...formData, other_docs_files: files });
-                  }}
-                />
-                {formData.other_docs_files.length > 0 && (
-                  <div className="text-sm text-green-600 mt-1">
-                    ✓ {formData.other_docs_files.length} file(s) selected
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+          {currentStep < 4 ? (
+            <Button onClick={nextStep} disabled={isSubmitting}>
+              Next
+              <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Creating..." : "Create Client"}
+          ) : (
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Creating Client..." : "Create Client"}
             </Button>
-          </div>
-        </form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

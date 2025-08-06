@@ -2299,6 +2299,7 @@ export type Database = {
           safe_funds: boolean
           type: string
           updated_at: string
+          upi_id: string | null
         }
         Insert: {
           bank_account_name?: string | null
@@ -2317,6 +2318,7 @@ export type Database = {
           safe_funds?: boolean
           type?: string
           updated_at?: string
+          upi_id?: string | null
         }
         Update: {
           bank_account_name?: string | null
@@ -2335,6 +2337,7 @@ export type Database = {
           safe_funds?: boolean
           type?: string
           updated_at?: string
+          upi_id?: string | null
         }
         Relationships: [
           {

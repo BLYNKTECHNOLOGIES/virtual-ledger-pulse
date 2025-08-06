@@ -84,8 +84,8 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     }
   }, [editingOrder]);
 
-  // Fetch products for dropdown
-  const { data: products } = useQuery({
+  // Fetch products for dropdown only when dialog is open
+  const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -96,10 +96,11 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       if (error) throw error;
       return data;
     },
+    enabled: open,
   });
 
-  // Fetch bank accounts for dropdown
-  const { data: bankAccounts } = useQuery({
+  // Fetch bank accounts for dropdown only when dialog is open
+  const { data: bankAccounts, isLoading: bankAccountsLoading } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -111,10 +112,11 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       if (error) throw error;
       return data;
     },
+    enabled: open,
   });
 
-  // Fetch purchase payment methods for dropdown
-  const { data: paymentMethods } = useQuery({
+  // Fetch purchase payment methods for dropdown only when dialog is open
+  const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
     queryKey: ['purchase_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -129,7 +131,10 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       if (error) throw error;
       return data;
     },
+    enabled: open,
   });
+
+  const isLoading = productsLoading || bankAccountsLoading || paymentMethodsLoading;
 
   const addOrderItem = () => {
     setOrderItems([...orderItems, { product_id: '', quantity: 1, unit_price: 0, total_price: 0, warehouse_id: '' }]);
@@ -168,8 +173,25 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     setIsSubmitting(true);
 
     try {
+      // Optimistic UI feedback
+      toast({
+        title: "Processing...",
+        description: "Creating purchase order...",
+        duration: 2000
+      });
+
       const totalAmount = calculateTotalAmount();
       const orderNumber = editingOrder?.order_number || generateOrderNumber();
+
+      // Client-side validation
+      if (!formData.supplier_name.trim()) {
+        throw new Error('Supplier name is required');
+      }
+
+      const itemsWithoutWarehouse = orderItems.filter(item => !item.warehouse_id);
+      if (itemsWithoutWarehouse.length > 0) {
+        throw new Error('Please select a warehouse for all order items');
+      }
 
       // Validate bank account balance if bank account is selected
       if (formData.bank_account_id) {
@@ -180,26 +202,8 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           .single();
 
         if (bankAccount && bankAccount.balance < totalAmount) {
-          toast({
-            title: "Insufficient Balance",
-            description: "Bank account does not have sufficient balance for this purchase.",
-            variant: "destructive",
-          });
-          setIsSubmitting(false);
-          return;
+          throw new Error('Bank account does not have sufficient balance for this purchase');
         }
-      }
-
-      // Validate all items have warehouse selected
-      const itemsWithoutWarehouse = orderItems.filter(item => !item.warehouse_id);
-      if (itemsWithoutWarehouse.length > 0) {
-        toast({
-          title: "Warehouse Required",
-          description: "Please select a warehouse for all order items.",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
       }
 
       if (editingOrder) {
@@ -398,13 +402,15 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       }
 
       onOpenChange(false);
-      window.location.reload(); // Refresh to show updated data
-    } catch (error) {
+      // Use query invalidation instead of window reload for better performance
+      // queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+    } catch (error: any) {
       console.error('Error saving purchase order:', error);
       toast({
         title: "Error",
-        description: `Failed to save purchase order: ${error.message || 'Unknown error'}`,
+        description: error instanceof Error ? error.message : "Failed to save purchase order",
         variant: "destructive",
+        duration: 5000
       });
     } finally {
       setIsSubmitting(false);
@@ -418,7 +424,15 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           <DialogTitle>{editingOrder ? 'Edit Purchase Order' : 'Create Purchase Order'}</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Loading form data...</p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -612,15 +626,27 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : editingOrder ? "Update Order" : "Create Order"}
-            </Button>
-          </div>
-        </form>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || isLoading}
+                className="min-w-[120px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {editingOrder ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  editingOrder ? 'Update Order' : 'Create Order'
+                )}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

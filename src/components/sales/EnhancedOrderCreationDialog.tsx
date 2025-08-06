@@ -53,28 +53,30 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
     warehouse_id: ''
   }]);
 
-  // Fetch products
-  const { data: products } = useQuery({
+  // Fetch products only when dialog is open
+  const { data: products, isLoading: productsLoading } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*');
       if (error) throw error;
       return data;
     },
+    enabled: open, // Only fetch when dialog is open
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
+  // Fetch warehouses only when dialog is open
+  const { data: warehouses, isLoading: warehousesLoading } = useQuery({
     queryKey: ['warehouses'],
     queryFn: async () => {
       const { data, error } = await supabase.from('warehouses').select('*');
       if (error) throw error;
       return data;
     },
+    enabled: open,
   });
 
-  // Fetch payment methods
-  const { data: paymentMethods } = useQuery({
+  // Fetch payment methods only when dialog is open
+  const { data: paymentMethods, isLoading: paymentMethodsLoading } = useQuery({
     queryKey: ['sales_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -89,10 +91,20 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
       if (error) throw error;
       return data;
     },
+    enabled: open,
   });
+
+  const isLoading = productsLoading || warehousesLoading || paymentMethodsLoading;
 
   const createOrdersMutation = useMutation({
     mutationFn: async (orders: OrderItem[]) => {
+      // Validate orders before submitting
+      for (const order of orders) {
+        if (!order.order_number || !order.client_name) {
+          throw new Error('Order number and client name are required');
+        }
+      }
+
       const ordersToInsert = orders.map(order => ({
         order_number: order.order_number,
         client_name: order.client_name,
@@ -119,14 +131,23 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
       return data;
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Sales orders created successfully" });
+      toast({ 
+        title: "Success", 
+        description: "Sales orders created successfully",
+        duration: 3000 
+      });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       resetForm();
       onOpenChange(false);
     },
     onError: (error) => {
       console.error('Error creating sales orders:', error);
-      toast({ title: "Error", description: "Failed to create sales orders", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to create sales orders", 
+        variant: "destructive",
+        duration: 5000
+      });
     }
   });
 
@@ -200,7 +221,15 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
           <DialogTitle>Create Multiple Sales Orders</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Loading form data...</p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
           {orderItems.map((order, index) => (
             <div key={index} className="border rounded-lg p-4 space-y-4">
               <div className="flex justify-between items-center">
@@ -396,6 +425,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
             </div>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

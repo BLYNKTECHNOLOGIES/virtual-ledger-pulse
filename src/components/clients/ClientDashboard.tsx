@@ -9,11 +9,13 @@ import { Plus, Search, AlertTriangle, CheckCircle, Users, UserCheck } from "luci
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
+import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
+  const [showAddBuyerDialog, setShowAddBuyerDialog] = useState(false);
   const navigate = useNavigate();
 
   // Fetch clients
@@ -83,6 +85,14 @@ export function ClientDashboard() {
         </TabsList>
 
         <TabsContent value="directory" className="space-y-6">
+          {/* Nested tabs for Buyers and Sellers */}
+          <Tabs defaultValue="sellers" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="sellers">Sellers</TabsTrigger>
+              <TabsTrigger value="buyers">Buyers</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="sellers" className="space-y-6">
           {/* Header with Quick Actions */}
           <Card>
             <CardHeader>
@@ -184,6 +194,51 @@ export function ClientDashboard() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+
+            <TabsContent value="buyers" className="space-y-6">
+              {/* Header with Quick Actions for Buyers */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Buyers Directory
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Buyer
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <Search className="h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search buyers by name or contact..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Buyers List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Existing Buyers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-gray-500">
+                    No buyers found. Add your first buyer to get started.
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="approvals">
@@ -195,6 +250,12 @@ export function ClientDashboard() {
       <AddClientDialog 
         open={showAddClientDialog} 
         onOpenChange={setShowAddClientDialog}
+      />
+      
+      {/* Add Buyer Dialog */}
+      <AddBuyerDialog 
+        open={showAddBuyerDialog} 
+        onOpenChange={setShowAddBuyerDialog}
       />
     </div>
   );

@@ -120,7 +120,7 @@ export function AddLeadDialog() {
           New Lead
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Lead</DialogTitle>
         </DialogHeader>
@@ -141,33 +141,34 @@ export function AddLeadDialog() {
             />
             
             {showSuggestions && filteredClients.length > 0 && formData.name.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
                 {filteredClients.map((client) => (
                   <div
                     key={client.id}
-                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
                     onClick={() => handleClientSelect(client)}
                   >
                     <div className="font-medium">{client.name}</div>
-                    <div className="text-sm text-gray-500">
-                      Type: {client.client_type} | Risk: {client.risk_appetite}
+                    <div className="text-xs text-gray-500">
+                      {client.client_type} | {client.risk_appetite}
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="contact">Contact Number</Label>
-            <Input
-              id="contact"
-              value={formData.contact_number}
-              onChange={(e) => setFormData(prev => ({ ...prev, contact_number: e.target.value }))}
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="contact">Contact Number</Label>
+              <Input
+                id="contact"
+                value={formData.contact_number}
+                onChange={(e) => setFormData(prev => ({ ...prev, contact_number: e.target.value }))}
+                placeholder="Contact number"
+              />
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="lead_type">Lead Type *</Label>
               <Select value={formData.lead_type} onValueChange={(value) => setFormData(prev => ({ ...prev, lead_type: value }))}>
@@ -183,15 +184,28 @@ export function AddLeadDialog() {
                 </SelectContent>
               </Select>
             </div>
-            
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="value">EOV (Estimated Order Value)</Label>
+              <Label htmlFor="value">EOV</Label>
               <Input
                 id="value"
                 type="number"
                 value={formData.estimated_order_value}
                 onChange={(e) => setFormData(prev => ({ ...prev, estimated_order_value: e.target.value }))}
-                placeholder="Enter estimated value"
+                placeholder="Estimated value"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="price_quoted">Price Quoted</Label>
+              <Input
+                id="price_quoted"
+                type="number"
+                step="0.01"
+                value={formData.price_quoted}
+                onChange={(e) => setFormData(prev => ({ ...prev, price_quoted: e.target.value }))}
+                placeholder="Quoted price"
               />
             </div>
           </div>
@@ -226,19 +240,7 @@ export function AddLeadDialog() {
             </div>
           )}
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price_quoted">Price Quoted</Label>
-              <Input
-                id="price_quoted"
-                type="number"
-                step="0.01"
-                value={formData.price_quoted}
-                onChange={(e) => setFormData(prev => ({ ...prev, price_quoted: e.target.value }))}
-                placeholder="Enter quoted price"
-              />
-            </div>
-            
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="follow_up_date">Follow-up Date</Label>
               <Input
@@ -246,6 +248,17 @@ export function AddLeadDialog() {
                 type="date"
                 value={formData.follow_up_date}
                 onChange={(e) => setFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                rows={2}
+                placeholder="Brief description"
               />
             </div>
           </div>
@@ -257,17 +270,7 @@ export function AddLeadDialog() {
               value={formData.follow_up_notes}
               onChange={(e) => setFormData(prev => ({ ...prev, follow_up_notes: e.target.value }))}
               rows={2}
-              placeholder="Enter follow-up notes"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              rows={3}
+              placeholder="Follow-up notes"
             />
           </div>
           

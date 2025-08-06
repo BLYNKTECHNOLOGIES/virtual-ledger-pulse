@@ -171,15 +171,12 @@ export function ClientDashboard() {
                   <CardTitle>Existing Sellers</CardTitle>
                 </CardHeader>
                 <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8">Loading clients...</div>
-              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Client Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Seller ID</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
@@ -226,11 +223,10 @@ export function ClientDashboard() {
                   
                   {filteredClients?.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No clients found. Add your first client to get started.
+                      No sellers found. Add your first seller to get started.
                     </div>
                   )}
                 </div>
-              )}
             </CardContent>
           </Card>
             </TabsContent>

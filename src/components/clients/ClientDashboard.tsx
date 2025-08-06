@@ -136,45 +136,41 @@ export function ClientDashboard() {
             </TabsContent>
 
             <TabsContent value="sellers" className="space-y-6">
-          {/* Header with Quick Actions */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Client CRM Dashboard
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Re-KYC Required (5)
-                  </Button>
-                  <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New Client
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search clients by name or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="max-w-sm"
-                />
-              </div>
-            </CardContent>
-          </Card>
+              {/* Header with Quick Actions for Sellers */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Sellers Directory
+                    </CardTitle>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Seller
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2">
+                    <Search className="h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search sellers by name or contact..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Client List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Existing Clients</CardTitle>
-            </CardHeader>
-            <CardContent>
+              {/* Sellers List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Existing Sellers</CardTitle>
+                </CardHeader>
+                <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">Loading clients...</div>
               ) : (

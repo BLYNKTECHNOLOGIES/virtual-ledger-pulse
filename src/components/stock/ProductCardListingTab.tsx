@@ -17,12 +17,21 @@ export function ProductCardListingTab() {
   const { data: assets, isLoading, refetch } = useQuery({
     queryKey: ['assets_with_wallet_stock_cards', searchTerm],
     queryFn: async () => {
-      console.log('Fetching assets with wallet stock for cards...');
+      console.log('🔄 Fetching assets with wallet stock for cards...');
       
-      // Sync stock data first
+      // Sync both warehouse stock and USDT stock to ensure accuracy
+      console.log('🔄 Syncing warehouse stock...');
       await supabase.rpc('sync_product_warehouse_stock');
       
-      console.log('Stock sync completed');
+      console.log('🔄 Syncing USDT stock with wallets...');
+      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
+      if (usdtSyncError) {
+        console.error('❌ USDT sync failed:', usdtSyncError);
+      } else {
+        console.log('✅ USDT stock synced successfully');
+      }
+      
+      console.log('✅ Stock sync completed');
       
       // Get all assets
       let query = supabase
@@ -95,17 +104,21 @@ export function ProductCardListingTab() {
           });
         }
 
+        // Calculate total wallet stock
+        const totalWalletStock = walletStocks.reduce((sum, ws) => sum + ws.quantity, 0);
+        
         return {
           ...asset,
-          calculated_stock: asset.current_stock_quantity, // Use synced value
+          calculated_stock: Math.max(asset.current_stock_quantity, totalWalletStock), // Use higher of synced value or calculated
           wallet_stocks: walletStocks,
-          stock_value: asset.current_stock_quantity * (asset.average_buying_price || asset.cost_price)
+          stock_value: Math.max(asset.current_stock_quantity, totalWalletStock) * (asset.average_buying_price || asset.cost_price)
         };
       }) || [];
 
       return assetsWithStock;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds to keep stock updated
+    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 
   const getStockStatus = (stock: number) => {

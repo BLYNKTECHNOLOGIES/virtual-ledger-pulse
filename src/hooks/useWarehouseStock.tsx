@@ -29,10 +29,19 @@ export function useWarehouseStock() {
   return useQuery({
     queryKey: ['warehouse_stock_summary'],
     queryFn: async () => {
-      console.log('Fetching warehouse stock movements...');
+      console.log('🔄 Fetching warehouse stock movements...');
       
-      // Use the sync function to ensure consistency
+      // Use both sync functions to ensure consistency
+      console.log('🔄 Syncing warehouse stock...');
       await supabase.rpc('sync_product_warehouse_stock');
+      
+      console.log('🔄 Syncing USDT stock with wallets...');
+      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
+      if (usdtSyncError) {
+        console.error('❌ USDT sync failed in useWarehouseStock:', usdtSyncError);
+      } else {
+        console.log('✅ USDT stock synced successfully in useWarehouseStock');
+      }
       
       const { data: movements, error } = await supabase
         .from('warehouse_stock_movements')
@@ -91,7 +100,8 @@ export function useWarehouseStock() {
       
       return result;
     },
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
+    staleTime: 0, // Always refetch to ensure fresh data
   });
 }
 

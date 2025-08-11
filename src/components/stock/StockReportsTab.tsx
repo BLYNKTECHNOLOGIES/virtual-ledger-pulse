@@ -172,8 +172,9 @@ export function StockReportsTab() {
   // Normalize movements across different sources to IN/OUT
   const normalizedMovements = [
     ...(stockTransactions || []).map((t: any) => {
-      const original = t.transaction_type;
-      const isOut = ['OUT', 'Sales', 'SALES_ORDER', 'TRANSFER_OUT', 'DEBIT'].includes(original);
+      const originalRaw = t.transaction_type;
+      const original = String(originalRaw || '').toUpperCase();
+      const isOut = ['OUT', 'SALE', 'SALES', 'SALES_ORDER', 'TRANSFER_OUT', 'DEBIT', 'ADJUSTMENT_DEBIT'].includes(original);
       const normalized = isOut ? 'OUT' : 'IN';
       return {
         ...t,
@@ -195,7 +196,9 @@ export function StockReportsTab() {
       reference_number: p.purchase_orders?.supplier_name,
     })),
     ...(walletTransactions || []).map((w: any) => {
-      const isOut = ['TRANSFER_OUT', 'DEBIT'].includes(w.transaction_type);
+      const type = String(w.transaction_type || '').toUpperCase();
+      const isOut = ['TRANSFER_OUT', 'DEBIT'].includes(type);
+      const isIn = ['TRANSFER_IN', 'CREDIT'].includes(type);
       return {
         id: `WT-${w.id}`,
         transaction_date: w.created_at,

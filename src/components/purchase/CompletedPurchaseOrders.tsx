@@ -122,13 +122,14 @@ export function CompletedPurchaseOrders() {
                     <TableCell>
                       <Badge variant="default">
                         {(() => {
-                          const method = (purchaseMethods || []).find((m: any) => m.id === order.payment_method_used);
+                          const methodId = order.purchase_payment_method_id || order.payment_method_used;
+                          const method = (purchaseMethods || []).find((m: any) => m.id === methodId);
                           if (method) {
                             if (method.type === 'BANK_TRANSFER') return `Bank: ${method.bank_account_name || '-'}`;
                             if (method.type === 'UPI') return `UPI: ${method.upi_id || '-'}`;
                             return method.type;
                           }
-                          // Fallback to legacy fields
+                          // Fallback to legacy fields when method record is missing
                           if (order.payment_method_type === 'BANK_TRANSFER') return `Bank: ${order.bank_account_name || order.bank_account_number || '-'}`;
                           if (order.payment_method_type === 'UPI') return `UPI: ${order.upi_id || '-'}`;
                           return '-';

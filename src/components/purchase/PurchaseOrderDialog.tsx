@@ -177,33 +177,36 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         }
 
         // Create bank EXPENSE transaction so balance updates via triggers
-        const { data: paymentMethodWithBank } = await supabase
+        const { data: pm } = await supabase
           .from('purchase_payment_methods')
-          .select('bank_account_name')
+          .select('bank_account_id, bank_account_name')
           .eq('id', purchaseData.purchase_payment_method_id)
           .single();
 
-        if (paymentMethodWithBank?.bank_account_name) {
+        let bankAccountId: string | null = pm?.bank_account_id || null;
+
+        if (!bankAccountId && pm?.bank_account_name) {
           const { data: bank } = await supabase
             .from('bank_accounts')
             .select('id')
-            .eq('account_name', paymentMethodWithBank.bank_account_name)
+            .eq('account_name', pm.bank_account_name)
             .maybeSingle();
-          
-          if (bank?.id) {
-            await supabase
-              .from('bank_transactions')
-              .insert({
-                bank_account_id: bank.id,
-                transaction_type: 'EXPENSE',
-                amount: totalAmount,
-                transaction_date: purchaseData.order_date,
-                category: 'Purchase',
-                description: `Stock Purchase - ${purchaseData.supplier_name} - Order #${purchaseData.order_number}`,
-                reference_number: purchaseData.order_number,
-                related_account_name: purchaseData.supplier_name,
-              });
-          }
+          bankAccountId = bank?.id || null;
+        }
+        
+        if (bankAccountId) {
+          await supabase
+            .from('bank_transactions')
+            .insert({
+              bank_account_id: bankAccountId,
+              transaction_type: 'EXPENSE',
+              amount: totalAmount,
+              transaction_date: purchaseData.order_date,
+              category: 'Purchase',
+              description: `Stock Purchase - ${purchaseData.supplier_name} - Order #${purchaseData.order_number}`,
+              reference_number: purchaseData.order_number,
+              related_account_name: purchaseData.supplier_name,
+            });
         }
       }
 

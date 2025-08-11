@@ -66,23 +66,21 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
   });
 
   // Memoized payment methods query
-  const { data: paymentMethods } = useQuery({
+  const { data: paymentMethods } = useQuery<any[]>({
     queryKey: ['purchase_payment_methods', selectedOrder?.payment_method_type],
     queryFn: async () => {
-      if (!selectedOrder?.payment_method_type) return [];
-      
-      const { data, error } = await supabase
+      if (!selectedOrder?.payment_method_type) return [] as any[];
+      const { data } = await supabase
         .from('purchase_payment_methods')
         .select(`
           id,
           type,
           bank_account_name,
+          bank_account_id,
           upi_id
         `)
         .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
+      return (data as any[]) || [];
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
     staleTime: 300000, // 5 minutes
@@ -180,7 +178,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
       // Create bank EXPENSE transaction so balance auto-deducts
       try {
-        let bankAccountId: string | null = selectedOrder?.bank_account_id || null;
+        let bankAccountId: string | null = selectedOrder?.bank_account_id || selectedMethod?.bank_account_id || null;
         if (!bankAccountId && selectedMethod?.bank_account_name) {
           const { data: bankRow } = await supabase
             .from('bank_accounts')

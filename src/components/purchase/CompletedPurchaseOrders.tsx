@@ -27,6 +27,10 @@ export function CompletedPurchaseOrders() {
             bank_account_name,
             upi_id,
             bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
+          ),
+          bank_account:bank_account_id(
+            account_name,
+            bank_name
           )
         `)
         .eq('status', 'COMPLETED')
@@ -139,6 +143,10 @@ export function CompletedPurchaseOrders() {
                             }
                             if (rel.type === 'UPI') return `UPI: ${rel.upi_id || '-'}`;
                             return rel.type;
+                          }
+                          const bankAcc = (order as any).bank_account;
+                          if (bankAcc?.account_name) {
+                            return `Bank: ${bankAcc.account_name}`;
                           }
                           const methodId = order.purchase_payment_method_id || order.payment_method_used;
                           const method = (purchaseMethods || []).find((m: any) => m.id === methodId);

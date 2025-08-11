@@ -28,6 +28,18 @@ export function CompletedPurchaseOrders() {
     },
   });
 
+  const { data: purchaseMethods } = useQuery({
+    queryKey: ['purchase_payment_methods_all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_payment_methods')
+        .select('id, type, bank_account_name, upi_id');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
+  });
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
@@ -109,8 +121,18 @@ export function CompletedPurchaseOrders() {
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="default">
-                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id || '-'}` : 
-                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number || '-'}` : '-'}
+                        {(() => {
+                          const method = (purchaseMethods || []).find((m: any) => m.id === order.payment_method_used);
+                          if (method) {
+                            if (method.type === 'BANK_TRANSFER') return `Bank: ${method.bank_account_name || '-'}`;
+                            if (method.type === 'UPI') return `UPI: ${method.upi_id || '-'}`;
+                            return method.type;
+                          }
+                          // Fallback to legacy fields
+                          if (order.payment_method_type === 'BANK_TRANSFER') return `Bank: ${order.bank_account_name || order.bank_account_number || '-'}`;
+                          if (order.payment_method_type === 'UPI') return `UPI: ${order.upi_id || '-'}`;
+                          return '-';
+                        })()}
                       </Badge>
                     </TableCell>
                     <TableCell>{order.assigned_to || '-'}</TableCell>

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
@@ -123,17 +123,29 @@ export function CompletedPurchaseOrders() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedOrderForDetails(order)}>View</Button>
-                        <Button variant="outline" size="sm" onClick={() => setSelectedOrderForEdit(order)}>Edit</Button>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedOrderForDetails(order)}
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedOrderForEdit(order)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700"
                           onClick={() => { if (confirm('Delete this purchase order?')) deleteMutation.mutate(order.id); }}
                           disabled={deleteMutation.isPending}
                         >
-                          Delete
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </TableCell>

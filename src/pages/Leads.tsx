@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
-  const [onlyConverted, setOnlyConverted] = useState(false);
+  const [pendingOnly, setPendingOnly] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
@@ -170,8 +170,8 @@ export default function Leads() {
   const filteredLeads =
     (leads || [])
       .filter((lead) =>
-        onlyConverted
-          ? String(lead.status || '').toUpperCase() === 'CONVERTED'
+        pendingOnly
+          ? String(lead.status || '').toUpperCase() === 'PENDING'
           : true
       )
       .filter((lead) => {
@@ -293,12 +293,12 @@ export default function Leads() {
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
-                id="only-converted"
-                checked={onlyConverted}
-                onCheckedChange={(v) => setOnlyConverted(!!v)}
+                id="pending-only"
+                checked={pendingOnly}
+                onCheckedChange={(v) => setPendingOnly(!!v)}
               />
-              <Label htmlFor="only-converted" className="text-sm">
-                Only converted
+              <Label htmlFor="pending-only" className="text-sm">
+                Pending
               </Label>
             </div>
           </div>

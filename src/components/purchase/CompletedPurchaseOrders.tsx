@@ -1,11 +1,16 @@
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CheckCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
+import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 
 export function CompletedPurchaseOrders() {
   // Fetch completed purchase orders
@@ -20,6 +25,29 @@ export function CompletedPurchaseOrders() {
       
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
+  const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Deleted", description: "Purchase order deleted" });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete order", variant: "destructive" });
     },
   });
 
@@ -62,6 +90,7 @@ export function CompletedPurchaseOrders() {
                   <TableHead>Order Date</TableHead>
                   <TableHead>Completed Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -93,6 +122,21 @@ export function CompletedPurchaseOrders() {
                         Completed
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedOrderForDetails(order)}>View</Button>
+                        <Button variant="outline" size="sm" onClick={() => setSelectedOrderForEdit(order)}>Edit</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => { if (confirm('Delete this purchase order?')) deleteMutation.mutate(order.id); }}
+                          disabled={deleteMutation.isPending}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -100,6 +144,17 @@ export function CompletedPurchaseOrders() {
           )}
         </CardContent>
       </Card>
+
+      <PurchaseOrderDetailsDialog
+        open={!!selectedOrderForDetails}
+        onOpenChange={() => setSelectedOrderForDetails(null)}
+        order={selectedOrderForDetails}
+      />
+      <EditPurchaseOrderDialog
+        open={!!selectedOrderForEdit}
+        onOpenChange={() => setSelectedOrderForEdit(null)}
+        order={selectedOrderForEdit}
+      />
     </div>
   );
 }

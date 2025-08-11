@@ -179,13 +179,13 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         // Create bank EXPENSE transaction so balance updates via triggers
         const { data: pm } = await supabase
           .from('purchase_payment_methods')
-          .select('bank_account_id, bank_account_name')
+          .select('bank_account_name')
           .eq('id', purchaseData.purchase_payment_method_id)
-          .single();
+          .maybeSingle();
 
-        let bankAccountId: string | null = pm?.bank_account_id || null;
+        let bankAccountId: string | null = null;
 
-        if (!bankAccountId && pm?.bank_account_name) {
+        if (pm?.bank_account_name) {
           const { data: bank } = await supabase
             .from('bank_accounts')
             .select('id')

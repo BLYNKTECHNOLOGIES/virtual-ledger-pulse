@@ -21,7 +21,7 @@ interface PaymentMethodOption {
   bank_account_id?: string;
 }
 
-export function PendingPurchaseOrders() {
+export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -314,12 +314,24 @@ export function PendingPurchaseOrders() {
     return LoadingSkeleton;
   }
 
-  if (!orders || orders.length === 0) {
+  const filteredOrders = (orders || []).filter((order: any) => {
+    const matchesSearch = !searchTerm || (
+      order.order_number?.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+      order.supplier_name?.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+      (order.contact_number && String(order.contact_number).toLowerCase().includes((searchTerm || '').toLowerCase()))
+    );
+    const od = order.order_date ? new Date(order.order_date) : null;
+    const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
+    const inTo = !dateTo || (od && od <= new Date(dateTo));
+    return matchesSearch && inFrom && inTo;
+  });
+
+  if (!filteredOrders || filteredOrders.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">📋</div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Orders</h3>
-        <p className="text-gray-600">All purchase orders have been processed.</p>
+        <p className="text-gray-600">No purchase orders match your filters.</p>
       </div>
     );
   }
@@ -331,7 +343,7 @@ export function PendingPurchaseOrders() {
       </div>
       
       <div className="grid gap-4">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <PurchaseOrderCard
             key={order.id}
             order={order}

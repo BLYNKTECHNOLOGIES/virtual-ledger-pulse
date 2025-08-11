@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { AlertTriangle, RefreshCw, XCircle } from "lucide-react";
 
-export function ReviewNeededOrders() {
+export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -121,6 +121,17 @@ export function ReviewNeededOrders() {
     );
   }
 
+  const filteredOrders = (reviewOrders || []).filter((order: any) => {
+    const matchesSearch = !searchTerm || (
+      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    const od = order.order_date ? new Date(order.order_date) : null;
+    const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
+    const inTo = !dateTo || (od && od <= new Date(dateTo));
+    return matchesSearch && inFrom && inTo;
+  });
+
   return (
     <div className="space-y-4">
       <Card>
@@ -131,7 +142,7 @@ export function ReviewNeededOrders() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!reviewOrders || reviewOrders.length === 0 ? (
+          {!filteredOrders || filteredOrders.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No orders under review.
             </div>
@@ -149,7 +160,7 @@ export function ReviewNeededOrders() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reviewOrders.map((order) => (
+                {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                     <TableCell>{order.supplier_name}</TableCell>

@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 
-export function CompletedPurchaseOrders() {
+export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
   // Fetch completed purchase orders
   const { data: completedOrders, isLoading } = useQuery({
     queryKey: ['purchase_orders', 'COMPLETED'],
@@ -88,6 +88,18 @@ export function CompletedPurchaseOrders() {
     );
   }
 
+  const filteredOrders = (completedOrders || []).filter((order: any) => {
+    const matchesSearch = !searchTerm || (
+      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.contact_number && String(order.contact_number).toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+    const od = order.order_date ? new Date(order.order_date) : null;
+    const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
+    const inTo = !dateTo || (od && od <= new Date(dateTo));
+    return matchesSearch && inFrom && inTo;
+  });
+
   return (
     <div className="space-y-4">
       <Card>
@@ -98,7 +110,7 @@ export function CompletedPurchaseOrders() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!completedOrders || completedOrders.length === 0 ? (
+          {!filteredOrders || filteredOrders.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No completed orders found.
             </div>
@@ -119,7 +131,7 @@ export function CompletedPurchaseOrders() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {completedOrders.map((order) => (
+                {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                     <TableCell>

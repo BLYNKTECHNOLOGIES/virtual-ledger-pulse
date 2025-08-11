@@ -372,26 +372,24 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           }
         }
 
-        // Update bank account balance if bank account is selected
+        // Create bank EXPENSE transaction (triggers will deduct balance)
         if (formData.bank_account_id) {
-          const { data: bankAccount } = await supabase
-            .from('bank_accounts')
-            .select('balance')
-            .eq('id', formData.bank_account_id)
-            .single();
+          const { error: txError } = await supabase
+            .from('bank_transactions')
+            .insert({
+              bank_account_id: formData.bank_account_id,
+              transaction_type: 'EXPENSE',
+              amount: totalAmount,
+              transaction_date: format(formData.order_date, 'yyyy-MM-dd'),
+              category: 'Purchase',
+              description: `Stock Purchase - ${formData.supplier_name} - Order #${orderNumber}`,
+              reference_number: orderNumber,
+              related_account_name: formData.supplier_name,
+            });
 
-          if (bankAccount) {
-            const { error: balanceError } = await supabase
-              .from('bank_accounts')
-              .update({ 
-                balance: Math.max(0, bankAccount.balance - totalAmount)
-              })
-              .eq('id', formData.bank_account_id);
-
-            if (balanceError) {
-              console.error('Error updating bank balance:', balanceError);
-              // Don't throw here as the order is already created
-            }
+          if (txError) {
+            console.error('Error creating bank transaction:', txError);
+            // Don't throw here as the order is already created
           }
         }
 

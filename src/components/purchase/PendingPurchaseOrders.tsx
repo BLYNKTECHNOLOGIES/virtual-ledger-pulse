@@ -178,6 +178,40 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
         }
       }
 
+      // Create bank EXPENSE transaction so balance auto-deducts
+      try {
+        let bankAccountId: string | null = selectedOrder?.bank_account_id || null;
+        if (!bankAccountId && selectedMethod?.bank_account_name) {
+          const { data: bankRow } = await supabase
+            .from('bank_accounts')
+            .select('id')
+            .eq('account_name', selectedMethod.bank_account_name)
+            .maybeSingle();
+          bankAccountId = bankRow?.id || null;
+        }
+        if (bankAccountId) {
+          await validateBankAccountBalance(bankAccountId, amountToDeduct);
+          const { error: txError } = await supabase
+            .from('bank_transactions')
+            .insert({
+              bank_account_id: bankAccountId,
+              transaction_type: 'EXPENSE',
+              amount: amountToDeduct,
+              transaction_date: order.order_date,
+              category: 'Purchase',
+              description: `Stock Purchase - ${order.supplier_name} - Order #${order.order_number}`,
+              reference_number: order.order_number,
+              related_account_name: order.supplier_name,
+            });
+          if (txError) {
+            console.error('Failed to create bank transaction for purchase order', txError);
+          }
+        }
+      } catch (e) {
+        console.error('Bank validation/transaction failed', e);
+        throw e;
+      }
+
       // Sync USDT stock with wallets
       const { error: syncError } = await supabase.rpc('sync_usdt_stock');
       if (syncError) {

@@ -176,7 +176,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
             .eq('id', purchaseData.purchase_payment_method_id);
         }
 
-        // Update bank account balance (reduce balance) if bank account is linked
+        // Create bank EXPENSE transaction so balance updates via triggers
         const { data: paymentMethodWithBank } = await supabase
           .from('purchase_payment_methods')
           .select('bank_account_name')
@@ -184,19 +184,25 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
           .single();
 
         if (paymentMethodWithBank?.bank_account_name) {
-          const { data: bankAccount } = await supabase
+          const { data: bank } = await supabase
             .from('bank_accounts')
-            .select('balance')
+            .select('id')
             .eq('account_name', paymentMethodWithBank.bank_account_name)
-            .single();
-            
-          if (bankAccount) {
+            .maybeSingle();
+          
+          if (bank?.id) {
             await supabase
-              .from('bank_accounts')
-              .update({ 
-                balance: bankAccount.balance - totalAmount 
-              })
-              .eq('account_name', paymentMethodWithBank.bank_account_name);
+              .from('bank_transactions')
+              .insert({
+                bank_account_id: bank.id,
+                transaction_type: 'EXPENSE',
+                amount: totalAmount,
+                transaction_date: purchaseData.order_date,
+                category: 'Purchase',
+                description: `Stock Purchase - ${purchaseData.supplier_name} - Order #${purchaseData.order_number}`,
+                reference_number: purchaseData.order_number,
+                related_account_name: purchaseData.supplier_name,
+              });
           }
         }
       }

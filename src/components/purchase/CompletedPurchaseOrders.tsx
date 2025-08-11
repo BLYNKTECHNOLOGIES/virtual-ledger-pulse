@@ -19,7 +19,16 @@ export function CompletedPurchaseOrders() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('*')
+        .select(`
+          *,
+          purchase_payment_method:purchase_payment_method_id(
+            id,
+            type,
+            bank_account_name,
+            upi_id,
+            bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
+          )
+        `)
         .eq('status', 'COMPLETED')
         .order('created_at', { ascending: false });
       
@@ -122,6 +131,15 @@ export function CompletedPurchaseOrders() {
                     <TableCell>
                       <Badge variant="default">
                         {(() => {
+                          const rel = (order as any).purchase_payment_method;
+                          if (rel) {
+                            if (rel.type === 'BANK_TRANSFER') {
+                              const acc = (rel as any).bank_accounts?.account_name || rel.bank_account_name;
+                              return `Bank: ${acc || '-'}`;
+                            }
+                            if (rel.type === 'UPI') return `UPI: ${rel.upi_id || '-'}`;
+                            return rel.type;
+                          }
                           const methodId = order.purchase_payment_method_id || order.payment_method_used;
                           const method = (purchaseMethods || []).find((m: any) => m.id === methodId);
                           if (method) {
@@ -129,7 +147,6 @@ export function CompletedPurchaseOrders() {
                             if (method.type === 'UPI') return `UPI: ${method.upi_id || '-'}`;
                             return method.type;
                           }
-                          // Fallback to legacy fields when method record is missing
                           if (order.payment_method_type === 'BANK_TRANSFER') return `Bank: ${order.bank_account_name || order.bank_account_number || '-'}`;
                           if (order.payment_method_type === 'UPI') return `UPI: ${order.upi_id || '-'}`;
                           return '-';

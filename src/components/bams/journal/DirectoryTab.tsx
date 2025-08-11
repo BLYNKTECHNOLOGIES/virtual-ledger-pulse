@@ -135,10 +135,12 @@ export function DirectoryTab() {
         }))
       ];
 
-      // Sort by date
-      return combinedTransactions.sort((a, b) => 
-        new Date(b.display_date).getTime() - new Date(a.display_date).getTime()
-      );
+      // Sort by exact time (created_at) with fallback to date
+      return combinedTransactions.sort((a, b) => {
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : new Date(a.display_date).getTime();
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : new Date(b.display_date).getTime();
+        return bTime - aTime;
+      });
     },
   });
 

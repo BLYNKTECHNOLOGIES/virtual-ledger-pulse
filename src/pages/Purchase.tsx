@@ -3,7 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Download, ShoppingBag } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, Download, ShoppingBag, Filter, Search } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +20,10 @@ import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseE
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
+  const [showFilterDialog, setShowFilterDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState<Date>();
+  const [filterDateTo, setFilterDateTo] = useState<Date>();
 
   const handleRefreshData = () => {
     // This will trigger a refetch of the summary data
@@ -43,6 +50,13 @@ export default function Purchase() {
 
   const handleExportCSV = () => {
     // CSV export logic will be implemented in individual tab components
+  };
+
+  const clearFilters = () => {
+    setFilterDateFrom(undefined);
+    setFilterDateTo(undefined);
+    setSearchTerm("");
+    setShowFilterDialog(false);
   };
 
   return (
@@ -90,8 +104,57 @@ export default function Purchase() {
       </div>
 
       <div className="container mx-auto max-w-7xl">
-      {/* Purchase Orders Tabs */}
-      <Card className="w-full">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input 
+                    placeholder="Search by order number, supplier, contact..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+              <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
+                <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filter
+                </Button>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Filter Purchase Orders</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Date From</Label>
+                      <Input 
+                        type="date" 
+                        value={filterDateFrom ? format(filterDateFrom, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => setFilterDateFrom(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Date To</Label>
+                      <Input 
+                        type="date" 
+                        value={filterDateTo ? format(filterDateTo, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-2">
+                    <Button variant="outline" onClick={clearFilters}>Clear</Button>
+                    <Button onClick={() => setShowFilterDialog(false)}>Apply</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardContent>
+        </Card>
+        {/* Purchase Orders Tabs */}
+        <Card className="w-full">
         <CardContent className="p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
@@ -116,15 +179,27 @@ export default function Purchase() {
             </TabsList>
 
             <TabsContent value="pending">
-              <PendingPurchaseOrders />
+              <PendingPurchaseOrders 
+                searchTerm={searchTerm}
+                dateFrom={filterDateFrom}
+                dateTo={filterDateTo}
+              />
             </TabsContent>
 
             <TabsContent value="review">
-              <ReviewNeededOrders />
+              <ReviewNeededOrders 
+                searchTerm={searchTerm}
+                dateFrom={filterDateFrom}
+                dateTo={filterDateTo}
+              />
             </TabsContent>
 
             <TabsContent value="completed">
-              <CompletedPurchaseOrders />
+              <CompletedPurchaseOrders 
+                searchTerm={searchTerm}
+                dateFrom={filterDateFrom}
+                dateTo={filterDateTo}
+              />
             </TabsContent>
           </Tabs>
         </CardContent>

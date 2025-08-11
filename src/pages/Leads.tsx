@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Edit, Trash2, Phone, Mail, UserPlus, TrendingUp, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
+  const [onlyConverted, setOnlyConverted] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
@@ -164,12 +167,22 @@ export default function Leads() {
     }
   };
 
-  const filteredLeads = leads?.filter(lead =>
-    lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (lead.contact_number && lead.contact_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (lead.description && lead.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (lead.contact_channel_value && lead.contact_channel_value.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) || [];
+  const filteredLeads =
+    (leads || [])
+      .filter((lead) =>
+        onlyConverted
+          ? String(lead.status || '').toUpperCase() === 'CONVERTED'
+          : true
+      )
+      .filter((lead) => {
+        const q = searchTerm.toLowerCase();
+        return (
+          lead.name?.toLowerCase().includes(q) ||
+          (lead.contact_number && String(lead.contact_number).toLowerCase().includes(q)) ||
+          (lead.description && lead.description.toLowerCase().includes(q)) ||
+          (lead.contact_channel_value && lead.contact_channel_value.toLowerCase().includes(q))
+        );
+      });
 
   const handleConvertLead = (lead: any) => {
     if (lead.lead_type === 'BUY') {
@@ -268,88 +281,87 @@ export default function Leads() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search leads..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search leads..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="only-converted"
+                checked={onlyConverted}
+                onCheckedChange={(v) => setOnlyConverted(!!v)}
+              />
+              <Label htmlFor="only-converted" className="text-sm">
+                Only converted
+              </Label>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Leads Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredLeads.map((lead) => (
-          <Card key={lead.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-semibold text-gray-900">{lead.name}</h3>
-                  {getStatusBadge(lead.status)}
-                </div>
-                
-                <div className="space-y-1">
-                  {lead.contact_number && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {lead.contact_number}
-                    </p>
+      {/* Leads Table */}
+      <div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">EOV</TableHead>
+              <TableHead className="text-right">Quoted</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Follow-up</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="w-[200px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredLeads.map((lead) => (
+              <TableRow key={lead.id}>
+                <TableCell className="font-medium">{lead.name}</TableCell>
+                <TableCell>{lead.contact_number || "-"}</TableCell>
+                <TableCell>
+                  {lead.lead_type && (
+                    <Badge variant={lead.lead_type === 'BUY' ? 'destructive' : 'default'} className="text-xs">
+                      {lead.lead_type}
+                    </Badge>
                   )}
-                  
+                </TableCell>
+                <TableCell className="text-right">₹{(lead.estimated_order_value || 0).toLocaleString()}</TableCell>
+                <TableCell className="text-right">
+                  {lead.price_quoted > 0 ? `₹${Number(lead.price_quoted).toLocaleString()}` : "-"}
+                </TableCell>
+                <TableCell>
+                  {lead.contact_channel
+                    ? `${String(lead.contact_channel).replace('_', ' ')}${lead.contact_channel_value ? `: ${lead.contact_channel_value}` : ''}`
+                    : "-"}
+                </TableCell>
+                <TableCell>{getStatusBadge(lead.status)}</TableCell>
+                <TableCell>
+                  {lead.follow_up_date ? new Date(lead.follow_up_date).toLocaleDateString() : "-"}
+                </TableCell>
+                <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
                   <div className="flex items-center gap-2">
-                    {lead.lead_type && (
-                      <Badge variant={lead.lead_type === 'BUY' ? 'destructive' : 'default'} className="text-xs">
-                        {lead.lead_type}
-                      </Badge>
-                    )}
-                    <p className="text-sm font-medium text-green-600">
-                      EOV: ₹{lead.estimated_order_value?.toLocaleString() || '0'}
-                    </p>
-                  </div>
-                  
-                  {lead.price_quoted > 0 && (
-                    <p className="text-sm font-medium text-blue-600">
-                      Quoted: ₹{lead.price_quoted?.toLocaleString()}
-                    </p>
-                  )}
-                  
-                  {lead.contact_channel && (
-                    <p className="text-xs text-gray-500">
-                      {lead.contact_channel.replace('_', ' ')}: {lead.contact_channel_value}
-                    </p>
-                  )}
-                  
-                  {lead.follow_up_date && (
-                    <p className="text-xs text-orange-600">
-                      Follow-up: {new Date(lead.follow_up_date).toLocaleDateString()}
-                    </p>
-                  )}
-                  
-                  {lead.description && (
-                    <p className="text-xs text-gray-600">{lead.description}</p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Created: {new Date(lead.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center pt-2 border-t">
-                  <div className="flex gap-1">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="h-8 px-2"
                       onClick={() => handleEdit(lead)}
                     >
                       <Edit className="h-3 w-3 mr-1" />
                       Edit
                     </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
+                    <Button
+                      size="sm"
+                      variant="outline"
                       className="h-8 px-2 text-red-600 hover:text-red-700"
                       onClick={() => handleDelete(lead)}
                       disabled={deleteMutation.isPending}
@@ -357,23 +369,22 @@ export default function Leads() {
                       <Trash2 className="h-3 w-3 mr-1" />
                       Delete
                     </Button>
+                    {lead.status !== 'CONVERTED' && lead.lead_type && (
+                      <Button
+                        size="sm"
+                        className="h-8 px-2 bg-green-600 hover:bg-green-700"
+                        onClick={() => handleConvertLead(lead)}
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Convert
+                      </Button>
+                    )}
                   </div>
-                  
-                  {lead.status !== 'CONVERTED' && lead.lead_type && (
-                    <Button 
-                      size="sm" 
-                      className="h-8 px-2 bg-green-600 hover:bg-green-700"
-                      onClick={() => handleConvertLead(lead)}
-                    >
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Convert
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       {filteredLeads.length === 0 && (

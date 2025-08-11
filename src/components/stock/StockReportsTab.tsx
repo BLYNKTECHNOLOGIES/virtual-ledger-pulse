@@ -32,10 +32,10 @@ export function StockReportsTab() {
     },
   });
 
-  const { data: stockReports, isLoading: reportsLoading } = useQuery({
-    queryKey: ['stock_reports', dateFrom, dateTo, reportType, warehouseFilter],
+  const { data: stockTransactions, isLoading: reportsLoading } = useQuery({
+    queryKey: ['stock_transactions_for_reports', dateFrom, dateTo],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('stock_transactions')
         .select(`
           *,
@@ -45,11 +45,38 @@ export function StockReportsTab() {
         .lte('transaction_date', format(dateTo, 'yyyy-MM-dd'))
         .order('transaction_date', { ascending: false });
 
-      if (reportType !== "all") {
-        query = query.eq('transaction_type', reportType);
-      }
+      if (error) throw error;
+      return data;
+    },
+  });
+  
+  // Additional sources for movements
+  const { data: usdtProduct } = useQuery({
+    queryKey: ['usdt_product_for_reports'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('code', 'USDT')
+        .single();
+      if (error) throw error;
+      return data;
+    },
+  });
 
-      const { data, error } = await query;
+  const { data: walletTransactions } = useQuery({
+    queryKey: ['wallet_transactions_for_reports', dateFrom, dateTo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select(`
+          *,
+          wallets(wallet_name, wallet_type)
+        `)
+        .gte('created_at', format(dateFrom, 'yyyy-MM-dd'))
+        .lte('created_at', format(dateTo, 'yyyy-MM-dd'))
+        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -142,6 +169,54 @@ export function StockReportsTab() {
     }, 0) || 0;
   };
 
+  // Normalize movements across different sources to IN/OUT
+  const normalizedMovements = [
+    ...(stockTransactions || []).map((t: any) => {
+      const original = t.transaction_type;
+      const isOut = ['OUT', 'Sales', 'SALES_ORDER', 'TRANSFER_OUT', 'DEBIT'].includes(original);
+      const normalized = isOut ? 'OUT' : 'IN';
+      return {
+        ...t,
+        transaction_type: normalized,
+      };
+    }),
+    ...(purchaseReport || []).map((p: any) => ({
+      id: `POI-${p.id}`,
+      transaction_date: p.purchase_orders?.order_date,
+      products: {
+        name: p.products?.name,
+        code: p.products?.code,
+        unit_of_measurement: p.products?.unit_of_measurement,
+      },
+      transaction_type: 'IN',
+      quantity: p.quantity,
+      unit_price: p.unit_price,
+      total_amount: p.total_price,
+      reference_number: p.purchase_orders?.supplier_name,
+    })),
+    ...(walletTransactions || []).map((w: any) => {
+      const isOut = ['TRANSFER_OUT', 'DEBIT'].includes(w.transaction_type);
+      return {
+        id: `WT-${w.id}`,
+        transaction_date: w.created_at,
+        products: {
+          name: usdtProduct?.name || 'USDT',
+          code: usdtProduct?.code || 'USDT',
+          unit_of_measurement: usdtProduct?.unit_of_measurement || 'Pieces',
+        },
+        transaction_type: isOut ? 'OUT' : 'IN',
+        quantity: w.amount,
+        unit_price: w.transaction_type?.includes('TRANSFER') ? null : 1,
+        total_amount: w.amount,
+        reference_number: w.wallets?.wallet_name || 'Wallet',
+      };
+    }),
+  ].sort((a: any, b: any) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
+
+  const filteredMovements = reportType === 'all'
+    ? normalizedMovements
+    : normalizedMovements.filter((m: any) => m.transaction_type === reportType);
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -185,7 +260,7 @@ export function StockReportsTab() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{calculateMovementValue(stockReports || []).toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{calculateMovementValue(normalizedMovements || []).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>
@@ -292,7 +367,7 @@ export function StockReportsTab() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => exportToCSV(stockReports || [], 'stock_movement_report')}
+              onClick={() => exportToCSV(filteredMovements || [], 'stock_movement_report')}
             >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
@@ -317,30 +392,30 @@ export function StockReportsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stockReports?.map((report) => (
-                    <tr key={report.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{format(new Date(report.transaction_date), 'dd/MM/yyyy')}</td>
+                  {filteredMovements?.map((row: any) => (
+                    <tr key={row.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">{format(new Date(row.transaction_date), 'dd/MM/yyyy')}</td>
                       <td className="py-3 px-4">
                         <div>
-                          <div className="font-medium">{report.products?.name}</div>
-                          <div className="text-sm text-gray-500">{report.products?.code}</div>
+                          <div className="font-medium">{row.products?.name}</div>
+                          <div className="text-sm text-gray-500">{row.products?.code}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant={report.transaction_type === 'IN' ? 'default' : 'destructive'}>
-                          {report.transaction_type}
+                        <Badge variant={row.transaction_type === 'IN' ? 'default' : 'destructive'}>
+                          {row.transaction_type}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4">{report.quantity} {report.products?.unit_of_measurement}</td>
-                      <td className="py-3 px-4">₹{report.unit_price || 0}</td>
-                      <td className="py-3 px-4">₹{report.total_amount || 0}</td>
-                      <td className="py-3 px-4">{report.reference_number || '-'}</td>
+                      <td className="py-3 px-4">{row.quantity} {row.products?.unit_of_measurement}</td>
+                      <td className="py-3 px-4">₹{row.unit_price || 0}</td>
+                      <td className="py-3 px-4">₹{row.total_amount || 0}</td>
+                      <td className="py-3 px-4">{row.reference_number || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
               
-              {stockReports?.length === 0 && (
+              {filteredMovements?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   No stock movements found for the selected period.
                 </div>

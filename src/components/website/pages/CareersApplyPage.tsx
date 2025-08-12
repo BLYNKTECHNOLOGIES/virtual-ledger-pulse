@@ -283,6 +283,75 @@ export function CareersApplyPage() {
                   </div>
                 </div>
 
+                {/* Education and industry */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="educational_qualification">Educational Qualification</Label>
+                    <Input
+                      id="educational_qualification"
+                      placeholder="e.g., B.Tech in Computer Science"
+                      value={form.educational_qualification}
+                      onChange={(e) => setForm((f) => ({ ...f, educational_qualification: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="industry">Industry</Label>
+                    <Input
+                      id="industry"
+                      placeholder="e.g., Fintech, IT Services"
+                      value={form.industry}
+                      onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Employment status */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="is_employed"
+                      checked={form.is_employed}
+                      onCheckedChange={(val) => setForm((f) => ({ ...f, is_employed: Boolean(val) }))}
+                    />
+                    <Label htmlFor="is_employed">Currently Employed</Label>
+                  </div>
+
+                  {form.is_employed && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="company_name">Company Name</Label>
+                        <Input
+                          id="company_name"
+                          placeholder="Your current company"
+                          value={form.company_name}
+                          onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="employment_start_date">Employment Start Date</Label>
+                        <Input
+                          id="employment_start_date"
+                          type="date"
+                          value={form.employment_start_date}
+                          onChange={(e) => setForm((f) => ({ ...f, employment_start_date: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="current_salary">Current Salary</Label>
+                        <Input
+                          id="current_salary"
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          placeholder="e.g., 800000"
+                          value={form.current_salary}
+                          onChange={(e) => setForm((f) => ({ ...f, current_salary: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <Textarea

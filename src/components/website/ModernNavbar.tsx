@@ -324,6 +324,13 @@ export function ModernNavbar() {
                 Log In
               </Button>
               <Button 
+                variant="secondary"
+                onClick={() => navigate('/website/careers/apply')}
+                className="font-medium px-6"
+              >
+                Apply Now
+              </Button>
+              <Button 
                 onClick={() => navigate('/dashboard')}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium px-6"
               >
@@ -438,6 +445,13 @@ export function ModernNavbar() {
                     className="justify-start"
                   >
                     Log In
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => navigate('/website/careers/apply')}
+                    className="justify-start"
+                  >
+                    Apply Now
                   </Button>
                   <Button 
                     onClick={() => navigate('/dashboard')}

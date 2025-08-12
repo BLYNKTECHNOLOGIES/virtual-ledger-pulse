@@ -19,6 +19,7 @@ import { VASPCompliancePage } from './components/website/pages/VASPCompliancePag
 import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
+import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Purchase from './pages/Purchase';
@@ -92,6 +93,10 @@ const router = createBrowserRouter([
   {
     path: "/website/login",
     element: <WebsiteLayout><LoginPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/careers/apply",
+    element: <WebsiteLayout><CareersApplyPage /></WebsiteLayout>,
   },
   {
     path: "/website/vasp",

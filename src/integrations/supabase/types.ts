@@ -65,6 +65,13 @@ export type Database = {
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_investigations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bank_accounts: {
@@ -197,6 +204,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bank_transactions_related_transaction_id_fkey"
             columns: ["related_transaction_id"]
             isOneToOne: false
@@ -263,6 +277,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banking_credentials_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
         ]
@@ -1448,6 +1469,13 @@ export type Database = {
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lien_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
         ]
       }
       lien_updates: {
@@ -1726,6 +1754,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_gateway_settlements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
         ]
@@ -2288,6 +2323,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_orders_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_orders_purchase_payment_method_id_fkey"
             columns: ["purchase_payment_method_id"]
             isOneToOne: false
@@ -2360,6 +2402,13 @@ export type Database = {
             columns: ["bank_account_name"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["account_name"]
+          },
+          {
+            foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
+            columns: ["bank_account_name"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["account_name"]
           },
         ]
@@ -2837,6 +2886,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_payment_methods_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
         ]
@@ -3436,7 +3492,25 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      bank_accounts_with_balance: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          account_status: string | null
+          balance: number | null
+          balance_locked: boolean | null
+          bank_account_holder_name: string | null
+          bank_name: string | null
+          branch: string | null
+          computed_balance: number | null
+          created_at: string | null
+          id: string | null
+          IFSC: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       approve_registration: {

@@ -151,6 +151,63 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         if (tdsError) throw tdsError;
       }
 
+      // Record bank EXPENSE transaction to deduct from bank balance (if bank is identifiable)
+      try {
+        let bankAccountId: string | null = null;
+
+        if (orderData.payment_method_type === 'BANK_TRANSFER') {
+          // Prefer matching by account number, then fallback to account name
+          if (orderData.bank_account_number) {
+            const { data: bankByNumber } = await supabase
+              .from('bank_accounts')
+              .select('id')
+              .eq('account_number', orderData.bank_account_number)
+              .maybeSingle();
+            bankAccountId = bankByNumber?.id || bankAccountId;
+          }
+          if (!bankAccountId && orderData.bank_account_name) {
+            const { data: bankByName } = await supabase
+              .from('bank_accounts')
+              .select('id')
+              .eq('account_name', orderData.bank_account_name)
+              .maybeSingle();
+            bankAccountId = bankByName?.id || bankAccountId;
+          }
+        } else if (orderData.payment_method_type === 'UPI' && orderData.upi_id) {
+          // Best-effort resolution via configured purchase payment methods
+          const { data: ppm } = await supabase
+            .from('purchase_payment_methods')
+            .select('bank_account_name')
+            .eq('upi_id', orderData.upi_id)
+            .maybeSingle();
+          if (ppm?.bank_account_name) {
+            const { data: bankFromPpm } = await supabase
+              .from('bank_accounts')
+              .select('id')
+              .eq('account_name', ppm.bank_account_name)
+              .maybeSingle();
+            bankAccountId = bankFromPpm?.id || bankAccountId;
+          }
+        }
+
+        if (bankAccountId) {
+          await supabase
+            .from('bank_transactions')
+            .insert({
+              bank_account_id: bankAccountId,
+              transaction_type: 'EXPENSE',
+              amount: netPayableAmount,
+              transaction_date: orderData.order_date,
+              category: 'Purchase',
+              description: `Stock Purchase - ${orderData.supplier_name} - Order #${orderData.order_number}`,
+              reference_number: orderData.order_number,
+              related_account_name: orderData.supplier_name,
+            });
+        }
+      } catch (txErr) {
+        console.warn('Bank transaction creation skipped:', txErr);
+      }
+
       return purchaseOrder;
     },
     onSuccess: () => {
@@ -160,6 +217,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       resetForm();
       onOpenChange(false);
     },

@@ -146,6 +146,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           description: "Please select a wallet to credit the purchased USDT",
           variant: "destructive"
         });
+        setLoading(false);
         return;
       }
 

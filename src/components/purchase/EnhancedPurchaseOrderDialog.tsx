@@ -372,26 +372,8 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
           }
         }
 
-        // Create bank EXPENSE transaction (triggers will deduct balance)
-        if (formData.bank_account_id) {
-          const { error: txError } = await supabase
-            .from('bank_transactions')
-            .insert({
-              bank_account_id: formData.bank_account_id,
-              transaction_type: 'EXPENSE',
-              amount: totalAmount,
-              transaction_date: format(formData.order_date, 'yyyy-MM-dd'),
-              category: 'Purchase',
-              description: `Stock Purchase - ${formData.supplier_name} - Order #${orderNumber}`,
-              reference_number: orderNumber,
-              related_account_name: formData.supplier_name,
-            });
+        // Bank EXPENSE transaction is auto-created by DB trigger when bank_account_id is set on purchase_orders.
 
-          if (txError) {
-            console.error('Error creating bank transaction:', txError);
-            // Don't throw here as the order is already created
-          }
-        }
 
         toast({
           title: "Success",

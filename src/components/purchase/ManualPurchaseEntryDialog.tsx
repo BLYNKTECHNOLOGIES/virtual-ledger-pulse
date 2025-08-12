@@ -237,24 +237,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       console.log('✅ Purchase order created successfully:', orderNumber);
       
-      // Record bank EXPENSE transaction so balance updates automatically
-      if (formData.deduction_bank_account_id) {
-        const { error: txError } = await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: formData.deduction_bank_account_id,
-            transaction_type: 'EXPENSE',
-            amount: totalAmount,
-            transaction_date: formData.order_date,
-            category: 'Purchase',
-            description: `Stock Purchase - ${formData.supplier_name} - Order #${orderNumber}`,
-            reference_number: orderNumber,
-            related_account_name: formData.supplier_name,
-          });
-        if (txError) {
-          console.error('❌ Failed to create bank transaction:', txError);
-        }
-      }
+      // Bank EXPENSE transaction now auto-created by DB trigger on purchase_orders when bank_account_id is present
+      // (public.sync_bank_tx_for_purchase_order). No manual insert needed here.
+
       
       toast({
         title: "Success",

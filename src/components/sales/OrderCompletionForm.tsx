@@ -198,6 +198,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       onOpenChange(false);
     },
     onError: (error) => {

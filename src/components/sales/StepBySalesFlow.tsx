@@ -324,6 +324,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       resetFlow();
       onOpenChange(false);
       // Force a full page refresh to ensure all components show updated data

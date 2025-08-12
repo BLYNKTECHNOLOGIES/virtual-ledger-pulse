@@ -181,6 +181,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       // Force a full page refresh to ensure all components show updated data
       setTimeout(() => window.location.reload(), 1000);
       setFormData({

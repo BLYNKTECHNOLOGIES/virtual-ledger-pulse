@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -58,7 +59,15 @@ export function CareersApplyPage() {
     notes: "",
     job_posting_id: "",
     resume_url: "",
+    educational_qualification: "",
+    industry: "",
+    current_salary: "",
+    is_employed: false,
+    company_name: "",
+    employment_start_date: "",
   });
+
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   useEffect(() => {
     const loadJobs = async () => {
@@ -82,9 +91,11 @@ export function CareersApplyPage() {
     return (
       form.name.trim().length > 1 &&
       /.+@.+\..+/.test(form.email) &&
-      form.job_posting_id !== ""
+      form.job_posting_id !== "" &&
+      form.phone.trim().length > 5 &&
+      !!resumeFile
     );
-  }, [form]);
+  }, [form, resumeFile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,36 +103,89 @@ export function CareersApplyPage() {
     setErrorMessage("");
     if (!isValid) return;
 
-    setSubmitting(true);
-    const { error } = await supabase.from("job_applicants").insert({
-      name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim() || null,
-      address: form.address.trim() || null,
-      notes: form.notes.trim() || null,
-      job_posting_id: form.job_posting_id,
-      resume_url: form.resume_url.trim() || null,
-      stage: "APPLIED",
-      status: "APPLIED",
-      is_interested: true,
-    });
+    try {
+      setSubmitting(true);
 
-    if (error) {
-      console.error("Application submission failed", error);
-      setErrorMessage("Something went wrong. Please try again.");
-    } else {
-      setSuccessMessage("Your application has been submitted successfully. We'll get back to you soon!");
-      setForm({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        notes: "",
-        job_posting_id: "",
-        resume_url: "",
+      // Upload resume if provided
+      let uploadedResumeUrl: string | null = null;
+      if (resumeFile) {
+        const safeName = `${Date.now()}_${resumeFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const filePath = `resumes/${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("kyc-documents")
+          .upload(filePath, resumeFile, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: resumeFile.type,
+          });
+
+        if (uploadError) {
+          console.error("Resume upload failed", uploadError);
+          setErrorMessage("Failed to upload resume. Please try again.");
+          setSubmitting(false);
+          return;
+        }
+
+        const { data: publicData } = supabase.storage
+          .from("kyc-documents")
+          .getPublicUrl(filePath);
+        uploadedResumeUrl = publicData.publicUrl;
+      }
+
+      // Combine additional fields into notes to avoid DB schema change for now
+      const details = [
+        form.educational_qualification && `Educational Qualification: ${form.educational_qualification}`,
+        form.industry && `Industry: ${form.industry}`,
+        `Employment Status: ${form.is_employed ? "Employed" : "Unemployed"}`,
+        form.is_employed && form.company_name && `Company: ${form.company_name}`,
+        form.is_employed && form.employment_start_date && `Employed Since: ${form.employment_start_date}`,
+        form.is_employed && form.current_salary && `Current Salary: ${form.current_salary}`,
+        form.notes && `Notes: ${form.notes}`,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const { error } = await supabase.from("job_applicants").insert({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim() || null,
+        notes: details || null,
+        job_posting_id: form.job_posting_id,
+        resume_url: uploadedResumeUrl,
+        stage: "APPLIED",
+        status: "APPLIED",
+        is_interested: true,
       });
+
+      if (error) {
+        console.error("Application submission failed", error);
+        setErrorMessage("Something went wrong. Please try again.");
+      } else {
+        setSuccessMessage("Your application has been submitted successfully. We'll get back to you soon!");
+        setForm({
+          name: "",
+          email: "",
+          phone: "",
+          address: "",
+          notes: "",
+          job_posting_id: "",
+          resume_url: "",
+          educational_qualification: "",
+          industry: "",
+          current_salary: "",
+          is_employed: false,
+          company_name: "",
+          employment_start_date: "",
+        });
+        setResumeFile(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("Unexpected error. Please try again.");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   return (
@@ -197,19 +261,25 @@ export function CareersApplyPage() {
                     <Label htmlFor="phone">Phone</Label>
                     <Input
                       id="phone"
-                      placeholder="Optional"
+                      type="tel"
+                      placeholder="Your phone number"
                       value={form.phone}
                       onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="resume">Resume URL</Label>
+                    <Label htmlFor="resumeFile">Upload Resume</Label>
                     <Input
-                      id="resume"
-                      placeholder="Link to your resume (Google Drive, etc.)"
-                      value={form.resume_url}
-                      onChange={(e) => setForm((f) => ({ ...f, resume_url: e.target.value }))}
+                      id="resumeFile"
+                      type="file"
+                      accept="application/pdf,.doc,.docx,image/*"
+                      onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                      required
                     />
+                    {resumeFile && (
+                      <p className="text-xs text-muted-foreground">Selected: {resumeFile.name}</p>
+                    )}
                   </div>
                 </div>
 

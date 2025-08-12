@@ -13,6 +13,7 @@ import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
 import { AddOfferDocumentDialog } from "./AddOfferDocumentDialog";
 import { PendingInterviewsTable } from "./PendingInterviewsTable";
 import { OfferDocumentsTable } from "./OfferDocumentsTable";
+import { ActiveJobPostings } from "./job-postings/ActiveJobPostings";
 
 export function RecruitmentTab() {
   const { toast } = useToast();
@@ -154,7 +155,7 @@ export function RecruitmentTab() {
   return (
     <div className="space-y-6">
       {/* Quick Actions */}
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-3">
         <Button onClick={() => setShowJobDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Job Posting
@@ -172,6 +173,9 @@ export function RecruitmentTab() {
           Add Offer Document
         </Button>
       </div>
+
+      {/* Active Job Postings - new beautiful cards */}
+      <ActiveJobPostings />
 
       {/* Pending Interviews */}
       <PendingInterviewsTable />

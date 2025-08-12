@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -190,21 +191,19 @@ export function CareersApplyPage() {
 
   return (
     <>
-      <header className="bg-muted/40 border-b border-border/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Apply Now for Open Roles
-          </h1>
-          <p className="mt-3 text-muted-foreground max-w-2xl">
-            Join our team. Submit your application for any open position listed below.
-          </p>
+      <section className="relative pt-20 pb-12 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.1),transparent_50%)]" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground">Apply Now for Open Roles</h1>
+          <p className="mt-4 text-muted-foreground max-w-2xl">Join our team. Submit your application for any open position listed below.</p>
         </div>
-      </header>
+      </section>
 
       <main className="w-full">
         <section className="py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <article className="bg-background border border-border rounded-xl shadow-sm p-6 md:p-8">
+            <Card className="p-6 md:p-8">
               <form onSubmit={handleSubmit} className="space-y-6" aria-label="Job application form">
                 {/* Job selection */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -387,7 +386,7 @@ export function CareersApplyPage() {
                   </Button>
                 </div>
               </form>
-            </article>
+            </Card>
           </div>
         </section>
       </main>

@@ -70,13 +70,13 @@ export function BankAccountManagement() {
   const { data: bankAccounts, isLoading } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
+      const { data, error } = await (supabase as any)
+        .from('bank_accounts_with_balance')
         .select('*')
         .eq('account_status', 'ACTIVE')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as BankAccount[];
+      return data as (BankAccount & { computed_balance?: number })[];
     }
   });
 
@@ -486,9 +486,9 @@ export function BankAccountManagement() {
                          <TableCell>{account.account_number}</TableCell>
                          <TableCell>{account.IFSC}</TableCell>
                          <TableCell>{account.branch || "-"}</TableCell>
-                         <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
-                           ₹{account.balance.toLocaleString()}
-                         </TableCell>
+                          <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
+                            ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
+                          </TableCell>
                          <TableCell>
                            <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
                              {account.status === "ACTIVE" ? (

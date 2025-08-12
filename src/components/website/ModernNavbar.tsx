@@ -312,6 +312,16 @@ export function ModernNavbar() {
               >
                 Contact
               </Link>
+
+              <Link
+                to="/website/careers/apply"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground transition-colors",
+                  isActive('/website/careers/apply') && "text-foreground font-medium"
+                )}
+              >
+                Apply Now
+              </Link>
             </div>
 
             {/* Auth Buttons */}
@@ -322,13 +332,6 @@ export function ModernNavbar() {
                 className="text-muted-foreground hover:text-foreground"
               >
                 Log In
-              </Button>
-              <Button 
-                variant="secondary"
-                onClick={() => navigate('/website/careers/apply')}
-                className="font-medium px-6"
-              >
-                Apply Now
               </Button>
               <Button 
                 onClick={() => navigate('/dashboard')}
@@ -438,6 +441,14 @@ export function ModernNavbar() {
                   Contact
                 </Link>
 
+                <Link
+                  to="/website/careers/apply"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Apply Now
+                </Link>
+
                 <div className="flex flex-col gap-2 pt-4 border-t border-border">
                   <Button 
                     variant="ghost" 
@@ -445,13 +456,6 @@ export function ModernNavbar() {
                     className="justify-start"
                   >
                     Log In
-                  </Button>
-                  <Button 
-                    variant="secondary"
-                    onClick={() => navigate('/website/careers/apply')}
-                    className="justify-start"
-                  >
-                    Apply Now
                   </Button>
                   <Button 
                     onClick={() => navigate('/dashboard')}

@@ -173,19 +173,19 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       });
 
       // Use the secure function that uses the bypass flag properly
-      const { data: result, error: functionError } = await supabase.rpc(
+        const { data: result, error: functionError } = await supabase.rpc(
         'create_manual_purchase_secure',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
           p_order_date: formData.order_date,
-          p_description: formData.description || '',
           p_total_amount: totalAmount,
-          p_contact_number: formData.contact_number || null,
           p_product_id: formData.product_id,
           p_quantity: parseFloat(formData.quantity),
           p_unit_price: parseFloat(formData.price_per_unit),
           p_bank_account_id: formData.deduction_bank_account_id,
+          p_description: formData.description || '',
+          p_contact_number: formData.contact_number || null,
           p_credit_wallet_id: formData.credit_wallet_id || null
         }
       );

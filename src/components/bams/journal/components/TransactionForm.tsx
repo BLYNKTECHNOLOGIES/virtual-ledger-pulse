@@ -69,10 +69,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Transaction recorded successfully",
+        description: "Transaction recorded successfully. Bank balance updated automatically.",
       });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       setFormData({
         bankAccountId: "",
         transactionType: "",

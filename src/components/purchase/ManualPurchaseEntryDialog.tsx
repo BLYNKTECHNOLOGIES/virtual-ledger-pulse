@@ -244,7 +244,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       
       toast({
         title: "Success",
-        description: `Purchase order ${orderNumber} created successfully and stock updated`
+        description: `Purchase order ${orderNumber} created successfully. Stock and bank balance updated automatically.`
       });
 
       // Reset form

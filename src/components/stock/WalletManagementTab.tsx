@@ -176,8 +176,9 @@ export function WalletManagementTab() {
       await supabase.rpc('sync_usdt_stock');
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Transaction added successfully" });
+      toast({ title: "Success", description: "Wallet transaction added successfully. Wallet balance updated automatically." });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions', 'wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] }); // For USDT stock sync
       setShowTransactionDialog(false);
     },
     onError: (error) => {

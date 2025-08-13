@@ -173,7 +173,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     onSuccess: () => {
       console.log('🎉 Sales order created successfully - onSuccess callback triggered');
       console.log('🔄 Calling onOpenChange(false) to close dialog');
-      toast({ title: "Success", description: "Sales order created successfully" });
+      toast({ title: "Success", description: "Sales order created successfully. Bank balance updated automatically." });
       onOpenChange(false); // Close the dialog immediately
       console.log('✅ Dialog should be closed now');
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
@@ -182,6 +182,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       // Force a full page refresh to ensure all components show updated data
       setTimeout(() => window.location.reload(), 1000);
       setFormData({

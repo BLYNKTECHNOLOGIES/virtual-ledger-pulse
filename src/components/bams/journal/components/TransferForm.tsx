@@ -95,10 +95,11 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Fund transfer completed successfully",
+        description: "Fund transfer completed successfully. Bank balances updated automatically.",
       });
       queryClient.invalidateQueries({ queryKey: ['bank_transfers'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       setFormData({
         fromAccountId: "",

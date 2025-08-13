@@ -171,9 +171,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the bypass database function that completely avoids bank transaction triggers
+      // Use the stock-only function that completely avoids bank transactions
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_bypass',
+        'create_manual_purchase_stock_only',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
@@ -181,8 +181,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_description: formData.description || '',
           p_total_amount: totalAmount,
           p_contact_number: formData.contact_number || null,
-          p_status: formData.status,
-          p_bank_account_id: formData.deduction_bank_account_id,
           p_product_id: formData.product_id,
           p_quantity: parseFloat(formData.quantity),
           p_unit_price: parseFloat(formData.price_per_unit),
@@ -202,7 +200,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       
       toast({
         title: "Success",
-        description: `Purchase order ${orderNumber} created successfully. Stock and bank balance updated automatically.`
+        description: `Purchase order ${orderNumber} created successfully! Stock updated. Note: Bank transaction not created due to account restrictions.`
       });
 
       // Reset form

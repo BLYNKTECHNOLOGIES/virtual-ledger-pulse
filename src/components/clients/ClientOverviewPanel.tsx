@@ -1,11 +1,17 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee } from "lucide-react";
+import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee, CreditCard, Settings } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
+import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
+import { ViewFullProfileDialog } from "./ViewFullProfileDialog";
+import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
+import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
+import { KYCDocumentsDialog } from "./KYCDocumentsDialog";
 
 interface ClientOverviewPanelProps {
   clientId?: string;
@@ -14,6 +20,13 @@ interface ClientOverviewPanelProps {
 export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
+
+  // Dialog states
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showProfileDialog, setShowProfileDialog] = useState(false);
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
+  const [showCosmosDialog, setShowCosmosDialog] = useState(false);
+  const [showKYCDialog, setShowKYCDialog] = useState(false);
 
   // Fetch client data
   const { data: client, isLoading } = useQuery({
@@ -241,16 +254,96 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>
 
-        <div className="flex gap-2 pt-2">
-          <Button size="sm" variant="outline">
-            <Tag className="h-4 w-4 mr-1" />
-            Edit Details
-          </Button>
-          <Button size="sm" variant="outline">
-            View Full Profile
-          </Button>
+        {/* Action Buttons */}
+        <div className="space-y-4 pt-4 border-t">
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowEditDialog(true)}
+            >
+              <Tag className="h-4 w-4 mr-1" />
+              Edit Details
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowProfileDialog(true)}
+            >
+              <User className="h-4 w-4 mr-1" />
+              View Full Profile
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowLimitDialog(true)}
+            >
+              <IndianRupee className="h-4 w-4 mr-1" />
+              Request Limit Increase
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowCosmosDialog(true)}
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              Cosmos Settings
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowKYCDialog(true)}
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              View KYC & Bank Account Info
+            </Button>
+          </div>
         </div>
       </CardContent>
+
+      {/* All Dialogs */}
+      <EditClientDetailsDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        client={client}
+      />
+
+      <ViewFullProfileDialog
+        open={showProfileDialog}
+        onOpenChange={setShowProfileDialog}
+        client={client}
+        orders={orders}
+        kycData={kycData}
+      />
+
+      <RequestLimitIncreaseDialog
+        open={showLimitDialog}
+        onOpenChange={setShowLimitDialog}
+        client={client}
+      />
+
+      <CosmosSettingsDialog
+        open={showCosmosDialog}
+        onOpenChange={setShowCosmosDialog}
+        client={client}
+      />
+
+      <KYCDocumentsDialog
+        open={showKYCDialog}
+        onOpenChange={setShowKYCDialog}
+        client={client}
+      />
     </Card>
   );
 }

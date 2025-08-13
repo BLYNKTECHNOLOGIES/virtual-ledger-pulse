@@ -98,8 +98,8 @@ export function OrderHistoryModule({ clientId }: OrderHistoryModuleProps) {
   }
 
   return (
-    <Card className="shadow-lg border-0 bg-gradient-to-br from-gray-50 to-blue-50">
-      <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-t-lg">
+    <Card className="shadow-lg">
+      <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5" />

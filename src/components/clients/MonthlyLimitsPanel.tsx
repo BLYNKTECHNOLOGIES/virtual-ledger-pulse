@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import { AlertTriangle, Shield, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
+import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
+import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
 
 interface MonthlyLimitsPanelProps {
   clientId?: string;
@@ -15,6 +18,10 @@ interface MonthlyLimitsPanelProps {
 export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
+  
+  // Dialog states
+  const [showLimitDialog, setShowLimitDialog] = useState(false);
+  const [showCosmosDialog, setShowCosmosDialog] = useState(false);
 
   // Fetch client data
   const { data: client } = useQuery({
@@ -162,16 +169,29 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" onClick={() => setShowLimitDialog(true)}>
             <TrendingUp className="h-4 w-4 mr-1" />
             Request Limit Increase
           </Button>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" onClick={() => setShowCosmosDialog(true)}>
             <AlertTriangle className="h-4 w-4 mr-1" />
             Cosmos Settings
           </Button>
         </div>
       </CardContent>
+
+      {/* Dialogs */}
+      <RequestLimitIncreaseDialog
+        open={showLimitDialog}
+        onOpenChange={setShowLimitDialog}
+        client={client}
+      />
+
+      <CosmosSettingsDialog
+        open={showCosmosDialog}
+        onOpenChange={setShowCosmosDialog}
+        client={client}
+      />
     </Card>
   );
 }

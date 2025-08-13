@@ -69,10 +69,10 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     return avgAmount > 50000 ? 'High Volume' : avgAmount > 20000 ? 'Stable Pattern' : 'Low Volume';
   };
   return (
-    <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-indigo-50">
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+    <Card className="shadow-lg">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <BarChart className="h-5 w-5" />
+          <BarChart className="h-5 w-5 text-blue-600" />
           Trading Pattern Analysis
         </CardTitle>
       </CardHeader>

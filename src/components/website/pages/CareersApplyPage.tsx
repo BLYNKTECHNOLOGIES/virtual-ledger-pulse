@@ -122,9 +122,27 @@ export function CareersApplyPage() {
     try {
       setSubmitting(true);
 
+      // Show uploading toast for better feedback
+      toast({
+        title: "Uploading Application",
+        description: "Please wait while we process your application...",
+        variant: "default"
+      });
+
       // Upload resume if provided
       let uploadedResumeUrl: string | null = null;
       if (resumeFile) {
+        // Validate file size (max 10MB)
+        if (resumeFile.size > 10 * 1024 * 1024) {
+          toast({
+            title: "File Too Large",
+            description: "Please upload a file smaller than 10MB.",
+            variant: "destructive"
+          });
+          setSubmitting(false);
+          return;
+        }
+
         const safeName = `${Date.now()}_${resumeFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const filePath = `resumes/${safeName}`;
         
@@ -140,7 +158,7 @@ export function CareersApplyPage() {
           console.error("Resume upload failed", uploadError);
           toast({
             title: "Upload Error",
-            description: "Failed to upload resume. Please try again.",
+            description: `Failed to upload resume: ${uploadError.message}`,
             variant: "destructive"
           });
           setSubmitting(false);
@@ -183,43 +201,47 @@ export function CareersApplyPage() {
         console.error("Application submission failed", error);
         toast({
           title: "Submission Failed",
-          description: "Something went wrong. Please try again.",
+          description: `Something went wrong: ${error.message}`,
           variant: "destructive"
         });
       } else {
+        // Clear any existing toasts first
         toast({
-          title: "Application Submitted Successfully!",
-          description: "Thank you for your application. We'll get back to you soon!",
-          variant: "default"
+          title: "✅ Application Submitted Successfully!",
+          description: "Thank you for your application. We will review it and get back to you within 2-3 business days.",
+          variant: "default",
+          duration: 6000,
         });
         
-        // Reset form
-        setForm({
-          name: "",
-          email: "",
-          phone: "",
-          address: "",
-          notes: "",
-          job_posting_id: "",
-          resume_url: "",
-          educational_qualification: "",
-          industry: "",
-          current_salary: "",
-          is_employed: false,
-          company_name: "",
-          employment_start_date: "",
-        });
-        setResumeFile(null);
-        
-        // Reset file input
-        const fileInput = document.getElementById('resumeFile') as HTMLInputElement;
-        if (fileInput) fileInput.value = '';
+        // Reset form after a short delay to ensure user sees the success message
+        setTimeout(() => {
+          setForm({
+            name: "",
+            email: "",
+            phone: "",
+            address: "",
+            notes: "",
+            job_posting_id: "",
+            resume_url: "",
+            educational_qualification: "",
+            industry: "",
+            current_salary: "",
+            is_employed: false,
+            company_name: "",
+            employment_start_date: "",
+          });
+          setResumeFile(null);
+          
+          // Reset file input
+          const fileInput = document.getElementById('resumeFile') as HTMLInputElement;
+          if (fileInput) fileInput.value = '';
+        }, 1000);
       }
     } catch (err) {
       console.error("Unexpected error:", err);
       toast({
         title: "Unexpected Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: `An unexpected error occurred: ${err instanceof Error ? err.message : 'Please try again.'}`,
         variant: "destructive"
       });
     } finally {
@@ -317,8 +339,20 @@ export function CareersApplyPage() {
                       id="resumeFile"
                       type="file"
                       accept="application/pdf,.doc,.docx,image/*"
-                      onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setResumeFile(file);
+                        if (file) {
+                          toast({
+                            title: "File Selected",
+                            description: `Selected: ${file.name}`,
+                            variant: "default",
+                            duration: 2000,
+                          });
+                        }
+                      }}
                       required
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                     />
                     {resumeFile && (
                       <p className="text-xs text-muted-foreground">Selected: {resumeFile.name}</p>

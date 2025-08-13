@@ -554,6 +554,27 @@ export type Database = {
         }
         Relationships: []
       }
+      debug_po_log: {
+        Row: {
+          created_at: string | null
+          id: number
+          operation: string | null
+          payload: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          operation?: string | null
+          payload?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          operation?: string | null
+          payload?: string | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           code: string

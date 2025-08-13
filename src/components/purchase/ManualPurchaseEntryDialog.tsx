@@ -171,9 +171,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the working database function that avoids bank transaction triggers
+      // Use the bypass database function that completely avoids bank transaction triggers
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_working',
+        'create_manual_purchase_bypass',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,

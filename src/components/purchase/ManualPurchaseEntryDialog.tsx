@@ -153,110 +153,33 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderNumber = generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
 
-      console.log('📝 Creating purchase order with data:', {
-        orderNumber,
-        totalAmount,
-        supplier_name: formData.supplier_name,
-        product_id: formData.product_id
-      });
+      console.log('📝 Creating purchase order using special function for manual entry');
 
-      // Temporarily unlock bank account for manual purchase
-      if (formData.deduction_bank_account_id && formData.status === 'COMPLETED') {
-        const { error: unlockError } = await supabase
-          .from('bank_accounts')
-          .update({ balance_locked: false })
-          .eq('id', formData.deduction_bank_account_id);
-        
-        if (unlockError) {
-          console.error('Failed to unlock bank account:', unlockError);
-          toast({
-            title: "Warning",
-            description: "Could not unlock bank account for transaction. Proceeding with order creation only.",
-            variant: "destructive"
-          });
+      // Use the special database function to handle manual purchase orders
+      const { data: result, error: functionError } = await supabase.rpc(
+        'create_manual_purchase_order',
+        {
+          p_order_number: orderNumber,
+          p_supplier_name: formData.supplier_name,
+          p_order_date: formData.order_date,
+          p_description: formData.description || '',
+          p_total_amount: totalAmount,
+          p_contact_number: formData.contact_number || null,
+          p_status: formData.status,
+          p_bank_account_id: formData.deduction_bank_account_id,
+          p_product_id: formData.product_id,
+          p_quantity: parseFloat(formData.quantity),
+          p_unit_price: parseFloat(formData.price_per_unit),
+          p_credit_wallet_id: formData.credit_wallet_id || null
         }
+      );
+
+      if (functionError) {
+        console.error('❌ Manual purchase order creation failed:', functionError);
+        throw functionError;
       }
 
-      // Create purchase order with automatic bank transaction via trigger
-      const { data: purchaseOrder, error: orderError } = await supabase
-        .from('purchase_orders')
-        .insert({
-          order_number: orderNumber,
-          supplier_name: formData.supplier_name,
-          order_date: formData.order_date,
-          description: formData.description,
-          total_amount: totalAmount,
-          contact_number: formData.contact_number || null,
-          status: formData.status,
-          bank_account_id: formData.status === 'COMPLETED' ? formData.deduction_bank_account_id : null
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error('❌ Purchase order creation failed:', orderError);
-        throw orderError;
-      }
-
-      console.log('✅ Purchase order created:', purchaseOrder);
-
-      // Create purchase order item
-      const { error: itemError } = await supabase
-        .from('purchase_order_items')
-        .insert({
-          purchase_order_id: purchaseOrder.id,
-          product_id: formData.product_id,
-          quantity: parseFloat(formData.quantity),
-          unit_price: parseFloat(formData.price_per_unit),
-          total_price: totalAmount
-        });
-
-      if (itemError) throw itemError;
-
-      // Get current product stock and update it
-      const { data: currentProduct, error: fetchError } = await supabase
-        .from('products')
-        .select('current_stock_quantity')
-        .eq('id', formData.product_id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Handle stock updates based on product type
-      const productForStock = products?.find(p => p.id === formData.product_id);
-      
-      if (productForStock?.code === 'USDT' && formData.credit_wallet_id) {
-        // For USDT, credit the selected wallet instead of updating product stock directly
-        const { error: walletError } = await supabase
-          .from('wallet_transactions')
-          .insert({
-            wallet_id: formData.credit_wallet_id,
-            transaction_type: 'CREDIT',
-            amount: parseFloat(formData.quantity),
-            reference_type: 'PURCHASE_ORDER',
-            reference_id: purchaseOrder.id,
-            description: `USDT purchased via purchase order ${orderNumber}`,
-            balance_before: 0, // Will be updated by trigger
-            balance_after: 0   // Will be updated by trigger
-          });
-
-        if (walletError) throw walletError;
-      } else {
-        // For other products, update stock normally
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({
-            current_stock_quantity: currentProduct.current_stock_quantity + parseFloat(formData.quantity)
-          })
-          .eq('id', formData.product_id);
-
-        if (stockError) throw stockError;
-      }
-
-      console.log('✅ Purchase order created successfully:', orderNumber);
-      
-      // Bank EXPENSE transaction now auto-created by DB trigger on purchase_orders when bank_account_id is present
-      // (public.sync_bank_tx_for_purchase_order). No manual insert needed here.
+      console.log('✅ Manual purchase order created successfully with ID:', result);
 
       
       toast({

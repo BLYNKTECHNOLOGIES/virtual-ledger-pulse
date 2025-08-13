@@ -3525,6 +3525,23 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: number
       }
+      create_manual_purchase_order: {
+        Args: {
+          p_order_number: string
+          p_supplier_name: string
+          p_order_date: string
+          p_description: string
+          p_total_amount: number
+          p_contact_number: string
+          p_status: string
+          p_bank_account_id: string
+          p_product_id: string
+          p_quantity: number
+          p_unit_price: number
+          p_credit_wallet_id?: string
+        }
+        Returns: string
+      }
       create_role_with_permissions: {
         Args: {
           role_name: string

@@ -88,8 +88,8 @@ export function ClientDashboard() {
           {/* Nested tabs for Buyers and Sellers */}
           <Tabs defaultValue="buyers" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buyers">Sellers</TabsTrigger>
-              <TabsTrigger value="sellers">Buyers</TabsTrigger>
+              <TabsTrigger value="buyers">Buyers</TabsTrigger>
+              <TabsTrigger value="sellers">Sellers</TabsTrigger>
             </TabsList>
 
             <TabsContent value="buyers" className="space-y-6">

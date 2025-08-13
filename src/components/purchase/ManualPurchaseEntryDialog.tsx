@@ -160,7 +160,24 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         product_id: formData.product_id
       });
 
-      // Create purchase order directly without bank transaction
+      // Temporarily unlock bank account for manual purchase
+      if (formData.deduction_bank_account_id && formData.status === 'COMPLETED') {
+        const { error: unlockError } = await supabase
+          .from('bank_accounts')
+          .update({ balance_locked: false })
+          .eq('id', formData.deduction_bank_account_id);
+        
+        if (unlockError) {
+          console.error('Failed to unlock bank account:', unlockError);
+          toast({
+            title: "Warning",
+            description: "Could not unlock bank account for transaction. Proceeding with order creation only.",
+            variant: "destructive"
+          });
+        }
+      }
+
+      // Create purchase order with automatic bank transaction via trigger
       const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
@@ -171,7 +188,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           total_amount: totalAmount,
           contact_number: formData.contact_number || null,
           status: formData.status,
-          bank_account_id: formData.deduction_bank_account_id
+          bank_account_id: formData.status === 'COMPLETED' ? formData.deduction_bank_account_id : null
         })
         .select()
         .single();

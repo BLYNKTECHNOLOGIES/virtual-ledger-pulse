@@ -287,7 +287,7 @@ export function CandidatesTab() {
                             )}
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
-                            {a.stage && <StatusBadge status={a.stage} />}
+                            {a.stage && a.stage !== a.status && <StatusBadge status={a.stage} />}
                             <StatusBadge status={a.status} />
                           </div>
                         </div>

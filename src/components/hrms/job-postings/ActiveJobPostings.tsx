@@ -118,7 +118,7 @@ export function ActiveJobPostings() {
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="w-full">{/* Make full width */}
           {jobs?.map((job) => {
             const counts = applicantsByJob?.get(job.id) || { responses: 0, hotLeads: 0 };
             return (
@@ -139,7 +139,10 @@ export function ActiveJobPostings() {
                             <span className="inline-flex items-center gap-1"><MapPin className="h-4 w-4" />{job.location}</span>
                           )}
                           {job.job_type && (
-                            <span className="inline-flex items-center gap-1"><Clock className="h-4 w-4" />{job.job_type}</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {job.job_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -157,35 +160,47 @@ export function ActiveJobPostings() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="rounded-lg border bg-white p-4 shadow-sm">
-                        <div className="flex items-center justify-between text-slate-700">
+                      <Button
+                        variant="outline"
+                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        onClick={() => onSoon("View Responses")}
+                      >
+                        <div className="flex items-center justify-between w-full text-slate-700">
                           <div className="flex items-center gap-2 font-medium">
                             <MessageSquare className="h-4 w-4" /> {counts.responses} Responses
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">From candidates</p>
-                      </div>
+                        <p className="mt-1 text-xs text-slate-500 w-full text-left">From candidates</p>
+                      </Button>
 
-                      <div className="rounded-lg border bg-white p-4 shadow-sm">
-                        <div className="flex items-center justify-between text-slate-700">
+                      <Button
+                        variant="outline"
+                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        onClick={() => onSoon("View Hot Leads")}
+                      >
+                        <div className="flex items-center justify-between w-full text-slate-700">
                           <div className="flex items-center gap-2 font-medium">
                             <Flame className="h-4 w-4 text-orange-500" /> {counts.hotLeads} Hot Leads
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Match your job post</p>
-                      </div>
+                        <p className="mt-1 text-xs text-slate-500 w-full text-left">Match your job post</p>
+                      </Button>
 
-                      <div className="rounded-lg border bg-white p-4 shadow-sm">
-                        <div className="flex items-center justify-between text-slate-700">
+                      <Button
+                        variant="outline"
+                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        onClick={() => onSoon("View Candidates")}
+                      >
+                        <div className="flex items-center justify-between w-full text-slate-700">
                           <div className="flex items-center gap-2 font-medium">
                             <Lock className="h-4 w-4" /> {totalCandidates ?? 0} Candidates
                           </div>
                           <ArrowRight className="h-4 w-4" />
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">Available in database</p>
-                      </div>
+                        <p className="mt-1 text-xs text-slate-500 w-full text-left">Available in database</p>
+                      </Button>
                     </div>
 
                     <Separator className="my-1" />

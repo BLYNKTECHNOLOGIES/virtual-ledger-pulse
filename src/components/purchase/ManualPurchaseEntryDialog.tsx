@@ -172,9 +172,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the complete function that handles both stock and bank transactions
+      // Use the bypass locks function that temporarily unlocks the account
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_complete',
+        'create_manual_purchase_bypass_locks',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,

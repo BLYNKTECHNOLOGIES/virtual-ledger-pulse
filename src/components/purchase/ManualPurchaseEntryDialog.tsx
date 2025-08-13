@@ -155,9 +155,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       console.log('📝 Creating purchase order using special function for manual entry');
 
-      // Use the simple database function that bypasses triggers
+      // Use the working database function that avoids bank transaction triggers
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_simple',
+        'create_manual_purchase_working',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,

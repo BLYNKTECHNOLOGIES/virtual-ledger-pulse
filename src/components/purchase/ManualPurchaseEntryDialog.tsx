@@ -117,21 +117,21 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('🚀 ManualPurchase: handleSubmit called with formData:', formData);
+    console.log('🔍 ManualPurchase: Form validation check starting...');
     setLoading(true);
 
     try {
-      // Validate required fields
-      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.deduction_bank_account_id || !formData.product_id) {
+      // Validate required fields (removed bank account requirement since we're not creating bank transactions)
+      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id) {
         console.log('❌ ManualPurchase: Validation failed:', {
           supplier_name: !!formData.supplier_name,
           quantity: !!formData.quantity,
           price_per_unit: !!formData.price_per_unit,
-          deduction_bank_account_id: !!formData.deduction_bank_account_id,
           product_id: !!formData.product_id
         });
         toast({
           title: "Error",
-          description: "Please fill in all required fields including product and bank account for deduction",
+          description: "Please fill in all required fields including supplier name, product, quantity, and price per unit",
           variant: "destructive"
         });
         setLoading(false);
@@ -356,13 +356,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="deduction_bank_account_id">Deduct Amount from Bank Account *</Label>
+            <Label htmlFor="deduction_bank_account_id">Bank Account (Optional - No deduction will occur)</Label>
             <Select 
               value={formData.deduction_bank_account_id} 
               onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select bank account for deduction" />
+                <SelectValue placeholder="Bank account reference only (no transaction)" />
               </SelectTrigger>
               <SelectContent className="bg-white z-50">
                 {bankAccounts?.map((account) => (

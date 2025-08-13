@@ -121,17 +121,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     setLoading(true);
 
     try {
-      // Validate required fields (removed bank account requirement since we're not creating bank transactions)
-      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id) {
+      // Validate required fields (bank account now required again since we're handling deductions)
+      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id) {
         console.log('❌ ManualPurchase: Validation failed:', {
           supplier_name: !!formData.supplier_name,
           quantity: !!formData.quantity,
           price_per_unit: !!formData.price_per_unit,
-          product_id: !!formData.product_id
+          product_id: !!formData.product_id,
+          deduction_bank_account_id: !!formData.deduction_bank_account_id
         });
         toast({
           title: "Error",
-          description: "Please fill in all required fields including supplier name, product, quantity, and price per unit",
+          description: "Please fill in all required fields including supplier name, product, quantity, price per unit, and bank account for deduction",
           variant: "destructive"
         });
         setLoading(false);
@@ -171,9 +172,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the stock-only function that completely avoids bank transactions
+      // Use the complete function that handles both stock and bank transactions
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_stock_only',
+        'create_manual_purchase_complete',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
@@ -184,6 +185,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_product_id: formData.product_id,
           p_quantity: parseFloat(formData.quantity),
           p_unit_price: parseFloat(formData.price_per_unit),
+          p_bank_account_id: formData.deduction_bank_account_id,
           p_credit_wallet_id: formData.credit_wallet_id || null
         }
       );
@@ -197,10 +199,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       console.log('✅ ManualPurchase: Purchase order created successfully with ID:', result);
 
-      
       toast({
         title: "Success",
-        description: `Purchase order ${orderNumber} created successfully! Stock updated. Note: Bank transaction not created due to account restrictions.`
+        description: `Purchase order ${orderNumber} created successfully! Stock updated and bank balance deducted.`
       });
 
       // Reset form
@@ -356,13 +357,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="deduction_bank_account_id">Bank Account (Optional - No deduction will occur)</Label>
+            <Label htmlFor="deduction_bank_account_id">Deduct Amount from Bank Account *</Label>
             <Select 
               value={formData.deduction_bank_account_id} 
               onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Bank account reference only (no transaction)" />
+                <SelectValue placeholder="Select bank account for deduction" />
               </SelectTrigger>
               <SelectContent className="bg-white z-50">
                 {bankAccounts?.map((account) => (

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,8 @@ interface JobPosting {
 }
 
 export function CareersApplyPage() {
+  const { toast } = useToast();
+  
   // Basic SEO setup without extra deps
   useEffect(() => {
     const title = "Apply Now | Careers - Job Application";
@@ -49,8 +52,7 @@ export function CareersApplyPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [submitAttempts, setSubmitAttempts] = useState(0);
 
   const [form, setForm] = useState({
     name: "",
@@ -100,10 +102,23 @@ export function CareersApplyPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccessMessage("");
-    setErrorMessage("");
-    if (!isValid) return;
+    e.stopPropagation(); // Prevent event bubbling for iOS
+    
+    if (!isValid) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields before submitting.",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    // Prevent double submission
+    if (submitting) return;
+    
+    const currentAttempt = submitAttempts + 1;
+    setSubmitAttempts(currentAttempt);
+    
     try {
       setSubmitting(true);
 
@@ -112,6 +127,7 @@ export function CareersApplyPage() {
       if (resumeFile) {
         const safeName = `${Date.now()}_${resumeFile.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
         const filePath = `resumes/${safeName}`;
+        
         const { error: uploadError } = await supabase.storage
           .from("kyc-documents")
           .upload(filePath, resumeFile, {
@@ -122,7 +138,11 @@ export function CareersApplyPage() {
 
         if (uploadError) {
           console.error("Resume upload failed", uploadError);
-          setErrorMessage("Failed to upload resume. Please try again.");
+          toast({
+            title: "Upload Error",
+            description: "Failed to upload resume. Please try again.",
+            variant: "destructive"
+          });
           setSubmitting(false);
           return;
         }
@@ -161,9 +181,19 @@ export function CareersApplyPage() {
 
       if (error) {
         console.error("Application submission failed", error);
-        setErrorMessage("Something went wrong. Please try again.");
+        toast({
+          title: "Submission Failed",
+          description: "Something went wrong. Please try again.",
+          variant: "destructive"
+        });
       } else {
-        setSuccessMessage("Your application has been submitted successfully. We'll get back to you soon!");
+        toast({
+          title: "Application Submitted Successfully!",
+          description: "Thank you for your application. We'll get back to you soon!",
+          variant: "default"
+        });
+        
+        // Reset form
         setForm({
           name: "",
           email: "",
@@ -180,10 +210,18 @@ export function CareersApplyPage() {
           employment_start_date: "",
         });
         setResumeFile(null);
+        
+        // Reset file input
+        const fileInput = document.getElementById('resumeFile') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
       }
     } catch (err) {
-      console.error(err);
-      setErrorMessage("Unexpected error. Please try again.");
+      console.error("Unexpected error:", err);
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setSubmitting(false);
     }
@@ -204,7 +242,13 @@ export function CareersApplyPage() {
         <section className="py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <Card className="p-6 md:p-8">
-              <form onSubmit={handleSubmit} className="space-y-6" aria-label="Job application form">
+              <form 
+                onSubmit={handleSubmit} 
+                className="space-y-6" 
+                aria-label="Job application form"
+                noValidate
+                autoComplete="on"
+              >
                 {/* Job selection */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -373,15 +417,13 @@ export function CareersApplyPage() {
                   />
                 </div>
 
-                {errorMessage && (
-                  <div className="text-sm text-destructive" role="alert">{errorMessage}</div>
-                )}
-                {successMessage && (
-                  <div className="text-sm text-success" role="status">{successMessage}</div>
-                )}
-
                 <div className="pt-2">
-                  <Button type="submit" disabled={!isValid || submitting} className="min-w-[160px]">
+                  <Button 
+                    type="submit" 
+                    disabled={!isValid || submitting} 
+                    className="min-w-[160px] ios-touch-callout-none"
+                    style={{ WebkitTouchCallout: 'none' }}
+                  >
                     {submitting ? "Submitting..." : "Submit Application"}
                   </Button>
                 </div>

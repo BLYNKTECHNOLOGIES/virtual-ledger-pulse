@@ -172,9 +172,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the bypass locks function that temporarily unlocks the account
+      // Use the secure function that uses the bypass flag properly
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_bypass_locks',
+        'create_manual_purchase_secure',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,

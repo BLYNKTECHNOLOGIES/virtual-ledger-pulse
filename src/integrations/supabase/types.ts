@@ -3591,6 +3591,22 @@ export type Database = {
         }
         Returns: string
       }
+      create_manual_purchase_secure: {
+        Args: {
+          p_order_number: string
+          p_supplier_name: string
+          p_order_date: string
+          p_description: string
+          p_total_amount: number
+          p_contact_number: string
+          p_product_id: string
+          p_quantity: number
+          p_unit_price: number
+          p_bank_account_id: string
+          p_credit_wallet_id?: string
+        }
+        Returns: string
+      }
       create_manual_purchase_simple: {
         Args: {
           p_order_number: string

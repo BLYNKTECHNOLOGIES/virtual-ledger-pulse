@@ -116,13 +116,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🚀 handleSubmit called with formData:', formData);
+    console.log('🚀 ManualPurchase: handleSubmit called with formData:', formData);
     setLoading(true);
 
     try {
       // Validate required fields
       if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.deduction_bank_account_id || !formData.product_id) {
-        console.log('❌ Validation failed:', {
+        console.log('❌ ManualPurchase: Validation failed:', {
           supplier_name: !!formData.supplier_name,
           quantity: !!formData.quantity,
           price_per_unit: !!formData.price_per_unit,
@@ -140,7 +140,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       // Validate wallet selection for USDT products
       const selectedProduct = products?.find(p => p.id === formData.product_id);
+      console.log('🔍 ManualPurchase: Selected product:', selectedProduct);
+      
       if (selectedProduct?.code === 'USDT' && !formData.credit_wallet_id) {
+        console.log('❌ ManualPurchase: USDT product requires wallet selection');
         toast({
           title: "Error", 
           description: "Please select a wallet to credit the purchased USDT",
@@ -153,7 +156,20 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderNumber = generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
 
-      console.log('📝 Creating purchase order using special function for manual entry');
+      console.log('📝 ManualPurchase: Creating purchase order with params:', {
+        orderNumber,
+        supplier_name: formData.supplier_name,
+        order_date: formData.order_date,
+        description: formData.description,
+        total_amount: totalAmount,
+        contact_number: formData.contact_number,
+        status: formData.status,
+        bank_account_id: formData.deduction_bank_account_id,
+        product_id: formData.product_id,
+        quantity: parseFloat(formData.quantity),
+        unit_price: parseFloat(formData.price_per_unit),
+        credit_wallet_id: formData.credit_wallet_id
+      });
 
       // Use the working database function that avoids bank transaction triggers
       const { data: result, error: functionError } = await supabase.rpc(
@@ -174,12 +190,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         }
       );
 
+      console.log('📡 ManualPurchase: RPC function response:', { result, functionError });
+
       if (functionError) {
-        console.error('❌ Manual purchase order creation failed:', functionError);
+        console.error('❌ ManualPurchase: Purchase order creation failed:', functionError);
         throw functionError;
       }
 
-      console.log('✅ Manual purchase order created successfully with ID:', result);
+      console.log('✅ ManualPurchase: Purchase order created successfully with ID:', result);
 
       
       toast({
@@ -206,10 +224,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       onSuccess?.();
 
     } catch (error) {
-      console.error('Error creating purchase order:', error);
+      console.error('❌ ManualPurchase: Error creating purchase order:', error);
       toast({
         title: "Error",
-        description: "Failed to create purchase order",
+        description: `Failed to create purchase order: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {

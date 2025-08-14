@@ -2142,8 +2142,6 @@ export type Database = {
           total_sales: number | null
           unit_of_measurement: string
           updated_at: string
-          warehouse_id: string | null
-          warehouse_stock: Json | null
         }
         Insert: {
           average_buying_price?: number | null
@@ -2159,8 +2157,6 @@ export type Database = {
           total_sales?: number | null
           unit_of_measurement: string
           updated_at?: string
-          warehouse_id?: string | null
-          warehouse_stock?: Json | null
         }
         Update: {
           average_buying_price?: number | null
@@ -2176,18 +2172,8 @@ export type Database = {
           total_sales?: number | null
           unit_of_measurement?: string
           updated_at?: string
-          warehouse_id?: string | null
-          warehouse_stock?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "products_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       purchase_order_items: {
         Row: {
@@ -2230,13 +2216,6 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_order_items_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -2715,13 +2694,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "sales_order_items_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
         ]
       }
       sales_orders: {
@@ -2826,13 +2798,6 @@ export type Database = {
             columns: ["wallet_id"]
             isOneToOne: false
             referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_orders_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -2966,31 +2931,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "stock_adjustments_from_warehouse_id_fkey"
-            columns: ["from_warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "stock_adjustments_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_adjustments_to_warehouse_id_fkey"
-            columns: ["to_warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_adjustments_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
             referencedColumns: ["id"]
           },
         ]
@@ -3430,87 +3374,6 @@ export type Database = {
         }
         Relationships: []
       }
-      warehouse_stock_movements: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          movement_type: string
-          product_id: string
-          quantity: number
-          reason: string | null
-          reference_id: string | null
-          reference_type: string | null
-          warehouse_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          movement_type: string
-          product_id: string
-          quantity: number
-          reason?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          warehouse_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          movement_type?: string
-          product_id?: string
-          quantity?: number
-          reason?: string | null
-          reference_id?: string | null
-          reference_type?: string | null
-          warehouse_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "warehouse_stock_movements_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "warehouse_stock_movements_warehouse_id_fkey"
-            columns: ["warehouse_id"]
-            isOneToOne: false
-            referencedRelation: "warehouses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      warehouses: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          location: string | null
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          location?: string | null
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          location?: string | null
-          name?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       bank_accounts_with_balance: {
@@ -3743,10 +3606,6 @@ export type Database = {
       reject_registration: {
         Args: { reason?: string; registration_id: string }
         Returns: boolean
-      }
-      sync_product_warehouse_stock: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       sync_usdt_stock: {
         Args: Record<PropertyKey, never>

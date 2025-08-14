@@ -8,10 +8,7 @@ export function InventoryValuationTab() {
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['inventory_valuation'],
     queryFn: async () => {
-      // Sync both warehouse stock and USDT stock to ensure accuracy
-      console.log('🔄 Syncing warehouse stock...');
-      await supabase.rpc('sync_product_warehouse_stock');
-      
+      // Sync USDT stock with wallets to ensure accuracy
       console.log('🔄 Syncing USDT stock with wallets...');
       const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
       if (usdtSyncError) {

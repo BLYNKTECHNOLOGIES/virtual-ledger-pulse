@@ -77,8 +77,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      // Sync stock before fetching to ensure accuracy
-      await supabase.rpc('sync_product_warehouse_stock');
+      // Sync USDT stock with wallets to ensure accuracy
       await supabase.rpc('sync_usdt_stock');
       
       const { data, error } = await supabase
@@ -106,19 +105,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Remove warehouse functionality - using wallets only
 
   const getRiskCategoryFromAppetite = (appetite: string) => {
     switch (appetite) {

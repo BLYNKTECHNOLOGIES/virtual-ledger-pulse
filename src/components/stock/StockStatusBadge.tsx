@@ -1,6 +1,6 @@
 
 import { Badge } from "@/components/ui/badge";
-import { useProductStockSummary } from "@/hooks/useWarehouseStock";
+import { useProductStockSummary } from "@/hooks/useWalletStock";
 
 interface StockStatusBadgeProps {
   productId: string;
@@ -41,14 +41,14 @@ export function StockStatusBadge({
         </Badge>
         <div className="flex flex-wrap gap-1">
           {warehouse_stocks
-            .filter(ws => ws.quantity >= 0) // Show all warehouses, including zero stock
+            .filter(ws => ws.balance >= 0) // Show all wallets, including zero balance
             .map((ws) => (
               <Badge 
-                key={ws.warehouse_id} 
-                variant={ws.quantity > 0 ? "outline" : "destructive"} 
+                key={ws.wallet_id} 
+                variant={ws.balance > 0 ? "outline" : "destructive"} 
                 className="text-xs"
               >
-                {ws.warehouse_name}: {ws.quantity}
+                {ws.wallet_name}: {ws.balance}
               </Badge>
             ))}
         </div>

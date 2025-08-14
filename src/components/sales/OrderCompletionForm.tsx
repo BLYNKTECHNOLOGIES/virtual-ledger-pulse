@@ -37,8 +37,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      // Sync stock before fetching to ensure accuracy
-      await supabase.rpc('sync_product_warehouse_stock');
+      // Sync USDT stock with wallets to ensure accuracy
       await supabase.rpc('sync_usdt_stock');
       
       const { data, error } = await supabase
@@ -67,20 +66,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Remove warehouse functionality - using wallets only
 
   // Complete order mutation with wallet deduction
   const completeOrderMutation = useMutation({

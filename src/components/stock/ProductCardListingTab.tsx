@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,10 +18,7 @@ export function ProductCardListingTab() {
     queryFn: async () => {
       console.log('🔄 Fetching assets with wallet stock for cards...');
       
-      // Sync both warehouse stock and USDT stock to ensure accuracy
-      console.log('🔄 Syncing warehouse stock...');
-      await supabase.rpc('sync_product_warehouse_stock');
-      
+      // Sync USDT stock with wallets to ensure accuracy
       console.log('🔄 Syncing USDT stock with wallets...');
       const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
       if (usdtSyncError) {
@@ -43,79 +39,78 @@ export function ProductCardListingTab() {
         query = query.or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`);
       }
 
-      const { data: assetsData, error: assetsError } = await query;
+      const { data: productsData, error: productsError } = await query;
       
-      if (assetsError) throw assetsError;
+      if (productsError) throw productsError;
 
-      // Get wallet stock movements to calculate actual stock breakdown
-      const { data: movements, error: movementsError } = await supabase
-        .from('warehouse_stock_movements')
-        .select(`
-          product_id,
-          warehouse_id,
-          movement_type,
-          quantity,
-          warehouses(name)
-        `);
+      // Get wallet stock data for USDT distribution
+      console.log('🔄 Fetching wallet data...');
+      const { data: wallets, error: walletsError } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('is_active', true)
+        .eq('wallet_type', 'USDT')
+        .order('wallet_name');
 
-      if (movementsError) {
-        console.error('Error fetching movements:', movementsError);
-        throw movementsError;
+      if (walletsError) {
+        console.error('❌ Error fetching wallets:', walletsError);
+        throw walletsError;
       }
 
-      // Calculate actual stock per asset per wallet
-      const stockMap = new Map<string, Map<string, number>>();
-      
-      movements?.forEach(movement => {
-        if (!stockMap.has(movement.product_id)) {
-          stockMap.set(movement.product_id, new Map());
-        }
-        
-        const assetStocks = stockMap.get(movement.product_id)!;
-        const walletId = movement.warehouse_id;
-        
-        if (!assetStocks.has(walletId)) {
-          assetStocks.set(walletId, 0);
-        }
-        
-        const currentStock = assetStocks.get(walletId)!;
-        
-        if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-          assetStocks.set(walletId, currentStock + movement.quantity);
-        } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-          assetStocks.set(walletId, Math.max(0, currentStock - movement.quantity));
-        }
-      });
+      console.log('📊 Wallets data:', wallets);
 
-      // Attach calculated stock breakdown to assets
-      const assetsWithStock = assetsData?.map((asset) => {
-        const assetStocks = stockMap.get(asset.id);
-        const walletStocks: Array<{wallet_id: string, wallet_name: string, linked_to: string, quantity: number}> = [];
-        
-        if (assetStocks) {
-          assetStocks.forEach((quantity, walletId) => {
-            const wallet = movements?.find(m => m.warehouse_id === walletId)?.warehouses;
-            walletStocks.push({
-              wallet_id: walletId,
-              wallet_name: wallet?.name || 'Unknown',
-              linked_to: 'Exchange', // Default linking
-              quantity
+      // Process each asset to calculate wallet distribution
+      const processedAssets = productsData?.map(asset => {
+        if (asset.code === 'USDT') {
+          // For USDT, calculate total from wallets and wallet distribution
+          let totalWalletStock = 0;
+          const walletDistribution: any[] = [];
+          
+          wallets?.forEach(wallet => {
+            const balance = wallet.current_balance || 0;
+            totalWalletStock += balance;
+            
+            walletDistribution.push({
+              wallet_id: wallet.id,
+              wallet_name: wallet.wallet_name,
+              quantity: balance,
+              percentage: 0 // Will be calculated later
             });
           });
+          
+          // Calculate percentages
+          walletDistribution.forEach(dist => {
+            dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
+          });
+          
+          // Use the higher value between synced product stock and calculated wallet stock
+          const calculated_stock = Math.max(asset.current_stock_quantity || 0, totalWalletStock);
+          
+          console.log(`💰 ${asset.name} stock calculation:`, {
+            product_stock: asset.current_stock_quantity,
+            wallet_total: totalWalletStock,
+            calculated_stock,
+            wallet_distribution: walletDistribution
+          });
+          
+          return {
+            ...asset,
+            calculated_stock,
+            wallet_stocks: walletDistribution,
+            stock_value: calculated_stock * (asset.average_buying_price || asset.cost_price)
+          };
+        } else {
+          // For other products, use current stock quantity
+          return {
+            ...asset,
+            calculated_stock: asset.current_stock_quantity || 0,
+            wallet_stocks: [],
+            stock_value: (asset.current_stock_quantity || 0) * (asset.average_buying_price || asset.cost_price)
+          };
         }
-
-        // Calculate total wallet stock
-        const totalWalletStock = walletStocks.reduce((sum, ws) => sum + ws.quantity, 0);
-        
-        return {
-          ...asset,
-          calculated_stock: Math.max(asset.current_stock_quantity, totalWalletStock), // Use higher of synced value or calculated
-          wallet_stocks: walletStocks,
-          stock_value: Math.max(asset.current_stock_quantity, totalWalletStock) * (asset.average_buying_price || asset.cost_price)
-        };
       }) || [];
 
-      return assetsWithStock;
+      return processedAssets;
     },
     refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
     staleTime: 0, // Always refetch to ensure fresh data

@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -3548,151 +3548,151 @@ export type Database = {
       }
       create_manual_purchase_bypass: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
-          p_contact_number: string
-          p_status: string
           p_bank_account_id: string
+          p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_status: string
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_bypass_locks: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
+          p_bank_account_id: string
           p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_bank_account_id: string
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_complete: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
+          p_bank_account_id: string
           p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_bank_account_id: string
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_order: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
-          p_contact_number: string
-          p_status: string
           p_bank_account_id: string
+          p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_status: string
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_secure: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_total_amount: number
-          p_product_id: string
-          p_quantity: number
-          p_unit_price: number
           p_bank_account_id: string
-          p_description?: string
           p_contact_number?: string
           p_credit_wallet_id?: string
+          p_description?: string
+          p_order_date: string
+          p_order_number: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
+          p_unit_price: number
         }
         Returns: string
       }
       create_manual_purchase_simple: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
-          p_contact_number: string
-          p_status: string
           p_bank_account_id: string
+          p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_status: string
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_stock_only: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
           p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_manual_purchase_working: {
         Args: {
-          p_order_number: string
-          p_supplier_name: string
-          p_order_date: string
-          p_description: string
-          p_total_amount: number
-          p_contact_number: string
-          p_status: string
           p_bank_account_id: string
+          p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
           p_product_id: string
           p_quantity: number
+          p_status: string
+          p_supplier_name: string
+          p_total_amount: number
           p_unit_price: number
-          p_credit_wallet_id?: string
         }
         Returns: string
       }
       create_role_with_permissions: {
         Args: {
-          role_name: string
-          role_description: string
           permissions: string[]
+          role_description: string
+          role_name: string
         }
         Returns: string
       }
       create_user_with_password: {
         Args: {
-          _username: string
           _email: string
-          _password: string
           _first_name?: string
           _last_name?: string
+          _password: string
           _phone?: string
+          _username: string
         }
         Returns: string
       }
@@ -3703,13 +3703,13 @@ export type Database = {
       get_active_users: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          username: string
           email: string
           first_name: string
-          last_name: string
+          id: string
           last_activity: string
+          last_name: string
           status: string
+          username: string
         }[]
       }
       get_default_risk_level: {
@@ -3725,23 +3725,23 @@ export type Database = {
       get_user_with_roles: {
         Args: { user_uuid: string }
         Returns: {
-          user_id: string
-          username: string
+          created_at: string
           email: string
           first_name: string
           last_name: string
           phone: string
-          status: string
-          created_at: string
           roles: Json
+          status: string
+          user_id: string
+          username: string
         }[]
       }
       process_sales_order_wallet_deduction: {
-        Args: { sales_order_id: string; wallet_id: string; usdt_amount: number }
+        Args: { sales_order_id: string; usdt_amount: number; wallet_id: string }
         Returns: boolean
       }
       reject_registration: {
-        Args: { registration_id: string; reason?: string }
+        Args: { reason?: string; registration_id: string }
         Returns: boolean
       }
       sync_product_warehouse_stock: {
@@ -3754,19 +3754,19 @@ export type Database = {
       }
       update_risk_flag_status: {
         Args: {
+          admin_id?: string
           flag_id: string
           new_status: string
-          admin_id?: string
           notes?: string
         }
         Returns: boolean
       }
       update_role_permissions: {
         Args: {
+          p_permissions: string[]
+          p_role_description: string
           p_role_id: string
           p_role_name: string
-          p_role_description: string
-          p_permissions: string[]
         }
         Returns: boolean
       }
@@ -3777,25 +3777,25 @@ export type Database = {
       user_has_permission: {
         Args:
           | {
-              user_uuid: string
               check_permission: Database["public"]["Enums"]["app_permission"]
+              user_uuid: string
             }
           | {
-              username: string
               check_permission: Database["public"]["Enums"]["app_permission"]
+              username: string
             }
         Returns: boolean
       }
       validate_user_credentials: {
-        Args: { input_username: string; input_password: string }
+        Args: { input_password: string; input_username: string }
         Returns: {
-          user_id: string
-          username: string
           email: string
           first_name: string
+          is_valid: boolean
           last_name: string
           status: string
-          is_valid: boolean
+          user_id: string
+          username: string
         }[]
       }
     }

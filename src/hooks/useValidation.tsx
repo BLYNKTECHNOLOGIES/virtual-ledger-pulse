@@ -83,7 +83,13 @@ export function useValidation() {
   };
 
   const handleDatabaseError = (error: any) => {
-    if (error.message?.includes('cannot be negative')) {
+    if (error.message?.includes('It cannot be negative check previous entries and balances again!')) {
+      toast({
+        title: "Balance/Stock Error",
+        description: "It cannot be negative check previous entries and balances again!",
+        variant: "destructive",
+      });
+    } else if (error.message?.includes('cannot be negative')) {
       toast({
         title: "Validation Error",
         description: error.message,

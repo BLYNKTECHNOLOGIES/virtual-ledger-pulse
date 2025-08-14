@@ -31,7 +31,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     order_number: "",
     client_name: "",
     product_id: "",
-    warehouse_id: "",
+    wallet_id: "",
     amount: 0,
     quantity: "",
     price_per_unit: "",
@@ -115,20 +115,29 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
       if (error) throw error;
 
-      // Create warehouse stock movement for sales (OUT movement)
-      if (orderData.product_id && orderData.warehouse_id && orderData.quantity) {
-        await supabase
-          .from('warehouse_stock_movements')
-          .insert({
-            warehouse_id: orderData.warehouse_id,
-            product_id: orderData.product_id,
-            movement_type: 'OUT',
-            quantity: parseFloat(orderData.quantity),
-            reason: 'Sales Order',
-            reference_id: data.id,
-            reference_type: 'sales_order',
-            created_by: user?.id
-          });
+      // Handle USDT wallet transactions for sales (debit from wallet)
+      if (orderData.product_id && orderData.wallet_id && orderData.quantity) {
+        // Check if product is USDT
+        const { data: product } = await supabase
+          .from('products')
+          .select('code')
+          .eq('id', orderData.product_id)
+          .single();
+        
+        if (product?.code === 'USDT') {
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: orderData.wallet_id,
+              transaction_type: 'DEBIT',
+              amount: parseFloat(orderData.quantity),
+              reference_type: 'SALES_ORDER',
+              reference_id: data.id,
+              description: `USDT sold via sales order ${data.order_number}`,
+              balance_before: 0, // Will be updated by trigger
+              balance_after: 0   // Will be updated by trigger
+            });
+        }
       }
 
       // Update payment method usage if provided
@@ -203,7 +212,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       order_number: "",
       client_name: "",
       product_id: "",
-      warehouse_id: "",
+      wallet_id: "",
       amount: 0,
       quantity: "",
       price_per_unit: "",
@@ -223,10 +232,10 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.warehouse_id && formData.product_id) {
+    if (!formData.wallet_id && formData.product_id) {
       toast({
         title: "Error",
-        description: "Please select a warehouse for the product",
+        description: "Please select a wallet for the product",
         variant: "destructive",
       });
       return;
@@ -350,12 +359,11 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
                 {formData.product_id && (
                   <div>
-                    <WarehouseSelector
-                      value={formData.warehouse_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: value }))}
-                      productId={formData.product_id}
-                      showStockInfo={true}
-                      label="Select Warehouse *"
+                    <WalletSelector
+                      value={formData.wallet_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, wallet_id: value }))}
+                      showBalanceInfo={true}
+                      label="Select Wallet *"
                     />
                   </div>
                 )}

@@ -77,6 +77,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      // Sync stock before fetching to ensure accuracy
+      await supabase.rpc('sync_product_warehouse_stock');
+      await supabase.rpc('sync_usdt_stock');
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')

@@ -65,6 +65,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const { data: products, isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      // Sync stock before fetching to ensure accuracy
+      await supabase.rpc('sync_product_warehouse_stock');
+      await supabase.rpc('sync_usdt_stock');
+      
       console.log('🔄 ManualPurchase: Fetching products...');
       const { data, error } = await supabase
         .from('products')
@@ -76,7 +80,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       }
       console.log('✅ ManualPurchase: Products fetched:', data);
       return data;
-    }
+    },
+    staleTime: 0,
   });
 
   // Fetch active wallets

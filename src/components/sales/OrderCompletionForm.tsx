@@ -37,6 +37,10 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
+      // Sync stock before fetching to ensure accuracy
+      await supabase.rpc('sync_product_warehouse_stock');
+      await supabase.rpc('sync_usdt_stock');
+      
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -45,6 +49,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
   });
 
   // Fetch wallets

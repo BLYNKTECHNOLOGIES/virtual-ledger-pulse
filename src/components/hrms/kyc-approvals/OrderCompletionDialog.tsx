@@ -24,7 +24,7 @@ interface OrderFormData {
   order_number: string;
   platform: string;
   product_id: string;
-  warehouse_id: string;
+  wallet_id: string;
   quantity: number;
   price_per_unit: number;
   description: string;
@@ -55,7 +55,7 @@ export function OrderCompletionDialog({
     order_number: generateOrderNumber(),
     platform: "",
     product_id: "",
-    warehouse_id: "",
+    wallet_id: "",
     quantity: 1,
     price_per_unit: orderAmount,
     description: `KYC Order - ${counterpartyName}`,
@@ -72,11 +72,11 @@ export function OrderCompletionDialog({
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
+  // Fetch wallets
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*');
+      const { data, error } = await supabase.from('wallets').select('*').eq('is_active', true);
       if (error) throw error;
       return data;
     },
@@ -109,7 +109,7 @@ export function OrderCompletionDialog({
           client_name: counterpartyName,
           platform: orderData.platform,
           product_id: orderData.product_id || null,
-          warehouse_id: orderData.warehouse_id || null,
+          wallet_id: orderData.wallet_id || null,
           quantity: orderData.quantity,
           price_per_unit: orderData.price_per_unit,
           total_amount: orderAmount,
@@ -274,16 +274,15 @@ export function OrderCompletionDialog({
             </div>
 
             <div>
-              <Label htmlFor="warehouse_id">Warehouse</Label>
-              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, warehouse_id: value }))}>
+              <Label htmlFor="wallet_id">Wallet</Label>
+              <Select onValueChange={(value) => setFormData(prev => ({ ...prev, wallet_id: value }))}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
+                  <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
                 <SelectContent>
-                  {warehouses?.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      <Warehouse className="h-4 w-4 mr-2 inline" />
-                      {warehouse.name}
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name} ({wallet.wallet_type})
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { FileUpload } from "./FileUpload";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
-import { WarehouseSelector } from "@/components/stock/WarehouseSelector";
+import { WalletSelector } from "@/components/stock/WalletSelector";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 import { AlertTriangle, Info } from "lucide-react";
 

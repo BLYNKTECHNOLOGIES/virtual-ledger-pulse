@@ -207,11 +207,11 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
       // Update product stock for each item
       for (const item of orderItems) {
         const { error: updateError } = await supabase
-          .from('products')
-          .update({ 
-            current_stock_quantity: supabase.sql`current_stock_quantity + ${item.quantity}`,
-            total_purchases: supabase.sql`total_purchases + ${item.quantity}`
-          })
+        .from('products')
+        .update({ 
+          current_stock_quantity: item.quantity,
+          total_purchases: item.quantity
+        })
           .eq('id', item.product_id);
 
         if (updateError) {

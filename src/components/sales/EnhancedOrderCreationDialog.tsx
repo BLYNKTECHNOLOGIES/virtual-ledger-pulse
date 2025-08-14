@@ -64,11 +64,11 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
     enabled: open, // Only fetch when dialog is open
   });
 
-  // Fetch warehouses only when dialog is open
-  const { data: warehouses, isLoading: warehousesLoading } = useQuery({
-    queryKey: ['warehouses'],
+  // Fetch wallets only when dialog is open
+  const { data: wallets, isLoading: walletsLoading } = useQuery({
+    queryKey: ['wallets'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*');
+      const { data, error } = await supabase.from('wallets').select('*').eq('is_active', true);
       if (error) throw error;
       return data;
     },
@@ -94,7 +94,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
     enabled: open,
   });
 
-  const isLoading = productsLoading || warehousesLoading || paymentMethodsLoading;
+  const isLoading = productsLoading || walletsLoading || paymentMethodsLoading;
 
   const createOrdersMutation = useMutation({
     mutationFn: async (orders: OrderItem[]) => {
@@ -293,18 +293,18 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
                 </div>
 
                 <div>
-                  <Label>Warehouse</Label>
+                  <Label>Wallet</Label>
                   <Select
                     value={order.warehouse_id}
                     onValueChange={(value) => updateOrderItem(index, 'warehouse_id', value)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select warehouse" />
+                      <SelectValue placeholder="Select wallet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {warehouses?.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name}
+                      {wallets?.map((wallet) => (
+                        <SelectItem key={wallet.id} value={wallet.id}>
+                          {wallet.wallet_name} ({wallet.wallet_type})
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -159,20 +159,15 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             if (transactionError) throw transactionError;
           }
         } else {
-          // For non-USDT products, create warehouse stock movements
-          const { error: movementError } = await supabase
-            .from('warehouse_stock_movements')
-            .insert({
-              product_id: item.product_id,
-              warehouse_id: item.warehouse_id,
-              movement_type: 'IN',
-              quantity: item.quantity,
-              reference_type: 'PURCHASE_ORDER',
-              reference_id: orderId,
-              reason: `Purchase Order - ${order.order_number}`
-            });
+          // For non-USDT products, update stock directly
+          const { error: stockError } = await supabase
+            .from('products')
+            .update({ 
+              current_stock_quantity: item.quantity 
+            })
+            .eq('id', item.product_id);
 
-          if (movementError) throw movementError;
+          if (stockError) throw stockError;
         }
       }
 

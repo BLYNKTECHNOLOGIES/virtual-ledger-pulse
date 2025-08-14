@@ -13,7 +13,7 @@ interface ProductItem {
   product_id: string;
   quantity: number;
   unit_price: number;
-  warehouse_id: string;
+  wallet_id: string;
 }
 
 interface ProductSelectionSectionProps {
@@ -36,15 +36,15 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
+  // Fetch wallets
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('warehouses')
+        .from('wallets')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('wallet_name');
       
       if (error) throw error;
       return data;
@@ -57,7 +57,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       product_id: "",
       quantity: 0,
       unit_price: 0,
-      warehouse_id: ""
+      wallet_id: ""
     };
     onItemsChange([...items, newItem]);
   };
@@ -82,7 +82,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       product_id: "",
       quantity: 0,
       unit_price: 0,
-      warehouse_id: ""
+      wallet_id: ""
     }]);
   }
 
@@ -120,18 +120,18 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               </div>
 
               <div>
-                <Label>Warehouse *</Label>
+                <Label>Wallet *</Label>
                 <Select 
-                  value={item.warehouse_id} 
-                  onValueChange={(value) => updateItem(index, 'warehouse_id', value)}
+                  value={item.wallet_id} 
+                  onValueChange={(value) => updateItem(index, 'wallet_id', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select warehouse" />
+                    <SelectValue placeholder="Select wallet" />
                   </SelectTrigger>
                   <SelectContent>
-                    {warehouses?.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
+                    {wallets?.map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        {wallet.wallet_name} ({wallet.wallet_type})
                       </SelectItem>
                     ))}
                   </SelectContent>

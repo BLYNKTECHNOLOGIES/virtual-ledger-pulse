@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,16 +16,16 @@ export function StockReportsTab() {
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [reportType, setReportType] = useState<string>("all");
-  const [warehouseFilter, setWarehouseFilter] = useState<string>("all");
+  const [walletFilter, setWalletFilter] = useState<string>("all");
 
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses_for_reports'],
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets_for_reports'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('warehouses')
-        .select('id, name')
+        .from('wallets')
+        .select('id, wallet_name, wallet_type')
         .eq('is_active', true)
-        .order('name');
+        .order('wallet_name');
       if (error) throw error;
       return data;
     },
@@ -343,16 +342,16 @@ export function StockReportsTab() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Warehouse</label>
-              <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
+              <label className="text-sm font-medium">Wallet</label>
+              <Select value={walletFilter} onValueChange={setWalletFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select warehouse" />
+                  <SelectValue placeholder="All Wallets" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Warehouses</SelectItem>
-                  {warehouses?.map((warehouse) => (
-                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
+                  <SelectItem value="all">All Wallets</SelectItem>
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name} ({wallet.wallet_type})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -452,22 +451,20 @@ export function StockReportsTab() {
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Unit</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Reorder Level</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {lowStockProducts?.map((product) => (
                   <tr key={product.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono text-sm">{product.code}</td>
-                    <td className="py-3 px-4 font-medium">{product.name}</td>
-                    <td className="py-3 px-4">{product.current_stock_quantity}</td>
+                    <td className="py-3 px-4 font-medium">{product.code}</td>
+                    <td className="py-3 px-4">{product.name}</td>
+                    <td className="py-3 px-4 font-medium text-red-600">{product.current_stock_quantity}</td>
                     <td className="py-3 px-4">{product.unit_of_measurement}</td>
+                    <td className="py-3 px-4">10</td>
                     <td className="py-3 px-4">
-                      {product.current_stock_quantity === 0 ? (
-                        <Badge variant="destructive">Out of Stock</Badge>
-                      ) : (
-                        <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>
-                      )}
+                      <Badge variant="destructive">Low Stock</Badge>
                     </td>
                   </tr>
                 ))}
@@ -504,27 +501,27 @@ export function StockReportsTab() {
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Total Amount</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-600">Total Price</th>
                 </tr>
               </thead>
               <tbody>
                 {purchaseReport?.map((item) => (
                   <tr key={item.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4">{format(new Date(item.purchase_orders?.order_date), 'dd/MM/yyyy')}</td>
+                    <td className="py-3 px-4">{item.purchase_orders?.supplier_name}</td>
                     <td className="py-3 px-4">
                       <div>
                         <div className="font-medium">{item.products?.name}</div>
                         <div className="text-sm text-gray-500">{item.products?.code}</div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">{item.purchase_orders?.supplier_name}</td>
                     <td className="py-3 px-4">{item.quantity} {item.products?.unit_of_measurement}</td>
                     <td className="py-3 px-4">₹{item.unit_price}</td>
-                    <td className="py-3 px-4">₹{item.total_price}</td>
+                    <td className="py-3 px-4 font-medium">₹{item.total_price}</td>
                   </tr>
                 ))}
               </tbody>

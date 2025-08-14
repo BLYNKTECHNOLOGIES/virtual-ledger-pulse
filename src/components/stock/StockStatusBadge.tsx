@@ -25,7 +25,7 @@ export function StockStatusBadge({
     return <Badge variant="destructive" className={className}>No Stock Data</Badge>;
   }
 
-  const { total_stock, warehouse_stocks, unit_of_measurement } = productStock;
+  const { total_stock, wallet_stocks, unit_of_measurement } = productStock;
 
   const getBadgeVariant = (stock: number) => {
     if (stock <= 0) return "destructive";
@@ -33,14 +33,14 @@ export function StockStatusBadge({
     return "default";
   };
 
-  if (showWarehouseBreakdown && warehouse_stocks.length > 0) {
+  if (showWarehouseBreakdown && wallet_stocks.length > 0) {
     return (
       <div className="space-y-1">
         <Badge variant={getBadgeVariant(total_stock)} className={className}>
           Total: {total_stock} {unit_of_measurement}
         </Badge>
         <div className="flex flex-wrap gap-1">
-          {warehouse_stocks
+          {wallet_stocks
             .filter(ws => ws.balance >= 0) // Show all wallets, including zero balance
             .map((ws) => (
               <Badge 

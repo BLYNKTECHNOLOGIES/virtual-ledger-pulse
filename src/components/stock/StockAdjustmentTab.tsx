@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,8 +21,8 @@ export function StockAdjustmentTab() {
   const [formData, setFormData] = useState({
     product_id: "",
     adjustment_type: "",
-    from_warehouse_id: "",
-    to_warehouse_id: "",
+    from_wallet_id: "",
+    to_wallet_id: "",
     quantity: 0,
     reason: "",
     reference_number: "",
@@ -43,15 +42,15 @@ export function StockAdjustmentTab() {
     },
   });
 
-  // Fetch warehouses
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
+  // Fetch wallets
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('warehouses')
+        .from('wallets')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('wallet_name');
       
       if (error) throw error;
       return data;
@@ -66,9 +65,7 @@ export function StockAdjustmentTab() {
         .from('stock_adjustments')
         .select(`
           *,
-          products(name, code),
-          from_warehouse:warehouses!stock_adjustments_from_warehouse_id_fkey(name),
-          to_warehouse:warehouses!stock_adjustments_to_warehouse_id_fkey(name)
+          products(name, code)
         `)
         .order('created_at', { ascending: false });
       
@@ -94,11 +91,7 @@ export function StockAdjustmentTab() {
       if (adjustmentError) throw adjustmentError;
 
       // Update product stock based on adjustment type
-      if (adjustmentData.adjustment_type === 'TRANSFER') {
-        // For transfers, we need to update warehouse-specific stock
-        // This would require implementing warehouse stock tracking
-        console.log('Transfer adjustment created:', adjustment);
-      } else {
+      {
         // For other adjustments, update main stock quantity
         const { data: product } = await supabase
           .from('products')
@@ -147,8 +140,8 @@ export function StockAdjustmentTab() {
     setFormData({
       product_id: "",
       adjustment_type: "",
-      from_warehouse_id: "",
-      to_warehouse_id: "",
+      from_wallet_id: "",
+      to_wallet_id: "",
       quantity: 0,
       reason: "",
       reference_number: "",
@@ -158,28 +151,28 @@ export function StockAdjustmentTab() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.adjustment_type === 'TRANSFER' && !formData.from_warehouse_id) {
+    if (formData.adjustment_type === 'TRANSFER' && !formData.from_wallet_id) {
       toast({
         title: "Error",
-        description: "From warehouse is required for transfers",
+        description: "From wallet is required for transfers",
         variant: "destructive",
       });
       return;
     }
     
-    if (formData.adjustment_type === 'TRANSFER' && !formData.to_warehouse_id) {
+    if (formData.adjustment_type === 'TRANSFER' && !formData.to_wallet_id) {
       toast({
         title: "Error",
-        description: "To warehouse is required for transfers",
+        description: "To wallet is required for transfers",
         variant: "destructive",
       });
       return;
     }
     
-    if (formData.adjustment_type === 'TRANSFER' && formData.from_warehouse_id === formData.to_warehouse_id) {
+    if (formData.adjustment_type === 'TRANSFER' && formData.from_wallet_id === formData.to_wallet_id) {
       toast({
         title: "Error",
-        description: "From and To warehouses cannot be the same",
+        description: "From and To wallets cannot be the same",
         variant: "destructive",
       });
       return;
@@ -261,17 +254,6 @@ export function StockAdjustmentTab() {
                       <span className="font-medium">Quantity:</span> {adjustment.quantity}
                     </div>
                     
-                    {adjustment.adjustment_type === 'TRANSFER' && (
-                      <>
-                        <div>
-                          <span className="font-medium">From:</span> {adjustment.from_warehouse?.name || 'N/A'}
-                        </div>
-                        <div>
-                          <span className="font-medium">To:</span> {adjustment.to_warehouse?.name || 'N/A'}
-                        </div>
-                      </>
-                    )}
-                    
                     {adjustment.reference_number && (
                       <div>
                         <span className="font-medium">Reference:</span> {adjustment.reference_number}
@@ -332,7 +314,7 @@ export function StockAdjustmentTab() {
                     <SelectValue placeholder="Select adjustment type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="TRANSFER">Transfer Between Warehouses</SelectItem>
+                    <SelectItem value="TRANSFER">Transfer Between Wallets</SelectItem>
                     <SelectItem value="ADJUSTMENT">Stock Adjustment (Add/Remove)</SelectItem>
                     <SelectItem value="DAMAGE">Damage</SelectItem>
                     <SelectItem value="LOSS">Loss</SelectItem>
@@ -344,15 +326,15 @@ export function StockAdjustmentTab() {
             {formData.adjustment_type === 'TRANSFER' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="from_warehouse_id">From Warehouse *</Label>
-                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, from_warehouse_id: value }))}>
+                  <Label htmlFor="from_wallet_id">From Wallet *</Label>
+                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, from_wallet_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select source warehouse" />
+                      <SelectValue placeholder="Select source wallet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {warehouses?.map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name} {warehouse.location && `(${warehouse.location})`}
+                      {wallets?.map((wallet) => (
+                        <SelectItem key={wallet.id} value={wallet.id}>
+                          {wallet.wallet_name} ({wallet.wallet_type})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -360,15 +342,15 @@ export function StockAdjustmentTab() {
                 </div>
 
                 <div>
-                  <Label htmlFor="to_warehouse_id">To Warehouse *</Label>
-                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, to_warehouse_id: value }))}>
+                  <Label htmlFor="to_wallet_id">To Wallet *</Label>
+                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, to_wallet_id: value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select destination warehouse" />
+                      <SelectValue placeholder="Select destination wallet" />
                     </SelectTrigger>
                     <SelectContent>
-                      {warehouses?.filter(w => w.id !== formData.from_warehouse_id).map((warehouse) => (
-                        <SelectItem key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name} {warehouse.location && `(${warehouse.location})`}
+                      {wallets?.filter(w => w.id !== formData.from_wallet_id).map((wallet) => (
+                        <SelectItem key={wallet.id} value={wallet.id}>
+                          {wallet.wallet_name} ({wallet.wallet_type})
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -312,11 +312,11 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                     <SelectValue placeholder="Select warehouse" />
                   </SelectTrigger>
                   <SelectContent>
-                    {warehouses?.map((warehouse) => (
-                      <SelectItem key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name} - {warehouse.location}
-                      </SelectItem>
-                    ))}
+                  {wallets?.filter(w => w.is_active).map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name} ({wallet.wallet_type})
+                    </SelectItem>
+                  ))}
                   </SelectContent>
                 </Select>
               </div>

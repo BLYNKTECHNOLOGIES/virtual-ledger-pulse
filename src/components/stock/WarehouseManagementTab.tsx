@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,72 +18,46 @@ export function WalletManagementTab() {
   const [showWalletDialog, setShowWalletDialog] = useState(false);
   const [editingWallet, setEditingWallet] = useState<any>(null);
   const [walletForm, setWalletForm] = useState({
-    name: "",
-    location: ""
+    wallet_name: "",
+    wallet_type: ""
   });
   const [adjustmentForm, setAdjustmentForm] = useState({
     product_id: "",
-    warehouse_id: "",
+    wallet_id: "",
     adjustment_type: "",
     quantity: "",
     reason: "",
-    from_warehouse_id: "",
-    to_warehouse_id: ""
+    from_wallet_id: "",
+    to_wallet_id: ""
   });
 
   const queryClient = useQueryClient();
 
-  const { data: warehouses } = useQuery({
-    queryKey: ['warehouses'],
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('warehouses')
+        .from('wallets')
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('wallet_name');
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: warehouseStock } = useQuery({
-    queryKey: ['warehouse_stock'],
+  const { data: walletTransactions } = useQuery({
+    queryKey: ['wallet_transactions'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('warehouse_stock_movements')
+        .from('wallet_transactions')
         .select(`
-          warehouse_id,
-          product_id,
-          movement_type,
-          quantity,
-          products(name, code, unit_of_measurement),
-          warehouses(name)
-        `);
+          *,
+          wallets(wallet_name)
+        `)
+        .order('created_at', { ascending: false });
       if (error) throw error;
-      
-      // Aggregate stock by warehouse and product
-      const stockMap = new Map();
-      data?.forEach(movement => {
-        const key = `${movement.warehouse_id}-${movement.product_id}`;
-        if (!stockMap.has(key)) {
-          stockMap.set(key, {
-            warehouse_id: movement.warehouse_id,
-            warehouse_name: movement.warehouses?.name,
-            product_id: movement.product_id,
-            product: movement.products,
-            quantity: 0
-          });
-        }
-        
-        const stock = stockMap.get(key);
-        if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-          stock.quantity += movement.quantity;
-        } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-          stock.quantity -= movement.quantity;
-        }
-      });
-      
-      return Array.from(stockMap.values());
+      return data;
     },
   });
 
@@ -107,12 +80,9 @@ export function WalletManagementTab() {
         .from('stock_adjustments')
         .select(`
           *,
-          products(name, code, unit_of_measurement),
-          warehouse:warehouses!warehouse_id(name, location),
-          from_warehouse:warehouses!from_warehouse_id(name),
-          to_warehouse:warehouses!to_warehouse_id(name)
+          products(name, code, unit_of_measurement)
         `)
-        .order('adjustment_date', { ascending: false });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -122,25 +92,25 @@ export function WalletManagementTab() {
     mutationFn: async (walletData: any) => {
       if (editingWallet) {
         const { data, error } = await supabase
-          .from('warehouses')
+          .from('wallets')
           .update(walletData)
           .eq('id', editingWallet.id);
         if (error) throw error;
         return data;
       } else {
         const { data, error } = await supabase
-          .from('warehouses')
+          .from('wallets')
           .insert(walletData);
         if (error) throw error;
         return data;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
       toast.success(editingWallet ? "Wallet updated successfully" : "Wallet created successfully");
       setShowWalletDialog(false);
       setEditingWallet(null);
-      setWalletForm({ name: "", location: "" });
+      setWalletForm({ wallet_name: "", wallet_type: "" });
     },
     onError: (error) => {
       toast.error("Failed to save wallet");
@@ -151,14 +121,14 @@ export function WalletManagementTab() {
   const deleteWalletMutation = useMutation({
     mutationFn: async (walletId: string) => {
       const { data, error } = await supabase
-        .from('warehouses')
+        .from('wallets')
         .update({ is_active: false })
         .eq('id', walletId);
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
       toast.success("Wallet deleted successfully");
     },
     onError: (error) => {
@@ -183,68 +153,24 @@ export function WalletManagementTab() {
 
       if (adjustmentError) throw adjustmentError;
 
-      // Create corresponding warehouse stock movements
-      if (adjustmentData.adjustment_type === 'TRANSFER') {
-        // Create OUT movement from source warehouse
-        await supabase
-          .from('warehouse_stock_movements')
-          .insert({
-            warehouse_id: adjustmentData.from_warehouse_id,
-            product_id: adjustmentData.product_id,
-            movement_type: 'OUT',
-            quantity: adjustmentData.quantity,
-            reason: 'Transfer out',
-            reference_id: adjustment.id,
-            reference_type: 'stock_adjustment',
-            created_by: user?.id
-          });
-
-        // Create IN movement to destination warehouse
-        await supabase
-          .from('warehouse_stock_movements')
-          .insert({
-            warehouse_id: adjustmentData.to_warehouse_id,
-            product_id: adjustmentData.product_id,
-            movement_type: 'IN',
-            quantity: adjustmentData.quantity,
-            reason: 'Transfer in',
-            reference_id: adjustment.id,
-            reference_type: 'stock_adjustment',
-            created_by: user?.id
-          });
-      } else {
-        // For LOST and CORRECTION adjustments
-        const movementType = adjustmentData.adjustment_type === 'LOST' ? 'OUT' : 'ADJUSTMENT';
-        await supabase
-          .from('warehouse_stock_movements')
-          .insert({
-            warehouse_id: adjustmentData.warehouse_id,
-            product_id: adjustmentData.product_id,
-            movement_type: movementType,
-            quantity: adjustmentData.quantity,
-            reason: adjustmentData.reason || adjustmentData.adjustment_type,
-            reference_id: adjustment.id,
-            reference_type: 'stock_adjustment',
-            created_by: user?.id
-          });
-      }
+      // Stock adjustment created successfully
 
       return adjustment;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stock_adjustments'] });
-      queryClient.invalidateQueries({ queryKey: ['warehouse_stock'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success("Stock adjustment created successfully");
       setShowAdjustmentDialog(false);
       setAdjustmentForm({
         product_id: "",
-        warehouse_id: "",
+        wallet_id: "",
         adjustment_type: "",
         quantity: "",
         reason: "",
-        from_warehouse_id: "",
-        to_warehouse_id: ""
+        from_wallet_id: "",
+        to_wallet_id: ""
       });
     },
     onError: (error) => {
@@ -254,7 +180,7 @@ export function WalletManagementTab() {
   });
 
   const handleCreateWallet = () => {
-    if (!walletForm.name) {
+    if (!walletForm.wallet_name) {
       toast.error("Please enter wallet name");
       return;
     }
@@ -265,8 +191,8 @@ export function WalletManagementTab() {
   const handleEditWallet = (wallet: any) => {
     setEditingWallet(wallet);
     setWalletForm({
-      name: wallet.name,
-      location: wallet.location || ""
+      wallet_name: wallet.wallet_name,
+      wallet_type: wallet.wallet_type || ""
     });
     setShowWalletDialog(true);
   };
@@ -277,25 +203,24 @@ export function WalletManagementTab() {
       return;
     }
 
-    if (adjustmentForm.adjustment_type === 'TRANSFER' && (!adjustmentForm.from_warehouse_id || !adjustmentForm.to_warehouse_id)) {
-      toast.error("Please select both source and destination warehouses for transfer");
+    if (adjustmentForm.adjustment_type === 'TRANSFER' && (!adjustmentForm.from_wallet_id || !adjustmentForm.to_wallet_id)) {
+      toast.error("Please select both source and destination wallets for transfer");
       return;
     }
 
-    if (adjustmentForm.adjustment_type !== 'TRANSFER' && !adjustmentForm.warehouse_id) {
-      toast.error("Please select a warehouse");
+    if (adjustmentForm.adjustment_type !== 'TRANSFER' && !adjustmentForm.wallet_id) {
+      toast.error("Please select a wallet");
       return;
     }
 
     const adjustmentData = {
       product_id: adjustmentForm.product_id,
-      warehouse_id: adjustmentForm.adjustment_type !== 'TRANSFER' ? adjustmentForm.warehouse_id : null,
-      from_warehouse_id: adjustmentForm.adjustment_type === 'TRANSFER' ? adjustmentForm.from_warehouse_id : null,
-      to_warehouse_id: adjustmentForm.adjustment_type === 'TRANSFER' ? adjustmentForm.to_warehouse_id : null,
+      wallet_id: adjustmentForm.adjustment_type !== 'TRANSFER' ? adjustmentForm.wallet_id : null,
+      from_wallet_id: adjustmentForm.adjustment_type === 'TRANSFER' ? adjustmentForm.from_wallet_id : null,
+      to_wallet_id: adjustmentForm.adjustment_type === 'TRANSFER' ? adjustmentForm.to_wallet_id : null,
       adjustment_type: adjustmentForm.adjustment_type,
       quantity: parseInt(adjustmentForm.quantity),
       reason: adjustmentForm.reason,
-      adjustment_date: new Date().toISOString().split('T')[0]
     };
 
     createAdjustmentMutation.mutate(adjustmentData);
@@ -314,8 +239,8 @@ export function WalletManagementTab() {
     }
   };
 
-  const getWarehouseStock = (warehouseId: string) => {
-    return warehouseStock?.filter(stock => stock.warehouse_id === warehouseId) || [];
+  const getWalletTransactions = (walletId: string) => {
+    return walletTransactions?.filter(transaction => transaction.wallet_id === walletId) || [];
   };
 
   return (
@@ -329,7 +254,7 @@ export function WalletManagementTab() {
               <DialogTrigger asChild>
                 <Button onClick={() => {
                   setEditingWallet(null);
-                  setWalletForm({ name: "", location: "" });
+                  setWalletForm({ wallet_name: "", wallet_type: "" });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Wallet
@@ -343,18 +268,24 @@ export function WalletManagementTab() {
                   <div>
                     <Label>Wallet Name</Label>
                     <Input
-                      value={walletForm.name}
-                      onChange={(e) => setWalletForm(prev => ({ ...prev, name: e.target.value }))}
+                      value={walletForm.wallet_name}
+                      onChange={(e) => setWalletForm(prev => ({ ...prev, wallet_name: e.target.value }))}
                       placeholder="Enter wallet name"
                     />
                   </div>
                   <div>
-                    <Label>Linked to</Label>
-                    <Input
-                      value={walletForm.location}
-                      onChange={(e) => setWalletForm(prev => ({ ...prev, location: e.target.value }))}
-                      placeholder="Enter linked exchange/platform"
-                    />
+                    <Label>Wallet Type</Label>
+                    <Select value={walletForm.wallet_type} onValueChange={(value) => setWalletForm(prev => ({ ...prev, wallet_type: value }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select wallet type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USDT">USDT</SelectItem>
+                        <SelectItem value="BTC">BTC</SelectItem>
+                        <SelectItem value="ETH">ETH</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <Button onClick={handleCreateWallet} className="w-full">
                     {editingWallet ? 'Update Wallet' : 'Create Wallet'}
@@ -366,42 +297,41 @@ export function WalletManagementTab() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {warehouses?.map((warehouse) => {
-              const stocks = getWarehouseStock(warehouse.id);
-              const totalProducts = stocks.length;
-              const totalQuantity = stocks.reduce((sum, stock) => sum + stock.quantity, 0);
+            {wallets?.map((wallet) => {
+              const transactions = getWalletTransactions(wallet.id);
+              const totalTransactions = transactions.length;
               
               return (
-                <Card key={warehouse.id} className="border">
+                <Card key={wallet.id} className="border">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{warehouse.name}</CardTitle>
+                    <CardTitle className="text-sm font-medium">{wallet.wallet_name}</CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditWallet(warehouse)}>
+                      <Button variant="ghost" size="sm" onClick={() => handleEditWallet(wallet)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteWalletMutation.mutate(warehouse.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => deleteWalletMutation.mutate(wallet.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xs text-muted-foreground mb-2">Linked to: {warehouse.location || 'Not specified'}</div>
+                    <div className="text-xs text-muted-foreground mb-2">Type: {wallet.wallet_type}</div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Assets</span>
-                        <Badge variant="outline">{totalProducts}</Badge>
+                        <span className="text-sm text-gray-600">Balance</span>
+                        <Badge variant="outline">{wallet.current_balance}</Badge>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Total Quantity</span>
-                        <Badge className="bg-green-100 text-green-800">{totalQuantity}</Badge>
+                        <span className="text-sm text-gray-600">Total Transactions</span>
+                        <Badge className="bg-green-100 text-green-800">{totalTransactions}</Badge>
                       </div>
                       <div className="mt-3">
-                        <h4 className="text-sm font-medium mb-2">Holdings Details</h4>
+                        <h4 className="text-sm font-medium mb-2">Recent Transactions</h4>
                         <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {stocks.map((stock, idx) => (
+                          {transactions.slice(0, 5).map((transaction, idx) => (
                             <div key={idx} className="flex justify-between text-xs">
-                              <span>{stock.product?.name}</span>
-                              <span>{stock.quantity} Nos</span>
+                              <span>{transaction.transaction_type}</span>
+                              <span>{transaction.amount}</span>
                             </div>
                           ))}
                         </div>
@@ -461,61 +391,61 @@ export function WalletManagementTab() {
                       <SelectContent>
                         <SelectItem value="LOST">Lost Stock</SelectItem>
                         <SelectItem value="CORRECTION">Stock Correction</SelectItem>
-                        <SelectItem value="TRANSFER">Transfer Between Warehouses</SelectItem>
+                        <SelectItem value="TRANSFER">Transfer Between Wallets</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   {adjustmentForm.adjustment_type === 'TRANSFER' ? (
-                    <>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label>From Warehouse</Label>
-                        <Select value={adjustmentForm.from_warehouse_id} onValueChange={(value) => 
-                          setAdjustmentForm(prev => ({ ...prev, from_warehouse_id: value }))
+                        <Label>From Wallet</Label>
+                        <Select value={adjustmentForm.from_wallet_id} onValueChange={(value) => 
+                          setAdjustmentForm(prev => ({ ...prev, from_wallet_id: value }))
                         }>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select source warehouse" />
+                            <SelectValue placeholder="Select source" />
                           </SelectTrigger>
                           <SelectContent>
-                            {warehouses?.map((warehouse) => (
-                              <SelectItem key={warehouse.id} value={warehouse.id}>
-                                {warehouse.name}
+                            {wallets?.map((wallet) => (
+                              <SelectItem key={wallet.id} value={wallet.id}>
+                                {wallet.wallet_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
-                        <Label>To Warehouse</Label>
-                        <Select value={adjustmentForm.to_warehouse_id} onValueChange={(value) => 
-                          setAdjustmentForm(prev => ({ ...prev, to_warehouse_id: value }))
+                        <Label>To Wallet</Label>
+                        <Select value={adjustmentForm.to_wallet_id} onValueChange={(value) => 
+                          setAdjustmentForm(prev => ({ ...prev, to_wallet_id: value }))
                         }>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select destination warehouse" />
+                            <SelectValue placeholder="Select destination" />
                           </SelectTrigger>
                           <SelectContent>
-                            {warehouses?.map((warehouse) => (
-                              <SelectItem key={warehouse.id} value={warehouse.id}>
-                                {warehouse.name}
+                            {wallets?.filter(w => w.id !== adjustmentForm.from_wallet_id).map((wallet) => (
+                              <SelectItem key={wallet.id} value={wallet.id}>
+                                {wallet.wallet_name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <div>
-                      <Label>Warehouse</Label>
-                      <Select value={adjustmentForm.warehouse_id} onValueChange={(value) => 
-                        setAdjustmentForm(prev => ({ ...prev, warehouse_id: value }))
+                      <Label>Wallet</Label>
+                      <Select value={adjustmentForm.wallet_id} onValueChange={(value) => 
+                        setAdjustmentForm(prev => ({ ...prev, wallet_id: value }))
                       }>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select warehouse" />
+                          <SelectValue placeholder="Select wallet" />
                         </SelectTrigger>
                         <SelectContent>
-                          {warehouses?.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.name}
+                          {wallets?.map((wallet) => (
+                            <SelectItem key={wallet.id} value={wallet.id}>
+                              {wallet.wallet_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -538,7 +468,7 @@ export function WalletManagementTab() {
                     <Textarea
                       value={adjustmentForm.reason}
                       onChange={(e) => setAdjustmentForm(prev => ({ ...prev, reason: e.target.value }))}
-                      placeholder="Enter reason for adjustment"
+                      placeholder="Reason for adjustment"
                     />
                   </div>
 
@@ -552,53 +482,46 @@ export function WalletManagementTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Loading adjustments...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Warehouse</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reason</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockAdjustments?.map((adjustment) => (
-                    <tr key={adjustment.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{format(new Date(adjustment.adjustment_date), 'dd/MM/yyyy')}</td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium">{adjustment.products?.name}</div>
-                          <div className="text-sm text-gray-500">{adjustment.products?.code}</div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        {getAdjustmentBadge(adjustment.adjustment_type)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {adjustment.warehouse?.name || 
-                         (adjustment.adjustment_type === 'TRANSFER' ? 
-                          `${adjustment.from_warehouse?.name} → ${adjustment.to_warehouse?.name}` : 
-                          'N/A')}
-                      </td>
-                      <td className="py-3 px-4">{adjustment.quantity} {adjustment.products?.unit_of_measurement}</td>
-                      <td className="py-3 px-4">{adjustment.reason || '-'}</td>
-                      <td className="py-3 px-4">{adjustment.reference_number || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              
-              {stockAdjustments?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  No stock adjustments found.
+            <div className="text-center py-8">Loading stock adjustments...</div>
+          ) : stockAdjustments && stockAdjustments.length > 0 ? (
+            <div className="space-y-4">
+              {stockAdjustments.map((adjustment) => (
+                <div key={adjustment.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-semibold">{adjustment.products?.name}</h3>
+                      <p className="text-sm text-gray-600">Code: {adjustment.products?.code}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getAdjustmentBadge(adjustment.adjustment_type)}
+                      <span className="text-sm text-gray-500">
+                        {format(new Date(adjustment.created_at), 'MMM dd, yyyy')}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Quantity:</span> {adjustment.quantity} {adjustment.products?.unit_of_measurement}
+                    </div>
+                  </div>
+                  
+                  {adjustment.reason && (
+                    <div className="mt-3 pt-3 border-t">
+                      <span className="font-medium text-sm">Reason:</span>
+                      <p className="text-sm text-gray-600 mt-1">{adjustment.reason}</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500">No stock adjustments recorded</p>
+              <Button className="mt-4" onClick={() => setShowAdjustmentDialog(true)}>
+                Create Stock Adjustment
+              </Button>
             </div>
           )}
         </CardContent>

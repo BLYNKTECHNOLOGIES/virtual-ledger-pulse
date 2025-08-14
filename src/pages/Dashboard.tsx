@@ -167,9 +167,9 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch warehouse stock data with live updates
+  // Fetch asset inventory data with live updates (consistent with Stock Management)
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
-    queryKey: ['warehouse_stock_live', Date.now()], // Always fresh
+    queryKey: ['dashboard_asset_inventory', Date.now()], // Always fresh
     queryFn: async () => {
       console.log('🔄 Dashboard: Syncing USDT stock first...');
       
@@ -188,18 +188,19 @@ export default function Dashboard() {
         console.error('❌ Dashboard: Error syncing warehouse stock:', stockSyncError);
       }
       
-      console.log('🔄 Dashboard: Fetching warehouses...');
-      const { data: warehouses } = await supabase
-        .from('warehouses')
+      console.log('🔄 Dashboard: Fetching wallets for asset inventory...');
+      const { data: wallets } = await supabase
+        .from('wallets')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('wallet_name');
 
       console.log('🔄 Dashboard: Fetching products...');
       const { data: products } = await supabase
         .from('products')
-        .select('id, name, code, current_stock_quantity, warehouse_id');
+        .select('*');
 
-      console.log('📊 Dashboard: Raw products data:', products);
+      console.log('💰 Dashboard: Products fetched:', products?.length);
       
       // Log USDT product specifically
       const usdtProduct = products?.find(p => p.code === 'USDT');
@@ -210,23 +211,56 @@ export default function Dashboard() {
         });
       }
 
-      // Group products by warehouse
-      const warehouseStockMap = new Map();
+      // Create asset inventory showing wallet distribution (like Stock Management)
+      const assetMap = new Map();
       
-      warehouses?.forEach(warehouse => {
-        const warehouseProducts = products?.filter(p => p.warehouse_id === warehouse.id) || [];
-        warehouseStockMap.set(warehouse.id, {
-          id: warehouse.id,
-          name: warehouse.name,
-          location: warehouse.location,
-          products: warehouseProducts,
-          totalProducts: warehouseProducts.length,
-          totalQuantity: warehouseProducts.reduce((sum, p) => sum + Number(p.current_stock_quantity), 0)
-        });
+      products?.forEach(product => {
+        if (product.code === 'USDT') {
+          // For USDT, calculate total from all wallets
+          let totalWalletStock = 0;
+          const walletDistribution: any[] = [];
+          
+          wallets?.forEach(wallet => {
+            const balance = wallet.current_balance || 0;
+            totalWalletStock += balance;
+            
+            if (balance > 0) {
+              walletDistribution.push({
+                name: wallet.wallet_name,
+                quantity: balance,
+                percentage: 0 // Will be calculated later
+              });
+            }
+          });
+          
+          // Calculate percentages
+          walletDistribution.forEach(dist => {
+            dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
+          });
+          
+          assetMap.set(product.id, {
+            id: product.id,
+            name: product.name,
+            code: product.code,
+            total_stock: Math.max(product.current_stock_quantity || 0, totalWalletStock),
+            wallet_distribution: walletDistribution,
+            unit: product.unit_of_measurement
+          });
+        } else {
+          // For other products, use current stock
+          assetMap.set(product.id, {
+            id: product.id,
+            name: product.name,
+            code: product.code,
+            total_stock: product.current_stock_quantity || 0,
+            wallet_distribution: [],
+            unit: product.unit_of_measurement
+          });
+        }
       });
 
-      const result = Array.from(warehouseStockMap.values());
-      console.log('✅ Dashboard: Final warehouse stock data:', result);
+      const result = Array.from(assetMap.values()).filter(asset => asset.total_stock > 0);
+      console.log('✅ Dashboard: Final asset inventory data:', result);
       return result;
     },
     refetchInterval: 10000, // Refresh every 10 seconds
@@ -605,47 +639,45 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {warehouseStock?.map((wallet, index) => (
-                <Card key={wallet.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+              {warehouseStock?.map((asset, index) => (
+                <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
                   <CardHeader className="bg-secondary border-b">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-lg">
-                        <Building className="h-5 w-5 text-muted-foreground" />
-                        {wallet.name}
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                        {asset.name} ({asset.code})
                       </CardTitle>
-                      <Badge className="bg-muted text-foreground">{wallet.totalProducts} Assets</Badge>
+                      <Badge className="bg-muted text-foreground">
+                        {asset.total_stock} {asset.unit}
+                      </Badge>
                     </div>
-                    {wallet.location && (
-                      <p className="text-sm text-muted-foreground">Linked to: {wallet.location}</p>
-                    )}
                   </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-foreground">Total Holdings</span>
-                        <Badge className="bg-emerald-100 text-emerald-800 font-bold">
-                          {wallet.totalQuantity.toLocaleString()} Nos
-                        </Badge>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
+                        <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
                       </div>
                       
-                      <div className="border-t pt-3">
-                        <h4 className="text-sm font-semibold text-foreground mb-2">Top Assets</h4>
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {wallet.products.slice(0, 5).map((asset: any, idx: number) => (
-                            <div key={idx} className="flex justify-between text-xs">
-                              <span className="text-muted-foreground truncate pr-2">{asset.name}</span>
-                              <span className="font-medium text-foreground whitespace-nowrap">
-                                {Number(asset.current_stock_quantity).toLocaleString()} Nos
-                              </span>
+                      {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
+                        <div className="space-y-2">
+                          <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
+                          {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">{dist.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{dist.quantity.toLocaleString()}</span>
+                                <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
+                              </div>
                             </div>
                           ))}
-                          {wallet.products.length > 5 && (
-                            <div className="text-xs text-muted-foreground italic">
-                              +{wallet.products.length - 5} more assets
+                          {asset.wallet_distribution.length > 3 && (
+                            <div className="text-xs text-muted-foreground text-center">
+                              +{asset.wallet_distribution.length - 3} more wallets
                             </div>
                           )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -656,8 +688,8 @@ export default function Dashboard() {
                   <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Package className="h-8 w-8 opacity-50" />
                   </div>
-                  <p className="font-medium">No warehouse data available</p>
-                  <p className="text-sm">Stock information will appear here</p>
+                  <p className="font-medium">No asset data available</p>
+                  <p className="text-sm">Asset inventory will appear here</p>
                 </div>
               )}
             </div>

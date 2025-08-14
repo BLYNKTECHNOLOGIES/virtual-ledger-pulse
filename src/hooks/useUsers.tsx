@@ -434,7 +434,7 @@ export function useUsers() {
         supabase.from('purchase_orders').update({ created_by: null }).eq('created_by', userId),
         supabase.from('sales_orders').update({ created_by: null }).eq('created_by', userId),
         supabase.from('stock_adjustments').update({ created_by: null }).eq('created_by', userId),
-        supabase.from('warehouse_stock_movements').update({ created_by: null }).eq('created_by', userId),
+        // Warehouse stock movements removed - using wallet-based functionality
         supabase.from('pending_registrations').update({ reviewed_by: null }).eq('reviewed_by', userId),
       ];
 

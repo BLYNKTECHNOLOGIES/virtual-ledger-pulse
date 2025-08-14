@@ -20,23 +20,7 @@ export const useProducts = (enabled: boolean = true) => {
   });
 };
 
-export const useWarehouses = (enabled: boolean = true) => {
-  return useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-};
+// Warehouses removed - using wallet-based functionality
 
 export const useBankAccounts = (enabled: boolean = true) => {
   return useQuery({

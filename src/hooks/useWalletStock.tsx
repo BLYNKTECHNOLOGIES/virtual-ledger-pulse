@@ -154,6 +154,16 @@ export async function createValidatedWalletTransaction(
     }
   }
 
+  // Get current wallet balance
+  const { data: wallet } = await supabase
+    .from('wallets')
+    .select('current_balance')
+    .eq('id', walletId)
+    .single();
+
+  const currentBalance = wallet?.current_balance || 0;
+  const newBalance = transactionType === 'CREDIT' ? currentBalance + amount : currentBalance - amount;
+
   // Create the wallet transaction
   const { error } = await supabase
     .from('wallet_transactions')
@@ -163,7 +173,9 @@ export async function createValidatedWalletTransaction(
       amount,
       reference_type: referenceType,
       reference_id: referenceId,
-      description
+      description,
+      balance_before: currentBalance,
+      balance_after: newBalance
     });
 
   if (error) throw error;

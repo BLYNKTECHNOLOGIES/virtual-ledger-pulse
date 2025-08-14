@@ -39,27 +39,23 @@ export async function validatePaymentLimit(paymentMethodId: string, amount: numb
 }
 
 export async function validateProductStock(productId: string, warehouseId: string, requiredQuantity: number): Promise<void> {
-  // Get current stock from warehouse movements
-  const { data: movements, error } = await supabase
-    .from('warehouse_stock_movements')
-    .select('movement_type, quantity, products(name, code)')
-    .eq('product_id', productId)
-    .eq('warehouse_id', warehouseId);
+  // Get current product stock directly from products table
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('name, current_stock_quantity')
+    .eq('id', productId)
+    .single();
 
   if (error) throw error;
 
-  let currentStock = 0;
-  movements?.forEach(movement => {
-    if (movement.movement_type === 'IN' || movement.movement_type === 'ADJUSTMENT') {
-      currentStock += movement.quantity;
-    } else if (movement.movement_type === 'OUT' || movement.movement_type === 'TRANSFER') {
-      currentStock -= movement.quantity;
-    }
-  });
+  if (!product) {
+    throw new ValidationError('Product not found');
+  }
 
-  if (currentStock < requiredQuantity) {
-    const productName = movements?.[0]?.products?.name || 'Unknown Product';
-    throw new ValidationError(`Stock quantity cannot be negative. Available: ${currentStock}, Required: ${requiredQuantity} for product: ${productName}`);
+  if (product.current_stock_quantity < requiredQuantity) {
+    throw new ValidationError(
+      `Stock quantity cannot be negative. Available: ${product.current_stock_quantity}, Required: ${requiredQuantity} for product: ${product.name}`
+    );
   }
 }
 

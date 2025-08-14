@@ -183,7 +183,7 @@ export default function Dashboard() {
       
       // Sync general stock data 
       console.log('🔄 Dashboard: Syncing product warehouse stock...');
-      const { error: stockSyncError } = await supabase.rpc('sync_product_warehouse_stock');
+      const { error: stockSyncError } = await supabase.rpc('sync_usdt_stock');
       if (stockSyncError) {
         console.error('❌ Dashboard: Error syncing warehouse stock:', stockSyncError);
       }

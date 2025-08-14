@@ -95,6 +95,50 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Validate stock before creating sales order
+      if (orderData.product_id && orderData.quantity) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('name, current_stock_quantity')
+          .eq('id', orderData.product_id)
+          .single();
+
+        if (productError) throw productError;
+
+        if (!product) {
+          throw new Error('Product not found');
+        }
+
+        const requiredQuantity = parseFloat(orderData.quantity) || 0;
+        if (product.current_stock_quantity < requiredQuantity) {
+          throw new Error(
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${requiredQuantity} for product: ${product.name}`
+          );
+        }
+      }
+
+      // Validate wallet balance for USDT transactions
+      if (orderData.wallet_id && orderData.quantity) {
+        const { data: wallet, error: walletError } = await supabase
+          .from('wallets')
+          .select('current_balance, wallet_name')
+          .eq('id', orderData.wallet_id)
+          .single();
+
+        if (walletError) throw walletError;
+
+        if (!wallet) {
+          throw new Error('Wallet not found');
+        }
+
+        const requiredAmount = parseFloat(orderData.quantity) || 0;
+        if (wallet.current_balance < requiredAmount) {
+          throw new Error(
+            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${requiredAmount} in wallet: ${wallet.wallet_name}`
+          );
+        }
+      }
+      
       // Combine date and time into a single datetime string
       const orderDateTime = orderData.order_time 
         ? `${orderData.order_date}T${orderData.order_time}:00.000Z`

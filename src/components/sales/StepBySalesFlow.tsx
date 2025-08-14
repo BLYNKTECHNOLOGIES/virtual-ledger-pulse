@@ -192,6 +192,48 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       // Get the selected product and wallet
       const selectedProduct = products?.find(p => p.name === finalOrderData.stockName);
       const walletId = selectedClient?.walletId || newClientData.walletId;
+
+      // Validate stock before creating sales order
+      if (selectedProduct && finalOrderData.quantity) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('name, current_stock_quantity')
+          .eq('id', selectedProduct.id)
+          .single();
+
+        if (productError) throw productError;
+
+        if (!product) {
+          throw new Error('Product not found');
+        }
+
+        if (product.current_stock_quantity < finalOrderData.quantity) {
+          throw new Error(
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${finalOrderData.quantity} for product: ${product.name}`
+          );
+        }
+      }
+
+      // Validate wallet balance for USDT transactions
+      if (walletId && usdtAmount > 0) {
+        const { data: wallet, error: walletError } = await supabase
+          .from('wallets')
+          .select('current_balance, wallet_name')
+          .eq('id', walletId)
+          .single();
+
+        if (walletError) throw walletError;
+
+        if (!wallet) {
+          throw new Error('Wallet not found');
+        }
+
+        if (wallet.current_balance < usdtAmount) {
+          throw new Error(
+            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${usdtAmount} in wallet: ${wallet.wallet_name}`
+          );
+        }
+      }
       
       // Get platform from wallet if available
       let platform = finalOrderData.platform;

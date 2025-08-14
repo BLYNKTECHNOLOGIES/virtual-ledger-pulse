@@ -78,6 +78,48 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
       const walletId = order?.wallet_id;
       const usdtAmount = order?.usdt_amount || order?.total_amount;
 
+      // Validate stock before completing order
+      if (selectedProduct && formData.quantity) {
+        const { data: product, error: productError } = await supabase
+          .from('products')
+          .select('name, current_stock_quantity')
+          .eq('id', selectedProduct.id)
+          .single();
+
+        if (productError) throw productError;
+
+        if (!product) {
+          throw new Error('Product not found');
+        }
+
+        if (product.current_stock_quantity < formData.quantity) {
+          throw new Error(
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${formData.quantity} for product: ${product.name}`
+          );
+        }
+      }
+
+      // Validate wallet balance for USDT transactions
+      if (walletId && usdtAmount > 0) {
+        const { data: wallet, error: walletError } = await supabase
+          .from('wallets')
+          .select('current_balance, wallet_name')
+          .eq('id', walletId)
+          .single();
+
+        if (walletError) throw walletError;
+
+        if (!wallet) {
+          throw new Error('Wallet not found');
+        }
+
+        if (wallet.current_balance < usdtAmount) {
+          throw new Error(
+            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${usdtAmount} in wallet: ${wallet.wallet_name}`
+          );
+        }
+      }
+
       // Update the sales order with completion details
       const { error: updateError } = await supabase
         .from('sales_orders')

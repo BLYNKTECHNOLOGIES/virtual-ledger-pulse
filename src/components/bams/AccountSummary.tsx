@@ -33,7 +33,6 @@ interface AccountSummaryData {
   status: string;
   stored_balance: number;
   computed_balance: number;
-  balance_locked: boolean;
   total_transactions: number;
   total_income: number;
   total_expense: number;
@@ -46,7 +45,6 @@ interface SystemTotals {
   active_accounts: number;
   inactive_accounts: number;
   total_stored_balance: number;
-  locked_accounts: number;
   first_account_created: string;
   last_account_updated: string;
 }
@@ -122,7 +120,6 @@ export function AccountSummary() {
             status: account.status,
             stored_balance: account.balance,
             computed_balance: account.computed_balance || account.balance,
-            balance_locked: account.balance_locked,
             total_transactions: transactions.length,
             total_income,
             total_expense,
@@ -142,7 +139,7 @@ export function AccountSummary() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('status, balance, balance_locked, created_at, updated_at');
+        .select('status, balance, created_at, updated_at');
       
       if (error) throw error;
       
@@ -150,7 +147,6 @@ export function AccountSummary() {
       const active_accounts = data.filter(a => a.status === 'ACTIVE').length;
       const inactive_accounts = data.filter(a => a.status === 'INACTIVE').length;
       const total_stored_balance = data.reduce((sum, a) => sum + a.balance, 0);
-      const locked_accounts = data.filter(a => a.balance_locked).length;
       const first_account_created = data.reduce((earliest, a) => 
         new Date(a.created_at) < new Date(earliest) ? a.created_at : earliest, 
         data[0]?.created_at || new Date().toISOString()
@@ -165,7 +161,6 @@ export function AccountSummary() {
         active_accounts,
         inactive_accounts,
         total_stored_balance,
-        locked_accounts,
         first_account_created,
         last_account_updated
       } as SystemTotals;
@@ -357,8 +352,8 @@ export function AccountSummary() {
                 <div className="flex items-center">
                   <AlertTriangle className="h-8 w-8 text-orange-600" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Locked Accounts</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemTotals?.locked_accounts || 0}</p>
+                    <p className="text-sm font-medium text-gray-600">Inactive Accounts</p>
+                    <p className="text-2xl font-bold text-gray-900">{systemTotals?.inactive_accounts || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -423,13 +418,6 @@ export function AccountSummary() {
                     </div>
                     <span className="font-semibold">{systemTotals?.inactive_accounts || 0}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                      <span className="text-sm">Locked Accounts</span>
-                    </div>
-                    <span className="font-semibold">{systemTotals?.locked_accounts || 0}</span>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -469,9 +457,6 @@ export function AccountSummary() {
                           <Badge variant={getStatusBadgeVariant(account.status)}>
                             {account.status}
                           </Badge>
-                          {account.balance_locked && (
-                            <Badge variant="outline" className="ml-1">Locked</Badge>
-                          )}
                         </td>
                         <td className="p-2">{account.total_transactions}</td>
                         <td className="p-2">{format(new Date(account.account_created), 'dd MMM yyyy')}</td>

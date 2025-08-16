@@ -81,7 +81,6 @@ export type Database = {
           account_status: string
           account_type: string
           balance: number
-          balance_locked: boolean
           bank_account_holder_name: string | null
           bank_name: string
           branch: string | null
@@ -97,7 +96,6 @@ export type Database = {
           account_status?: string
           account_type?: string
           balance?: number
-          balance_locked?: boolean
           bank_account_holder_name?: string | null
           bank_name: string
           branch?: string | null
@@ -113,7 +111,6 @@ export type Database = {
           account_status?: string
           account_type?: string
           balance?: number
-          balance_locked?: boolean
           bank_account_holder_name?: string | null
           bank_name?: string
           branch?: string | null
@@ -3563,7 +3560,6 @@ export type Database = {
           account_status: string | null
           account_type: string | null
           balance: number | null
-          balance_locked: boolean | null
           bank_account_holder_name: string | null
           bank_name: string | null
           branch: string | null
@@ -3580,7 +3576,6 @@ export type Database = {
           account_status?: string | null
           account_type?: string | null
           balance?: number | null
-          balance_locked?: boolean | null
           bank_account_holder_name?: string | null
           bank_name?: string | null
           branch?: string | null
@@ -3597,7 +3592,6 @@ export type Database = {
           account_status?: string | null
           account_type?: string | null
           balance?: number | null
-          balance_locked?: boolean | null
           bank_account_holder_name?: string | null
           bank_name?: string | null
           branch?: string | null

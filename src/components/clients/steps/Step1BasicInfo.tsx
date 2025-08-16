@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Step1BasicInfoProps {
   formData: any;
@@ -14,6 +16,21 @@ interface Step1BasicInfoProps {
 }
 
 export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
+  // Fetch employees for RM dropdown
+  const { data: employees } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name, employee_id')
+        .eq('status', 'ACTIVE')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -71,6 +88,7 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
               <SelectValue placeholder="Select client type" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="HNI">HNI</SelectItem>
               <SelectItem value="INDIVIDUAL">Individual</SelectItem>
               <SelectItem value="BUSINESS">Business</SelectItem>
             </SelectContent>
@@ -95,12 +113,18 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
 
       <div>
         <Label htmlFor="assigned_rm">Assigned RM</Label>
-        <Input
-          id="assigned_rm"
-          value={formData.assigned_rm}
-          onChange={(e) => setFormData({ ...formData, assigned_rm: e.target.value })}
-          placeholder="Enter relationship manager name"
-        />
+        <Select value={formData.assigned_rm} onValueChange={(value) => setFormData({ ...formData, assigned_rm: value })}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select relationship manager" />
+          </SelectTrigger>
+          <SelectContent>
+            {employees?.map((employee) => (
+              <SelectItem key={employee.id} value={employee.name}>
+                {employee.name} ({employee.employee_id})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>

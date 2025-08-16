@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 interface EditClientDetailsDialogProps {
   open: boolean;
@@ -19,6 +19,21 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch employees for RM dropdown
+  const { data: employees } = useQuery({
+    queryKey: ['employees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name, employee_id')
+        .eq('status', 'ACTIVE')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const [formData, setFormData] = useState({
     name: client?.name || "",
@@ -131,10 +146,9 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
                   <SelectValue placeholder="Select client type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Individual">Individual</SelectItem>
-                  <SelectItem value="Corporate">Corporate</SelectItem>
                   <SelectItem value="HNI">HNI</SelectItem>
-                  <SelectItem value="Institutional">Institutional</SelectItem>
+                  <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                  <SelectItem value="BUSINESS">Business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -157,12 +171,22 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="assigned_operator">Assigned Operator</Label>
-              <Input
-                id="assigned_operator"
+              <Label htmlFor="assigned_operator">Assigned RM</Label>
+              <Select
                 value={formData.assigned_operator}
-                onChange={(e) => handleInputChange("assigned_operator", e.target.value)}
-              />
+                onValueChange={(value) => handleInputChange("assigned_operator", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select relationship manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.name}>
+                      {employee.name} ({employee.employee_id})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

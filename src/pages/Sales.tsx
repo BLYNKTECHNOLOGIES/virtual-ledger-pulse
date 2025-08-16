@@ -21,6 +21,7 @@ import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 import { UserPayingStatusDialog } from "@/components/sales/UserPayingStatusDialog";
 import { PaymentMethodSelectionDialog } from "@/components/sales/PaymentMethodSelectionDialog";
 import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
+import { QuickSalesOrderDialog } from "@/components/sales/QuickSalesOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Sales() {
@@ -28,6 +29,7 @@ export default function Sales() {
   const queryClient = useQueryClient();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showManualSalesEntry, setShowManualSalesEntry] = useState(false);
+  const [showQuickSalesOrder, setShowQuickSalesOrder] = useState(false);
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
@@ -388,7 +390,17 @@ export default function Sales() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Manual Sales Entry
               </Button>
-              <Button onClick={() => setShowStepByStepFlow(true)}>
+              <Button 
+                onClick={() => setShowQuickSalesOrder(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Quick Sales Order
+              </Button>
+              <Button 
+                onClick={() => setShowStepByStepFlow(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Order
               </Button>
@@ -551,6 +563,12 @@ export default function Sales() {
       <SalesEntryDialog
         open={showManualSalesEntry}
         onOpenChange={setShowManualSalesEntry}
+      />
+
+      {/* Quick Sales Order Dialog */}
+      <QuickSalesOrderDialog
+        open={showQuickSalesOrder}
+        onOpenChange={setShowQuickSalesOrder}
       />
 
       {/* Details Dialog */}

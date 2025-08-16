@@ -3561,6 +3561,7 @@ export type Database = {
           account_name: string | null
           account_number: string | null
           account_status: string | null
+          account_type: string | null
           balance: number | null
           balance_locked: boolean | null
           bank_account_holder_name: string | null
@@ -3572,6 +3573,40 @@ export type Database = {
           IFSC: string | null
           status: string | null
           updated_at: string | null
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          account_status?: string | null
+          account_type?: string | null
+          balance?: number | null
+          balance_locked?: boolean | null
+          bank_account_holder_name?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          computed_balance?: never
+          created_at?: string | null
+          id?: string | null
+          IFSC?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          account_status?: string | null
+          account_type?: string | null
+          balance?: number | null
+          balance_locked?: boolean | null
+          bank_account_holder_name?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          computed_balance?: never
+          created_at?: string | null
+          id?: string | null
+          IFSC?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

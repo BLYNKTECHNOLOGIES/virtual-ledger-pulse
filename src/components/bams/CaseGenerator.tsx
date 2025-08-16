@@ -267,6 +267,23 @@ export function CaseGenerator() {
         .single();
 
       if (error) throw error;
+
+      // If case type is "Account Not Working", update bank account status to "Inactive"
+      if (data.case_type === 'ACCOUNT_NOT_WORKING') {
+        const { error: updateError } = await supabase
+          .from('bank_accounts')
+          .update({ status: 'INACTIVE' })
+          .eq('id', data.bank_account_id);
+
+        if (updateError) {
+          console.error('Error updating bank account status:', updateError);
+          // Don't throw error here as the case was already created successfully
+          toast.error("Case created but failed to update bank account status");
+        } else {
+          console.log('Bank account status updated to INACTIVE');
+        }
+      }
+
       return result;
     },
     onSuccess: () => {

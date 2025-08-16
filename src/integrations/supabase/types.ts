@@ -122,6 +122,96 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_cases: {
+        Row: {
+          amount_involved: number | null
+          assigned_to: string | null
+          bank_account_id: string | null
+          beneficiary_details: string | null
+          case_number: string
+          case_type: string
+          contact_details: string | null
+          contact_person: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          documents_attached: string[] | null
+          due_date: string | null
+          id: string
+          priority: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          title: string
+          transaction_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_involved?: number | null
+          assigned_to?: string | null
+          bank_account_id?: string | null
+          beneficiary_details?: string | null
+          case_number: string
+          case_type: string
+          contact_details?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents_attached?: string[] | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title: string
+          transaction_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_involved?: number | null
+          assigned_to?: string | null
+          bank_account_id?: string | null
+          beneficiary_details?: string | null
+          case_number?: string
+          case_type?: string
+          contact_details?: string | null
+          contact_person?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          documents_attached?: string[] | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          title?: string
+          transaction_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_communications: {
         Row: {
           bank_name: string

@@ -5,10 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertTriangle, Plus, Filter, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
-import { Search } from "lucide-react";
+import { Search, Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const caseTypeLabels = {
   'ACCOUNT_NOT_WORKING': 'Account Not Working',
@@ -24,6 +25,8 @@ export function CaseTrackingTab() {
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
   const [selectedCaseTypeFilter, setSelectedCaseTypeFilter] = useState<string>("all");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
@@ -73,6 +76,37 @@ export function CaseTrackingTab() {
 
   // Get unique bank names for filter
   const uniqueBankNames = Array.from(new Set((bankAccounts || []).map(account => account.bank_name).filter(Boolean)));
+
+  // Start Investigation Mutation
+  const startInvestigationMutation = useMutation({
+    mutationFn: async (caseId: string) => {
+      const { error } = await supabase
+        .from('bank_cases')
+        .update({
+          investigation_status: 'UNDER_INVESTIGATION',
+          investigation_started_at: new Date().toISOString(),
+          investigation_assigned_to: 'Current User' // You can replace with actual user
+        })
+        .eq('id', caseId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Investigation Started",
+        description: "Case has been moved to under investigation.",
+      });
+      refetchCases();
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to start investigation.",
+      });
+      console.error('Investigation error:', error);
+    },
+  });
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -259,14 +293,28 @@ export function CaseTrackingTab() {
               </div>
               
               <div className="flex gap-2 mt-3">
-                <Button 
-                  variant="default" 
-                  size="sm"
-                  className="bg-orange-600 hover:bg-orange-700"
-                >
-                  <Search className="h-4 w-4 mr-2" />
-                  Start Investigation
-                </Button>
+                {bankCase.investigation_status === 'UNDER_INVESTIGATION' ? (
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    className="bg-blue-100 text-blue-800 hover:bg-blue-200"
+                    disabled
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Under Investigation
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-700"
+                    onClick={() => startInvestigationMutation.mutate(bankCase.id)}
+                    disabled={startInvestigationMutation.isPending}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    {startInvestigationMutation.isPending ? 'Starting...' : 'Start Investigation'}
+                  </Button>
+                )}
                 <ViewTimelineDialog lienCaseId={bankCase.id} />
               </div>
             </div>

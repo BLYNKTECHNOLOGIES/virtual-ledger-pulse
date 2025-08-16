@@ -150,6 +150,9 @@ export type Database = {
           expected_balance: number | null
           expected_settlement_amount: number | null
           id: string
+          investigation_assigned_to: string | null
+          investigation_started_at: string | null
+          investigation_status: string | null
           pending_since: string | null
           priority: string
           proof_of_debit: string | null
@@ -199,6 +202,9 @@ export type Database = {
           expected_balance?: number | null
           expected_settlement_amount?: number | null
           id?: string
+          investigation_assigned_to?: string | null
+          investigation_started_at?: string | null
+          investigation_status?: string | null
           pending_since?: string | null
           priority?: string
           proof_of_debit?: string | null
@@ -248,6 +254,9 @@ export type Database = {
           expected_balance?: number | null
           expected_settlement_amount?: number | null
           id?: string
+          investigation_assigned_to?: string | null
+          investigation_started_at?: string | null
+          investigation_status?: string | null
           pending_since?: string | null
           priority?: string
           proof_of_debit?: string | null

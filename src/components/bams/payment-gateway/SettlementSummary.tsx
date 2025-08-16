@@ -56,7 +56,7 @@ export function SettlementSummary() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [selectedBank, setSelectedBank] = useState("");
+  const [selectedBank, setSelectedBank] = useState("all");
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const { toast } = useToast();
 
@@ -139,7 +139,7 @@ export function SettlementSummary() {
     }
 
     // Bank filter
-    if (selectedBank) {
+    if (selectedBank && selectedBank !== "all") {
       filtered = filtered.filter(s => s.bank_account_id === selectedBank);
     }
 
@@ -164,7 +164,7 @@ export function SettlementSummary() {
   const clearFilters = () => {
     setDateFrom("");
     setDateTo("");
-    setSelectedBank("");
+    setSelectedBank("all");
   };
 
   if (loading) {
@@ -276,7 +276,7 @@ export function SettlementSummary() {
                   <SelectValue placeholder="All banks" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
-                  <SelectItem value="">All banks</SelectItem>
+                  <SelectItem value="all">All banks</SelectItem>
                   {bankAccounts.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}

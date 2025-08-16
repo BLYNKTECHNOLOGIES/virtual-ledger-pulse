@@ -2,20 +2,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Building2, MessageSquare, Key, Search, Archive } from "lucide-react";
-import { CaseTrackingTab } from "./CaseTrackingTab";
-import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
+import { LienCaseTrackingTab } from "./LienCaseTrackingTab";
 import { AccountStatusTab } from "./AccountStatusTab";
 import { BankCommunicationsTab } from "./BankCommunicationsTab";
 import { BankingCredentialsTab } from "./BankingCredentialsTab";
+import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
 import { PastInvestigationsTab } from "./PastInvestigationsTab";
 
 export function BankingComplianceTab() {
   return (
-    <Tabs defaultValue="cases" className="space-y-6">
+    <Tabs defaultValue="lien-cases" className="space-y-6">
       <TabsList className="grid w-full grid-cols-6">
-        <TabsTrigger value="cases" className="flex items-center gap-2">
+        <TabsTrigger value="lien-cases" className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
-          Cases
+          Lien Cases
         </TabsTrigger>
         <TabsTrigger value="account-status" className="flex items-center gap-2">
           <Building2 className="h-4 w-4" />
@@ -39,8 +39,8 @@ export function BankingComplianceTab() {
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="cases">
-        <CaseTrackingTab />
+      <TabsContent value="lien-cases">
+        <LienCaseTrackingTab />
       </TabsContent>
 
       <TabsContent value="account-status">

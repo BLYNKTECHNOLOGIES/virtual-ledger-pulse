@@ -115,26 +115,17 @@ export function CandidatesTab() {
 
   const markNotInterested = useMutation({
     mutationFn: async (id: string) => {
-      console.log('CandidatesTab: Marking applicant as not interested:', id);
       const { error } = await supabase
         .from("job_applicants")
         .update({ is_interested: false, status: "NOT_INTERESTED" })
         .eq("id", id);
-      if (error) {
-        console.error('CandidatesTab: Error updating applicant:', error);
-        throw error;
-      }
-      console.log('CandidatesTab: Successfully marked applicant as not interested');
+      if (error) throw error;
     },
     onSuccess: () => {
-      console.log('CandidatesTab: Mutation success - showing toast and invalidating queries');
       toast({ title: "Updated", description: "Marked as not interested." });
       queryClient.invalidateQueries({ queryKey: ["candidates"] });
     },
-    onError: (e) => {
-      console.error('CandidatesTab: Mutation error:', e);
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    },
+    onError: (e) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -322,17 +313,14 @@ export function CandidatesTab() {
                             </a>
                           </Button>
                         )}
-                         <Button
-                           variant="ghost"
-                           size="sm"
-                           onClick={() => {
-                             console.log('CandidatesTab: Mark Not Interested button clicked for applicant:', a.id);
-                             markNotInterested.mutate(a.id);
-                           }}
-                           disabled={a.is_interested === false}
-                         >
-                           Mark Not Interested
-                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markNotInterested.mutate(a.id)}
+                          disabled={a.is_interested === false}
+                        >
+                          Mark Not Interested
+                        </Button>
                       </div>
                     </div>
 

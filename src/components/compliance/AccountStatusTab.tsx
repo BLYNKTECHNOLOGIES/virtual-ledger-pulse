@@ -161,65 +161,63 @@ export function AccountStatusTab() {
     ) || []
   };
 
-  // Function to get priority badge styling using semantic tokens
+  // Function to get priority badge styling
   const getPriorityBadgeStyle = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return 'bg-destructive/10 text-destructive border-destructive/20';
+        return 'bg-red-100 text-red-800 border-red-200';
       case 'MEDIUM':
-        return 'bg-warning/10 text-warning border-warning/20';
+        return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'LOW':
-        return 'bg-success/10 text-success border-success/20';
+        return 'bg-green-100 text-green-800 border-green-200';
       default:
-        return 'bg-muted text-muted-foreground border-border';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  // Function to get priority-specific styling using semantic tokens
+  // Function to get priority-specific styling
   const getPriorityCardStyle = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return 'border-destructive/30 bg-destructive/5 shadow-md ring-1 ring-destructive/10';
+        return 'border-red-300 bg-red-50 shadow-md ring-1 ring-red-200';
       case 'MEDIUM':
-        return 'border-warning/30 bg-warning/5 shadow-md ring-1 ring-warning/10';
+        return 'border-orange-300 bg-orange-50 shadow-md ring-1 ring-orange-200';
       case 'LOW':
-        return 'border-success/30 bg-success/5 shadow-md ring-1 ring-success/10';
+        return 'border-green-300 bg-green-50 shadow-md ring-1 ring-green-200';
       default:
-        return 'border-border bg-muted/30 shadow-md ring-1 ring-border';
+        return 'border-gray-300 bg-gray-50 shadow-md ring-1 ring-gray-200';
     }
   };
 
-  // Function to get priority text colors using semantic tokens
+  // Function to get priority text colors
   const getPriorityTextColor = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return { title: 'text-destructive', subtitle: 'text-destructive/80', balance: 'text-destructive/90' };
+        return { title: 'text-red-900', subtitle: 'text-red-700', balance: 'text-red-800' };
       case 'MEDIUM':
-        return { title: 'text-warning', subtitle: 'text-warning/80', balance: 'text-warning/90' };
+        return { title: 'text-orange-900', subtitle: 'text-orange-700', balance: 'text-orange-800' };
       case 'LOW':
-        return { title: 'text-success', subtitle: 'text-success/80', balance: 'text-success/90' };
+        return { title: 'text-green-900', subtitle: 'text-green-700', balance: 'text-green-800' };
       default:
-        return { title: 'text-foreground', subtitle: 'text-muted-foreground', balance: 'text-foreground/80' };
+        return { title: 'text-gray-900', subtitle: 'text-gray-700', balance: 'text-gray-800' };
     }
   };
 
   const renderInvestigationCard = (account: any, investigation: any) => {
     const priority = investigation?.priority || 'MEDIUM';
     const priorityBadgeStyle = getPriorityBadgeStyle(priority);
-    const priorityCardStyle = getPriorityCardStyle(priority);
-    const textColors = getPriorityTextColor(priority);
 
     return (
       <div 
         key={account.id} 
-        className={`${priorityCardStyle} rounded-lg p-4 transition-all duration-200`}
+        className="border border-red-300 bg-red-50 shadow-md ring-1 ring-red-200 rounded-lg p-4 transition-all duration-200"
       >
         <div className="flex justify-between items-start mb-2">
           <div>
-            <h4 className={`font-medium ${textColors.title}`}>
+            <h4 className="font-medium text-red-900">
               {account.bank_name}
             </h4>
-            <p className={`text-sm ${textColors.subtitle}`}>
+            <p className="text-sm text-red-700">
               {account.account_name}
             </p>
           </div>
@@ -230,12 +228,12 @@ export function AccountStatusTab() {
             <Badge variant="secondary" className={priorityBadgeStyle}>
               {priority} Priority
             </Badge>
-            <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+            <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
               Under Investigation
             </Badge>
           </div>
         </div>
-        <p className={`text-sm mb-2 ${textColors.balance}`}>
+        <p className="text-sm mb-2 text-red-800">
           Balance: ₹{Number(account.balance).toLocaleString()}
         </p>
       </div>
@@ -247,23 +245,23 @@ export function AccountStatusTab() {
       key={account.id} 
       className={`border rounded-lg p-4 transition-all duration-200 ${
         isInactive
-        ? 'border-destructive/30 bg-destructive/5 hover:shadow-sm hover:bg-destructive/10'
-        : 'border-border bg-card hover:shadow-sm'
+        ? 'border-red-200 bg-red-50 hover:shadow-sm hover:bg-red-55'
+        : 'border-gray-200 bg-white hover:shadow-sm'
       }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div>
           <h4 className={`font-medium ${
             isInactive 
-            ? 'text-destructive' 
-            : 'text-foreground'
+            ? 'text-red-900' 
+            : 'text-gray-900'
           }`}>
             {account.bank_name}
           </h4>
           <p className={`text-sm ${
             isInactive 
-            ? 'text-destructive/80' 
-            : 'text-muted-foreground'
+            ? 'text-red-700' 
+            : 'text-gray-600'
           }`}>
             {account.account_name}
           </p>
@@ -276,8 +274,8 @@ export function AccountStatusTab() {
       </div>
       <p className={`text-sm mb-2 ${
         isInactive 
-        ? 'text-destructive/90' 
-        : 'text-muted-foreground'
+        ? 'text-red-800' 
+        : 'text-gray-700'
       }`}>
         Balance: ₹{Number(account.balance).toLocaleString()}
       </p>
@@ -285,7 +283,7 @@ export function AccountStatusTab() {
         <Button 
           size="sm" 
           variant="outline" 
-          className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50"
+          className="w-full border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400"
           onClick={() => handleStartInvestigation(account)}
         >
           Start Investigation
@@ -301,7 +299,7 @@ export function AccountStatusTab() {
       <div className="space-y-4">
         <div className="flex items-center gap-2 pb-2 border-b">
           <div className={`w-3 h-3 rounded-full ${iconColor}`}></div>
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-lg font-semibold text-gray-900">
             {title} ({accounts.length})
           </h3>
         </div>
@@ -322,8 +320,8 @@ export function AccountStatusTab() {
         {groupedAccounts.underInvestigation.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-warning"></div>
-              <h3 className="text-lg font-semibold text-foreground">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <h3 className="text-lg font-semibold text-gray-900">
                 🚨 Under Investigation ({groupedAccounts.underInvestigation.length})
               </h3>
             </div>
@@ -339,13 +337,13 @@ export function AccountStatusTab() {
         {renderAccountGroup(
           "Active Accounts", 
           groupedAccounts.active, 
-          "bg-success"
+          "bg-green-500"
         )}
         
         {renderAccountGroup(
           "Inactive Accounts", 
           groupedAccounts.inactive, 
-          "bg-destructive",
+          "bg-red-500",
           false,
           true
         )}
@@ -354,8 +352,8 @@ export function AccountStatusTab() {
         {completedInvestigations && completedInvestigations.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">
-              <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
-              <h3 className="text-lg font-semibold text-foreground">
+              <div className="w-3 h-3 rounded-full bg-gray-500"></div>
+              <h3 className="text-lg font-semibold text-gray-900">
                 📋 Past Cases ({completedInvestigations.length})
               </h3>
             </div>
@@ -363,19 +361,19 @@ export function AccountStatusTab() {
               {completedInvestigations.map(investigation => (
                 <div 
                   key={investigation.id}
-                  className="border border-border rounded-lg p-4 bg-muted/30"
+                  className="border border-gray-200 rounded-lg p-4 bg-gray-50"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-medium text-foreground">
+                      <h4 className="font-medium text-gray-900">
                         {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
                       </h4>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-gray-600">
                         {investigation.bank_accounts?.account_name || 'Unknown Account'}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">
+                      <Badge variant="secondary" className="bg-gray-100 text-gray-800 border-gray-200">
                         COMPLETED
                       </Badge>
                       <Badge variant="secondary" className={getPriorityBadgeStyle(investigation.priority)}>
@@ -383,7 +381,7 @@ export function AccountStatusTab() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="text-xs space-y-1 text-muted-foreground">
+                  <div className="text-xs space-y-1 text-gray-700">
                     <p><span className="font-medium">Type:</span> {investigation.investigation_type?.replace('_', ' ')}</p>
                     <p><span className="font-medium">Reason:</span> {investigation.reason}</p>
                     <p><span className="font-medium">Resolved:</span> {investigation.resolved_at ? new Date(investigation.resolved_at).toLocaleDateString() : 'N/A'}</p>
@@ -417,6 +415,9 @@ export function AccountStatusTab() {
                 <SelectContent>
                   <SelectItem value="compliance_review">Compliance Review</SelectItem>
                   <SelectItem value="cyber_lien">Cyber Lien</SelectItem>
+                  <SelectItem value="account_verification">Account Verification</SelectItem>
+                  <SelectItem value="transaction_review">Transaction Review</SelectItem>
+                  <SelectItem value="kyc_validation">KYC Validation</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>

@@ -117,7 +117,7 @@ export function LegalCommunicationsTab() {
           ...commData,
           attachments: attachmentUrls,
           follow_up_date: commData.follow_up_date || null,
-          legal_action_id: commData.legal_action_id === "none" ? null : commData.legal_action_id || null
+          legal_action_id: commData.legal_action_id || null
         }])
         .select()
         .single();
@@ -278,7 +278,7 @@ export function LegalCommunicationsTab() {
                         <SelectValue placeholder="Select legal action" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="">None</SelectItem>
                         {legalActions?.map((action) => (
                           <SelectItem key={action.id} value={action.id}>
                             {action.title} {action.case_number && `(${action.case_number})`}

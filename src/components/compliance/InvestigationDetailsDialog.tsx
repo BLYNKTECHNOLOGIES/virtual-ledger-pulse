@@ -5,11 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, Play, Plus, FileText, Upload, Download } from "lucide-react";
+import { CheckCircle, Clock, Play, Plus, FileText } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -27,7 +26,6 @@ export function InvestigationDetailsDialog({
 }: InvestigationDetailsDialogProps) {
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [newUpdate, setNewUpdate] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [showResolutionForm, setShowResolutionForm] = useState(false);
   const [selectedStep, setSelectedStep] = useState<any>(null);
   const [showStepCompletionDialog, setShowStepCompletionDialog] = useState(false);
@@ -123,34 +121,12 @@ export function InvestigationDetailsDialog({
 
   // Add update mutation
   const addUpdateMutation = useMutation({
-    mutationFn: async ({ updateText, files }: { updateText: string; files: File[] }) => {
-      let attachmentUrls: string[] = [];
-      
-      // Upload files if any
-      if (files.length > 0) {
-        for (const file of files) {
-          const fileName = `investigation-${investigation.id}-${Date.now()}-${file.name}`;
-          const { data, error } = await supabase.storage
-            .from('investigation-documents')
-            .upload(fileName, file);
-          
-          if (error) throw error;
-          
-          // Get public URL
-          const { data: urlData } = supabase.storage
-            .from('investigation-documents')
-            .getPublicUrl(fileName);
-          
-          attachmentUrls.push(urlData.publicUrl);
-        }
-      }
-      
+    mutationFn: async (updateText: string) => {
       const { error } = await supabase
         .from('investigation_updates')
         .insert({
           investigation_id: investigation.id,
           update_text: updateText,
-          attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
           created_by: 'Current User' // In real app, get from auth
         });
       
@@ -159,7 +135,6 @@ export function InvestigationDetailsDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investigation_updates', investigation.id] });
       setNewUpdate("");
-      setSelectedFiles([]);
       toast({
         title: "Update Added",
         description: "Investigation update has been added successfully.",
@@ -167,27 +142,7 @@ export function InvestigationDetailsDialog({
     },
   });
 
-  // Check if a step can be completed (all previous steps must be completed)
-  const canCompleteStep = (currentStep: any, allSteps: any[]) => {
-    if (!allSteps) return false;
-    
-    // Find all steps with step_number less than current step
-    const previousSteps = allSteps.filter(step => step.step_number < currentStep.step_number);
-    
-    // Check if all previous steps are completed
-    return previousSteps.every(step => step.status === 'COMPLETED');
-  };
-
   const handleCompleteStep = (step: any) => {
-    if (!canCompleteStep(step, steps)) {
-      toast({
-        title: "Sequential Completion Required",
-        description: "Please complete all previous steps before completing this step.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     setSelectedStep(step);
     setShowStepCompletionDialog(true);
   };
@@ -197,19 +152,9 @@ export function InvestigationDetailsDialog({
   };
 
   const handleAddUpdate = () => {
-    if (newUpdate.trim() || selectedFiles.length > 0) {
-      addUpdateMutation.mutate({ updateText: newUpdate, files: selectedFiles });
+    if (newUpdate.trim()) {
+      addUpdateMutation.mutate(newUpdate);
     }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setSelectedFiles(files => files.filter((_, i) => i !== index));
   };
 
   const getStepStatusColor = (status: string) => {
@@ -317,8 +262,6 @@ export function InvestigationDetailsDialog({
                         size="sm"
                         variant="outline"
                         onClick={() => handleCompleteStep(step)}
-                        disabled={!canCompleteStep(step, steps)}
-                        className={!canCompleteStep(step, steps) ? "opacity-50 cursor-not-allowed" : ""}
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Complete
@@ -335,59 +278,16 @@ export function InvestigationDetailsDialog({
             <CardHeader>
               <CardTitle className="text-lg">Add Investigation Update</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="update-text">Update Description</Label>
-                <Textarea
-                  id="update-text"
-                  value={newUpdate}
-                  onChange={(e) => setNewUpdate(e.target.value)}
-                  placeholder="Enter investigation update..."
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="update-files">Attach Documents</Label>
-                <Input
-                  id="update-files"
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="mt-1"
-                />
-                {selectedFiles.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <Label className="text-sm text-muted-foreground">Selected Files:</Label>
-                    {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          <span className="text-sm">{file.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeFile(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              <Button 
-                onClick={handleAddUpdate} 
-                disabled={!newUpdate.trim() && selectedFiles.length === 0}
-                className="w-full"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Add Update {selectedFiles.length > 0 && `with ${selectedFiles.length} file(s)`}
+            <CardContent className="space-y-3">
+              <Textarea
+                value={newUpdate}
+                onChange={(e) => setNewUpdate(e.target.value)}
+                placeholder="Enter investigation update..."
+                rows={3}
+              />
+              <Button onClick={handleAddUpdate} disabled={!newUpdate.trim()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Update
               </Button>
             </CardContent>
           </Card>
@@ -401,31 +301,9 @@ export function InvestigationDetailsDialog({
               <CardContent>
                 <div className="space-y-3 max-h-60 overflow-y-auto">
                   {updates.map((update) => (
-                    <div key={update.id} className="border-l-4 border-primary pl-4 py-3">
-                      <p className="text-sm text-foreground">{update.update_text}</p>
-                      
-                      {/* Attachments */}
-                      {update.attachment_urls && update.attachment_urls.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Attachments:</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {update.attachment_urls.map((url: string, index: number) => (
-                              <a
-                                key={index}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 px-2 py-1 bg-accent text-accent-foreground rounded text-xs hover:bg-accent/80 transition-colors"
-                              >
-                                <Download className="h-3 w-3" />
-                                Document {index + 1}
-                              </a>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <p className="text-xs text-muted-foreground mt-2">
+                    <div key={update.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                      <p className="text-sm text-gray-900">{update.update_text}</p>
+                      <p className="text-xs text-gray-500 mt-1">
                         {new Date(update.created_at).toLocaleString()} by {update.created_by}
                       </p>
                     </div>

@@ -1,16 +1,14 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle } from "lucide-react";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -20,10 +18,6 @@ interface SalesEntryDialogProps {
 export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // State for wallet balance and validation errors
-  const [selectedWalletBalance, setSelectedWalletBalance] = useState<number | null>(null);
-  const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   
   // Generate unique order number
   const generateOrderNumber = () => {
@@ -72,43 +66,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       return data;
     },
   });
-
-  // Fetch specific wallet balance when wallet is selected
-  const { data: walletBalance } = useQuery({
-    queryKey: ['wallet_balance', formData.wallet_id],
-    queryFn: async () => {
-      if (!formData.wallet_id) return null;
-      
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('current_balance, wallet_name, wallet_type')
-        .eq('id', formData.wallet_id)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!formData.wallet_id,
-  });
-
-  // Update selected wallet balance when wallet data changes
-  useEffect(() => {
-    setSelectedWalletBalance(walletBalance?.current_balance || null);
-  }, [walletBalance]);
-
-  // Validate stock quantity whenever quantity changes
-  useEffect(() => {
-    if (formData.quantity && selectedWalletBalance !== null) {
-      const quantity = parseFloat(formData.quantity);
-      if (quantity > selectedWalletBalance) {
-        setStockValidationError("Stock Quantity Cannot be Negative !!");
-      } else {
-        setStockValidationError(null);
-      }
-    } else {
-      setStockValidationError(null);
-    }
-  }, [formData.quantity, selectedWalletBalance]);
 
 
   // Fetch payment methods
@@ -281,13 +238,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       return;
     }
     
-    // Validation for stock quantity
-    if (stockValidationError) {
-      console.log('❌ Validation failed: Stock quantity error');
-      toast({ title: "Stock Error", description: stockValidationError, variant: "destructive" });
-      return;
-    }
-    
     console.log('✅ Validation passed, calling mutation');
     createSalesOrderMutation.mutate(formData);
   };
@@ -296,22 +246,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-populate platform when wallet is selected and fetch balance
+      // Auto-populate platform when wallet is selected
       if (field === 'wallet_id' && value && wallets) {
         const selectedWallet = wallets.find(w => w.id === value);
         if (selectedWallet) {
           // Extract platform name from wallet name (e.g., "BINANCE SS" -> "BINANCE")
           const platformName = selectedWallet.wallet_name.split(' ')[0];
           updated.platform = platformName;
-          
-          // Reset quantity when wallet changes to avoid validation issues
-          updated.quantity = '';
-          updated.total_amount = 0;
         }
-        
-        // Clear wallet balance when wallet changes
-        setSelectedWalletBalance(null);
-        setStockValidationError(null);
       }
       
       // Auto-calculate based on what's available
@@ -412,7 +354,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type}) - Balance: {wallet.current_balance}
+                      {wallet.wallet_name} ({wallet.wallet_type})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -429,16 +371,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 min="0"
                 step="0.01"
                 placeholder="Enter quantity"
-                className={stockValidationError ? "border-red-500" : ""}
               />
-              {stockValidationError && (
-                <Alert className="mt-2 border-red-500 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  <AlertDescription className="text-red-700">
-                    {stockValidationError}
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
 
             <div>
@@ -453,18 +386,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 placeholder="Enter price per unit"
               />
             </div>
-
-            {/* Show wallet balance when wallet is selected */}
-            {selectedWalletBalance !== null && (
-              <div className="col-span-2">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString()}</strong>
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
 
             <div>
               <Label>Total Amount</Label>

@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Eye, CheckCircle, Archive, Clock, FileText, Download, Calendar, AlertTriangle } from "lucide-react";
+import { Eye, CheckCircle, Archive, Clock, FileText, Download, Calendar, AlertTriangle, FileSpreadsheet } from "lucide-react";
+import { generateCompleteInvestigationPDF } from "@/utils/investigationPdfGenerator";
+import { toast } from "sonner";
 import { format } from "date-fns";
 
 export function PastInvestigationsTab() {
@@ -150,6 +152,24 @@ export function PastInvestigationsTab() {
     setShowDetailsDialog(true);
   };
 
+  const handleGeneratePDF = async () => {
+    if (!selectedInvestigation) return;
+    
+    try {
+      toast.loading("Generating PDF report...");
+      const pdf = await generateCompleteInvestigationPDF(selectedInvestigation);
+      
+      // Download the PDF
+      const fileName = `Investigation_Report_${selectedInvestigation.id.slice(0, 8)}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+      pdf.save(fileName);
+      
+      toast.success("PDF report generated successfully!");
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error("Failed to generate PDF report");
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'HIGH': return 'destructive';
@@ -267,9 +287,20 @@ export function PastInvestigationsTab() {
         <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                Resolved Investigation - {selectedInvestigation.bank_accounts?.bank_name}
-              </DialogTitle>
+              <div className="flex items-center justify-between">
+                <DialogTitle>
+                  Resolved Investigation - {selectedInvestigation.bank_accounts?.bank_name}
+                </DialogTitle>
+                <Button
+                  onClick={handleGeneratePDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Generate PDF Report
+                </Button>
+              </div>
             </DialogHeader>
 
             <div className="space-y-6">

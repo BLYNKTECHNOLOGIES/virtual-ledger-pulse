@@ -3,15 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Clock, AlertTriangle, Filter, X, Eye } from "lucide-react";
+import { Search, Clock, AlertTriangle, Filter, X, Eye, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { InvestigationDetailsDialog } from "./InvestigationDetailsDialog";
 
 const priorityColors = {
-  'HIGH': 'bg-red-100 text-red-800 border-red-200',
-  'MEDIUM': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  'LOW': 'bg-green-100 text-green-800 border-green-200'
+  'HIGH': 'bg-red-50 text-red-700 border-red-100',
+  'MEDIUM': 'bg-amber-50 text-amber-700 border-amber-100',
+  'LOW': 'bg-green-50 text-green-700 border-green-100'
 };
 
 const caseTypeLabels = {
@@ -26,6 +27,8 @@ const caseTypeLabels = {
 export function ActiveInvestigationsTab() {
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("all");
+  const [selectedInvestigation, setSelectedInvestigation] = useState<any>(null);
+  const [investigationDialogOpen, setInvestigationDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,6 +127,21 @@ export function ActiveInvestigationsTab() {
   const getDaysSinceStarted = (startedAt: string) => {
     const days = Math.floor((new Date().getTime() - new Date(startedAt).getTime()) / (1000 * 60 * 60 * 24));
     return days;
+  };
+
+  const handleViewDetails = (investigation: any) => {
+    setSelectedInvestigation(investigation);
+    setInvestigationDialogOpen(true);
+  };
+
+  const handleResolveInvestigation = (resolutionNotes: string) => {
+    if (selectedInvestigation) {
+      completeInvestigationMutation.mutate({ 
+        caseId: selectedInvestigation.id, 
+        resolutionNotes 
+      });
+      setInvestigationDialogOpen(false);
+    }
   };
 
   return (
@@ -241,9 +259,10 @@ export function ActiveInvestigationsTab() {
                         variant="outline" 
                         size="sm"
                         className="border-red-300 text-red-700 hover:bg-red-50"
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View Details
+                        Step-by-Step Investigation
                       </Button>
                       <Button 
                         variant="default" 
@@ -315,9 +334,10 @@ export function ActiveInvestigationsTab() {
                         variant="outline" 
                         size="sm"
                         className="border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View Details
+                        Step-by-Step Investigation
                       </Button>
                       <Button 
                         variant="default" 
@@ -341,7 +361,7 @@ export function ActiveInvestigationsTab() {
           {/* Medium Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'MEDIUM').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-yellow-600 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-amber-600 mb-3">
                 <Clock className="h-5 w-5" />
                 Medium Priority Investigations ({investigations.filter(inv => inv.priority === 'MEDIUM').length})
               </h3>
@@ -388,10 +408,11 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-yellow-300 text-yellow-700 hover:bg-yellow-50"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View Details
+                        Step-by-Step Investigation
                       </Button>
                       <Button 
                         variant="default" 
@@ -419,6 +440,16 @@ export function ActiveInvestigationsTab() {
           )}
         </div>
       </CardContent>
+      
+      {/* Investigation Details Dialog */}
+      {selectedInvestigation && (
+        <InvestigationDetailsDialog
+          investigation={selectedInvestigation}
+          open={investigationDialogOpen}
+          onOpenChange={setInvestigationDialogOpen}
+          onResolve={handleResolveInvestigation}
+        />
+      )}
     </Card>
   );
 }

@@ -417,9 +417,6 @@ export function AccountStatusTab() {
                 <SelectContent>
                   <SelectItem value="compliance_review">Compliance Review</SelectItem>
                   <SelectItem value="cyber_lien">Cyber Lien</SelectItem>
-                  <SelectItem value="account_verification">Account Verification</SelectItem>
-                  <SelectItem value="transaction_review">Transaction Review</SelectItem>
-                  <SelectItem value="kyc_validation">KYC Validation</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>

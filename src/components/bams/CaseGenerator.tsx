@@ -844,7 +844,7 @@ export function CaseGenerator() {
                         <SelectTrigger>
                           <SelectValue placeholder="Select case type" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background border shadow-lg z-50">
                           {CASE_TYPES.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
                               {type.label}
@@ -863,7 +863,7 @@ export function CaseGenerator() {
                         <SelectTrigger>
                           <SelectValue placeholder="Select bank account" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background border shadow-lg z-50">
                           {bankAccounts?.map((account) => (
                             <SelectItem key={account.id} value={account.id}>
                               {account.bank_name} - {account.account_name}

@@ -10,6 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AddBuyerDialogProps {
   open: boolean;
@@ -24,15 +27,54 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
     assigned_rm: '',
     selling_purpose: '',
     first_order_value: '',
-    estimated_monthly_sales_volume: '',
+    monthly_buying_volume: '',
     date_of_onboarding: new Date(),
   });
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const handleSubmit = () => {
-    // TODO: Implement submission logic
-    console.log('Buyer form data:', formData);
-    onOpenChange(false);
-    resetForm();
+  const handleSubmit = async () => {
+    try {
+      // Generate a unique client ID
+      const clientId = `CL${Date.now()}`;
+      
+      const { data, error } = await supabase
+        .from('clients')
+        .insert({
+          name: formData.client_name,
+          phone: formData.contact_number,
+          client_type: formData.client_type,
+          assigned_operator: formData.assigned_rm,
+          buying_purpose: formData.selling_purpose,
+          first_order_value: formData.first_order_value ? Number(formData.first_order_value) : null,
+          monthly_limit: formData.monthly_buying_volume ? Number(formData.monthly_buying_volume) : null,
+          date_of_onboarding: formData.date_of_onboarding.toISOString().split('T')[0],
+          client_id: clientId,
+          kyc_status: 'PENDING',
+          risk_appetite: 'MEDIUM'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Buyer added successfully",
+      });
+
+      // Refresh the clients list
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      
+      onOpenChange(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error adding buyer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add buyer. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const resetForm = () => {
@@ -43,7 +85,7 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       assigned_rm: '',
       selling_purpose: '',
       first_order_value: '',
-      estimated_monthly_sales_volume: '',
+      monthly_buying_volume: '',
       date_of_onboarding: new Date(),
     });
   };
@@ -95,8 +137,9 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
                 <SelectValue placeholder="Select client type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BUSINESS">Business</SelectItem>
+                <SelectItem value="HNI">HNI</SelectItem>
                 <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                <SelectItem value="BUSINESS">Business</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -136,15 +179,15 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
             />
           </div>
 
-          {/* Estimated Monthly Sales Volume */}
+          {/* Monthly Buying Volume */}
           <div className="space-y-2">
-            <Label htmlFor="estimated_monthly_sales_volume">Estimated Monthly Sales Volume</Label>
+            <Label htmlFor="monthly_buying_volume">Monthly Buying Volume*</Label>
             <Input
-              id="estimated_monthly_sales_volume"
+              id="monthly_buying_volume"
               type="number"
-              value={formData.estimated_monthly_sales_volume}
-              onChange={(e) => setFormData({ ...formData, estimated_monthly_sales_volume: e.target.value })}
-              placeholder="Enter estimated monthly sales volume"
+              value={formData.monthly_buying_volume}
+              onChange={(e) => setFormData({ ...formData, monthly_buying_volume: e.target.value })}
+              placeholder="Enter monthly buying volume"
             />
           </div>
 

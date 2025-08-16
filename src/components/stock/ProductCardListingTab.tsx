@@ -32,8 +32,7 @@ export function ProductCardListingTab() {
       // Get all assets
       let query = supabase
         .from('products')
-        .select('*')
-        .order('name');
+        .select('*');
 
       if (searchTerm) {
         query = query.or(`name.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`);
@@ -109,6 +108,9 @@ export function ProductCardListingTab() {
           };
         }
       }) || [];
+
+      // Sort by calculated_stock in descending order (highest stock first)
+      processedAssets.sort((a, b) => (b.calculated_stock || 0) - (a.calculated_stock || 0));
 
       return processedAssets;
     },
@@ -211,15 +213,15 @@ export function ProductCardListingTab() {
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 flex-1">
                                   <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-                                  <div className="flex-1">
-                                    <div className="font-medium text-slate-800 text-xs truncate">
-                                      {ws.wallet_name}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-slate-500 text-xs">Exchange</span>
-                                      <div className="w-1 h-1 rounded-full bg-green-400"></div>
-                                    </div>
-                                  </div>
+                                   <div className="flex-1">
+                                     <div className="font-medium text-slate-800 text-xs truncate">
+                                       {ws.wallet_name}
+                                     </div>
+                                     <div className="flex items-center gap-1">
+                                       <span className="text-slate-500 text-xs">Wallet</span>
+                                       <div className="w-1 h-1 rounded-full bg-green-400"></div>
+                                     </div>
+                                   </div>
                                 </div>
                                 <div className="text-right">
                                   <div className="font-bold text-slate-800 text-sm">
@@ -237,11 +239,11 @@ export function ProductCardListingTab() {
                           ))}
                           
                           {asset.wallet_stocks.length > 3 && (
-                            <div className="bg-white/50 rounded-lg p-2 text-center border border-blue-100">
-                              <span className="text-slate-500 text-xs font-medium">
-                                +{asset.wallet_stocks.length - 3} more exchanges
-                              </span>
-                            </div>
+                             <div className="bg-white/50 rounded-lg p-2 text-center border border-blue-100">
+                               <span className="text-slate-500 text-xs font-medium">
+                                 +{asset.wallet_stocks.length - 3} more wallets
+                               </span>
+                             </div>
                           )}
                         </div>
                       </div>

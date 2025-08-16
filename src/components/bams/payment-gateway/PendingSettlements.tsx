@@ -177,11 +177,26 @@ export function PendingSettlements() {
   };
 
   const handleSelectSale = (saleId: string) => {
-    setSelectedSales(prev => 
-      prev.includes(saleId) 
-        ? prev.filter(id => id !== saleId)
-        : [...prev, saleId]
-    );
+    const sale = pendingSales.find(s => s.id === saleId);
+    const isAdding = !selectedSales.includes(saleId);
+    
+    setSelectedSales(prev => {
+      if (prev.includes(saleId)) {
+        const newSelected = prev.filter(id => id !== saleId);
+        // If no sales selected, clear bank account
+        if (newSelected.length === 0) {
+          setSelectedBankAccount("");
+        }
+        return newSelected;
+      } else {
+        const newSelected = [...prev, saleId];
+        // Auto-select bank account if this is the first sale selected
+        if (prev.length === 0 && sale?.sales_payment_method.bank_account) {
+          setSelectedBankAccount(sale.sales_payment_method.bank_account.id);
+        }
+        return newSelected;
+      }
+    });
   };
 
   const handleSelectAll = () => {
@@ -198,8 +213,10 @@ export function PendingSettlements() {
     
     if (allSelected) {
       setSelectedSales(prev => prev.filter(id => !groupSaleIds.includes(id)));
+      setSelectedBankAccount("");
     } else {
       setSelectedSales(prev => [...new Set([...prev, ...groupSaleIds])]);
+      // Auto-select the bank account linked to the payment gateway
       setSelectedBankAccount(bankGroup.bankAccountId);
     }
   };

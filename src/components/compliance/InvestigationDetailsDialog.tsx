@@ -142,7 +142,27 @@ export function InvestigationDetailsDialog({
     },
   });
 
+  // Check if a step can be completed (all previous steps must be completed)
+  const canCompleteStep = (currentStep: any, allSteps: any[]) => {
+    if (!allSteps) return false;
+    
+    // Find all steps with step_number less than current step
+    const previousSteps = allSteps.filter(step => step.step_number < currentStep.step_number);
+    
+    // Check if all previous steps are completed
+    return previousSteps.every(step => step.status === 'COMPLETED');
+  };
+
   const handleCompleteStep = (step: any) => {
+    if (!canCompleteStep(step, steps)) {
+      toast({
+        title: "Sequential Completion Required",
+        description: "Please complete all previous steps before completing this step.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setSelectedStep(step);
     setShowStepCompletionDialog(true);
   };
@@ -262,6 +282,8 @@ export function InvestigationDetailsDialog({
                         size="sm"
                         variant="outline"
                         onClick={() => handleCompleteStep(step)}
+                        disabled={!canCompleteStep(step, steps)}
+                        className={!canCompleteStep(step, steps) ? "opacity-50 cursor-not-allowed" : ""}
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Complete

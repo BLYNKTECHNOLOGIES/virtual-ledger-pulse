@@ -115,14 +115,20 @@ export function RecruitmentTab() {
   // Mark applicant as not interested mutation
   const markNotInterestedMutation = useMutation({
     mutationFn: async (applicantId: string) => {
+      console.log('Marking applicant as not interested:', applicantId);
       const { error } = await supabase
         .from('job_applicants')
         .update({ is_interested: false, status: 'NOT_INTERESTED' })
         .eq('id', applicantId);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating applicant:', error);
+        throw error;
+      }
+      console.log('Successfully marked applicant as not interested');
     },
     onSuccess: () => {
+      console.log('Mutation success - showing toast and invalidating queries');
       toast({
         title: "Applicant Updated",
         description: "Applicant has been marked as not interested.",
@@ -130,6 +136,7 @@ export function RecruitmentTab() {
       queryClient.invalidateQueries({ queryKey: ['job_applicants'] });
     },
     onError: (error) => {
+      console.error('Mutation error:', error);
       toast({
         title: "Error",
         description: `Failed to update applicant: ${error.message}`,
@@ -294,14 +301,17 @@ export function RecruitmentTab() {
                       <td className="py-3 px-4">{applicant.stage}</td>
                       <td className="py-3 px-4">{getStatusBadge(applicant.status)}</td>
                       <td className="py-3 px-4">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => markNotInterestedMutation.mutate(applicant.id)}
-                          disabled={!applicant.is_interested}
-                        >
-                          Mark Not Interested
-                        </Button>
+                         <Button 
+                           variant="outline" 
+                           size="sm"
+                           onClick={() => {
+                             console.log('Mark Not Interested button clicked for applicant:', applicant.id);
+                             markNotInterestedMutation.mutate(applicant.id);
+                           }}
+                           disabled={!applicant.is_interested}
+                         >
+                           Mark Not Interested
+                         </Button>
                       </td>
                     </tr>
                   ))}

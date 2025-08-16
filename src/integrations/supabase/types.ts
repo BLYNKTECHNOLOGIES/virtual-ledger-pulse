@@ -79,6 +79,7 @@ export type Database = {
           account_name: string
           account_number: string
           account_status: string
+          account_type: string
           balance: number
           balance_locked: boolean
           bank_account_holder_name: string | null
@@ -94,6 +95,7 @@ export type Database = {
           account_name: string
           account_number: string
           account_status?: string
+          account_type?: string
           balance?: number
           balance_locked?: boolean
           bank_account_holder_name?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           account_name?: string
           account_number?: string
           account_status?: string
+          account_type?: string
           balance?: number
           balance_locked?: boolean
           bank_account_holder_name?: string | null

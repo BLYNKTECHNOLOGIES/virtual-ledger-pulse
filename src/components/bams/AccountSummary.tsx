@@ -18,8 +18,7 @@ import {
   DollarSign,
   BarChart3,
   PieChart,
-  Activity,
-  Printer
+  Activity
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -227,12 +226,74 @@ export function AccountSummary() {
     },
   });
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handleExportPDF = async () => {
+    try {
+      // Create a new window with the content
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error("Please allow popups to export PDF");
+        return;
+      }
 
-  const handleExportPDF = () => {
-    toast.info("PDF export functionality will be implemented soon");
+      // Get the content to export
+      const content = printRef.current?.innerHTML || '';
+      
+      // Create a complete HTML document for PDF generation
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Account Summary Report - ${format(new Date(), 'dd MMM yyyy')}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+              .header h1 { color: #1f2937; margin: 0; }
+              .header p { color: #6b7280; margin: 5px 0 0 0; }
+              .metric-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 10px 0; display: inline-block; width: 200px; }
+              .metric-value { font-size: 24px; font-weight: bold; color: #1f2937; }
+              .metric-label { font-size: 14px; color: #6b7280; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+              th { background-color: #f8fafc; font-weight: 600; }
+              .badge { background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+              .text-green { color: #059669; }
+              .text-red { color: #dc2626; }
+              .text-blue { color: #2563eb; }
+              .print-hidden { display: none; }
+              @media print {
+                body { margin: 0; }
+                .no-print { display: none !important; }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>BAMS - Banking & Payment Management</h1>
+              <p>Account Summary & Reports</p>
+              <p>Generated on ${format(new Date(), 'EEEE, MMMM dd, yyyy HH:mm')}</p>
+            </div>
+            ${content.replace(/print:hidden/g, 'print-hidden')}
+          </body>
+        </html>
+      `;
+
+      // Write content and trigger print dialog
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load then print
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 500);
+      };
+      
+      toast.success("PDF export initiated - use your browser's print dialog to save as PDF");
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error("Failed to export PDF. Please try again.");
+    }
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -288,11 +349,7 @@ export function AccountSummary() {
           <p className="text-gray-600 mt-1">Comprehensive banking system analysis and reporting</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
-          <Button onClick={handlePrint} variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-          <Button onClick={handleExportPDF} variant="outline" size="sm">
+          <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>

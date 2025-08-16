@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertTriangle, Plus, Filter, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AddLienUpdateDialog } from "./AddLienUpdateDialog";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
+import { Search } from "lucide-react";
 
 const caseTypeLabels = {
   'ACCOUNT_NOT_WORKING': 'Account Not Working',
@@ -259,10 +259,14 @@ export function CaseTrackingTab() {
               </div>
               
               <div className="flex gap-2 mt-3">
-                <AddLienUpdateDialog 
-                  lienCaseId={bankCase.id} 
-                  onUpdateAdded={() => refetchCases()} 
-                />
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Start Investigation
+                </Button>
                 <ViewTimelineDialog lienCaseId={bankCase.id} />
               </div>
             </div>

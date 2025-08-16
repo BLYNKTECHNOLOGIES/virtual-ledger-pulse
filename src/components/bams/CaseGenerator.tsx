@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar } from "lucide-react";
+import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 
 const CASE_TYPES = [
@@ -49,6 +49,32 @@ interface CaseFormData {
   contact_person: string;
   contact_details: string;
   due_date: string;
+  // Specific fields for different case types
+  error_message: string;
+  screenshots: File[];
+  wrong_beneficiary_account: string;
+  wrong_beneficiary_name: string;
+  transaction_datetime: string;
+  amount_transferred: number;
+  beneficiary_name: string;
+  beneficiary_account_number: string;
+  bank_ifsc_code: string;
+  proof_of_debit: File[];
+  settlement_reference_id: string;
+  expected_settlement_amount: number;
+  settlement_date: string;
+  pending_since: string;
+  supporting_proof: File[];
+  amount_lien_marked: number;
+  date_lien_marked: string;
+  bank_reason: string;
+  supporting_document: File[];
+  remarks: string;
+  date_of_discrepancy: string;
+  reported_balance: number;
+  expected_balance: number;
+  difference_amount: number;
+  statement_proof: File[];
 }
 
 export function CaseGenerator() {
@@ -70,6 +96,32 @@ export function CaseGenerator() {
     contact_person: '',
     contact_details: '',
     due_date: '',
+    // Initialize specific fields
+    error_message: '',
+    screenshots: [],
+    wrong_beneficiary_account: '',
+    wrong_beneficiary_name: '',
+    transaction_datetime: '',
+    amount_transferred: 0,
+    beneficiary_name: '',
+    beneficiary_account_number: '',
+    bank_ifsc_code: '',
+    proof_of_debit: [],
+    settlement_reference_id: '',
+    expected_settlement_amount: 0,
+    settlement_date: '',
+    pending_since: '',
+    supporting_proof: [],
+    amount_lien_marked: 0,
+    date_lien_marked: '',
+    bank_reason: '',
+    supporting_document: [],
+    remarks: '',
+    date_of_discrepancy: '',
+    reported_balance: 0,
+    expected_balance: 0,
+    difference_amount: 0,
+    statement_proof: [],
   });
 
   // Fetch bank accounts for dropdown
@@ -117,18 +169,107 @@ export function CaseGenerator() {
     return `CASE${year}${month}${random}`;
   };
 
+  // File upload handler
+  const handleFileUpload = async (files: File[], fieldName: string) => {
+    const uploadedUrls: string[] = [];
+    
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `case-documents/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('investigation-documents')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast.error(`Failed to upload ${file.name}`);
+        continue;
+      }
+
+      const { data } = supabase.storage
+        .from('investigation-documents')
+        .getPublicUrl(filePath);
+
+      uploadedUrls.push(data.publicUrl);
+    }
+    
+    return uploadedUrls;
+  };
+
   // Create case mutation
   const createCaseMutation = useMutation({
     mutationFn: async (data: CaseFormData) => {
       const caseNumber = generateCaseNumber();
       
+      // Upload files for different case types
+      let uploadedScreenshots: string[] = [];
+      let uploadedProofOfDebit: string[] = [];
+      let uploadedSupportingProof: string[] = [];
+      let uploadedSupportingDocument: string[] = [];
+      let uploadedStatementProof: string[] = [];
+
+      if (data.screenshots?.length > 0) {
+        uploadedScreenshots = await handleFileUpload(data.screenshots, 'screenshots');
+      }
+      if (data.proof_of_debit?.length > 0) {
+        uploadedProofOfDebit = await handleFileUpload(data.proof_of_debit, 'proof_of_debit');
+      }
+      if (data.supporting_proof?.length > 0) {
+        uploadedSupportingProof = await handleFileUpload(data.supporting_proof, 'supporting_proof');
+      }
+      if (data.supporting_document?.length > 0) {
+        uploadedSupportingDocument = await handleFileUpload(data.supporting_document, 'supporting_document');
+      }
+      if (data.statement_proof?.length > 0) {
+        uploadedStatementProof = await handleFileUpload(data.statement_proof, 'statement_proof');
+      }
+
+      const caseData = {
+        case_number: caseNumber,
+        case_type: data.case_type,
+        bank_account_id: data.bank_account_id,
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        amount_involved: data.amount_involved || 0,
+        transaction_reference: data.transaction_reference,
+        beneficiary_details: data.beneficiary_details,
+        assigned_to: data.assigned_to,
+        contact_person: data.contact_person,
+        contact_details: data.contact_details,
+        due_date: data.due_date || null,
+        // Case-specific fields
+        error_message: data.error_message,
+        screenshots: uploadedScreenshots,
+        wrong_beneficiary_account: data.wrong_beneficiary_account,
+        wrong_beneficiary_name: data.wrong_beneficiary_name,
+        transaction_datetime: data.transaction_datetime || null,
+        amount_transferred: data.amount_transferred || null,
+        beneficiary_name: data.beneficiary_name,
+        beneficiary_account_number: data.beneficiary_account_number,
+        bank_ifsc_code: data.bank_ifsc_code,
+        proof_of_debit: uploadedProofOfDebit[0] || null,
+        settlement_reference_id: data.settlement_reference_id,
+        expected_settlement_amount: data.expected_settlement_amount || null,
+        settlement_date: data.settlement_date || null,
+        pending_since: data.pending_since,
+        supporting_proof: uploadedSupportingProof[0] || null,
+        amount_lien_marked: data.amount_lien_marked || null,
+        date_lien_marked: data.date_lien_marked || null,
+        bank_reason: data.bank_reason,
+        supporting_document: uploadedSupportingDocument[0] || null,
+        remarks: data.remarks,
+        date_of_discrepancy: data.date_of_discrepancy || null,
+        reported_balance: data.reported_balance || null,
+        expected_balance: data.expected_balance || null,
+        difference_amount: data.difference_amount || null,
+        statement_proof: uploadedStatementProof[0] || null,
+      };
+      
       const { data: result, error } = await supabase
         .from('bank_cases')
-        .insert({
-          case_number: caseNumber,
-          ...data,
-          due_date: data.due_date || null,
-        })
+        .insert(caseData)
         .select()
         .single();
 
@@ -161,6 +302,32 @@ export function CaseGenerator() {
       contact_person: '',
       contact_details: '',
       due_date: '',
+      // Reset specific fields
+      error_message: '',
+      screenshots: [],
+      wrong_beneficiary_account: '',
+      wrong_beneficiary_name: '',
+      transaction_datetime: '',
+      amount_transferred: 0,
+      beneficiary_name: '',
+      beneficiary_account_number: '',
+      bank_ifsc_code: '',
+      proof_of_debit: [],
+      settlement_reference_id: '',
+      expected_settlement_amount: 0,
+      settlement_date: '',
+      pending_since: '',
+      supporting_proof: [],
+      amount_lien_marked: 0,
+      date_lien_marked: '',
+      bank_reason: '',
+      supporting_document: [],
+      remarks: '',
+      date_of_discrepancy: '',
+      reported_balance: 0,
+      expected_balance: 0,
+      difference_amount: 0,
+      statement_proof: [],
     });
   };
 
@@ -188,6 +355,450 @@ export function CaseGenerator() {
   const handleViewCase = (caseItem: any) => {
     setSelectedCase(caseItem);
     setIsViewDialogOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: keyof CaseFormData) => {
+    const files = Array.from(e.target.files || []);
+    setFormData(prev => ({ ...prev, [fieldName]: files }));
+  };
+
+  const removeFile = (fieldName: keyof CaseFormData, index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: (prev[fieldName] as File[]).filter((_, i) => i !== index)
+    }));
+  };
+
+  // Render case-specific fields based on selected case type
+  const renderCaseSpecificFields = () => {
+    switch (formData.case_type) {
+      case 'ACCOUNT_NOT_WORKING':
+        return (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="error_message">Error Message / Issue Description *</Label>
+              <Textarea
+                id="error_message"
+                value={formData.error_message}
+                onChange={(e) => setFormData(prev => ({ ...prev, error_message: e.target.value }))}
+                placeholder="Describe the error or issue in detail"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="screenshots">Screenshots (Optional)</Label>
+              <Input
+                id="screenshots"
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={(e) => handleFileChange(e, 'screenshots')}
+              />
+              {formData.screenshots.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.screenshots.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded text-sm">
+                      <span>{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('screenshots', index)}
+                        className="h-4 w-4 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      case 'WRONG_PAYMENT_INITIATED':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="wrong_beneficiary_account">Wrong Beneficiary Account Number *</Label>
+                <Input
+                  id="wrong_beneficiary_account"
+                  value={formData.wrong_beneficiary_account}
+                  onChange={(e) => setFormData(prev => ({ ...prev, wrong_beneficiary_account: e.target.value }))}
+                  placeholder="Enter wrong account number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="wrong_beneficiary_name">Wrong Beneficiary Name *</Label>
+                <Input
+                  id="wrong_beneficiary_name"
+                  value={formData.wrong_beneficiary_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, wrong_beneficiary_name: e.target.value }))}
+                  placeholder="Enter wrong beneficiary name"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="transaction_datetime">Date & Time of Transaction *</Label>
+                <Input
+                  id="transaction_datetime"
+                  type="datetime-local"
+                  value={formData.transaction_datetime}
+                  onChange={(e) => setFormData(prev => ({ ...prev, transaction_datetime: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount_transferred">Amount Transferred *</Label>
+                <Input
+                  id="amount_transferred"
+                  type="number"
+                  value={formData.amount_transferred}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount_transferred: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Textarea
+                id="remarks"
+                value={formData.remarks}
+                onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Additional remarks"
+                rows={2}
+              />
+            </div>
+          </>
+        );
+
+      case 'PAYMENT_NOT_CREDITED':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="beneficiary_name">Beneficiary Name *</Label>
+                <Input
+                  id="beneficiary_name"
+                  value={formData.beneficiary_name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, beneficiary_name: e.target.value }))}
+                  placeholder="Enter beneficiary name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="beneficiary_account_number">Beneficiary Account Number *</Label>
+                <Input
+                  id="beneficiary_account_number"
+                  value={formData.beneficiary_account_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, beneficiary_account_number: e.target.value }))}
+                  placeholder="Enter account number"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bank_ifsc_code">Bank IFSC Code *</Label>
+                <Input
+                  id="bank_ifsc_code"
+                  value={formData.bank_ifsc_code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, bank_ifsc_code: e.target.value }))}
+                  placeholder="Enter IFSC code"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="transaction_datetime">Transaction Date & Time *</Label>
+                <Input
+                  id="transaction_datetime"
+                  type="datetime-local"
+                  value={formData.transaction_datetime}
+                  onChange={(e) => setFormData(prev => ({ ...prev, transaction_datetime: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="proof_of_debit">Proof of Debit (Screenshot / Bank Entry)</Label>
+              <Input
+                id="proof_of_debit"
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileChange(e, 'proof_of_debit')}
+              />
+              {formData.proof_of_debit.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.proof_of_debit.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded text-sm">
+                      <span>{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('proof_of_debit', index)}
+                        className="h-4 w-4 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      case 'SETTLEMENT_NOT_RECEIVED':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="settlement_reference_id">Settlement Reference ID</Label>
+                <Input
+                  id="settlement_reference_id"
+                  value={formData.settlement_reference_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_reference_id: e.target.value }))}
+                  placeholder="Enter settlement reference ID"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expected_settlement_amount">Expected Settlement Amount *</Label>
+                <Input
+                  id="expected_settlement_amount"
+                  type="number"
+                  value={formData.expected_settlement_amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expected_settlement_amount: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="settlement_date">Settlement Date (Expected) *</Label>
+                <Input
+                  id="settlement_date"
+                  type="date"
+                  value={formData.settlement_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, settlement_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pending_since">Pending Since (Duration) *</Label>
+                <Input
+                  id="pending_since"
+                  value={formData.pending_since}
+                  onChange={(e) => setFormData(prev => ({ ...prev, pending_since: e.target.value }))}
+                  placeholder="e.g., 15 days, 2 weeks"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supporting_proof">Supporting Proof / Settlement Advice</Label>
+              <Input
+                id="supporting_proof"
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileChange(e, 'supporting_proof')}
+              />
+              {formData.supporting_proof.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.supporting_proof.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded text-sm">
+                      <span>{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('supporting_proof', index)}
+                        className="h-4 w-4 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        );
+
+      case 'LIEN_RECEIVED':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount_lien_marked">Amount Lien Marked *</Label>
+                <Input
+                  id="amount_lien_marked"
+                  type="number"
+                  value={formData.amount_lien_marked}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount_lien_marked: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date_lien_marked">Date Lien Marked *</Label>
+                <Input
+                  id="date_lien_marked"
+                  type="date"
+                  value={formData.date_lien_marked}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date_lien_marked: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bank_reason">Reason Provided by Bank</Label>
+              <Textarea
+                id="bank_reason"
+                value={formData.bank_reason}
+                onChange={(e) => setFormData(prev => ({ ...prev, bank_reason: e.target.value }))}
+                placeholder="Enter reason provided by bank"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supporting_document">Supporting Document (Bank Notice if available)</Label>
+              <Input
+                id="supporting_document"
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileChange(e, 'supporting_document')}
+              />
+              {formData.supporting_document.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.supporting_document.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded text-sm">
+                      <span>{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('supporting_document', index)}
+                        className="h-4 w-4 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Textarea
+                id="remarks"
+                value={formData.remarks}
+                onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Additional remarks"
+                rows={2}
+              />
+            </div>
+          </>
+        );
+
+      case 'BALANCE_DISCREPANCY':
+        return (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="date_of_discrepancy">Date of Discrepancy *</Label>
+              <Input
+                id="date_of_discrepancy"
+                type="date"
+                value={formData.date_of_discrepancy}
+                onChange={(e) => setFormData(prev => ({ ...prev, date_of_discrepancy: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="reported_balance">Reported Balance (from bank statement) *</Label>
+                <Input
+                  id="reported_balance"
+                  type="number"
+                  value={formData.reported_balance}
+                  onChange={(e) => setFormData(prev => ({ ...prev, reported_balance: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="expected_balance">Expected Balance (system calculation) *</Label>
+                <Input
+                  id="expected_balance"
+                  type="number"
+                  value={formData.expected_balance}
+                  onChange={(e) => setFormData(prev => ({ ...prev, expected_balance: parseFloat(e.target.value) || 0 }))}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="difference_amount">Difference Amount *</Label>
+              <Input
+                id="difference_amount"
+                type="number"
+                value={formData.difference_amount}
+                onChange={(e) => setFormData(prev => ({ ...prev, difference_amount: parseFloat(e.target.value) || 0 }))}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="statement_proof">Screenshot / Statement Proof</Label>
+              <Input
+                id="statement_proof"
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                onChange={(e) => handleFileChange(e, 'statement_proof')}
+              />
+              {formData.statement_proof.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.statement_proof.map((file, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded text-sm">
+                      <span>{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile('statement_proof', index)}
+                        className="h-4 w-4 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="remarks">Remarks</Label>
+              <Textarea
+                id="remarks"
+                value={formData.remarks}
+                onChange={(e) => setFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                placeholder="Additional remarks"
+                rows={2}
+              />
+            </div>
+          </>
+        );
+
+      default:
+        return null;
+    }
   };
 
   return (
@@ -278,6 +889,9 @@ export function CaseGenerator() {
                       rows={3}
                     />
                   </div>
+
+                  {/* Case-specific fields */}
+                  {renderCaseSpecificFields()}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">

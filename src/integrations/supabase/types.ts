@@ -125,75 +125,150 @@ export type Database = {
       bank_cases: {
         Row: {
           amount_involved: number | null
+          amount_lien_marked: number | null
+          amount_transferred: number | null
           assigned_to: string | null
           bank_account_id: string | null
+          bank_ifsc_code: string | null
+          bank_reason: string | null
+          beneficiary_account_number: string | null
           beneficiary_details: string | null
+          beneficiary_name: string | null
           case_number: string
           case_type: string
           contact_details: string | null
           contact_person: string | null
           created_at: string
           created_by: string | null
+          date_lien_marked: string | null
+          date_of_discrepancy: string | null
           description: string | null
+          difference_amount: number | null
           documents_attached: string[] | null
           due_date: string | null
+          error_message: string | null
+          expected_balance: number | null
+          expected_settlement_amount: number | null
           id: string
+          pending_since: string | null
           priority: string
+          proof_of_debit: string | null
+          remarks: string | null
+          reported_balance: number | null
           resolution_notes: string | null
           resolved_at: string | null
           resolved_by: string | null
+          screenshots: string[] | null
+          settlement_date: string | null
+          settlement_reference_id: string | null
+          statement_proof: string | null
           status: string
+          supporting_document: string | null
+          supporting_proof: string | null
           title: string
+          transaction_datetime: string | null
           transaction_reference: string | null
           updated_at: string
+          wrong_beneficiary_account: string | null
+          wrong_beneficiary_name: string | null
         }
         Insert: {
           amount_involved?: number | null
+          amount_lien_marked?: number | null
+          amount_transferred?: number | null
           assigned_to?: string | null
           bank_account_id?: string | null
+          bank_ifsc_code?: string | null
+          bank_reason?: string | null
+          beneficiary_account_number?: string | null
           beneficiary_details?: string | null
+          beneficiary_name?: string | null
           case_number: string
           case_type: string
           contact_details?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
+          date_lien_marked?: string | null
+          date_of_discrepancy?: string | null
           description?: string | null
+          difference_amount?: number | null
           documents_attached?: string[] | null
           due_date?: string | null
+          error_message?: string | null
+          expected_balance?: number | null
+          expected_settlement_amount?: number | null
           id?: string
+          pending_since?: string | null
           priority?: string
+          proof_of_debit?: string | null
+          remarks?: string | null
+          reported_balance?: number | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          screenshots?: string[] | null
+          settlement_date?: string | null
+          settlement_reference_id?: string | null
+          statement_proof?: string | null
           status?: string
+          supporting_document?: string | null
+          supporting_proof?: string | null
           title: string
+          transaction_datetime?: string | null
           transaction_reference?: string | null
           updated_at?: string
+          wrong_beneficiary_account?: string | null
+          wrong_beneficiary_name?: string | null
         }
         Update: {
           amount_involved?: number | null
+          amount_lien_marked?: number | null
+          amount_transferred?: number | null
           assigned_to?: string | null
           bank_account_id?: string | null
+          bank_ifsc_code?: string | null
+          bank_reason?: string | null
+          beneficiary_account_number?: string | null
           beneficiary_details?: string | null
+          beneficiary_name?: string | null
           case_number?: string
           case_type?: string
           contact_details?: string | null
           contact_person?: string | null
           created_at?: string
           created_by?: string | null
+          date_lien_marked?: string | null
+          date_of_discrepancy?: string | null
           description?: string | null
+          difference_amount?: number | null
           documents_attached?: string[] | null
           due_date?: string | null
+          error_message?: string | null
+          expected_balance?: number | null
+          expected_settlement_amount?: number | null
           id?: string
+          pending_since?: string | null
           priority?: string
+          proof_of_debit?: string | null
+          remarks?: string | null
+          reported_balance?: number | null
           resolution_notes?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
+          screenshots?: string[] | null
+          settlement_date?: string | null
+          settlement_reference_id?: string | null
+          statement_proof?: string | null
           status?: string
+          supporting_document?: string | null
+          supporting_proof?: string | null
           title?: string
+          transaction_datetime?: string | null
           transaction_reference?: string | null
           updated_at?: string
+          wrong_beneficiary_account?: string | null
+          wrong_beneficiary_name?: string | null
         }
         Relationships: [
           {

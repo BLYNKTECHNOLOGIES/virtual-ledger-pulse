@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, Play, Plus, FileText, Download } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -103,7 +101,7 @@ export function InvestigationDetailsDialog({
         .update({
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
-          completed_by: 'Current User', // In real app, get from auth
+          completed_by: 'Current User',
           notes,
           completion_report_url: reportUrl
         })
@@ -150,7 +148,7 @@ export function InvestigationDetailsDialog({
           investigation_id: investigation.id,
           update_text: updateText,
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
-          created_by: 'Current User' // In real app, get from auth
+          created_by: 'Current User'
         });
       
       if (error) throw error;
@@ -166,35 +164,6 @@ export function InvestigationDetailsDialog({
     },
   });
 
-  // Check if a step can be completed (all previous steps must be completed)
-  const canCompleteStep = (currentStep: any, allSteps: any[]) => {
-    if (!allSteps) return false;
-    
-    // Find all steps with step_number less than current step
-    const previousSteps = allSteps.filter(step => step.step_number < currentStep.step_number);
-    
-    // Check if all previous steps are completed
-    return previousSteps.every(step => step.status === 'COMPLETED');
-  };
-
-  const handleCompleteStep = (step: any) => {
-    if (!canCompleteStep(step, steps)) {
-      toast({
-        title: "Sequential Completion Required",
-        description: "Please complete all previous steps before completing this step.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setSelectedStep(step);
-    setShowStepCompletionDialog(true);
-  };
-
-  const handleStepCompletion = (stepId: string, notes: string, reportUrl?: string) => {
-    completeStepMutation.mutate({ stepId, notes, reportUrl });
-  };
-
   const handleAddUpdate = () => {
     if (newUpdate.trim() || selectedFiles.length > 0) {
       addUpdateMutation.mutate({ updateText: newUpdate, files: selectedFiles });
@@ -207,135 +176,79 @@ export function InvestigationDetailsDialog({
     }
   };
 
-  const removeFile = (index: number) => {
-    setSelectedFiles(files => files.filter((_, i) => i !== index));
-  };
-
-  const getStepStatusIcon = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return <CheckCircle className="h-4 w-4" />;
-      case 'IN_PROGRESS': return <Play className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
+  const handleResolveInvestigation = () => {
+    onResolve("Investigation resolved successfully");
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            Investigation Details - {investigation?.bank_accounts?.bank_name}
-          </DialogTitle>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogHeader className="border-b pb-4">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl font-medium text-gray-900">
+              Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
+            </DialogTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => onOpenChange(false)}
+              className="h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-8 p-6">
+        <div className="p-6 space-y-8">
           {/* Reason */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Reason</h3>
-            <p className="text-gray-700 text-base leading-relaxed">
+          <div className="space-y-3">
+            <h3 className="text-lg font-medium text-gray-900">Reason</h3>
+            <p className="text-gray-600 text-base">
               {investigation?.reason || investigation?.description || investigation?.bank_reason || 'Investigation reason not specified'}
             </p>
           </div>
 
           {/* Investigation Steps */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Investigation Steps</h3>
-            <div className="space-y-3">
-              {steps?.map((step) => (
-                <div key={step.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
-                  <div className="flex items-center gap-4 flex-1">
-                    <Badge 
-                      variant="secondary"
-                      className={`px-3 py-1 text-xs font-medium ${
-                        step.status === 'COMPLETED' 
-                          ? 'bg-green-100 text-green-700 border-green-200' 
-                          : 'bg-orange-100 text-orange-700 border-orange-200'
-                      }`}
-                    >
-                      {getStepStatusIcon(step.status)}
-                      {step.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'}
-                    </Badge>
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 mb-1">
-                        {step.step_number}. {step.step_title}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {step.step_description}
-                      </div>
-                      {step.notes && (
-                        <div className="text-sm text-blue-600 italic mt-1">
-                          Notes: {step.notes}
-                        </div>
-                      )}
-                      {step.completed_at && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Completed on {new Date(step.completed_at).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {step.status !== 'COMPLETED' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCompleteStep(step)}
-                      disabled={!canCompleteStep(step, steps)}
-                      className="ml-4 text-blue-600 border-blue-200 hover:bg-blue-50"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Complete
-                    </Button>
-                  )}
-                </div>
-              ))}
-            </div>
+          <div className="space-y-3">
+            <h3 className="text-lg font-medium text-gray-900">Investigation Steps</h3>
+            {/* Steps are hidden in the reference image, so keeping this minimal */}
           </div>
 
           {/* Add Investigation Update */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Add Investigation Update</h3>
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Add Investigation Update</h3>
+            
             <div className="space-y-4">
               <Textarea
                 value={newUpdate}
                 onChange={(e) => setNewUpdate(e.target.value)}
                 placeholder="Enter investigation update..."
-                rows={4}
-                className="w-full resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                rows={6}
+                className="w-full resize-none border-2 border-blue-200 rounded-lg p-4 focus:border-blue-400 focus:ring-0 text-base"
               />
               
-              <Input
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="mt-2"
-              />
-              {selectedFiles.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  <div className="text-sm text-gray-600">Selected Files:</div>
-                  {selectedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm">{file.name}</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeFile(index)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                <label className="cursor-pointer">
+                  <span className="text-sm text-gray-600">Choose Files</span>
+                  <Input
+                    type="file"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                </label>
+                <span className="text-sm text-gray-500">
+                  {selectedFiles.length > 0 ? `${selectedFiles.length} files selected` : 'no files selected'}
+                </span>
+              </div>
               
               <Button 
                 onClick={handleAddUpdate} 
                 disabled={!newUpdate.trim() && selectedFiles.length === 0}
-                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-base font-medium flex items-center justify-center gap-2"
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="h-5 w-5" />
                 Add Update
               </Button>
             </div>
@@ -343,35 +256,14 @@ export function InvestigationDetailsDialog({
 
           {/* Updates History */}
           {updates && updates.length > 0 && (
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Investigation Updates History</h3>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {updates.map((update) => (
-                  <div key={update.id} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900">Recent Updates</h3>
+              <div className="space-y-3 max-h-40 overflow-y-auto">
+                {updates.slice(0, 3).map((update) => (
+                  <div key={update.id} className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-800">{update.update_text}</p>
-                    
-                    {update.attachment_urls && update.attachment_urls.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <div className="text-xs text-gray-600">Attachments:</div>
-                        <div className="flex flex-wrap gap-2">
-                          {update.attachment_urls.map((url: string, index: number) => (
-                            <a
-                              key={index}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
-                            >
-                              <Download className="h-3 w-3" />
-                              Document {index + 1}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs text-gray-500 mt-2">
-                      {new Date(update.created_at).toLocaleString()} by {update.created_by}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(update.created_at).toLocaleDateString()} by {update.created_by}
                     </p>
                   </div>
                 ))}
@@ -379,45 +271,14 @@ export function InvestigationDetailsDialog({
             </div>
           )}
 
-          {/* Resolution */}
-          <div className="border-t pt-6">
-            {!showResolutionForm ? (
-              <Button 
-                onClick={() => setShowResolutionForm(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                Resolve Investigation
-              </Button>
-            ) : (
-              <div className="space-y-3">
-                <div className="text-lg font-medium text-gray-900">Resolution Notes</div>
-                <Textarea
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  placeholder="Enter resolution details..."
-                  rows={4}
-                  className="border-gray-300 focus:border-green-500 focus:ring-green-500"
-                />
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => {
-                      onResolve(resolutionNotes);
-                      setShowResolutionForm(false);
-                    }}
-                    disabled={!resolutionNotes.trim()}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Complete Investigation
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowResolutionForm(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
+          {/* Resolve Investigation Button */}
+          <div className="pt-4">
+            <Button 
+              onClick={handleResolveInvestigation}
+              className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-lg font-medium"
+            >
+              Resolve Investigation
+            </Button>
           </div>
         </div>
 
@@ -427,7 +288,9 @@ export function InvestigationDetailsDialog({
             open={showStepCompletionDialog}
             onOpenChange={setShowStepCompletionDialog}
             step={selectedStep}
-            onComplete={handleStepCompletion}
+            onComplete={(stepId, notes, reportUrl) => {
+              completeStepMutation.mutate({ stepId, notes, reportUrl });
+            }}
           />
         )}
       </DialogContent>

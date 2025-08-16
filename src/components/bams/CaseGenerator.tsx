@@ -41,14 +41,8 @@ interface CaseFormData {
   bank_account_id: string;
   title: string;
   description: string;
-  priority: string;
-  amount_involved: number;
-  transaction_reference: string;
-  beneficiary_details: string;
-  assigned_to: string;
   contact_person: string;
   contact_details: string;
-  due_date: string;
   // Specific fields for different case types
   error_message: string;
   screenshots: File[];
@@ -88,14 +82,8 @@ export function CaseGenerator() {
     bank_account_id: '',
     title: '',
     description: '',
-    priority: 'MEDIUM',
-    amount_involved: 0,
-    transaction_reference: '',
-    beneficiary_details: '',
-    assigned_to: '',
     contact_person: '',
     contact_details: '',
-    due_date: '',
     // Initialize specific fields
     error_message: '',
     screenshots: [],
@@ -231,14 +219,8 @@ export function CaseGenerator() {
         bank_account_id: data.bank_account_id,
         title: data.title,
         description: data.description,
-        priority: data.priority,
-        amount_involved: data.amount_involved || 0,
-        transaction_reference: data.transaction_reference,
-        beneficiary_details: data.beneficiary_details,
-        assigned_to: data.assigned_to,
         contact_person: data.contact_person,
         contact_details: data.contact_details,
-        due_date: data.due_date || null,
         // Case-specific fields
         error_message: data.error_message,
         screenshots: uploadedScreenshots,
@@ -294,14 +276,8 @@ export function CaseGenerator() {
       bank_account_id: '',
       title: '',
       description: '',
-      priority: 'MEDIUM',
-      amount_involved: 0,
-      transaction_reference: '',
-      beneficiary_details: '',
-      assigned_to: '',
       contact_person: '',
       contact_details: '',
-      due_date: '',
       // Reset specific fields
       error_message: '',
       screenshots: [],
@@ -895,81 +871,6 @@ export function CaseGenerator() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select
-                        value={formData.priority}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PRIORITIES.map((priority) => (
-                            <SelectItem key={priority.value} value={priority.value}>
-                              {priority.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="amount_involved">Amount Involved</Label>
-                      <Input
-                        id="amount_involved"
-                        type="number"
-                        value={formData.amount_involved}
-                        onChange={(e) => setFormData(prev => ({ ...prev, amount_involved: parseFloat(e.target.value) || 0 }))}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="transaction_reference">Transaction Reference</Label>
-                      <Input
-                        id="transaction_reference"
-                        value={formData.transaction_reference}
-                        onChange={(e) => setFormData(prev => ({ ...prev, transaction_reference: e.target.value }))}
-                        placeholder="Enter transaction reference"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="due_date">Due Date</Label>
-                      <Input
-                        id="due_date"
-                        type="date"
-                        value={formData.due_date}
-                        onChange={(e) => setFormData(prev => ({ ...prev, due_date: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="beneficiary_details">Beneficiary Details</Label>
-                    <Textarea
-                      id="beneficiary_details"
-                      value={formData.beneficiary_details}
-                      onChange={(e) => setFormData(prev => ({ ...prev, beneficiary_details: e.target.value }))}
-                      placeholder="Enter beneficiary information"
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="assigned_to">Assigned To</Label>
-                      <Input
-                        id="assigned_to"
-                        value={formData.assigned_to}
-                        onChange={(e) => setFormData(prev => ({ ...prev, assigned_to: e.target.value }))}
-                        placeholder="Assign to team member"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
                       <Label htmlFor="contact_person">Contact Person</Label>
                       <Input
                         id="contact_person"
@@ -978,16 +879,16 @@ export function CaseGenerator() {
                         placeholder="Enter contact person"
                       />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_details">Contact Details</Label>
-                    <Input
-                      id="contact_details"
-                      value={formData.contact_details}
-                      onChange={(e) => setFormData(prev => ({ ...prev, contact_details: e.target.value }))}
-                      placeholder="Phone number, email, etc."
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="contact_details">Contact Details</Label>
+                      <Input
+                        id="contact_details"
+                        value={formData.contact_details}
+                        onChange={(e) => setFormData(prev => ({ ...prev, contact_details: e.target.value }))}
+                        placeholder="Phone number, email, etc."
+                      />
+                    </div>
                   </div>
 
                   <div className="flex justify-end gap-3 pt-4">

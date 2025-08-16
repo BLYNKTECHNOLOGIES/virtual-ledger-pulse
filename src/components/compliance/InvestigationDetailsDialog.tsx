@@ -238,89 +238,83 @@ export function InvestigationDetailsDialog({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Investigation Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Investigation Information</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium text-gray-500">Account</Label>
-                <p className="text-sm">{investigation?.bank_accounts?.account_name}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-500">Type</Label>
-                <p className="text-sm">{investigation?.investigation_type}</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-500">Priority</Label>
-                <Badge variant="secondary">{investigation?.priority}</Badge>
-              </div>
-              <div>
-                <Label className="text-sm font-medium text-gray-500">Started</Label>
-                <p className="text-sm">{new Date(investigation?.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="col-span-2">
-                <Label className="text-sm font-medium text-gray-500">Reason</Label>
-                <p className="text-sm">{investigation?.reason}</p>
+          {/* Reason Section */}
+          <Card className="bg-slate-50/50 border-slate-200">
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Type</h3>
+                  <p className="text-slate-700">{investigation?.case_type?.replace('_', ' ') || 'N/A'}</p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Reason</h3>
+                  <p className="text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
+                    {investigation?.reason || investigation?.description || investigation?.bank_reason || 'Investigation reason not specified'}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Investigation Steps */}
-          <Card>
+          <Card className="bg-slate-50/50 border-slate-200">
             <CardHeader>
-              <CardTitle className="text-lg">Investigation Steps</CardTitle>
+              <CardTitle className="text-xl font-semibold text-slate-800">Investigation Steps</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {steps?.map((step) => (
-                  <div key={step.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                    <div className="flex-shrink-0 mt-1">
-                      <Badge 
-                        variant={getStepStatusColor(step.status)}
-                        className="flex items-center gap-1"
-                      >
-                        {getStepStatusIcon(step.status)}
-                        {step.status || 'PENDING'}
-                      </Badge>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900">
-                        {step.step_number}. {step.step_title}
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-2">{step.step_description}</p>
-                      {step.notes && (
-                        <p className="text-sm text-blue-600 italic">Notes: {step.notes}</p>
-                      )}
-                      {step.completion_report_url && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <FileText className="h-4 w-4 text-green-600" />
-                          <a 
-                            href={step.completion_report_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-sm text-green-600 hover:underline"
-                          >
-                            View Completion Report
-                          </a>
-                        </div>
-                      )}
-                      {step.completed_at && (
-                        <p className="text-xs text-gray-500">
-                          Completed on {new Date(step.completed_at).toLocaleDateString()}
-                        </p>
-                      )}
+                  <div key={step.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200 shadow-sm">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="flex-shrink-0">
+                        <Badge 
+                          variant={step.status === 'COMPLETED' ? 'default' : 'outline'}
+                          className={`flex items-center gap-1 min-w-[80px] justify-center ${
+                            step.status === 'COMPLETED' 
+                              ? 'bg-green-100 text-green-800 border-green-200' 
+                              : 'bg-slate-100 text-slate-600 border-slate-300'
+                          }`}
+                        >
+                          {getStepStatusIcon(step.status)}
+                          {step.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'}
+                        </Badge>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-slate-800 text-lg mb-1">
+                          {step.step_number}. {step.step_title}
+                        </h4>
+                        <p className="text-slate-600">{step.step_description}</p>
+                        {step.notes && (
+                          <p className="text-sm text-blue-600 italic mt-2">Notes: {step.notes}</p>
+                        )}
+                        {step.completion_report_url && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <FileText className="h-4 w-4 text-green-600" />
+                            <a 
+                              href={step.completion_report_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-green-600 hover:underline"
+                            >
+                              View Completion Report
+                            </a>
+                          </div>
+                        )}
+                        {step.completed_at && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            Completed on {new Date(step.completed_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     {step.status !== 'COMPLETED' && (
                       <Button
-                        size="sm"
                         variant="outline"
+                        className="ml-4 border-slate-300 text-slate-700 hover:bg-slate-50"
                         onClick={() => handleCompleteStep(step)}
                         disabled={!canCompleteStep(step, steps)}
-                        className={!canCompleteStep(step, steps) ? "opacity-50 cursor-not-allowed" : ""}
                       >
-                        <CheckCircle className="h-4 w-4 mr-1" />
+                        <CheckCircle className="h-4 w-4 mr-2" />
                         Complete
                       </Button>
                     )}
@@ -331,19 +325,19 @@ export function InvestigationDetailsDialog({
           </Card>
 
           {/* Add Update */}
-          <Card>
+          <Card className="bg-blue-50/50 border-blue-200">
             <CardHeader>
-              <CardTitle className="text-lg">Add Investigation Update</CardTitle>
+              <CardTitle className="text-xl font-semibold text-blue-800">Add Investigation Update</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="update-text">Update Description</Label>
                 <Textarea
                   id="update-text"
                   value={newUpdate}
                   onChange={(e) => setNewUpdate(e.target.value)}
                   placeholder="Enter investigation update..."
-                  rows={3}
+                  rows={4}
+                  className="bg-white border-blue-200 focus:border-blue-400"
                 />
               </div>
               

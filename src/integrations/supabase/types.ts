@@ -1240,6 +1240,7 @@ export type Database = {
           estimated_order_value: number | null
           follow_up_date: string | null
           follow_up_notes: string | null
+          follow_up_time: string | null
           id: string
           lead_type: string | null
           name: string
@@ -1256,6 +1257,7 @@ export type Database = {
           estimated_order_value?: number | null
           follow_up_date?: string | null
           follow_up_notes?: string | null
+          follow_up_time?: string | null
           id?: string
           lead_type?: string | null
           name: string
@@ -1272,6 +1274,7 @@ export type Database = {
           estimated_order_value?: number | null
           follow_up_date?: string | null
           follow_up_notes?: string | null
+          follow_up_time?: string | null
           id?: string
           lead_type?: string | null
           name?: string

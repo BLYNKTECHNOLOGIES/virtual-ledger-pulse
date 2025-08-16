@@ -34,6 +34,7 @@ export function AddLeadDialog() {
     contact_channel_value: "",
     price_quoted: "",
     follow_up_date: "",
+    follow_up_time: "",
     follow_up_notes: "",
     description: ""
   });
@@ -54,8 +55,12 @@ export function AddLeadDialog() {
   });
 
   const filteredClients = clients?.filter(client => 
-    client.name.toLowerCase().includes(formData.name.toLowerCase())
-  ) || [];
+    client.name?.toLowerCase().includes(formData.name.toLowerCase()) && formData.name.length > 0
+  ).slice(0, 5) || [];
+  
+  const isExistingClient = clients?.some(client => 
+    client.name?.toLowerCase() === formData.name.toLowerCase()
+  );
 
   const selectedContactChannel = contactChannels.find(ch => ch.value === formData.contact_channel);
 
@@ -79,6 +84,7 @@ export function AddLeadDialog() {
           contact_channel_value: formData.contact_channel_value,
           price_quoted: Number(formData.price_quoted) || 0,
           follow_up_date: formData.follow_up_date || null,
+          follow_up_time: formData.follow_up_time || null,
           follow_up_notes: formData.follow_up_notes,
           description: formData.description
         }]);
@@ -99,6 +105,7 @@ export function AddLeadDialog() {
         contact_channel_value: "",
         price_quoted: "",
         follow_up_date: "",
+        follow_up_time: "",
         follow_up_notes: "",
         description: ""
       });
@@ -127,18 +134,27 @@ export function AddLeadDialog() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2 relative">
             <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => {
-                setFormData(prev => ({ ...prev, name: e.target.value }));
-                setShowSuggestions(true);
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              placeholder="Enter lead/client name"
-              required
-            />
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, name: e.target.value }));
+                    setShowSuggestions(e.target.value.length > 0);
+                  }}
+                  onFocus={() => setShowSuggestions(formData.name.length > 0)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Enter lead/client name"
+                  required
+                />
+                {isExistingClient && (
+                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full whitespace-nowrap">
+                    Existing Client
+                  </span>
+                )}
+              </div>
+            </div>
             
             {showSuggestions && filteredClients.length > 0 && formData.name.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-40 overflow-y-auto">
@@ -252,15 +268,25 @@ export function AddLeadDialog() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                rows={2}
-                placeholder="Brief description"
+              <Label htmlFor="follow_up_time">Follow-up Time</Label>
+              <Input
+                id="follow_up_time"
+                type="time"
+                value={formData.follow_up_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, follow_up_time: e.target.value }))}
               />
             </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              rows={2}
+              placeholder="Brief description"
+            />
           </div>
           
           <div className="space-y-2">

@@ -34,6 +34,7 @@ export default function Leads() {
     contact_channel_value: "",
     price_quoted: "",
     follow_up_date: "",
+    follow_up_time: "",
     follow_up_notes: "",
     description: "",
     status: ""
@@ -47,8 +48,7 @@ export default function Leads() {
     queryFn: async () => {
       let query = supabase
         .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
       
       // Apply time filters
       const now = new Date();
@@ -65,7 +65,25 @@ export default function Leads() {
       
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      
+      // Sort by follow-up priority (nearest follow-up first, then by creation date)
+      return data?.sort((a, b) => {
+        // First priority: leads with follow-up dates/times
+        const aHasFollowUp = a.follow_up_date;
+        const bHasFollowUp = b.follow_up_date;
+        
+        if (aHasFollowUp && !bHasFollowUp) return -1;
+        if (!aHasFollowUp && bHasFollowUp) return 1;
+        
+        if (aHasFollowUp && bHasFollowUp) {
+          const aDateTime = new Date(`${a.follow_up_date}T${a.follow_up_time || '00:00'}`);
+          const bDateTime = new Date(`${b.follow_up_date}T${b.follow_up_time || '00:00'}`);
+          return aDateTime.getTime() - bDateTime.getTime();
+        }
+        
+        // Fallback to creation date (newest first for non-follow-up leads)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }) || [];
     },
   });
 
@@ -130,6 +148,7 @@ export default function Leads() {
       contact_channel_value: lead.contact_channel_value || "",
       price_quoted: lead.price_quoted?.toString() || "",
       follow_up_date: lead.follow_up_date || "",
+      follow_up_time: lead.follow_up_time || "",
       follow_up_notes: lead.follow_up_notes || "",
       description: lead.description || "",
       status: lead.status || "NEW"
@@ -345,7 +364,16 @@ export default function Leads() {
                 </TableCell>
                 <TableCell>{getStatusBadge(lead.status)}</TableCell>
                 <TableCell>
-                  {lead.follow_up_date ? new Date(lead.follow_up_date).toLocaleDateString() : "-"}
+                  {lead.follow_up_date ? (
+                    <div className="text-sm">
+                      <div>{new Date(lead.follow_up_date).toLocaleDateString()}</div>
+                      {lead.follow_up_time && (
+                        <div className="text-xs text-gray-500">
+                          {new Date(`2000-01-01T${lead.follow_up_time}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </div>
+                      )}
+                    </div>
+                  ) : "-"}
                 </TableCell>
                 <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>
@@ -490,14 +518,26 @@ export default function Leads() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-follow-up-date">Follow-up Date</Label>
-              <Input
-                id="edit-follow-up-date"
-                type="date"
-                value={editFormData.follow_up_date}
-                onChange={(e) => setEditFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-follow-up-date">Follow-up Date</Label>
+                <Input
+                  id="edit-follow-up-date"
+                  type="date"
+                  value={editFormData.follow_up_date}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, follow_up_date: e.target.value }))}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-follow-up-time">Follow-up Time</Label>
+                <Input
+                  id="edit-follow-up-time"
+                  type="time"
+                  value={editFormData.follow_up_time}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, follow_up_time: e.target.value }))}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">

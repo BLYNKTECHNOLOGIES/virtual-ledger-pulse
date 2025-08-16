@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Clock, Play, Plus, FileText, Upload, Download } from "lucide-react";
+import { CheckCircle, Clock, Play, Plus, FileText, Download } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -212,14 +211,6 @@ export function InvestigationDetailsDialog({
     setSelectedFiles(files => files.filter((_, i) => i !== index));
   };
 
-  const getStepStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return 'default';
-      case 'IN_PROGRESS': return 'secondary';
-      default: return 'outline';
-    }
-  };
-
   const getStepStatusIcon = (status: string) => {
     switch (status) {
       case 'COMPLETED': return <CheckCircle className="h-4 w-4" />;
@@ -237,235 +228,197 @@ export function InvestigationDetailsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Reason Section */}
-          <Card className="bg-slate-50/50 border-slate-200">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Type</h3>
-                  <p className="text-slate-700">{investigation?.case_type?.replace('_', ' ') || 'N/A'}</p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-800 mb-2">Reason</h3>
-                  <p className="text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
-                    {investigation?.reason || investigation?.description || investigation?.bank_reason || 'Investigation reason not specified'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-8 p-6">
+          {/* Reason */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Reason</h3>
+            <p className="text-gray-700 text-base leading-relaxed">
+              {investigation?.reason || investigation?.description || investigation?.bank_reason || 'Investigation reason not specified'}
+            </p>
+          </div>
 
           {/* Investigation Steps */}
-          <Card className="bg-slate-50/50 border-slate-200">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-slate-800">Investigation Steps</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {steps?.map((step) => (
-                  <div key={step.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="flex-shrink-0">
-                        <Badge 
-                          variant={step.status === 'COMPLETED' ? 'default' : 'outline'}
-                          className={`flex items-center gap-1 min-w-[80px] justify-center ${
-                            step.status === 'COMPLETED' 
-                              ? 'bg-green-100 text-green-800 border-green-200' 
-                              : 'bg-slate-100 text-slate-600 border-slate-300'
-                          }`}
-                        >
-                          {getStepStatusIcon(step.status)}
-                          {step.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'}
-                        </Badge>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Investigation Steps</h3>
+            <div className="space-y-3">
+              {steps?.map((step) => (
+                <div key={step.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-b-0">
+                  <div className="flex items-center gap-4 flex-1">
+                    <Badge 
+                      variant="secondary"
+                      className={`px-3 py-1 text-xs font-medium ${
+                        step.status === 'COMPLETED' 
+                          ? 'bg-green-100 text-green-700 border-green-200' 
+                          : 'bg-orange-100 text-orange-700 border-orange-200'
+                      }`}
+                    >
+                      {getStepStatusIcon(step.status)}
+                      {step.status === 'COMPLETED' ? 'COMPLETED' : 'PENDING'}
+                    </Badge>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900 mb-1">
+                        {step.step_number}. {step.step_title}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-800 text-lg mb-1">
-                          {step.step_number}. {step.step_title}
-                        </h4>
-                        <p className="text-slate-600">{step.step_description}</p>
-                        {step.notes && (
-                          <p className="text-sm text-blue-600 italic mt-2">Notes: {step.notes}</p>
-                        )}
-                        {step.completion_report_url && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <FileText className="h-4 w-4 text-green-600" />
-                            <a 
-                              href={step.completion_report_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-green-600 hover:underline"
-                            >
-                              View Completion Report
-                            </a>
-                          </div>
-                        )}
-                        {step.completed_at && (
-                          <p className="text-xs text-slate-500 mt-1">
-                            Completed on {new Date(step.completed_at).toLocaleDateString()}
-                          </p>
-                        )}
+                      <div className="text-sm text-gray-600">
+                        {step.step_description}
                       </div>
-                    </div>
-                    {step.status !== 'COMPLETED' && (
-                      <Button
-                        variant="outline"
-                        className="ml-4 border-slate-300 text-slate-700 hover:bg-slate-50"
-                        onClick={() => handleCompleteStep(step)}
-                        disabled={!canCompleteStep(step, steps)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Complete
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Add Update */}
-          <Card className="bg-blue-50/50 border-blue-200">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-blue-800">Add Investigation Update</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Textarea
-                  id="update-text"
-                  value={newUpdate}
-                  onChange={(e) => setNewUpdate(e.target.value)}
-                  placeholder="Enter investigation update..."
-                  rows={4}
-                  className="bg-white border-blue-200 focus:border-blue-400"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="update-files">Attach Documents</Label>
-                <Input
-                  id="update-files"
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="mt-1"
-                />
-                {selectedFiles.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    <Label className="text-sm text-muted-foreground">Selected Files:</Label>
-                    {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          <span className="text-sm">{file.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
+                      {step.notes && (
+                        <div className="text-sm text-blue-600 italic mt-1">
+                          Notes: {step.notes}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => removeFile(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
+                      )}
+                      {step.completed_at && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Completed on {new Date(step.completed_at).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
+                  {step.status !== 'COMPLETED' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCompleteStep(step)}
+                      disabled={!canCompleteStep(step, steps)}
+                      className="ml-4 text-blue-600 border-blue-200 hover:bg-blue-50"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Complete
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Add Investigation Update */}
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Add Investigation Update</h3>
+            <div className="space-y-4">
+              <Textarea
+                value={newUpdate}
+                onChange={(e) => setNewUpdate(e.target.value)}
+                placeholder="Enter investigation update..."
+                rows={4}
+                className="w-full resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              />
+              
+              <Input
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="mt-2"
+              />
+              {selectedFiles.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  <div className="text-sm text-gray-600">Selected Files:</div>
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{file.name}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeFile(index)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
               
               <Button 
                 onClick={handleAddUpdate} 
                 disabled={!newUpdate.trim() && selectedFiles.length === 0}
-                className="w-full"
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Add Update {selectedFiles.length > 0 && `with ${selectedFiles.length} file(s)`}
+                <Plus className="h-4 w-4 mr-2" />
+                Add Update
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Updates History */}
           {updates && updates.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Investigation Updates</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {updates.map((update) => (
-                    <div key={update.id} className="border-l-4 border-primary pl-4 py-3">
-                      <p className="text-sm text-foreground">{update.update_text}</p>
-                      
-                      {/* Attachments */}
-                      {update.attachment_urls && update.attachment_urls.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <Label className="text-xs text-muted-foreground">Attachments:</Label>
-                          <div className="flex flex-wrap gap-2">
-                            {update.attachment_urls.map((url: string, index: number) => (
-                              <a
-                                key={index}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 px-2 py-1 bg-accent text-accent-foreground rounded text-xs hover:bg-accent/80 transition-colors"
-                              >
-                                <Download className="h-3 w-3" />
-                                Document {index + 1}
-                              </a>
-                            ))}
-                          </div>
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Investigation Updates History</h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {updates.map((update) => (
+                  <div key={update.id} className="border-l-4 border-blue-500 pl-4 py-3 bg-gray-50 rounded-r">
+                    <p className="text-sm text-gray-800">{update.update_text}</p>
+                    
+                    {update.attachment_urls && update.attachment_urls.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        <div className="text-xs text-gray-600">Attachments:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {update.attachment_urls.map((url: string, index: number) => (
+                            <a
+                              key={index}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+                            >
+                              <Download className="h-3 w-3" />
+                              Document {index + 1}
+                            </a>
+                          ))}
                         </div>
-                      )}
-                      
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {new Date(update.created_at).toLocaleString()} by {update.created_by}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(update.created_at).toLocaleString()} by {update.created_by}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Resolution */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Investigation Resolution</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {!showResolutionForm ? (
-                <Button onClick={() => setShowResolutionForm(true)}>
-                  Resolve Investigation
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <Label>Resolution Notes</Label>
-                  <Textarea
-                    value={resolutionNotes}
-                    onChange={(e) => setResolutionNotes(e.target.value)}
-                    placeholder="Enter resolution details..."
-                    rows={4}
-                  />
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={() => onResolve(resolutionNotes)}
-                      disabled={!resolutionNotes.trim()}
-                    >
-                      Confirm Resolution
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setShowResolutionForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
+          <div className="border-t pt-6">
+            {!showResolutionForm ? (
+              <Button 
+                onClick={() => setShowResolutionForm(true)}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Resolve Investigation
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="text-lg font-medium text-gray-900">Resolution Notes</div>
+                <Textarea
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  placeholder="Enter resolution details..."
+                  rows={4}
+                  className="border-gray-300 focus:border-green-500 focus:ring-green-500"
+                />
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => {
+                      onResolve(resolutionNotes);
+                      setShowResolutionForm(false);
+                    }}
+                    disabled={!resolutionNotes.trim()}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Complete Investigation
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowResolutionForm(false)}
+                  >
+                    Cancel
+                  </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Step Completion Dialog */}

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -950,72 +951,168 @@ export function CaseGenerator() {
               <p className="text-sm">Click "Generate New Case" to create your first case</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {cases.map((caseItem) => {
-                const caseTypeInfo = getCaseTypeInfo(caseItem.case_type);
-                const priorityInfo = getPriorityInfo(caseItem.priority);
-                const statusInfo = getStatusInfo(caseItem.status);
-
-                return (
-                  <div key={caseItem.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
-                            {caseItem.case_number}
-                          </span>
-                          <Badge className={caseTypeInfo.color}>
-                            {caseTypeInfo.label}
-                          </Badge>
-                          <Badge className={priorityInfo.color}>
-                            {priorityInfo.label}
-                          </Badge>
-                          <Badge className={statusInfo.color}>
-                            {statusInfo.label}
-                          </Badge>
-                        </div>
-                        
-                        <h3 className="font-semibold text-lg mb-1">{caseItem.title}</h3>
-                        
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                          <span className="flex items-center gap-1">
-                            <CreditCard className="h-4 w-4" />
-                            {caseItem.bank_accounts?.bank_name} - {caseItem.bank_accounts?.account_name}
-                          </span>
-                          {caseItem.amount_involved > 0 && (
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="h-4 w-4" />
-                              ₹{caseItem.amount_involved?.toLocaleString()}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            {format(new Date(caseItem.created_at), 'dd MMM yyyy')}
-                          </span>
-                        </div>
-                        
-                        {caseItem.assigned_to && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            Assigned to: {caseItem.assigned_to}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewCase(caseItem)}
-                        className="ml-4"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="active">Active Cases</TabsTrigger>
+                <TabsTrigger value="resolved">Resolved Cases</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="active" className="mt-4">
+                {cases.filter(caseItem => caseItem.status !== 'RESOLVED' && caseItem.status !== 'CLOSED').length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No active cases</p>
                   </div>
-                );
-              })}
-            </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cases
+                      .filter(caseItem => caseItem.status !== 'RESOLVED' && caseItem.status !== 'CLOSED')
+                      .map((caseItem) => {
+                        const caseTypeInfo = getCaseTypeInfo(caseItem.case_type);
+                        const priorityInfo = getPriorityInfo(caseItem.priority);
+                        const statusInfo = getStatusInfo(caseItem.status);
+
+                        return (
+                          <div key={caseItem.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                                    {caseItem.case_number}
+                                  </span>
+                                  <Badge className={caseTypeInfo.color}>
+                                    {caseTypeInfo.label}
+                                  </Badge>
+                                  <Badge className={priorityInfo.color}>
+                                    {priorityInfo.label}
+                                  </Badge>
+                                  <Badge className={statusInfo.color}>
+                                    {statusInfo.label}
+                                  </Badge>
+                                </div>
+                                
+                                <h3 className="font-semibold text-lg mb-1">{caseItem.title}</h3>
+                                
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                                  <span className="flex items-center gap-1">
+                                    <CreditCard className="h-4 w-4" />
+                                    {caseItem.bank_accounts?.bank_name} - {caseItem.bank_accounts?.account_name}
+                                  </span>
+                                  {caseItem.amount_involved > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <DollarSign className="h-4 w-4" />
+                                      ₹{caseItem.amount_involved?.toLocaleString()}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    {format(new Date(caseItem.created_at), 'dd MMM yyyy')}
+                                  </span>
+                                </div>
+                                
+                                {caseItem.assigned_to && (
+                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                    <Users className="h-4 w-4" />
+                                    Assigned to: {caseItem.assigned_to}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewCase(caseItem)}
+                                className="ml-4"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="resolved" className="mt-4">
+                {cases.filter(caseItem => caseItem.status === 'RESOLVED' || caseItem.status === 'CLOSED').length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No resolved cases</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {cases
+                      .filter(caseItem => caseItem.status === 'RESOLVED' || caseItem.status === 'CLOSED')
+                      .map((caseItem) => {
+                        const caseTypeInfo = getCaseTypeInfo(caseItem.case_type);
+                        const priorityInfo = getPriorityInfo(caseItem.priority);
+                        const statusInfo = getStatusInfo(caseItem.status);
+
+                        return (
+                          <div key={caseItem.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                                    {caseItem.case_number}
+                                  </span>
+                                  <Badge className={caseTypeInfo.color}>
+                                    {caseTypeInfo.label}
+                                  </Badge>
+                                  <Badge className={priorityInfo.color}>
+                                    {priorityInfo.label}
+                                  </Badge>
+                                  <Badge className={statusInfo.color}>
+                                    {statusInfo.label}
+                                  </Badge>
+                                </div>
+                                
+                                <h3 className="font-semibold text-lg mb-1">{caseItem.title}</h3>
+                                
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                                  <span className="flex items-center gap-1">
+                                    <CreditCard className="h-4 w-4" />
+                                    {caseItem.bank_accounts?.bank_name} - {caseItem.bank_accounts?.account_name}
+                                  </span>
+                                  {caseItem.amount_involved > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <DollarSign className="h-4 w-4" />
+                                      ₹{caseItem.amount_involved?.toLocaleString()}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    {format(new Date(caseItem.created_at), 'dd MMM yyyy')}
+                                  </span>
+                                </div>
+                                
+                                {caseItem.assigned_to && (
+                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                    <Users className="h-4 w-4" />
+                                    Assigned to: {caseItem.assigned_to}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleViewCase(caseItem)}
+                                className="ml-4"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>

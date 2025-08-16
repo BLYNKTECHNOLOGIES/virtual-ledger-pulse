@@ -148,7 +148,7 @@ export function CaseGenerator() {
     },
   });
 
-  // Generate case number
+  // Generate case number - Legacy function (now replaced by edge function)
   const generateCaseNumber = () => {
     const now = new Date();
     const year = now.getFullYear().toString().slice(-2);
@@ -188,7 +188,18 @@ export function CaseGenerator() {
   // Create case mutation
   const createCaseMutation = useMutation({
     mutationFn: async (data: CaseFormData) => {
-      const caseNumber = generateCaseNumber();
+      // Generate case number using the new format
+      const { data: caseIdData, error: caseIdError } = await supabase.functions.invoke('generate-case-id', {
+        body: { caseType: data.case_type }
+      });
+
+      if (caseIdError) {
+        console.error('Error generating case ID:', caseIdError);
+        throw new Error('Failed to generate case ID');
+      }
+
+      const caseNumber = caseIdData.caseId;
+      console.log('Generated case ID:', caseNumber);
       
       // Upload files for different case types
       let uploadedScreenshots: string[] = [];

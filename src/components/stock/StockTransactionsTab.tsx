@@ -65,7 +65,7 @@ export function StockTransactionsTab() {
           purchase_orders(order_number, supplier_name, order_date),
           products(name, code, unit_of_measurement)
         `)
-        .order('id', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data;

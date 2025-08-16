@@ -22,6 +22,14 @@ const items = [{
   bgColor: "bg-blue-100",
   permissions: ["dashboard_view"]
 }, {
+  id: "stock",
+  title: "Stock Management",
+  url: "/stock",
+  icon: Package,
+  color: "text-amber-600",
+  bgColor: "bg-amber-100",
+  permissions: ["stock_view", "stock_manage"]
+}, {
   id: "sales",
   title: "Sales",
   url: "/sales",
@@ -109,14 +117,6 @@ const items = [{
   color: "text-yellow-600",
   bgColor: "bg-yellow-100",
   permissions: ["compliance_view", "compliance_manage"]
-}, {
-  id: "stock",
-  title: "Stock Management",
-  url: "/stock",
-  icon: Package,
-  color: "text-amber-600",
-  bgColor: "bg-amber-100",
-  permissions: ["stock_view", "stock_manage"]
 }, {
   id: "accounting",
   title: "Accounting",

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvailablePaymentGateways } from "./payment-gateway/AvailablePaymentGateways";
 import { PendingSettlements } from "./payment-gateway/PendingSettlements";
-import { CreditCard, Clock } from "lucide-react";
+import { SettlementSummary } from "./payment-gateway/SettlementSummary";
+import { CreditCard, Clock, BarChart3 } from "lucide-react";
 
 export function PaymentGatewayManagement() {
   return (
@@ -12,7 +13,7 @@ export function PaymentGatewayManagement() {
       </div>
 
       <Tabs defaultValue="available-gateways" className="h-full flex flex-col">
-        <TabsList className="grid grid-cols-2 w-full max-w-md bg-gray-100 p-1 rounded-md mb-6">
+        <TabsList className="grid grid-cols-3 w-full max-w-2xl bg-gray-100 p-1 rounded-md mb-6">
           <TabsTrigger value="available-gateways" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <CreditCard className="h-4 w-4" />
             Available Gateways
@@ -20,6 +21,10 @@ export function PaymentGatewayManagement() {
           <TabsTrigger value="pending-settlements" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Clock className="h-4 w-4" />
             Pending Settlements
+          </TabsTrigger>
+          <TabsTrigger value="settlement-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <BarChart3 className="h-4 w-4" />
+            Settlement Summary
           </TabsTrigger>
         </TabsList>
 
@@ -29,6 +34,9 @@ export function PaymentGatewayManagement() {
           </TabsContent>
           <TabsContent value="pending-settlements" className="w-full h-full">
             <PendingSettlements />
+          </TabsContent>
+          <TabsContent value="settlement-summary" className="w-full h-full">
+            <SettlementSummary />
           </TabsContent>
         </div>
       </Tabs>

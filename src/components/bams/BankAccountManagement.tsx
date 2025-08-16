@@ -26,6 +26,7 @@ interface BankAccount {
   status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
+  account_type: "SAVINGS" | "CURRENT";
   created_at: string;
   updated_at: string;
 }
@@ -63,7 +64,8 @@ export function BankAccountManagement() {
     branch: "",
     balance: "",
     status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
-    bank_account_holder_name: ""
+    bank_account_holder_name: "",
+    account_type: "SAVINGS" as "SAVINGS" | "CURRENT"
   });
 
   // Fetch active bank accounts (only show accounts with account_status = 'ACTIVE')
@@ -160,7 +162,8 @@ export function BankAccountManagement() {
         branch: accountData.branch || null,
         balance: parseFloat(accountData.balance),
         status: accountData.status,
-        bank_account_holder_name: accountData.bank_account_holder_name || null
+        bank_account_holder_name: accountData.bank_account_holder_name || null,
+        account_type: accountData.account_type
       });
       if (error) throw error;
     },
@@ -194,6 +197,7 @@ export function BankAccountManagement() {
         balance: parseFloat(accountData.balance),
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
+        account_type: accountData.account_type,
         updated_at: new Date().toISOString()
       }).eq('id', accountData.id);
       if (error) throw error;
@@ -244,7 +248,8 @@ export function BankAccountManagement() {
       branch: account.branch || "",
       balance: account.balance.toString(),
       status: account.status as "ACTIVE" | "INACTIVE",
-      bank_account_holder_name: account.bank_account_holder_name || ""
+      bank_account_holder_name: account.bank_account_holder_name || "",
+      account_type: account.account_type || "SAVINGS"
     });
     setIsAddDialogOpen(true);
   };
@@ -268,7 +273,8 @@ export function BankAccountManagement() {
       branch: "",
       balance: "",
       status: "ACTIVE",
-      bank_account_holder_name: ""
+      bank_account_holder_name: "",
+      account_type: "SAVINGS"
     });
     setEditingAccount(null);
   };
@@ -399,12 +405,27 @@ export function BankAccountManagement() {
                     value={formData.status} 
                     onValueChange={(value: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL") => setFormData(prev => ({ ...prev, status: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="account_type">Account Type *</Label>
+                  <Select 
+                    value={formData.account_type} 
+                    onValueChange={(value: "SAVINGS" | "CURRENT") => setFormData(prev => ({ ...prev, account_type: value }))}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      <SelectItem value="SAVINGS">Savings</SelectItem>
+                      <SelectItem value="CURRENT">Current</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -463,80 +484,86 @@ export function BankAccountManagement() {
               {isLoading ? (
                 <div className="text-center py-8">Loading bank accounts...</div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Account Name</TableHead>
-                      <TableHead>Account Holder</TableHead>
-                      <TableHead>Bank Name</TableHead>
-                      <TableHead>Account Number</TableHead>
-                      <TableHead>IFSC Code</TableHead>
-                      <TableHead>Branch</TableHead>
-                      <TableHead>Balance</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                   <TableBody>
-                     {filteredAndSortedAccounts?.map((account) => (
-                       <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-gray-50" : ""}>
-                         <TableCell className="font-medium">{account.account_name}</TableCell>
-                         <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
-                         <TableCell>{account.bank_name}</TableCell>
-                         <TableCell>{account.account_number}</TableCell>
-                         <TableCell>{account.IFSC}</TableCell>
-                         <TableCell>{account.branch || "-"}</TableCell>
-                          <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
-                            ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
+                  <Table>
+                   <TableHeader>
+                     <TableRow>
+                       <TableHead>Account Name</TableHead>
+                       <TableHead>Account Holder</TableHead>
+                       <TableHead>Bank Name</TableHead>
+                       <TableHead>Account Type</TableHead>
+                       <TableHead>Account Number</TableHead>
+                       <TableHead>IFSC Code</TableHead>
+                       <TableHead>Branch</TableHead>
+                       <TableHead>Balance</TableHead>
+                       <TableHead>Status</TableHead>
+                       <TableHead>Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedAccounts?.map((account) => (
+                        <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-gray-50" : ""}>
+                          <TableCell className="font-medium">{account.account_name}</TableCell>
+                          <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
+                          <TableCell>{account.bank_name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={account.account_type === "SAVINGS" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}>
+                              {account.account_type === "SAVINGS" ? "Savings" : "Current"}
+                            </Badge>
                           </TableCell>
-                         <TableCell>
-                           <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
-                             {account.status === "ACTIVE" ? (
-                               <><Eye className="h-3 w-3 mr-1" /> Active</>
-                             ) : (
-                               <><EyeOff className="h-3 w-3 mr-1" /> Inactive</>
-                             )}
-                           </Badge>
-                         </TableCell>
-                         <TableCell>
-                           <div className="flex gap-2">
-                             <Button 
-                               variant="outline" 
-                               size="sm" 
-                               onClick={() => handleEdit(account)} 
-                               className="flex items-center gap-1"
-                             >
-                               <Edit className="h-3 w-3" />
-                               Edit
-                             </Button>
-                             <Button 
-                               variant="destructive" 
-                               size="sm" 
-                               onClick={() => handleCloseAccount(account)}
-                               className="flex items-center gap-1"
-                             >
-                               <X className="h-3 w-3" />
-                               Close
-                             </Button>
-                           </div>
-                         </TableCell>
-                       </TableRow>
-                     ))}
-                     {filteredAndSortedAccounts?.length === 0 && bankAccounts?.length > 0 && (
-                       <TableRow>
-                         <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                           No bank accounts match your search criteria. Try adjusting your search terms or filters.
-                         </TableCell>
-                       </TableRow>
-                     )}
-                     {bankAccounts?.length === 0 && (
-                       <TableRow>
-                         <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                           No active bank accounts found. Add your first bank account to get started.
-                         </TableCell>
-                       </TableRow>
-                     )}
-                   </TableBody>
+                          <TableCell>{account.account_number}</TableCell>
+                          <TableCell>{account.IFSC}</TableCell>
+                          <TableCell>{account.branch || "-"}</TableCell>
+                           <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
+                             ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
+                           </TableCell>
+                          <TableCell>
+                            <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
+                              {account.status === "ACTIVE" ? (
+                                <><Eye className="h-3 w-3 mr-1" /> Active</>
+                              ) : (
+                                <><EyeOff className="h-3 w-3 mr-1" /> Inactive</>
+                              )}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleEdit(account)} 
+                                className="flex items-center gap-1"
+                              >
+                                <Edit className="h-3 w-3" />
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                onClick={() => handleCloseAccount(account)}
+                                className="flex items-center gap-1"
+                              >
+                                <X className="h-3 w-3" />
+                                Close
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredAndSortedAccounts?.length === 0 && bankAccounts?.length > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                            No bank accounts match your search criteria. Try adjusting your search terms or filters.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {bankAccounts?.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                            No active bank accounts found. Add your first bank account to get started.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
                 </Table>
               )}
             </CardContent>
@@ -654,13 +681,13 @@ export function BankAccountManagement() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {pendingAccounts?.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-gray-500">
-                          No accounts pending approval.
-                        </TableCell>
-                      </TableRow>
-                    )}
+                     {pendingAccounts?.length === 0 && (
+                       <TableRow>
+                         <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                           No accounts pending approval.
+                         </TableCell>
+                       </TableRow>
+                     )}
                   </TableBody>
                 </Table>
               )}

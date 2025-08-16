@@ -2,358 +2,454 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Clock, AlertTriangle, Filter, X, Eye, CheckCircle2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { InvestigationDetailsDialog } from "./InvestigationDetailsDialog";
 
+const priorityColors = {
+  'HIGH': 'bg-red-50 text-red-700 border-red-100',
+  'MEDIUM': 'bg-amber-50 text-amber-700 border-amber-100',
+  'LOW': 'bg-green-50 text-green-700 border-green-100'
+};
+
+const caseTypeLabels = {
+  'ACCOUNT_NOT_WORKING': 'Account Not Working',
+  'WRONG_PAYMENT_INITIATED': 'Wrong Payment Initiated', 
+  'PAYMENT_NOT_CREDITED': 'Payment Not Credited to Beneficiary',
+  'SETTLEMENT_NOT_RECEIVED': 'Settlement Not Received',
+  'LIEN_RECEIVED': 'Lien Received',
+  'BALANCE_DISCREPANCY': 'Balance Discrepancy'
+};
+
 export function ActiveInvestigationsTab() {
+  const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("all");
   const [selectedInvestigation, setSelectedInvestigation] = useState<any>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [investigationDialogOpen, setInvestigationDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch active investigations with proper loading state
-  const { data: investigations, isLoading, error, refetch } = useQuery({
-    queryKey: ['active_investigations'],
+  // Fetch bank accounts for filter
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('account_investigations')
-        .select(`
-          *,
-          bank_accounts (
-            bank_name,
-            account_name,
-            account_number
-          )
-        `)
-        .eq('status', 'ACTIVE')
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching investigations:', error);
-        throw error;
-      }
+        .from('bank_accounts')
+        .select('*')
+        .order('bank_name');
+      if (error) throw error;
       return data || [];
     },
-    staleTime: 0, // Always fetch fresh data
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
   });
 
-  const resolveInvestigationMutation = useMutation({
-    mutationFn: async ({ investigation, resolutionNotes }: { investigation: any; resolutionNotes: string }) => {
-      // Update the investigation with resolution notes but keep it ACTIVE until banking officer approval
-      const { error: investigationError } = await supabase
-        .from('account_investigations')
-        .update({
-          resolution_notes: resolutionNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', investigation.id);
-      
-      if (investigationError) throw investigationError;
+  // Fetch active investigations
+  const { data: investigations, refetch: refetchInvestigations } = useQuery({
+    queryKey: ['active_investigations', selectedBankFilter, selectedPriorityFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from('bank_cases')
+        .select('*, bank_accounts(bank_name, account_name)')
+        .eq('investigation_status', 'UNDER_INVESTIGATION')
+        .order('investigation_started_at', { ascending: false });
 
-      // Update the bank account status to PENDING_APPROVAL
-      const { error: accountError } = await supabase
-        .from('bank_accounts')
-        .update({
-          status: 'PENDING_APPROVAL',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', investigation.bank_account_id);
+      const { data, error } = await query;
+      if (error) throw error;
       
-      if (accountError) throw accountError;
+      let filteredData = data || [];
+      
+      // Apply filters
+      if (selectedBankFilter !== "all") {
+        filteredData = filteredData.filter(investigation => 
+          investigation.bank_accounts?.bank_name === selectedBankFilter
+        );
+      }
+      
+      if (selectedPriorityFilter !== "all") {
+        filteredData = filteredData.filter(investigation => 
+          investigation.priority === selectedPriorityFilter
+        );
+      }
+      
+      return filteredData;
+    },
+  });
+
+  // Complete Investigation Mutation
+  const completeInvestigationMutation = useMutation({
+    mutationFn: async ({ caseId, resolutionNotes }: { caseId: string; resolutionNotes: string }) => {
+      const { error } = await supabase
+        .from('bank_cases')
+        .update({
+          investigation_status: 'COMPLETED',
+          status: 'RESOLVED',
+          resolved_at: new Date().toISOString(),
+          resolution_notes: resolutionNotes
+        })
+        .eq('id', caseId);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
-      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
-      queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
       toast({
         title: "Investigation Completed",
-        description: "Investigation completed and account moved to pending banking officer approval.",
+        description: "Case has been resolved and investigation completed.",
       });
+      refetchInvestigations();
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to complete investigation.",
+      });
+      console.error('Complete investigation error:', error);
     },
   });
+
+  const uniqueBankNames = Array.from(new Set((bankAccounts || []).map(account => account.bank_name).filter(Boolean)));
+
+  const getPriorityBadgeColor = (priority: string) => {
+    switch (priority) {
+      case 'HIGH':
+        return 'bg-red-500 text-white';
+      case 'MEDIUM':
+        return 'bg-yellow-500 text-white';
+      case 'LOW':
+        return 'bg-green-500 text-white';
+      default:
+        return 'bg-gray-500 text-white';
+    }
+  };
+
+  const getDaysSinceStarted = (startedAt: string) => {
+    const days = Math.floor((new Date().getTime() - new Date(startedAt).getTime()) / (1000 * 60 * 60 * 24));
+    return days;
+  };
 
   const handleViewDetails = (investigation: any) => {
     setSelectedInvestigation(investigation);
-    setShowDetailsDialog(true);
+    setInvestigationDialogOpen(true);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'destructive';
-      case 'MEDIUM': return 'secondary';
-      case 'LOW': return 'outline';
-      default: return 'secondary';
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return <AlertTriangle className="h-4 w-4" />;
-      case 'MEDIUM': return <Clock className="h-4 w-4" />;
-      case 'LOW': return <CheckCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+  const handleResolveInvestigation = (resolutionNotes: string) => {
+    if (selectedInvestigation) {
+      completeInvestigationMutation.mutate({ 
+        caseId: selectedInvestigation.id, 
+        resolutionNotes 
       });
-    } catch (error) {
-      console.error('Date formatting error:', error);
-      return 'Invalid Date';
+      setInvestigationDialogOpen(false);
     }
-  };
-
-  // Function to get priority-specific card styling
-  const getPriorityCardStyle = (priority: string) => {
-    switch (priority) {
-      case 'HIGH':
-        return 'border-red-300 bg-red-50 shadow-md ring-1 ring-red-200';
-      case 'MEDIUM':
-        return 'border-orange-300 bg-orange-50 shadow-md ring-1 ring-orange-200';
-      case 'LOW':
-        return 'border-green-300 bg-green-50 shadow-md ring-1 ring-green-200';
-      default:
-        return 'border-gray-300 bg-gray-50 shadow-md ring-1 ring-gray-200';
-    }
-  };
-
-  // Function to get priority text colors
-  const getPriorityTextColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH':
-        return { title: 'text-red-900', subtitle: 'text-red-700', balance: 'text-red-800' };
-      case 'MEDIUM':
-        return { title: 'text-orange-900', subtitle: 'text-orange-700', balance: 'text-orange-800' };
-      case 'LOW':
-        return { title: 'text-green-900', subtitle: 'text-green-700', balance: 'text-green-800' };
-      default:
-        return { title: 'text-gray-900', subtitle: 'text-gray-700', balance: 'text-gray-800' };
-    }
-  };
-
-  // Function to get priority badge styling
-  const getPriorityBadgeStyle = (priority: string) => {
-    switch (priority) {
-      case 'HIGH':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'MEDIUM':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'LOW':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Active Account Investigations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center py-8">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading investigations...</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Active Account Investigations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-red-600">
-              <p>Error loading investigations. Please try again.</p>
-              <Button onClick={() => refetch()} className="mt-2">
-                Retry
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Group investigations by priority
-  const groupedInvestigations = {
-    high: investigations?.filter(inv => inv.priority === 'HIGH') || [],
-    medium: investigations?.filter(inv => inv.priority === 'MEDIUM') || [],
-    low: investigations?.filter(inv => inv.priority === 'LOW') || []
-  };
-
-  const renderInvestigationSection = (title: string, investigations: any[], priority: string, iconColor: string) => {
-    if (investigations.length === 0) return null;
-
-    return (
-      <div className="space-y-4 mb-8">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <div className={`w-3 h-3 rounded-full ${iconColor}`}></div>
-          <h3 className="text-lg font-semibold text-gray-900">
-            {title} ({investigations.length})
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {investigations.map((investigation) => {
-            const cardStyle = getPriorityCardStyle(investigation.priority);
-            const textColors = getPriorityTextColor(investigation.priority);
-            const badgeStyle = getPriorityBadgeStyle(investigation.priority);
-            
-            return (
-              <div 
-                key={investigation.id} 
-                className={`border rounded-lg p-4 transition-all duration-200 ${cardStyle}`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex-1">
-                    <h4 className={`font-medium mb-1 ${textColors.title}`}>
-                      {investigation.bank_accounts?.bank_name || 'Unknown Bank'}
-                    </h4>
-                    <p className={`text-sm mb-2 ${textColors.subtitle}`}>
-                      {investigation.bank_accounts?.account_name || 'Unknown Account'}
-                    </p>
-                    <Badge 
-                      variant="secondary"
-                      className={`flex items-center gap-1 w-fit ${badgeStyle}`}
-                    >
-                      {getPriorityIcon(investigation.priority)}
-                      {investigation.priority}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 mb-4">
-                  <div>
-                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Type:</span>
-                    <p className={`text-sm ${textColors.title}`}>{investigation.investigation_type || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Reason:</span>
-                    <p className={`text-sm line-clamp-2 ${textColors.title}`}>{investigation.reason || 'No reason provided'}</p>
-                  </div>
-                  <div>
-                    <span className={`text-xs font-medium ${textColors.subtitle}`}>Started:</span>
-                    <p className={`text-sm ${textColors.title}`}>
-                      {investigation.created_at ? formatDate(investigation.created_at) : 'Unknown'}
-                    </p>
-                  </div>
-                  {investigation.resolution_notes && (
-                    <div>
-                      <span className={`text-xs font-medium ${textColors.subtitle}`}>Status:</span>
-                      <Badge variant="secondary" className="ml-1 bg-orange-100 text-orange-800">
-                        Pending Banking Officer Approval
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className={`w-full border-current ${
-                    investigation.priority === 'HIGH' 
-                      ? 'border-red-300 text-red-700 hover:bg-red-100 hover:border-red-400' 
-                      : investigation.priority === 'MEDIUM'
-                      ? 'border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400'
-                      : 'border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400'
-                  }`}
-                  onClick={() => handleViewDetails(investigation)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Details
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <Search className="h-5 w-5 text-blue-500" />
             Active Account Investigations
           </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!investigations || investigations.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500" />
-              <h3 className="text-lg font-medium mb-2">No Active Investigations</h3>
-              <p>All account investigations have been resolved.</p>
+          <div className="flex gap-2">
+            {/* Bank Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              <Select value={selectedBankFilter} onValueChange={setSelectedBankFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filter by bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Banks</SelectItem>
+                  {uniqueBankNames.map((bankName) => (
+                    <SelectItem key={bankName} value={bankName}>
+                      {bankName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedBankFilter !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedBankFilter("all")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
-          ) : (
-            <div className="space-y-8">
-              {renderInvestigationSection(
-                "🚨 High Priority Investigations", 
-                groupedInvestigations.high, 
-                "HIGH", 
-                "bg-red-500"
+
+            {/* Priority Filter */}
+            <div className="flex items-center gap-2">
+              <Select value={selectedPriorityFilter} onValueChange={setSelectedPriorityFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Filter by priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="HIGH">High Priority</SelectItem>
+                  <SelectItem value="MEDIUM">Medium Priority</SelectItem>
+                  <SelectItem value="LOW">Low Priority</SelectItem>
+                </SelectContent>
+              </Select>
+              {selectedPriorityFilter !== "all" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedPriorityFilter("all")}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               )}
-              {renderInvestigationSection(
-                "⚠️ Medium Priority Investigations", 
-                groupedInvestigations.medium, 
-                "MEDIUM", 
-                "bg-orange-500"
-              )}
-              {renderInvestigationSection(
-                "ℹ️ Low Priority Investigations", 
-                groupedInvestigations.low, 
-                "LOW", 
-                "bg-green-500"
-              )}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* High Priority Investigations */}
+          {investigations?.filter(inv => inv.priority === 'HIGH').length > 0 && (
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-red-600 mb-3">
+                <AlertTriangle className="h-5 w-5" />
+                High Priority Investigations ({investigations.filter(inv => inv.priority === 'HIGH').length})
+              </h3>
+              <div className="space-y-3">
+                {investigations.filter(inv => inv.priority === 'HIGH').map((investigation) => (
+                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-lg">{investigation.bank_accounts?.bank_name}</h4>
+                          <Badge className={getPriorityBadgeColor(investigation.priority)}>
+                            {investigation.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {investigation.bank_accounts?.account_name}
+                        </p>
+                        <p className="text-sm font-medium text-blue-600 mb-2">
+                          {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
+                        </p>
+                        <div className="mb-2">
+                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          {investigation.description && (
+                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-red-300 text-red-700 hover:bg-red-50"
+                        onClick={() => handleViewDetails(investigation)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Step-by-Step Investigation
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => completeInvestigationMutation.mutate({ 
+                          caseId: investigation.id, 
+                          resolutionNotes: "Investigation completed through active investigations tab" 
+                        })}
+                        disabled={completeInvestigationMutation.isPending}
+                      >
+                        Complete Investigation
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
 
+          {/* Low Priority Investigations */}
+          {investigations?.filter(inv => inv.priority === 'LOW').length > 0 && (
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-green-600 mb-3">
+                <Clock className="h-5 w-5" />
+                Low Priority Investigations ({investigations.filter(inv => inv.priority === 'LOW').length})
+              </h3>
+              <div className="space-y-3">
+                {investigations.filter(inv => inv.priority === 'LOW').map((investigation) => (
+                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-lg">{investigation.bank_accounts?.bank_name}</h4>
+                          <Badge className={getPriorityBadgeColor(investigation.priority)}>
+                            {investigation.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {investigation.bank_accounts?.account_name}
+                        </p>
+                        <p className="text-sm font-medium text-blue-600 mb-2">
+                          {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
+                        </p>
+                        <div className="mb-2">
+                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          {investigation.description && (
+                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => handleViewDetails(investigation)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Step-by-Step Investigation
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => completeInvestigationMutation.mutate({ 
+                          caseId: investigation.id, 
+                          resolutionNotes: "Investigation completed through active investigations tab" 
+                        })}
+                        disabled={completeInvestigationMutation.isPending}
+                      >
+                        Complete Investigation
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Medium Priority Investigations */}
+          {investigations?.filter(inv => inv.priority === 'MEDIUM').length > 0 && (
+            <div>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-amber-600 mb-3">
+                <Clock className="h-5 w-5" />
+                Medium Priority Investigations ({investigations.filter(inv => inv.priority === 'MEDIUM').length})
+              </h3>
+              <div className="space-y-3">
+                {investigations.filter(inv => inv.priority === 'MEDIUM').map((investigation) => (
+                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-lg">{investigation.bank_accounts?.bank_name}</h4>
+                          <Badge className={getPriorityBadgeColor(investigation.priority)}>
+                            {investigation.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          {investigation.bank_accounts?.account_name}
+                        </p>
+                        <p className="text-sm font-medium text-blue-600 mb-2">
+                          {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
+                        </p>
+                        <div className="mb-2">
+                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          {investigation.description && (
+                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                        onClick={() => handleViewDetails(investigation)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Step-by-Step Investigation
+                      </Button>
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => completeInvestigationMutation.mutate({ 
+                          caseId: investigation.id, 
+                          resolutionNotes: "Investigation completed through active investigations tab" 
+                        })}
+                        disabled={completeInvestigationMutation.isPending}
+                      >
+                        Complete Investigation
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {(!investigations || investigations.length === 0) && (
+            <div className="text-center py-8 text-gray-500">
+              No active investigations found.
+            </div>
+          )}
+        </div>
+      </CardContent>
+      
       {/* Investigation Details Dialog */}
       {selectedInvestigation && (
         <InvestigationDetailsDialog
           investigation={selectedInvestigation}
-          open={showDetailsDialog}
-          onOpenChange={setShowDetailsDialog}
-          onResolve={(resolutionNotes) => {
-            resolveInvestigationMutation.mutate({
-              investigation: selectedInvestigation,
-              resolutionNotes
-            });
-            setShowDetailsDialog(false);
-          }}
+          open={investigationDialogOpen}
+          onOpenChange={setInvestigationDialogOpen}
+          onResolve={handleResolveInvestigation}
         />
       )}
-    </div>
+    </Card>
   );
 }

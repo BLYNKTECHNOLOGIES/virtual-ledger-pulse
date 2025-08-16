@@ -6,7 +6,9 @@ import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManageme
 import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
 import { BankJournalEntries } from "@/components/bams/BankJournalEntries";
 import { PaymentGatewayManagement } from "@/components/bams/PaymentGatewayManagement";
-import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone } from "lucide-react";
+import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3 } from "lucide-react";
+import { CaseGenerator } from "@/components/bams/CaseGenerator";
+import { AccountSummary } from "@/components/bams/AccountSummary";
 
 export default function BAMS() {
   return (
@@ -36,7 +38,12 @@ export default function BAMS() {
 
       <div className="w-full h-full flex-1 overflow-auto bg-white rounded-lg shadow-sm p-0">
         <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full bg-gray-100 p-1 rounded-md mb-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full bg-gray-100 p-1 rounded-md mb-6">
+            <TabsTrigger value="account-summary" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Account Summary</span>
+              <span className="sm:hidden">Summary</span>
+            </TabsTrigger>
             <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Building className="h-4 w-4" />
               <span className="hidden sm:inline">Bank Accounts</span>
@@ -62,9 +69,17 @@ export default function BAMS() {
               <span className="hidden sm:inline">Payment Gateway</span>
               <span className="sm:hidden">Gateway</span>
             </TabsTrigger>
+            <TabsTrigger value="case-generator" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <AlertCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Case Generator</span>
+              <span className="sm:hidden">Cases</span>
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex-1 w-full overflow-auto">
+            <TabsContent value="account-summary" className="w-full h-full">
+              <AccountSummary />
+            </TabsContent>
             <TabsContent value="bank-accounts" className="w-full h-full">
               <BankAccountManagement />
             </TabsContent>
@@ -79,6 +94,9 @@ export default function BAMS() {
             </TabsContent>
             <TabsContent value="payment-gateway" className="w-full h-full">
               <PaymentGatewayManagement />
+            </TabsContent>
+            <TabsContent value="case-generator" className="w-full h-full">
+              <CaseGenerator />
             </TabsContent>
           </div>
         </Tabs>

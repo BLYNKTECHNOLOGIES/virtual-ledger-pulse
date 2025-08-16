@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Building2, MessageSquare, Key, Search, Archive } from "lucide-react";
 import { CaseTrackingTab } from "./CaseTrackingTab";
+import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
 import { AccountStatusTab } from "./AccountStatusTab";
 import { BankCommunicationsTab } from "./BankCommunicationsTab";
 import { BankingCredentialsTab } from "./BankingCredentialsTab";
-import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
 import { PastInvestigationsTab } from "./PastInvestigationsTab";
 
 export function BankingComplianceTab() {

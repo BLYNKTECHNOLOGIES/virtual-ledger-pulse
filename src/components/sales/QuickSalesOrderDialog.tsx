@@ -72,9 +72,9 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
 
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: SalesOrderFormData) => {
-      console.log('🚀 Creating sales order with proper balance crediting...');
+      console.log('🚀 Creating sales order...');
       
-      // Get current bank balance
+      // Get bank account details
       const { data: bankAccount, error: bankError } = await supabase
         .from('bank_accounts')
         .select('balance, account_name')
@@ -83,9 +83,6 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
 
       if (bankError) throw bankError;
       if (!bankAccount) throw new Error('Bank account not found');
-
-      const currentBalance = bankAccount.balance || 0;
-      console.log(`💰 Current balance: ₹${currentBalance}`);
 
       // Create the sales order
       const { data: salesOrder, error: salesError } = await supabase
@@ -102,7 +99,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
           order_date: new Date().toISOString(),
           payment_status: 'COMPLETED',
           status: 'COMPLETED',
-          description: `Sales Order - Payment Received in ${bankAccount.account_name}`
+          settlement_status: 'DIRECT', // Default to direct settlement
+          description: `Sales Order - ${orderData.order_number}`
         })
         .select()
         .single();
@@ -110,7 +108,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // Create bank transaction for income
+      // For direct sales (non-payment gateway), create bank transaction immediately
+      // Payment gateway sales will go to pending settlements and be credited later
       const { error: transactionError } = await supabase
         .from('bank_transactions')
         .insert({
@@ -128,6 +127,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       console.log('✅ Bank transaction created');
 
       // Update bank balance directly (since triggers might not work properly)
+      const currentBalance = bankAccount.balance || 0;
       const newBalance = currentBalance + orderData.total_amount;
       const { error: balanceError } = await supabase
         .from('bank_accounts')

@@ -421,9 +421,9 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the simple function that works with current permissions
+      // Use the status-only function to avoid all business logic triggers
       try {
-        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_simple', {
+        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_only', {
           order_ids: selectedSales,
           batch_id: settlementBatchId,
           settled_timestamp: new Date().toISOString()

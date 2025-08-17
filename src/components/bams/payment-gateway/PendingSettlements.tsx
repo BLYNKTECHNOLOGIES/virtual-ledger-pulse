@@ -421,9 +421,9 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the new trigger-bypass function to update settlement status
+      // Use the simple function that works with current permissions
       try {
-        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_bypass_triggers', {
+        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_simple', {
           order_ids: selectedSales,
           batch_id: settlementBatchId,
           settled_timestamp: new Date().toISOString()
@@ -432,10 +432,11 @@ export function PendingSettlements() {
         if (rpcError) {
           console.error('❌ RPC Error:', rpcError);
           toast({
-            title: "Error",
-            description: "Failed to update settlement status",
+            title: "Settlement Error",
+            description: `Database error: ${rpcError.message}`,
             variant: "destructive",
           });
+          setIsSettling(false); // Reset loading state
           return;
         }
 

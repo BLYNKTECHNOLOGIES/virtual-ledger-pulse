@@ -415,10 +415,13 @@ export function PendingSettlements() {
       
       console.log('✅ Bank transaction created');
 
-      // Update sales orders settlement status (handle duplicates gracefully)
+      // Update sales orders settlement status
       console.log('📊 Updating sales orders...');
       
-      // Update each sales order individually to avoid constraint issues
+      let updateSuccessCount = 0;
+      let updateFailCount = 0;
+      
+      // Update each sales order individually to handle any constraint issues
       for (const saleId of selectedSales) {
         try {
           const { error: updateError } = await supabase
@@ -431,15 +434,26 @@ export function PendingSettlements() {
             .eq('id', saleId);
 
           if (updateError) {
-            // Log individual update errors but continue with others
-            console.warn(`⚠️ Failed to update sales order ${saleId}:`, updateError);
+            console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
+            updateFailCount++;
+          } else {
+            updateSuccessCount++;
           }
         } catch (error) {
-          console.warn(`⚠️ Exception updating sales order ${saleId}:`, error);
+          console.error(`❌ Exception updating sales order ${saleId}:`, error);
+          updateFailCount++;
         }
       }
       
-      console.log('✅ Sales orders update attempted (some may have failed due to constraints)');
+      console.log(`✅ Sales orders updated: ${updateSuccessCount} success, ${updateFailCount} failed`);
+      
+      if (updateFailCount > 0) {
+        toast({
+          title: "Warning", 
+          description: `Settlement created but ${updateFailCount} sales orders couldn't be updated. Please refresh to see current status.`,
+          variant: "destructive"
+        });
+      }
 
       // Reset payment method usage for settled sales
       console.log('♻️ Resetting payment method usage...');

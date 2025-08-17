@@ -424,19 +424,34 @@ export function PendingSettlements() {
       // Update each sales order individually to handle any constraint issues
       for (const saleId of selectedSales) {
         try {
+          // First check if the order is already settled to avoid unnecessary updates
+          const { data: existingOrder } = await supabase
+            .from('sales_orders')
+            .select('settlement_status')
+            .eq('id', saleId)
+            .single();
+
+          if (existingOrder?.settlement_status === 'SETTLED') {
+            console.log(`⚠️ Sales order ${saleId} already settled, skipping...`);
+            updateSuccessCount++;
+            continue;
+          }
+
           const { error: updateError } = await supabase
             .from('sales_orders')
-            .update({ 
+            .update({
               settlement_status: 'SETTLED',
               settlement_batch_id: settlementBatchId,
               settled_at: new Date().toISOString()
             })
-            .eq('id', saleId);
+            .eq('id', saleId)
+            .eq('settlement_status', 'PENDING'); // Only update if still pending
 
           if (updateError) {
             console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
             updateFailCount++;
           } else {
+            console.log(`✅ Successfully updated sales order ${saleId}`);
             updateSuccessCount++;
           }
         } catch (error) {
@@ -453,6 +468,8 @@ export function PendingSettlements() {
           description: `Settlement created but ${updateFailCount} sales orders couldn't be updated. Please refresh to see current status.`,
           variant: "destructive"
         });
+        // Force refresh even if some updates failed
+        fetchPendingSettlements();
       }
 
       // Reset payment method usage for settled sales

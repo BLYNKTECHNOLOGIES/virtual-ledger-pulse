@@ -58,7 +58,7 @@ export function DirectoryTab() {
 
       if (bankError) throw bankError;
 
-      // Sales orders - using correct column names from new table structure
+      // Sales orders - only show orders that actually created bank transactions (non-payment gateway)
       const { data: salesData, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
@@ -70,8 +70,10 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
-          sales_payment_methods(type, bank_accounts(account_name, bank_name, id, account_number))
+          settlement_status,
+          sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number))
         `)
+        .eq('settlement_status', 'DIRECT')  // Only show direct settlements (non-payment gateway)
         .order('order_date', { ascending: false });
 
       if (salesError) throw salesError;

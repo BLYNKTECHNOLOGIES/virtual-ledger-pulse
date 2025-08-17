@@ -421,9 +421,9 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the status-only function to avoid all business logic triggers
+      // Use the bypass function to completely disable all triggers during settlement
       try {
-        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_only', {
+        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_bypass_all_triggers', {
           order_ids: selectedSales,
           batch_id: settlementBatchId,
           settled_timestamp: new Date().toISOString()

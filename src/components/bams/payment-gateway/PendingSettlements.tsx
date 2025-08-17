@@ -421,87 +421,39 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Update each sales order individually to handle any constraint issues
-      for (const saleId of selectedSales) {
-        try {
-          console.log(`🔄 Processing sales order ${saleId}...`);
-          
-          // First check current status
-          const { data: existingOrder } = await supabase
-            .from('sales_orders')
-            .select('settlement_status, id')
-            .eq('id', saleId)
-            .single();
+      // Use the database function to safely update settlement status
+      try {
+        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_safe', {
+          order_ids: selectedSales,
+          batch_id: settlementBatchId,
+          settled_timestamp: new Date().toISOString()
+        });
 
-          console.log(`📊 Current status for ${saleId}:`, existingOrder?.settlement_status);
+        if (rpcError) {
+          console.error('❌ RPC Error:', rpcError);
+          toast({
+            title: "Error",
+            description: "Failed to update settlement status",
+            variant: "destructive",
+          });
+          return;
+        }
 
-          if (existingOrder?.settlement_status === 'SETTLED') {
-            console.log(`⚠️ Sales order ${saleId} already settled, skipping...`);
-            updateSuccessCount++;
-            continue;
-          }
-
-          const { data: updatedData, error: updateError } = await supabase
-            .from('sales_orders')
-            .update({
-              settlement_status: 'SETTLED',
-              settlement_batch_id: settlementBatchId,
-              settled_at: new Date().toISOString()
-            })
-            .eq('id', saleId)
-            .eq('settlement_status', 'PENDING')
-            .select('id, settlement_status'); // Return updated data
-
-          if (updateError) {
-            console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
-            
-            // If it's a constraint violation, it's likely due to duplicate stock transactions
-            // Try updating only the specific settlement fields without any complex operations
-            if (updateError.code === '23505') {
-              console.log(`🔄 Bypassing constraint issue for ${saleId}...`);
-              
-              // Update fields one by one to avoid triggering bulk operations
-              const updates = [
-                { field: 'settlement_status', value: 'SETTLED' },
-                { field: 'settlement_batch_id', value: settlementBatchId },
-                { field: 'settled_at', value: new Date().toISOString() }
-              ];
-              
-              let retrySuccess = true;
-              for (const update of updates) {
-                const { error: fieldError } = await supabase
-                  .from('sales_orders')
-                  .update({ [update.field]: update.value })
-                  .eq('id', saleId);
-                
-                if (fieldError) {
-                  console.error(`❌ Failed to update ${update.field} for ${saleId}:`, fieldError);
-                  retrySuccess = false;
-                  break;
-                }
-              }
-              
-              if (retrySuccess) {
-                console.log(`✅ Successfully bypassed constraint for sales order ${saleId}`);
-                updateSuccessCount++;
-              } else {
-                console.error(`❌ Could not bypass constraint for ${saleId}`);
-                updateFailCount++;
-              }
+        // Process results from the function
+        if (updateResults) {
+          for (const result of updateResults) {
+            if (result.success) {
+              console.log(`✅ Successfully updated sales order ${result.updated_id} to SETTLED`);
+              updateSuccessCount++;
             } else {
+              console.error(`❌ Failed to update sales order ${result.updated_id}: ${result.error_message}`);
               updateFailCount++;
             }
-          } else if (!updatedData || updatedData.length === 0) {
-            console.warn(`⚠️ No rows updated for sales order ${saleId} - may not be pending`);
-            updateFailCount++;
-          } else {
-            console.log(`✅ Successfully updated sales order ${saleId} to SETTLED`);
-            updateSuccessCount++;
           }
-        } catch (error) {
-          console.error(`❌ Exception updating sales order ${saleId}:`, error);
-          updateFailCount++;
         }
+      } catch (error) {
+        console.error('❌ Exception during settlement update:', error);
+        updateFailCount = selectedSales.length;
       }
       
       console.log(`✅ Sales orders updated: ${updateSuccessCount} success, ${updateFailCount} failed`);

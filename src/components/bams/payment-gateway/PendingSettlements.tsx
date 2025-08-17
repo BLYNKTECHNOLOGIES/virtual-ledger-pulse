@@ -58,6 +58,7 @@ export function PendingSettlements() {
   const [mdrAmount, setMdrAmount] = useState("0");
   const [deductMdr, setDeductMdr] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -488,17 +489,30 @@ export function PendingSettlements() {
       
       console.log('✅ Payment method usage reset');
 
+      // Remove successfully settled orders from pending sales
+      const successfullySettledIds = selectedSales.slice(0, updateSuccessCount);
+      setPendingSales(prev => prev.filter(sale => !successfullySettledIds.includes(sale.id)));
+      
+      // Update bank groups by removing settled sales
+      setBankGroups(prev => prev.map(group => ({
+        ...group,
+        sales: group.sales.filter(sale => !successfullySettledIds.includes(sale.id)),
+        totalAmount: group.sales
+          .filter(sale => !successfullySettledIds.includes(sale.id))
+          .reduce((sum, sale) => sum + sale.total_amount, 0)
+      })).filter(group => group.sales.length > 0));
+
       toast({
         title: "Success",
         description: `Successfully settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}`,
       });
 
-      // Reset form and refresh data
+      // Reset form
       setSelectedSales([]);
       setSelectedBankAccount("");
       setDeductMdr(false);
       setMdrAmount("0");
-      fetchPendingSettlements();
+      setIsDialogOpen(false);
       
     } catch (error) {
       console.error('Error settling payments:', error);
@@ -525,9 +539,12 @@ export function PendingSettlements() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Pending Settlements</h3>
         {selectedSales.length > 0 && (
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
+              <Button 
+                className="flex items-center gap-2"
+                onClick={() => setIsDialogOpen(true)}
+              >
                 <DollarSign className="h-4 w-4" />
                 Settle Selected ({selectedSales.length})
               </Button>

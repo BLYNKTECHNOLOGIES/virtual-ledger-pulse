@@ -108,8 +108,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // For direct sales (non-payment gateway), create bank transaction immediately
-      // Payment gateway sales will go to pending settlements and be credited later
+      // For QuickSalesOrderDialog, all orders are direct (no payment method selection)
+      // Create bank transaction immediately for direct sales
       const { error: transactionError } = await supabase
         .from('bank_transactions')
         .insert({

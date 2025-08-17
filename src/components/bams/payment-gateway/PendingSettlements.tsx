@@ -328,7 +328,9 @@ export function PendingSettlements() {
       return;
     }
 
+    console.log('💰 Starting settlement process...');
     setIsSettling(true);
+    
     try {
       const settlementAmount = calculateSettlementAmount();
       const mdrDeduction = deductMdr ? getMdrAmount() : 0;
@@ -339,7 +341,16 @@ export function PendingSettlements() {
       const selectedBankAcc = bankAccounts.find(acc => acc.id === selectedBankAccount);
       const settlementBatchId = `PGS-${Date.now()}`;
 
+      console.log('Settlement details:', {
+        settlementAmount,
+        totalAmount,
+        mdrDeduction,
+        selectedBankAccount,
+        selectedSalesCount: selectedSales.length
+      });
+
       // Create settlement record
+      console.log('📝 Creating settlement record...');
       const { data: settlement, error: settlementError } = await supabase
         .from('payment_gateway_settlements')
         .insert({
@@ -354,9 +365,15 @@ export function PendingSettlements() {
         .select()
         .single();
 
-      if (settlementError) throw settlementError;
+      if (settlementError) {
+        console.error('❌ Settlement creation failed:', settlementError);
+        throw settlementError;
+      }
+      
+      console.log('✅ Settlement record created:', settlement.id);
 
       // Create settlement items
+      console.log('📋 Creating settlement items...');
       const settlementItems = selectedSales.map(saleId => {
         const sale = pendingSales.find(s => s.id === saleId);
         return {
@@ -370,9 +387,15 @@ export function PendingSettlements() {
         .from('payment_gateway_settlement_items')
         .insert(settlementItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('❌ Settlement items creation failed:', itemsError);
+        throw itemsError;
+      }
+      
+      console.log('✅ Settlement items created');
 
       // Create bank transaction for settlement
+      console.log('🏦 Creating bank transaction...');
       const { error: transactionError } = await supabase
         .from('bank_transactions')
         .insert({
@@ -385,9 +408,15 @@ export function PendingSettlements() {
           reference_number: settlementBatchId
         });
 
-      if (transactionError) throw transactionError;
+      if (transactionError) {
+        console.error('❌ Bank transaction creation failed:', transactionError);
+        throw transactionError;
+      }
+      
+      console.log('✅ Bank transaction created');
 
       // Update sales orders settlement status
+      console.log('📊 Updating sales orders...');
       const { error: updateError } = await supabase
         .from('sales_orders')
         .update({ 
@@ -397,9 +426,15 @@ export function PendingSettlements() {
         })
         .in('id', selectedSales);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Sales orders update failed:', updateError);
+        throw updateError;
+      }
+      
+      console.log('✅ Sales orders updated');
 
       // Reset payment method usage for settled sales
+      console.log('♻️ Resetting payment method usage...');
       const paymentMethodIds = [...new Set(selectedSales.map(saleId => {
         const sale = pendingSales.find(s => s.id === saleId);
         return sale?.sales_payment_method.id;
@@ -426,7 +461,8 @@ export function PendingSettlements() {
             .eq('id', methodId);
         }
       }
-
+      
+      console.log('✅ Payment method usage reset');
 
       toast({
         title: "Success",

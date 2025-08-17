@@ -1,5 +1,6 @@
 
 import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Headphones, Globe } from 'lucide-react';
+import InteractiveMap from '../InteractiveMap';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -214,19 +215,11 @@ export function ContactPage() {
                 </div>
               </div>
 
-              {/* Map Placeholder */}
+              {/* Interactive Map */}
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent rounded-3xl" />
                 <div className="relative bg-background/80 backdrop-blur-sm border border-primary/10 rounded-3xl overflow-hidden shadow-2xl">
-                  <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent h-64 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6">
-                        <MapPin className="h-8 w-8 text-primary" />
-                      </div>
-                      <h3 className="font-bold text-xl mb-2">Interactive Map</h3>
-                      <p className="text-muted-foreground">Coming Soon</p>
-                    </div>
-                  </div>
+                  <InteractiveMap />
                 </div>
               </div>
             </div>

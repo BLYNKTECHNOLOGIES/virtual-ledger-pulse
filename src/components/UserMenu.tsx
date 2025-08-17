@@ -32,6 +32,7 @@ export function UserMenu() {
 
   const handleLogout = () => {
     logout();
+    navigate('/');
   };
 
   return (

@@ -24,53 +24,45 @@ export function ContactPage() {
         </div>
       </section>
 
-      {/* Contact Methods Cards */}
+      {/* Contact Methods */}
       <section className="py-16 -mt-8 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
-            <Card className="border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6 text-center">
-                <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-4">
-                  <Phone className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">Call Us</h3>
-                <p className="text-muted-foreground text-sm mb-2">+91 9266712788</p>
-                <p className="text-xs text-muted-foreground">Mon-Fri 9am-6pm IST</p>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-2xl mb-4 group-hover:from-primary/20 group-hover:to-primary/10 transition-colors duration-300">
+                <Phone className="h-8 w-8 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold text-xl mb-2 text-foreground">Call Us</h3>
+                <p className="text-muted-foreground text-lg font-medium mb-1">+91 9266712788</p>
+                <p className="text-sm text-muted-foreground">Mon-Fri 9am-6pm IST</p>
+              </div>
+            </div>
 
-            <Card className="border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6 text-center">
-                <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-4">
-                  <Mail className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">Email Us</h3>
-                <p className="text-muted-foreground text-sm mb-2">support@blynkex.com</p>
-                <p className="text-xs text-muted-foreground">24-hour response time</p>
-              </CardContent>
-            </Card>
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-2xl mb-4 group-hover:from-primary/20 group-hover:to-primary/10 transition-colors duration-300">
+                <Mail className="h-8 w-8 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold text-xl mb-2 text-foreground">Email Us</h3>
+                <p className="text-muted-foreground text-lg font-medium mb-1">support@blynkex.com</p>
+                <p className="text-sm text-muted-foreground">24-hour response time</p>
+              </div>
+            </div>
 
-            <Card className="border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6 text-center">
-                <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-4">
-                  <MessageSquare className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">Live Chat</h3>
-                <p className="text-muted-foreground text-sm mb-2">Instant support</p>
-                <p className="text-xs text-muted-foreground">Available 24/7</p>
-              </CardContent>
-            </Card>
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-2xl mb-4 group-hover:from-primary/20 group-hover:to-primary/10 transition-colors duration-300">
+                <MessageSquare className="h-8 w-8 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold text-xl mb-2 text-foreground">Live Chat</h3>
+                <p className="text-muted-foreground text-lg font-medium mb-1">Instant support</p>
+                <p className="text-sm text-muted-foreground">Available 24/7</p>
+              </div>
+            </div>
 
-            <Card className="border-border/50 hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardContent className="p-6 text-center">
-                <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-4">
-                  <Headphones className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2">Support</h3>
-                <p className="text-muted-foreground text-sm mb-2">Help Center</p>
-                <p className="text-xs text-muted-foreground">FAQs & Guides</p>
-              </CardContent>
-            </Card>
+            <div className="text-center group hover:scale-105 transition-transform duration-300">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-2xl mb-4 group-hover:from-primary/20 group-hover:to-primary/10 transition-colors duration-300">
+                <Headphones className="h-8 w-8 text-primary mx-auto mb-3" />
+                <h3 className="font-semibold text-xl mb-2 text-foreground">Support</h3>
+                <p className="text-muted-foreground text-lg font-medium mb-1">Help Center</p>
+                <p className="text-sm text-muted-foreground">FAQs & Guides</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-16">

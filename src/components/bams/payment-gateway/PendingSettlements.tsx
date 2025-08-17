@@ -415,46 +415,34 @@ export function PendingSettlements() {
       
       console.log('✅ Bank transaction created');
 
-      // Update sales orders settlement status
-      console.log('📊 Updating sales orders...');
+      // Update sales orders settlement status directly
+      console.log('📊 Updating sales orders directly...');
       
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the raw function that doesn't try to disable triggers
-      try {
-        const { data: updateResult, error: rpcError } = await supabase.rpc('update_settlement_raw', {
-          order_ids: selectedSales,
-          batch_id: settlementBatchId,
-          settled_timestamp: new Date().toISOString()
-        });
+      // Update each sales order directly using Supabase client
+      for (const orderId of selectedSales) {
+        console.log(`Updating order ${orderId}...`);
+        
+        const { error: updateError } = await supabase
+          .from('sales_orders')
+          .update({
+            settlement_status: 'SETTLED',
+            settlement_batch_id: settlementBatchId,
+            settled_at: new Date().toISOString()
+          })
+          .eq('id', orderId)
+          .eq('settlement_status', 'PENDING')
+          .eq('payment_status', 'COMPLETED');
 
-        if (rpcError) {
-          console.error('❌ RPC Error:', rpcError);
-          toast({
-            title: "Settlement Error",
-            description: `Database error: ${rpcError.message}`,
-            variant: "destructive",
-          });
-          setIsSettling(false);
-          return;
-        }
-
-        // Process simple JSON result
-        if (updateResult && typeof updateResult === 'object' && !Array.isArray(updateResult)) {
-          const resultObj = updateResult as { updated_count?: number };
-          if (resultObj.updated_count) {
-            console.log(`✅ Successfully updated ${resultObj.updated_count} sales orders to SETTLED`);
-            updateSuccessCount = resultObj.updated_count;
-          } else {
-            console.log('⚠️ No orders were updated');
-          }
+        if (updateError) {
+          console.error(`❌ Failed to update order ${orderId}:`, updateError);
+          updateFailCount++;
         } else {
-          console.log('⚠️ No orders were updated');
+          console.log(`✅ Successfully updated order ${orderId} to SETTLED`);
+          updateSuccessCount++;
         }
-      } catch (error) {
-        console.error('❌ Exception during settlement update:', error);
-        updateFailCount = selectedSales.length;
       }
       
       console.log(`✅ Sales orders updated: ${updateSuccessCount} success, ${updateFailCount} failed`);

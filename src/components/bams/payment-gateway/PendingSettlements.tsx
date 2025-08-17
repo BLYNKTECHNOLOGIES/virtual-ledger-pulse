@@ -424,12 +424,16 @@ export function PendingSettlements() {
       // Update each sales order individually to handle any constraint issues
       for (const saleId of selectedSales) {
         try {
-          // First check if the order is already settled to avoid unnecessary updates
+          console.log(`🔄 Processing sales order ${saleId}...`);
+          
+          // First check current status
           const { data: existingOrder } = await supabase
             .from('sales_orders')
-            .select('settlement_status')
+            .select('settlement_status, id')
             .eq('id', saleId)
             .single();
+
+          console.log(`📊 Current status for ${saleId}:`, existingOrder?.settlement_status);
 
           if (existingOrder?.settlement_status === 'SETTLED') {
             console.log(`⚠️ Sales order ${saleId} already settled, skipping...`);
@@ -437,7 +441,7 @@ export function PendingSettlements() {
             continue;
           }
 
-          const { error: updateError } = await supabase
+          const { data: updatedData, error: updateError } = await supabase
             .from('sales_orders')
             .update({
               settlement_status: 'SETTLED',
@@ -445,13 +449,17 @@ export function PendingSettlements() {
               settled_at: new Date().toISOString()
             })
             .eq('id', saleId)
-            .eq('settlement_status', 'PENDING'); // Only update if still pending
+            .eq('settlement_status', 'PENDING')
+            .select('id, settlement_status'); // Return updated data
 
           if (updateError) {
             console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
             updateFailCount++;
+          } else if (!updatedData || updatedData.length === 0) {
+            console.warn(`⚠️ No rows updated for sales order ${saleId} - may not be pending`);
+            updateFailCount++;
           } else {
-            console.log(`✅ Successfully updated sales order ${saleId}`);
+            console.log(`✅ Successfully updated sales order ${saleId} to SETTLED`);
             updateSuccessCount++;
           }
         } catch (error) {

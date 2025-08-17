@@ -302,13 +302,27 @@ export function PendingSettlements() {
   };
 
   const handleSettle = async () => {
-    console.log('Handle settle called', { selectedSales, selectedBankAccount });
+    console.log('=== SETTLE FUNCTION CALLED ===');
+    console.log('Selected Sales:', selectedSales);
+    console.log('Selected Bank Account:', selectedBankAccount);
+    console.log('Pending Sales Length:', pendingSales.length);
+    console.log('Is Settling:', isSettling);
     
-    if (selectedSales.length === 0 || !selectedBankAccount) {
-      console.log('Validation failed:', { selectedSalesLength: selectedSales.length, selectedBankAccount });
+    if (selectedSales.length === 0) {
+      console.log('❌ No sales selected');
       toast({
         title: "Error",
-        description: "Please select sales and bank account",
+        description: "Please select at least one transaction to settle",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!selectedBankAccount) {
+      console.log('❌ No bank account selected');
+      toast({
+        title: "Error",
+        description: "Please select a bank account for settlement",
         variant: "destructive",
       });
       return;

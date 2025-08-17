@@ -454,7 +454,31 @@ export function PendingSettlements() {
 
           if (updateError) {
             console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
-            updateFailCount++;
+            
+            // If it's a constraint violation, try a simpler update approach
+            if (updateError.code === '23505') {
+              console.log(`🔄 Retrying update for ${saleId} with simpler approach...`);
+              
+              // Try just updating the settlement fields without any complex operations
+              const { error: retryError } = await supabase
+                .from('sales_orders')
+                .update({
+                  settlement_status: 'SETTLED',
+                  settlement_batch_id: settlementBatchId,
+                  settled_at: new Date().toISOString()
+                })
+                .eq('id', saleId);
+              
+              if (retryError) {
+                console.error(`❌ Retry also failed for ${saleId}:`, retryError);
+                updateFailCount++;
+              } else {
+                console.log(`✅ Retry successful for sales order ${saleId}`);
+                updateSuccessCount++;
+              }
+            } else {
+              updateFailCount++;
+            }
           } else if (!updatedData || updatedData.length === 0) {
             console.warn(`⚠️ No rows updated for sales order ${saleId} - may not be pending`);
             updateFailCount++;

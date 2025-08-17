@@ -21,14 +21,6 @@ const InteractiveMap = () => {
         className="w-full h-full"
       />
       
-      {/* Custom Red Marker Overlay */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full pointer-events-none">
-        <div className="relative">
-          <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
-          <div className="w-1 h-4 bg-red-500 mx-auto"></div>
-        </div>
-      </div>
-      
       {/* Overlay with office info */}
       <div className="absolute top-4 left-4 bg-background/95 backdrop-blur-sm border border-primary/10 rounded-xl px-4 py-3 shadow-lg max-w-xs">
         <div className="flex items-start gap-3">

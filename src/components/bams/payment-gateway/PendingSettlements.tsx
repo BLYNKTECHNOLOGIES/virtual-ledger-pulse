@@ -302,7 +302,10 @@ export function PendingSettlements() {
   };
 
   const handleSettle = async () => {
+    console.log('Handle settle called', { selectedSales, selectedBankAccount });
+    
     if (selectedSales.length === 0 || !selectedBankAccount) {
+      console.log('Validation failed:', { selectedSalesLength: selectedSales.length, selectedBankAccount });
       toast({
         title: "Error",
         description: "Please select sales and bank account",
@@ -520,7 +523,10 @@ export function PendingSettlements() {
                 </div>
 
                 <Button 
-                  onClick={handleSettle} 
+                  onClick={() => {
+                    console.log('Settle button clicked!', { selectedBankAccount, isSettling, selectedSalesCount: selectedSales.length });
+                    handleSettle();
+                  }} 
                   disabled={!selectedBankAccount || isSettling}
                   className="w-full"
                 >

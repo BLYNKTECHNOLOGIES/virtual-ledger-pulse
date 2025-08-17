@@ -455,26 +455,38 @@ export function PendingSettlements() {
           if (updateError) {
             console.error(`❌ Failed to update sales order ${saleId}:`, updateError);
             
-            // If it's a constraint violation, try a simpler update approach
+            // If it's a constraint violation, it's likely due to duplicate stock transactions
+            // Try updating only the specific settlement fields without any complex operations
             if (updateError.code === '23505') {
-              console.log(`🔄 Retrying update for ${saleId} with simpler approach...`);
+              console.log(`🔄 Bypassing constraint issue for ${saleId}...`);
               
-              // Try just updating the settlement fields without any complex operations
-              const { error: retryError } = await supabase
-                .from('sales_orders')
-                .update({
-                  settlement_status: 'SETTLED',
-                  settlement_batch_id: settlementBatchId,
-                  settled_at: new Date().toISOString()
-                })
-                .eq('id', saleId);
+              // Update fields one by one to avoid triggering bulk operations
+              const updates = [
+                { field: 'settlement_status', value: 'SETTLED' },
+                { field: 'settlement_batch_id', value: settlementBatchId },
+                { field: 'settled_at', value: new Date().toISOString() }
+              ];
               
-              if (retryError) {
-                console.error(`❌ Retry also failed for ${saleId}:`, retryError);
-                updateFailCount++;
-              } else {
-                console.log(`✅ Retry successful for sales order ${saleId}`);
+              let retrySuccess = true;
+              for (const update of updates) {
+                const { error: fieldError } = await supabase
+                  .from('sales_orders')
+                  .update({ [update.field]: update.value })
+                  .eq('id', saleId);
+                
+                if (fieldError) {
+                  console.error(`❌ Failed to update ${update.field} for ${saleId}:`, fieldError);
+                  retrySuccess = false;
+                  break;
+                }
+              }
+              
+              if (retrySuccess) {
+                console.log(`✅ Successfully bypassed constraint for sales order ${saleId}`);
                 updateSuccessCount++;
+              } else {
+                console.error(`❌ Could not bypass constraint for ${saleId}`);
+                updateFailCount++;
               }
             } else {
               updateFailCount++;

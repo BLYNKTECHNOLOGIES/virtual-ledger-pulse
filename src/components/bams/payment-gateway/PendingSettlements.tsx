@@ -421,9 +421,9 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the database function to safely update settlement status
+      // Use the new direct database function to safely update settlement status
       try {
-        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_safe', {
+        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_status_direct', {
           order_ids: selectedSales,
           batch_id: settlementBatchId,
           settled_timestamp: new Date().toISOString()

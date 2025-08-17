@@ -3857,6 +3857,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_settlement_status_direct: {
+        Args: {
+          batch_id: string
+          order_ids: string[]
+          settled_timestamp: string
+        }
+        Returns: {
+          error_message: string
+          success: boolean
+          updated_id: string
+        }[]
+      }
       update_settlement_status_safe: {
         Args: {
           batch_id: string

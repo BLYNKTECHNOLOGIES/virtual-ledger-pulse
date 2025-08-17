@@ -3869,6 +3869,14 @@ export type Database = {
           updated_id: string
         }[]
       }
+      update_settlement_raw: {
+        Args: {
+          batch_id: string
+          order_ids: string[]
+          settled_timestamp: string
+        }
+        Returns: Json
+      }
       update_settlement_status_bypass_triggers: {
         Args: {
           batch_id: string

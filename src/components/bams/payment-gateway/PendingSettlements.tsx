@@ -421,9 +421,9 @@ export function PendingSettlements() {
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       
-      // Use the bypass function to completely disable all triggers during settlement
+      // Use the raw function that doesn't try to disable triggers
       try {
-        const { data: updateResults, error: rpcError } = await supabase.rpc('update_settlement_bypass_all_triggers', {
+        const { data: updateResult, error: rpcError } = await supabase.rpc('update_settlement_raw', {
           order_ids: selectedSales,
           batch_id: settlementBatchId,
           settled_timestamp: new Date().toISOString()
@@ -436,21 +436,21 @@ export function PendingSettlements() {
             description: `Database error: ${rpcError.message}`,
             variant: "destructive",
           });
-          setIsSettling(false); // Reset loading state
+          setIsSettling(false);
           return;
         }
 
-        // Process results from the function
-        if (updateResults) {
-          for (const result of updateResults) {
-            if (result.success) {
-              console.log(`✅ Successfully updated sales order ${result.updated_id} to SETTLED`);
-              updateSuccessCount++;
-            } else {
-              console.error(`❌ Failed to update sales order ${result.updated_id}: ${result.error_message}`);
-              updateFailCount++;
-            }
+        // Process simple JSON result
+        if (updateResult && typeof updateResult === 'object' && !Array.isArray(updateResult)) {
+          const resultObj = updateResult as { updated_count?: number };
+          if (resultObj.updated_count) {
+            console.log(`✅ Successfully updated ${resultObj.updated_count} sales orders to SETTLED`);
+            updateSuccessCount = resultObj.updated_count;
+          } else {
+            console.log('⚠️ No orders were updated');
           }
+        } else {
+          console.log('⚠️ No orders were updated');
         }
       } catch (error) {
         console.error('❌ Exception during settlement update:', error);

@@ -14,12 +14,22 @@ import { useToast } from "@/hooks/use-toast";
 
 interface PendingSale {
   id: string;
+  sales_order_id: string;
   order_number: string;
   client_name: string;
   total_amount: number;
+  settlement_amount: number;
   order_date: string;
-  payment_status: string;
-  sales_payment_method: {
+  payment_method_id: string | null;
+  bank_account_id: string | null;
+  status: string;
+  settlement_cycle: string | null;
+  settlement_days: number | null;
+  expected_settlement_date: string | null;
+  mdr_amount: number;
+  mdr_rate: number;
+  notes: string | null;
+  sales_payment_method?: {
     id: string;
     type: string;
     settlement_cycle: string | null;
@@ -69,16 +79,25 @@ export function PendingSettlements() {
   const fetchPendingSettlements = async () => {
     try {
       const { data, error } = await supabase
-        .from('sales_orders')
+        .from('pending_settlements')
         .select(`
           id,
+          sales_order_id,
           order_number,
           client_name,
           total_amount,
+          settlement_amount,
           order_date,
-          payment_status,
-          settlement_status,
-          sales_payment_methods (
+          payment_method_id,
+          bank_account_id,
+          status,
+          settlement_cycle,
+          settlement_days,
+          expected_settlement_date,
+          mdr_amount,
+          mdr_rate,
+          notes,
+          sales_payment_methods:payment_method_id (
             id,
             type,
             settlement_cycle,
@@ -90,11 +109,15 @@ export function PendingSettlements() {
               bank_name,
               account_number
             )
+          ),
+          bank_accounts:bank_account_id (
+            id,
+            account_name,
+            bank_name,
+            account_number
           )
         `)
-        .eq('settlement_status', 'PENDING')
-        .eq('payment_status', 'COMPLETED')
-        .not('sales_payment_method_id', 'is', null);
+        .eq('status', 'PENDING');
 
       if (error) throw error;
       
@@ -104,35 +127,23 @@ export function PendingSettlements() {
         return;
       }
 
-      // Filter for payment gateway sales only, excluding instant settlements
-      const gatewayData = data.filter((sale: any) => {
-        const hasPaymentMethod = sale.sales_payment_methods;
-        const isGateway = hasPaymentMethod?.payment_gateway === true;
-        const isInstant = hasPaymentMethod?.settlement_cycle === "Instant Settlement";
-        
-        // Auto-settle instant settlements
-        if (isGateway && isInstant) {
-          autoSettleInstantSales([sale]);
-          return false; // Don't show in pending
-        }
-        
-        return hasPaymentMethod && isGateway && !isInstant;
-      });
-      
       // Transform data and group by bank
-      const transformedData = gatewayData.map((sale: any) => ({
-        ...sale,
-        sales_payment_method: {
-          ...sale.sales_payment_methods,
-          bank_account: sale.sales_payment_methods.bank_accounts
+      const transformedData = data.map((settlement: any) => ({
+        ...settlement,
+        sales_payment_method: settlement.sales_payment_methods || {
+          id: settlement.payment_method_id,
+          type: 'Gateway',
+          settlement_cycle: settlement.settlement_cycle,
+          settlement_days: settlement.settlement_days,
+          bank_account: settlement.bank_accounts
         }
       }));
 
       // Group sales by bank account
       const groups: { [key: string]: BankGroup } = {};
       
-      transformedData.forEach((sale: any) => {
-        const bankAccount = sale.sales_payment_method.bank_account;
+      transformedData.forEach((settlement: any) => {
+        const bankAccount = settlement.bank_accounts || settlement.sales_payment_method?.bank_account;
         if (bankAccount) {
           const key = bankAccount.id;
           if (!groups[key]) {
@@ -144,8 +155,8 @@ export function PendingSettlements() {
               totalAmount: 0
             };
           }
-          groups[key].sales.push(sale);
-          groups[key].totalAmount += sale.total_amount;
+          groups[key].sales.push(settlement);
+          groups[key].totalAmount += settlement.settlement_amount || settlement.total_amount;
         }
       });
 
@@ -192,8 +203,11 @@ export function PendingSettlements() {
       } else {
         const newSelected = [...prev, saleId];
         // Auto-select bank account if this is the first sale selected
-        if (prev.length === 0 && sale?.sales_payment_method.bank_account) {
-          setSelectedBankAccount(sale.sales_payment_method.bank_account.id);
+        if (prev.length === 0) {
+          const bankAccountId = sale?.bank_account_id || sale?.sales_payment_method?.bank_account?.id;
+          if (bankAccountId) {
+            setSelectedBankAccount(bankAccountId);
+          }
         }
         return newSelected;
       }
@@ -375,12 +389,12 @@ export function PendingSettlements() {
 
       // Create settlement items
       console.log('📋 Creating settlement items...');
-      const settlementItems = selectedSales.map(saleId => {
-        const sale = pendingSales.find(s => s.id === saleId);
+      const settlementItems = selectedSales.map(settlementId => {
+        const pendingSettlement = pendingSales.find(s => s.id === settlementId);
         return {
-          settlement_id: settlement.id,
-          sales_order_id: saleId,
-          amount: sale?.total_amount || 0
+          settlement_id: settlement.id, // Use the settlement record ID from payment_gateway_settlements
+          sales_order_id: pendingSettlement?.sales_order_id, // Use the actual sales order ID
+          amount: pendingSettlement?.total_amount || 0
         };
       });
 
@@ -423,8 +437,17 @@ export function PendingSettlements() {
       let updateFailCount = 0;
       
       // Update each sales order directly using Supabase client
-      for (const orderId of selectedSales) {
-        console.log(`Updating order ${orderId}...`);
+      for (const settlementId of selectedSales) {
+        const settlement = pendingSales.find(s => s.id === settlementId);
+        const salesOrderId = settlement?.sales_order_id;
+        
+        if (!salesOrderId) {
+          console.error(`❌ No sales order ID found for settlement ${settlementId}`);
+          updateFailCount++;
+          continue;
+        }
+        
+        console.log(`Updating sales order ${salesOrderId} from settlement ${settlementId}...`);
         
         const { error: updateError } = await supabase
           .from('sales_orders')
@@ -433,15 +456,15 @@ export function PendingSettlements() {
             settlement_batch_id: settlementBatchId,
             settled_at: new Date().toISOString()
           })
-          .eq('id', orderId)
+          .eq('id', salesOrderId)
           .eq('settlement_status', 'PENDING')
           .eq('payment_status', 'COMPLETED');
 
         if (updateError) {
-          console.error(`❌ Failed to update order ${orderId}:`, updateError);
+          console.error(`❌ Failed to update sales order ${salesOrderId}:`, updateError);
           updateFailCount++;
         } else {
-          console.log(`✅ Successfully updated order ${orderId} to SETTLED`);
+          console.log(`✅ Successfully updated sales order ${salesOrderId} to SETTLED`);
           updateSuccessCount++;
         }
       }
@@ -489,7 +512,24 @@ export function PendingSettlements() {
       
       console.log('✅ Payment method usage reset');
 
-      // Remove successfully settled orders from pending sales
+      // Delete successfully settled records from pending_settlements table
+      if (updateSuccessCount > 0) {
+        console.log('🗑️ Deleting settled records from pending_settlements...');
+        const successfullySettledIds = selectedSales.slice(0, updateSuccessCount);
+        
+        const { error: deleteError } = await supabase
+          .from('pending_settlements')
+          .delete()
+          .in('id', successfullySettledIds);
+
+        if (deleteError) {
+          console.error('❌ Failed to delete settled records:', deleteError);
+        } else {
+          console.log(`✅ Successfully deleted ${successfullySettledIds.length} settled records`);
+        }
+      }
+
+      // Remove successfully settled orders from local state
       const successfullySettledIds = selectedSales.slice(0, updateSuccessCount);
       setPendingSales(prev => prev.filter(sale => !successfullySettledIds.includes(sale.id)));
       
@@ -499,7 +539,7 @@ export function PendingSettlements() {
         sales: group.sales.filter(sale => !successfullySettledIds.includes(sale.id)),
         totalAmount: group.sales
           .filter(sale => !successfullySettledIds.includes(sale.id))
-          .reduce((sum, sale) => sum + sale.total_amount, 0)
+          .reduce((sum, sale) => sum + sale.settlement_amount || sale.total_amount, 0)
       })).filter(group => group.sales.length > 0));
 
       toast({

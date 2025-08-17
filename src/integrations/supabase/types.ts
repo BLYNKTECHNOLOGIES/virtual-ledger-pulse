@@ -2145,6 +2145,87 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_settlements: {
+        Row: {
+          actual_settlement_date: string | null
+          bank_account_id: string | null
+          client_name: string
+          created_at: string
+          created_by: string | null
+          expected_settlement_date: string | null
+          id: string
+          mdr_amount: number | null
+          mdr_rate: number | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          payment_gateway_id: string | null
+          payment_method_id: string | null
+          sales_order_id: string
+          settled_at: string | null
+          settled_by: string | null
+          settlement_amount: number
+          settlement_batch_id: string | null
+          settlement_cycle: string | null
+          settlement_days: number | null
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          actual_settlement_date?: string | null
+          bank_account_id?: string | null
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          expected_settlement_date?: string | null
+          id?: string
+          mdr_amount?: number | null
+          mdr_rate?: number | null
+          notes?: string | null
+          order_date: string
+          order_number: string
+          payment_gateway_id?: string | null
+          payment_method_id?: string | null
+          sales_order_id: string
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_amount?: number
+          settlement_batch_id?: string | null
+          settlement_cycle?: string | null
+          settlement_days?: number | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          actual_settlement_date?: string | null
+          bank_account_id?: string | null
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          expected_settlement_date?: string | null
+          id?: string
+          mdr_amount?: number | null
+          mdr_rate?: number | null
+          notes?: string | null
+          order_date?: string
+          order_number?: string
+          payment_gateway_id?: string | null
+          payment_method_id?: string | null
+          sales_order_id?: string
+          settled_at?: string | null
+          settled_by?: string | null
+          settlement_amount?: number
+          settlement_batch_id?: string | null
+          settlement_cycle?: string | null
+          settlement_days?: number | null
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       performance_review_criteria: {
         Row: {
           category: string

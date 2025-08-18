@@ -415,55 +415,52 @@ export function PendingSettlements() {
       
       console.log('✅ Bank transaction created');
 
-      // Update sales orders settlement status directly and track successful settlements
+      // Instead of updating sales_orders (which has permission issues), 
+      // let's update the pending_settlements status to mark them as settled
       console.log('📊 Starting settlement process for:', selectedSales);
-      console.log('📊 Available pending sales data:', pendingSales.map(s => ({ 
-        settlement_id: s.id, 
-        sales_order_id: s.sales_order_id,
-        client_name: s.client_name 
-      })));
       
       let updateSuccessCount = 0;
       let updateFailCount = 0;
       const successfullySettledIds: string[] = [];
       
-      // Process each selected settlement
+      // Process each selected settlement by updating pending_settlements status
       for (const settlementId of selectedSales) {
         const settlement = pendingSales.find(s => s.id === settlementId);
         
-        if (!settlement?.sales_order_id) {
-          console.error(`❌ No sales order ID found for settlement ${settlementId}`);
+        if (!settlement) {
+          console.error(`❌ Settlement ${settlementId} not found in pending sales`);
           updateFailCount++;
           continue;
         }
         
-        console.log(`🔄 Processing settlement ${settlementId} for sales order ${settlement.sales_order_id}`);
+        console.log(`🔄 Processing settlement ${settlementId} for client ${settlement.client_name}`);
         
         try {
-          // Update the sales order to SETTLED status
-          const { data: updatedOrders, error: updateError } = await supabase
-            .from('sales_orders')
+          // Update the pending_settlement status to SETTLED (we'll delete it later)
+          const { data: updatedSettlement, error: updateError } = await supabase
+            .from('pending_settlements')
             .update({
-              settlement_status: 'SETTLED',
+              status: 'SETTLED',
               settlement_batch_id: settlementBatchId,
-              settled_at: new Date().toISOString()
+              settled_at: new Date().toISOString(),
+              actual_settlement_date: new Date().toISOString().split('T')[0]
             })
-            .eq('id', settlement.sales_order_id)
+            .eq('id', settlementId)
             .select('id');
 
           if (updateError) {
-            console.error(`❌ Failed to update sales order ${settlement.sales_order_id}:`, updateError);
+            console.error(`❌ Failed to update settlement ${settlementId}:`, updateError);
             updateFailCount++;
-          } else if (updatedOrders && updatedOrders.length > 0) {
-            console.log(`✅ Successfully updated sales order ${settlement.sales_order_id} to SETTLED`);
+          } else if (updatedSettlement && updatedSettlement.length > 0) {
+            console.log(`✅ Successfully updated settlement ${settlementId} to SETTLED`);
             updateSuccessCount++;
             successfullySettledIds.push(settlementId);
           } else {
-            console.warn(`⚠️ No rows updated for sales order ${settlement.sales_order_id}`);
+            console.warn(`⚠️ No rows updated for settlement ${settlementId}`);
             updateFailCount++;
           }
         } catch (error) {
-          console.error(`❌ Exception updating sales order ${settlement.sales_order_id}:`, error);
+          console.error(`❌ Exception updating settlement ${settlementId}:`, error);
           updateFailCount++;
         }
       }

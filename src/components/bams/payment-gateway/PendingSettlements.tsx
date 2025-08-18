@@ -238,68 +238,7 @@ export function PendingSettlements() {
     return parseFloat(mdrAmount);
   };
 
-  const autoSettleInstantSales = async (instantSales: any[]) => {
-    for (const sale of instantSales) {
-      try {
-        const bankAccount = sale.sales_payment_methods.bank_accounts;
-        if (!bankAccount) continue;
-
-        const settlementBatchId = `INSTANT-${Date.now()}-${sale.id}`;
-
-        // Create settlement record
-        const { data: settlement, error: settlementError } = await supabase
-          .from('payment_gateway_settlements')
-          .insert({
-            settlement_batch_id: settlementBatchId,
-            bank_account_id: bankAccount.id,
-            total_amount: sale.total_amount,
-            mdr_amount: 0,
-            net_amount: sale.total_amount,
-            mdr_rate: 0,
-            settlement_date: new Date().toISOString().split('T')[0]
-          })
-          .select()
-          .single();
-
-        if (settlementError) throw settlementError;
-
-        // Create settlement item
-        await supabase
-          .from('payment_gateway_settlement_items')
-          .insert({
-            settlement_id: settlement.id,
-            sales_order_id: sale.id,
-            amount: sale.total_amount
-          });
-
-        // Create bank transaction
-        await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: bankAccount.id,
-            transaction_type: 'INCOME',
-            amount: sale.total_amount,
-            description: `Instant Settlement - ${sale.order_number}`,
-            transaction_date: new Date().toISOString().split('T')[0],
-            category: 'Payment Gateway Settlement',
-            reference_number: settlementBatchId
-          });
-
-        // Update sales order
-        await supabase
-          .from('sales_orders')
-          .update({ 
-            settlement_status: 'SETTLED',
-            settlement_batch_id: settlementBatchId,
-            settled_at: new Date().toISOString()
-          })
-          .eq('id', sale.id);
-
-      } catch (error) {
-        console.error('Error auto-settling instant sale:', error);
-      }
-    }
-  };
+  // Removed unused autoSettleInstantSales function that was creating duplicate transactions
 
   const handleSettle = async () => {
     console.log('=== SETTLE FUNCTION CALLED ===');

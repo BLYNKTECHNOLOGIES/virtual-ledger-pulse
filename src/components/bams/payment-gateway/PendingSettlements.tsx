@@ -81,23 +81,8 @@ export function PendingSettlements() {
       const { data, error } = await supabase
         .from('pending_settlements')
         .select(`
-          id,
-          sales_order_id,
-          order_number,
-          client_name,
-          total_amount,
-          settlement_amount,
-          order_date,
-          payment_method_id,
-          bank_account_id,
-          status,
-          settlement_cycle,
-          settlement_days,
-          expected_settlement_date,
-          mdr_amount,
-          mdr_rate,
-          notes,
-          sales_payment_methods:payment_method_id (
+          *,
+          sales_payment_methods!payment_method_id (
             id,
             type,
             settlement_cycle,
@@ -110,7 +95,7 @@ export function PendingSettlements() {
               account_number
             )
           ),
-          bank_accounts:bank_account_id (
+          bank_accounts!bank_account_id (
             id,
             account_name,
             bank_name,

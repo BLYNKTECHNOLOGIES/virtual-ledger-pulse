@@ -308,6 +308,12 @@ export function PendingSettlements() {
     console.log('Pending Sales Length:', pendingSales.length);
     console.log('Is Settling:', isSettling);
     
+    // Prevent multiple simultaneous settlements
+    if (isSettling) {
+      console.log('❌ Settlement already in progress, ignoring duplicate call');
+      return;
+    }
+    
     if (selectedSales.length === 0) {
       console.log('❌ No sales selected');
       toast({
@@ -666,7 +672,9 @@ export function PendingSettlements() {
                 <Button 
                   onClick={() => {
                     console.log('Settle button clicked!', { selectedBankAccount, isSettling, selectedSalesCount: selectedSales.length });
-                    handleSettle();
+                    if (!isSettling && selectedBankAccount) {
+                      handleSettle();
+                    }
                   }} 
                   disabled={!selectedBankAccount || isSettling}
                   className="w-full"

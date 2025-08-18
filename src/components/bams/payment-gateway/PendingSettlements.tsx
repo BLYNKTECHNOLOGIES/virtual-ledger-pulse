@@ -445,7 +445,7 @@ export function PendingSettlements() {
           .from('sales_orders')
           .select('id, settlement_status, payment_status')
           .eq('id', salesOrderId)
-          .single();
+          .maybeSingle();
           
         if (fetchError) {
           console.error(`❌ Failed to fetch sales order ${salesOrderId}:`, fetchError);
@@ -453,8 +453,23 @@ export function PendingSettlements() {
           continue;
         }
         
+        if (!currentOrder) {
+          console.error(`❌ Sales order ${salesOrderId} not found`);
+          updateFailCount++;
+          continue;
+        }
+        
         console.log(`📊 Current sales order status:`, currentOrder);
         
+        // Check if the order can be settled
+        if (currentOrder.settlement_status !== 'PENDING') {
+          console.warn(`⚠️ Sales order ${salesOrderId} has settlement_status: ${currentOrder.settlement_status} (expected: PENDING)`);
+        }
+        if (currentOrder.payment_status !== 'COMPLETED') {
+          console.warn(`⚠️ Sales order ${salesOrderId} has payment_status: ${currentOrder.payment_status} (expected: COMPLETED)`);
+        }
+        
+        // Try to update regardless of current status for debugging
         const { data: updatedOrder, error: updateError } = await supabase
           .from('sales_orders')
           .update({
@@ -463,8 +478,6 @@ export function PendingSettlements() {
             settled_at: new Date().toISOString()
           })
           .eq('id', salesOrderId)
-          .eq('settlement_status', 'PENDING')
-          .eq('payment_status', 'COMPLETED')
           .select();
 
         if (updateError) {

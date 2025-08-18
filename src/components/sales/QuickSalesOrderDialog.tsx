@@ -84,7 +84,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (bankError) throw bankError;
       if (!bankAccount) throw new Error('Bank account not found');
 
-      // Create the sales order
+      // Create the sales order with bank account ID for trigger
       const { data: salesOrder, error: salesError } = await supabase
         .from('sales_orders')
         .insert({
@@ -99,7 +99,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
           order_date: new Date().toISOString(),
           payment_status: 'COMPLETED',
           status: 'COMPLETED',
-          settlement_status: 'DIRECT', // Default to direct settlement
+          settlement_status: 'DIRECT',
+          bank_account_id: orderData.bank_account_id, // Add bank account for trigger
           description: `Sales Order - ${orderData.order_number}`
         })
         .select()

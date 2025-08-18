@@ -2224,7 +2224,36 @@ export type Database = {
           total_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_payment_method"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "sales_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_sales_order"
+            columns: ["sales_order_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       performance_review_criteria: {
         Row: {

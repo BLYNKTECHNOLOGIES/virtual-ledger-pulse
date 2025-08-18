@@ -154,29 +154,8 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
         }
       }
 
-      // Create stock transaction record - product stock will be automatically updated by trigger
-      if (selectedProduct) {
-        const { error: stockTransactionError } = await supabase
-          .from('stock_transactions')
-          .insert({
-            product_id: selectedProduct.id,
-            transaction_type: 'Sales',
-            quantity: -formData.quantity, // Negative for outgoing stock
-            unit_price: formData.price,
-            total_amount: formData.quantity * formData.price,
-            transaction_date: new Date().toISOString().split('T')[0],
-            supplier_customer_name: order.client_name,
-            reference_number: order.order_number,
-            reason: 'Sales Order Completion'
-          });
-
-        if (stockTransactionError) {
-          console.error('Error creating stock transaction:', stockTransactionError);
-          throw new Error(`Stock transaction failed: ${stockTransactionError.message}`);
-        }
-
-        console.log('✅ Stock transaction created - product stock will be updated by trigger');
-      }
+      // Note: Stock transactions and product updates will be handled by database triggers
+      console.log('✅ Order completion - all stock management handled by database triggers');
 
       // Process bank transaction if payment method exists
       if (order.sales_payment_method_id) {

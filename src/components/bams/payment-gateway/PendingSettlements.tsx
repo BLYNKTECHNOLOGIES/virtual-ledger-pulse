@@ -415,11 +415,12 @@ export function PendingSettlements() {
       
       console.log('✅ Bank transaction created');
 
-      // Update sales orders settlement status directly
+      // Update sales orders settlement status directly and track successful settlements
       console.log('📊 Updating sales orders directly...');
       
       let updateSuccessCount = 0;
       let updateFailCount = 0;
+      const successfullySettledIds: string[] = [];
       
       // Update each sales order directly using Supabase client
       for (const settlementId of selectedSales) {
@@ -451,10 +452,12 @@ export function PendingSettlements() {
         } else {
           console.log(`✅ Successfully updated sales order ${salesOrderId} to SETTLED`);
           updateSuccessCount++;
+          successfullySettledIds.push(settlementId); // Track the settlement ID that was successfully processed
         }
       }
       
       console.log(`✅ Sales orders updated: ${updateSuccessCount} success, ${updateFailCount} failed`);
+      console.log('🎯 Successfully settled IDs:', successfullySettledIds);
       
       if (updateFailCount > 0) {
         toast({
@@ -466,15 +469,15 @@ export function PendingSettlements() {
         fetchPendingSettlements();
       }
 
-      // Reset payment method usage for settled sales
+      // Reset payment method usage for successfully settled sales only
       console.log('♻️ Resetting payment method usage...');
-      const paymentMethodIds = [...new Set(selectedSales.map(saleId => {
+      const paymentMethodIds = [...new Set(successfullySettledIds.map(saleId => {
         const sale = pendingSales.find(s => s.id === saleId);
         return sale?.sales_payment_method.id;
       }).filter(Boolean))];
 
       for (const methodId of paymentMethodIds) {
-        const settledAmount = selectedSales.reduce((sum, saleId) => {
+        const settledAmount = successfullySettledIds.reduce((sum, saleId) => {
           const sale = pendingSales.find(s => s.id === saleId);
           return sale?.sales_payment_method.id === methodId ? sum + (sale?.total_amount || 0) : sum;
         }, 0);
@@ -498,9 +501,9 @@ export function PendingSettlements() {
       console.log('✅ Payment method usage reset');
 
       // Delete successfully settled records from pending_settlements table
-      if (updateSuccessCount > 0) {
+      if (successfullySettledIds.length > 0) {
         console.log('🗑️ Deleting settled records from pending_settlements...');
-        const successfullySettledIds = selectedSales.slice(0, updateSuccessCount);
+        console.log('🗑️ IDs to delete:', successfullySettledIds);
         
         const { error: deleteError } = await supabase
           .from('pending_settlements')
@@ -510,12 +513,11 @@ export function PendingSettlements() {
         if (deleteError) {
           console.error('❌ Failed to delete settled records:', deleteError);
         } else {
-          console.log(`✅ Successfully deleted ${successfullySettledIds.length} settled records`);
+          console.log(`✅ Successfully deleted ${successfullySettledIds.length} settled records from pending_settlements table`);
         }
       }
 
       // Remove successfully settled orders from local state
-      const successfullySettledIds = selectedSales.slice(0, updateSuccessCount);
       setPendingSales(prev => prev.filter(sale => !successfullySettledIds.includes(sale.id)));
       
       // Update bank groups by removing settled sales
@@ -524,7 +526,7 @@ export function PendingSettlements() {
         sales: group.sales.filter(sale => !successfullySettledIds.includes(sale.id)),
         totalAmount: group.sales
           .filter(sale => !successfullySettledIds.includes(sale.id))
-          .reduce((sum, sale) => sum + sale.settlement_amount || sale.total_amount, 0)
+          .reduce((sum, sale) => sum + (sale.settlement_amount || sale.total_amount), 0)
       })).filter(group => group.sales.length > 0));
 
       toast({

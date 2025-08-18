@@ -422,10 +422,15 @@ export function PendingSettlements() {
       let updateFailCount = 0;
       const successfullySettledIds: string[] = [];
       
-      // Update each sales order directly using Supabase client
+      // Update each sales order directly using Supabase client with detailed logging
+      console.log('🎯 Processing settlements:', selectedSales);
+      console.log('🎯 Available pending sales:', pendingSales.map(s => ({ id: s.id, sales_order_id: s.sales_order_id })));
+      
       for (const settlementId of selectedSales) {
         const settlement = pendingSales.find(s => s.id === settlementId);
         const salesOrderId = settlement?.sales_order_id;
+        
+        console.log(`🔍 Processing settlement ${settlementId}:`, settlement);
         
         if (!salesOrderId) {
           console.error(`❌ No sales order ID found for settlement ${settlementId}`);
@@ -433,9 +438,24 @@ export function PendingSettlements() {
           continue;
         }
         
-        console.log(`Updating sales order ${salesOrderId} from settlement ${settlementId}...`);
+        console.log(`📝 Updating sales order ${salesOrderId} from settlement ${settlementId}...`);
         
-        const { error: updateError } = await supabase
+        // First check if the sales order exists and its current status
+        const { data: currentOrder, error: fetchError } = await supabase
+          .from('sales_orders')
+          .select('id, settlement_status, payment_status')
+          .eq('id', salesOrderId)
+          .single();
+          
+        if (fetchError) {
+          console.error(`❌ Failed to fetch sales order ${salesOrderId}:`, fetchError);
+          updateFailCount++;
+          continue;
+        }
+        
+        console.log(`📊 Current sales order status:`, currentOrder);
+        
+        const { data: updatedOrder, error: updateError } = await supabase
           .from('sales_orders')
           .update({
             settlement_status: 'SETTLED',
@@ -444,15 +464,19 @@ export function PendingSettlements() {
           })
           .eq('id', salesOrderId)
           .eq('settlement_status', 'PENDING')
-          .eq('payment_status', 'COMPLETED');
+          .eq('payment_status', 'COMPLETED')
+          .select();
 
         if (updateError) {
           console.error(`❌ Failed to update sales order ${salesOrderId}:`, updateError);
           updateFailCount++;
-        } else {
+        } else if (updatedOrder && updatedOrder.length > 0) {
           console.log(`✅ Successfully updated sales order ${salesOrderId} to SETTLED`);
           updateSuccessCount++;
           successfullySettledIds.push(settlementId); // Track the settlement ID that was successfully processed
+        } else {
+          console.warn(`⚠️ Sales order ${salesOrderId} exists but wasn't updated - likely already settled or conditions not met`);
+          updateFailCount++;
         }
       }
       

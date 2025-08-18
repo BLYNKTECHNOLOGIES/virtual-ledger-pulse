@@ -154,29 +154,13 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
         }
       }
 
-      // Update product stock if product is selected
+      // Create stock transaction record - product stock will be automatically updated by trigger
       if (selectedProduct) {
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({
-            current_stock_quantity: selectedProduct.current_stock_quantity - formData.quantity,
-            total_sales: (selectedProduct.total_sales || 0) + formData.quantity,
-            average_selling_price: selectedProduct.total_sales > 0 
-              ? ((selectedProduct.average_selling_price || 0) * selectedProduct.total_sales + formData.price * formData.quantity) / (selectedProduct.total_sales + formData.quantity)
-              : formData.price
-          })
-          .eq('id', selectedProduct.id);
-
-        if (stockError) {
-          console.error('Error updating product stock:', stockError);
-        }
-
-        // Create stock transaction record
         const { error: stockTransactionError } = await supabase
           .from('stock_transactions')
           .insert({
             product_id: selectedProduct.id,
-            transaction_type: 'SALE',
+            transaction_type: 'Sales',
             quantity: -formData.quantity, // Negative for outgoing stock
             unit_price: formData.price,
             total_amount: formData.quantity * formData.price,
@@ -188,7 +172,10 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
 
         if (stockTransactionError) {
           console.error('Error creating stock transaction:', stockTransactionError);
+          throw new Error(`Stock transaction failed: ${stockTransactionError.message}`);
         }
+
+        console.log('✅ Stock transaction created - product stock will be updated by trigger');
       }
 
       // Process bank transaction if payment method exists

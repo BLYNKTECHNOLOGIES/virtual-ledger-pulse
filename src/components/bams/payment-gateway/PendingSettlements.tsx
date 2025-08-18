@@ -552,6 +552,9 @@ export function PendingSettlements() {
       setMdrAmount("0");
       setIsDialogOpen(false);
       
+      // Refresh pending settlements data from database
+      fetchPendingSettlements();
+      
     } catch (error) {
       console.error('Error settling payments:', error);
       toast({

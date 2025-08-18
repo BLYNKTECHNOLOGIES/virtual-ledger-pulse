@@ -505,15 +505,26 @@ export function PendingSettlements() {
         console.log('🗑️ Deleting settled records from pending_settlements...');
         console.log('🗑️ IDs to delete:', successfullySettledIds);
         
-        const { error: deleteError } = await supabase
+        const { data: deleteData, error: deleteError } = await supabase
           .from('pending_settlements')
           .delete()
-          .in('id', successfullySettledIds);
+          .in('id', successfullySettledIds)
+          .select(); // Add select to see what was actually deleted
 
         if (deleteError) {
           console.error('❌ Failed to delete settled records:', deleteError);
+          toast({
+            title: "Warning",
+            description: `Failed to clean up settled records: ${deleteError.message}`,
+            variant: "destructive",
+          });
         } else {
-          console.log(`✅ Successfully deleted ${successfullySettledIds.length} settled records from pending_settlements table`);
+          console.log(`✅ Successfully deleted ${deleteData?.length || 0} settled records from pending_settlements table`);
+          console.log('🗑️ Deleted records:', deleteData);
+          
+          if (deleteData?.length !== successfullySettledIds.length) {
+            console.warn(`⚠️ Expected to delete ${successfullySettledIds.length} but deleted ${deleteData?.length || 0}`);
+          }
         }
       }
 

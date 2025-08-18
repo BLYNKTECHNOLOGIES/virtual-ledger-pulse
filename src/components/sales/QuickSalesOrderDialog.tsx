@@ -109,29 +109,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // Note: Bank transaction will be automatically created by database triggers
-      console.log('✅ Sales order created - bank transaction will be handled by triggers');
-
-      // If product is specified and not USDT, update stock
-      if (orderData.product_id) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('code, current_stock_quantity')
-          .eq('id', orderData.product_id)
-          .single();
-
-        if (product && product.code !== 'USDT') {
-          const { error: stockError } = await supabase
-            .from('products')
-            .update({ 
-              current_stock_quantity: (product.current_stock_quantity || 0) - orderData.quantity,
-              total_sales: orderData.total_amount
-            })
-            .eq('id', orderData.product_id);
-
-          if (stockError) console.warn('Stock update failed:', stockError);
-        }
-      }
+      // Note: Bank and stock transactions will be automatically handled by database triggers
+      console.log('✅ Sales order created - all transactions will be handled by triggers');
 
       return salesOrder;
     },

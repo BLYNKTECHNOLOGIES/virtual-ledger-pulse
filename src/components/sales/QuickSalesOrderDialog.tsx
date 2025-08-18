@@ -108,34 +108,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // For QuickSalesOrderDialog, all orders are direct (no payment method selection)
-      // Create bank transaction immediately for direct sales
-      const { error: transactionError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: orderData.bank_account_id,
-          transaction_type: 'INCOME',
-          amount: orderData.total_amount,
-          transaction_date: new Date().toISOString().split('T')[0],
-          description: `Sales Order Payment - ${orderData.order_number} - ${orderData.client_name}`,
-          reference_number: orderData.order_number,
-          category: 'Sales',
-          related_account_name: orderData.client_name
-        });
-
-      if (transactionError) throw transactionError;
-      console.log('✅ Bank transaction created');
-
-      // Update bank balance directly (since triggers might not work properly)
-      const currentBalance = bankAccount.balance || 0;
-      const newBalance = currentBalance + orderData.total_amount;
-      const { error: balanceError } = await supabase
-        .from('bank_accounts')
-        .update({ balance: newBalance })
-        .eq('id', orderData.bank_account_id);
-
-      if (balanceError) throw balanceError;
-      console.log(`✅ Bank balance updated: ₹${currentBalance} → ₹${newBalance}`);
+      // Note: Bank transaction will be automatically created by database triggers
+      console.log('✅ Sales order created - bank transaction will be handled by triggers');
 
       // If product is specified and not USDT, update stock
       if (orderData.product_id) {

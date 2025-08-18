@@ -199,22 +199,9 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
           .eq('id', order.sales_payment_method_id)
           .single();
 
+        // Note: Bank transaction will be automatically created by database triggers
         if (paymentMethod?.bank_account_id) {
-          const { error: bankTransactionError } = await supabase
-            .from('bank_transactions')
-            .insert({
-              bank_account_id: paymentMethod.bank_account_id,
-              amount: formData.quantity * formData.price,
-              transaction_type: 'INCOME',
-              transaction_date: new Date().toISOString().split('T')[0],
-              description: `Sales income from order ${order.order_number} - ${order.client_name}`,
-              reference_number: order.order_number,
-              category: 'Sales Revenue'
-            });
-
-          if (bankTransactionError) {
-            console.error('Error creating bank transaction:', bankTransactionError);
-          }
+          console.log('Order completed for payment method with bank account - bank transaction will be handled by triggers');
         }
       }
 

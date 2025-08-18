@@ -179,21 +179,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             .eq('id', data.sales_payment_method_id);
         }
 
-        // Only credit bank account if NOT a payment gateway
-        if (paymentMethod?.bank_account_id && !paymentMethod?.payment_gateway) {
-          // Create bank transaction for direct sales
-          await supabase
-            .from('bank_transactions')
-            .insert({
-              bank_account_id: paymentMethod.bank_account_id,
-              transaction_type: 'INCOME',
-              amount: data.total_amount,
-              description: `Sales Order - ${data.order_number} - ${data.client_name}`,
-              transaction_date: data.order_date,
-              category: 'Sales',
-              reference_number: data.order_number
-             });
-        }
+        // Note: Bank transaction will be automatically created by database triggers for non-payment gateway orders
+        console.log('Sales order created - bank transaction will be handled by triggers if applicable');
       }
 
       // Process wallet deduction if wallet is selected and payment is completed

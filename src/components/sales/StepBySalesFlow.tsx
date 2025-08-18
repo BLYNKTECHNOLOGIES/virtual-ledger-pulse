@@ -308,25 +308,10 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         }
       }
 
-      // If payment method is selected and NOT a payment gateway, credit the amount to the linked bank account
+      // Note: Bank transaction will be automatically created by database triggers for non-payment gateway orders
       if (selectedPaymentMethod?.bank_account_id && !selectedPaymentMethod?.payment_gateway) {
-        const { error: bankTransactionError } = await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: selectedPaymentMethod.bank_account_id,
-            amount: parseFloat(orderAmount) || 0,
-            transaction_type: 'INCOME',
-            transaction_date: new Date().toISOString().split('T')[0],
-            description: `Sales income from order ${finalOrderData.order_number} - ${selectedClient?.name || newClientData.name}`,
-            reference_number: finalOrderData.order_number,
-            category: 'Sales Revenue'
-          });
-
-        if (bankTransactionError) {
-          console.error('Error creating bank transaction:', bankTransactionError);
-          // Don't throw error, just log it as the sales order was created successfully
-        }
-
+        console.log('Sales order created for direct payment method - bank transaction will be handled by triggers');
+        
         // Update payment method usage
         const { error: usageError } = await supabase
           .from('sales_payment_methods')

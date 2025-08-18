@@ -28,15 +28,7 @@ export function useWalletStock() {
     queryFn: async () => {
       console.log('🔄 Fetching wallet stock data...');
       
-      // Sync USDT stock with wallets
-      console.log('🔄 Syncing USDT stock with wallets...');
-      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
-      if (usdtSyncError) {
-        console.error('❌ USDT sync failed in useWalletStock:', usdtSyncError);
-      } else {
-        console.log('✅ USDT stock synced successfully in useWalletStock');
-      }
-      
+      // Stock syncing is handled by database triggers automatically
       const { data: wallets, error } = await supabase
         .from('wallets')
         .select('*')

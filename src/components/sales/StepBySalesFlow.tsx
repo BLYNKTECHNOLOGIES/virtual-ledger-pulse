@@ -77,9 +77,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const { data: products } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      // Sync USDT stock with wallets to ensure accuracy
-      await supabase.rpc('sync_usdt_stock');
-      
+      // Stock syncing is handled by database triggers automatically
       const { data, error } = await supabase
         .from('products')
         .select('*')

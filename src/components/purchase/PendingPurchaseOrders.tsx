@@ -205,11 +205,8 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
         throw e;
       }
 
-      // Sync USDT stock with wallets
-      const { error: syncError } = await supabase.rpc('sync_usdt_stock');
-      if (syncError) {
-        console.warn('USDT sync failed but order completed:', syncError);
-      }
+      // Stock syncing is handled by database triggers automatically
+      console.log('✅ Order completed - stock updates handled by database triggers');
 
       // Update payment method current usage
       const { data: currentMethod, error: fetchMethodError } = await supabase

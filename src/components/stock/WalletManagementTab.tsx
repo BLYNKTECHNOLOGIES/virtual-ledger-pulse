@@ -172,8 +172,7 @@ export function WalletManagementTab() {
       
       if (error) throw error;
 
-      // Sync USDT stock
-      await supabase.rpc('sync_usdt_stock');
+      // Stock syncing is handled by database triggers automatically
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Wallet transaction added successfully. Wallet balance updated automatically." });

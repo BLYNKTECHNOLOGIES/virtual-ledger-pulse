@@ -32,9 +32,19 @@ export function ClientDashboard() {
     },
   });
 
-  const filteredClients = clients?.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.client_id.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter clients by type and search term  
+  // Buyers: Have KYC documents uploaded (pan_card_url, aadhar_front_url) - from multi-step form
+  // Sellers: Don't have KYC documents uploaded - from single-step form
+  const filteredBuyers = clients?.filter(client =>
+    (client.pan_card_url || client.aadhar_front_url) &&
+    (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     client.client_id.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const filteredSellers = clients?.filter(client =>
+    (!client.pan_card_url && !client.aadhar_front_url) &&
+    (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     client.client_id.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const getRiskBadge = (risk: string) => {
@@ -128,10 +138,63 @@ export function ClientDashboard() {
                   <CardTitle>Existing Buyers</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-gray-500">
-                    No buyers found. Add your first buyer to get started.
-                  </div>
-                </CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer ID</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredBuyers?.map((client) => {
+                        const valueScore = getClientValueScore(client);
+                        const priority = getClientPriority(valueScore);
+                        const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
+                        
+                        return (
+                          <tr 
+                            key={client.id} 
+                            className="border-b hover:bg-gray-50 cursor-pointer"
+                            onClick={() => handleClientClick(client.id)}
+                          >
+                            <td className="py-3 px-4 font-medium">{client.name}</td>
+                            <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
+                            <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
+                            <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
+                            <td className="py-3 px-4">0</td> {/* Will be calculated from orders */}
+                            <td className="py-3 px-4">-</td> {/* Will be calculated from orders */}
+                            <td className="py-3 px-4">
+                              {cosmosAlert ? (
+                                <Badge variant="destructive">Alert</Badge>
+                              ) : (
+                                <Badge variant="secondary">Normal</Badge>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">{getKYCBadge(client.kyc_status)}</td>
+                            <td className="py-3 px-4">
+                              <Badge className={priority.color}>{priority.tag}</Badge>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  
+                  {filteredBuyers?.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No buyers found. Add your first buyer to get started.
+                    </div>
+                  )}
+                </div>
+            </CardContent>
               </Card>
             </TabsContent>
 
@@ -187,7 +250,7 @@ export function ClientDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredClients?.map((client) => {
+                      {filteredSellers?.map((client) => {
                         const valueScore = getClientValueScore(client);
                         const priority = getClientPriority(valueScore);
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
@@ -221,7 +284,7 @@ export function ClientDashboard() {
                     </tbody>
                   </table>
                   
-                  {filteredClients?.length === 0 && (
+                  {filteredSellers?.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       No sellers found. Add your first seller to get started.
                     </div>

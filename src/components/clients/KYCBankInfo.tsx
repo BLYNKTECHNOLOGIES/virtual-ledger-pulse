@@ -191,31 +191,36 @@ export function KYCBankInfo({ clientId }: KYCBankInfoProps) {
           </div>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-gray-600">Linked Bank Accounts</label>
-          <div className="flex flex-wrap gap-2 mt-1">
-            {getBankAccountBadges().length > 0 ? (
-              getBankAccountBadges()
-            ) : (
-              <span className="text-sm text-gray-500">No linked bank accounts</span>
-            )}
-          </div>
-        </div>
+        {/* Only show linked bank accounts, pattern mismatch, and re-kyc for buyers */}
+        {!client.buying_purpose?.toLowerCase().includes('sell') && (
+          <>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Linked Bank Accounts</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {getBankAccountBadges().length > 0 ? (
+                  getBankAccountBadges()
+                ) : (
+                  <span className="text-sm text-gray-500">No linked bank accounts</span>
+                )}
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-600">Pattern Mismatch</label>
-            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-              ✅ No Alert
-            </Badge>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Re-KYC Needed</label>
-            <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-              No
-            </Badge>
-          </div>
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Pattern Mismatch</label>
+                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                  ✅ No Alert
+                </Badge>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Re-KYC Needed</label>
+                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                  No
+                </Badge>
+              </div>
+            </div>
+          </>
+        )}
 
         <Button size="sm" variant="outline" className="w-full">
           <CreditCard className="h-4 w-4 mr-2" />

@@ -41,7 +41,6 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     assigned_rm: '',
     selling_purpose: '',
     first_order_value: '',
-    monthly_limit: '',
     pan_card_number: '', // Optional Pan Card Number
     date_of_onboarding: new Date(),
   });
@@ -60,7 +59,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       assigned_rm: '',
       selling_purpose: '',
       first_order_value: '',
-      monthly_limit: '',
+      
       pan_card_number: '',
       date_of_onboarding: new Date(),
     });
@@ -105,7 +104,7 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
           assigned_operator: formData.assigned_rm.trim() || null,
           buying_purpose: formData.selling_purpose.trim() || null,
           first_order_value: formData.first_order_value ? Number(formData.first_order_value) : null,
-          monthly_limit: formData.monthly_limit ? Number(formData.monthly_limit) : null,
+          monthly_limit: null, // Sellers don't need monthly limits
           current_month_used: 0,
           date_of_onboarding: format(formData.date_of_onboarding, 'yyyy-MM-dd'),
           pan_card_number: formData.pan_card_number.trim() || null,
@@ -256,28 +255,16 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
             />
           </div>
 
-          {/* First Order Value and Monthly Limit */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_order_value">First Order Value</Label>
-              <Input
-                id="first_order_value"
-                type="number"
-                value={formData.first_order_value}
-                onChange={(e) => setFormData({ ...formData, first_order_value: e.target.value })}
-                placeholder="Enter first order value"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="monthly_limit">Monthly Limit</Label>
-              <Input
-                id="monthly_limit"
-                type="number"
-                value={formData.monthly_limit}
-                onChange={(e) => setFormData({ ...formData, monthly_limit: e.target.value })}
-                placeholder="Enter monthly limit"
-              />
-            </div>
+          {/* First Order Value */}
+          <div className="space-y-2">
+            <Label htmlFor="first_order_value">First Order Value</Label>
+            <Input
+              id="first_order_value"
+              type="number"
+              value={formData.first_order_value}
+              onChange={(e) => setFormData({ ...formData, first_order_value: e.target.value })}
+              placeholder="Enter first order value"
+            />
           </div>
 
           {/* Pan Card Number */}

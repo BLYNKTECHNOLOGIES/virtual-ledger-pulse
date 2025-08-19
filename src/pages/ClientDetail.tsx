@@ -1,5 +1,7 @@
 
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { MonthlyLimitsPanel } from "@/components/clients/MonthlyLimitsPanel";
 import { ClientValueScore } from "@/components/clients/ClientValueScore";
@@ -12,6 +14,26 @@ import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 export default function ClientDetail() {
   const { id: clientId } = useParams();
 
+  // Fetch client data to determine if seller or buyer
+  const { data: client } = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', clientId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!clientId,
+  });
+
+  // Check if client is a seller (has selling purpose)
+  const isSeller = client?.buying_purpose?.toLowerCase().includes('sell');
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -19,10 +41,10 @@ export default function ClientDetail() {
         <p className="text-gray-600 mt-1">Comprehensive view of client information and trading activity</p>
       </div>
 
-      {/* Row 1: Client Overview and Monthly Limits */}
+      {/* Row 1: Client Overview and Monthly Limits (only for buyers) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ClientOverviewPanel clientId={clientId} />
-        <MonthlyLimitsPanel clientId={clientId} />
+        {!isSeller && <MonthlyLimitsPanel clientId={clientId} />}
       </div>
 
       {/* Row 2: Client Value Score and KYC/Bank Info */}

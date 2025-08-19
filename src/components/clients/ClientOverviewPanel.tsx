@@ -225,16 +225,19 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
-            <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString() || 'Not set'}</p>
+        {/* Only show monthly limits for buyers (not sellers) */}
+        {!client.buying_purpose || !client.buying_purpose.toLowerCase().includes('sell') ? (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
+              <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString() || 'Not set'}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Current Month Used</label>
+              <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString() || '0'}</p>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Current Month Used</label>
-            <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString() || '0'}</p>
-          </div>
-        </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -277,26 +280,29 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
             </Button>
           </div>
           
-          <div className="grid grid-cols-2 gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setShowLimitDialog(true)}
-            >
-              <IndianRupee className="h-4 w-4 mr-1" />
-              Request Limit Increase
-            </Button>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setShowCosmosDialog(true)}
-            >
-              <Settings className="h-4 w-4 mr-1" />
-              Cosmos Settings
-            </Button>
-          </div>
+          {/* Only show limit and cosmos buttons for buyers */}
+          {!client.buying_purpose?.toLowerCase().includes('sell') && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowLimitDialog(true)}
+              >
+                <IndianRupee className="h-4 w-4 mr-1" />
+                Request Limit Increase
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowCosmosDialog(true)}
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Cosmos Settings
+              </Button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-2">
             <Button 

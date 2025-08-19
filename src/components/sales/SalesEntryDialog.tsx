@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
+import { CustomerAutocomplete } from "./CustomerAutocomplete";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -349,14 +350,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
-            <div>
-              <Label>Customer Name *</Label>
-              <Input
-                value={formData.client_name}
-                onChange={(e) => handleInputChange('client_name', e.target.value)}
-                required
-              />
-            </div>
+            <CustomerAutocomplete
+              value={formData.client_name}
+              onChange={(value) => handleInputChange('client_name', value)}
+            />
 
             <div>
               <Label>Customer Phone</Label>

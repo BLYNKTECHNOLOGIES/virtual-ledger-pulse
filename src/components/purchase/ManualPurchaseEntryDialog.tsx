@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ShoppingCart, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { SupplierAutocomplete } from "./SupplierAutocomplete";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -258,13 +259,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="supplier_name">Supplier Name *</Label>
-              <Input
-                id="supplier_name"
+              <SupplierAutocomplete
                 value={formData.supplier_name}
-                onChange={(e) => handleInputChange('supplier_name', e.target.value)}
-                placeholder="Enter supplier name"
-                required
+                onChange={(value) => handleInputChange('supplier_name', value)}
+                onContactChange={(contact) => handleInputChange('contact_number', contact)}
               />
             </div>
 

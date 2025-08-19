@@ -174,14 +174,8 @@ export function StockTransactionsTab() {
         if (error) throw error;
       }
 
-      // Sync USDT stock with wallet balances after transaction
-      console.log('🔄 StockTransactions: Syncing USDT stock after manual adjustment...');
-      const { error: syncError } = await supabase.rpc('sync_usdt_stock');
-      if (syncError) {
-        console.error('❌ StockTransactions: USDT sync failed:', syncError);
-        throw syncError;
-      }
-      console.log('✅ StockTransactions: USDT stock synced successfully');
+      // Stock syncing is handled by database triggers automatically
+      console.log('✅ StockTransactions: Manual adjustment completed - stock updates handled by database triggers');
     },
     onSuccess: () => {
       toast({
@@ -336,7 +330,7 @@ export function StockTransactionsTab() {
                 <tbody>
                   {allEntries?.map((entry, index) => (
                     <tr key={`${entry.type}-${entry.id}-${index}`} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{format(new Date(entry.date), 'dd/MM/yyyy')}</td>
+                      <td className="py-3 px-4">{format(new Date(entry.date), 'dd/MM/yyyy HH:mm:ss')}</td>
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium">{entry.products?.name}</div>

@@ -3692,7 +3692,7 @@ export type Database = {
           bank_account_holder_name?: string | null
           bank_name?: string | null
           branch?: string | null
-          computed_balance?: never
+          computed_balance?: number | null
           created_at?: string | null
           id?: string | null
           IFSC?: string | null
@@ -3708,7 +3708,7 @@ export type Database = {
           bank_account_holder_name?: string | null
           bank_name?: string | null
           branch?: string | null
-          computed_balance?: never
+          computed_balance?: number | null
           created_at?: string | null
           id?: string | null
           IFSC?: string | null

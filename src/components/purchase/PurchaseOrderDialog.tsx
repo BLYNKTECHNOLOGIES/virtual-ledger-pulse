@@ -268,19 +268,6 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
 
   const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
-  // Helper function to determine if order contains USDT
-  const isUSDTOrder = () => {
-    return items.some(item => {
-      const product = products?.find(p => p.id === item.product_id);
-      return product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
-    });
-  };
-
-  // Helper function to get currency symbol
-  const getCurrencySymbol = () => {
-    return isUSDTOrder() ? '$' : '₹';
-  };
-
   const getAvailableLimit = (methodId: string) => {
     const method = purchasePaymentMethods?.find(m => m.id === methodId);
     if (!method) return 0;
@@ -446,20 +433,16 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                       </Button>
                     </div>
                   </div>
-                   <div className="mt-2 text-right">
-                     <span className="font-medium">Total: {(() => {
-                       const product = products?.find(p => p.id === item.product_id);
-                       const isUSDT = product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
-                       return `${isUSDT ? '$' : '₹'}${(item.quantity * item.unit_price).toFixed(2)}`;
-                     })()}</span>
-                   </div>
+                  <div className="mt-2 text-right">
+                    <span className="font-medium">Total: ₹{(item.quantity * item.unit_price).toFixed(2)}</span>
+                  </div>
                 </div>
               ))}
             </div>
 
             <div className="mt-4 text-right">
               <div className="text-xl font-bold">
-                Grand Total: {getCurrencySymbol()}{totalAmount.toFixed(2)}
+                Grand Total: ₹{totalAmount.toFixed(2)}
               </div>
               {formData.purchase_payment_method_id && (
                 <div className="text-sm text-gray-600">

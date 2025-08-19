@@ -179,11 +179,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               </div>
             </div>
             <div className="mt-2 text-right">
-              <span className="font-medium">Total: {(() => {
-                const product = products?.find(p => p.id === item.product_id);
-                const isUSDT = product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
-                return `${isUSDT ? '$' : '₹'}${(item.quantity * item.unit_price).toFixed(2)}`;
-              })()}</span>
+              <span className="font-medium">Total: ₹{(item.quantity * item.unit_price).toFixed(2)}</span>
             </div>
           </div>
         ))}
@@ -191,13 +187,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
 
       <div className="mt-4 text-right">
         <div className="text-xl font-bold">
-          Grand Total: {(() => {
-            const hasUSDT = items.some(item => {
-              const product = products?.find(p => p.id === item.product_id);
-              return product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
-            });
-            return `${hasUSDT ? '$' : '₹'}${items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}`;
-          })()}
+          Grand Total: ₹{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
         </div>
       </div>
     </div>

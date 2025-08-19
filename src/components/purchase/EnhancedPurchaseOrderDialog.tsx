@@ -152,6 +152,19 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     return orderItems.reduce((sum, item) => sum + item.total_price, 0);
   };
 
+  // Helper function to determine if order contains USDT
+  const isUSDTOrder = () => {
+    return orderItems.some(item => {
+      const product = products?.find(p => p.id === item.product_id);
+      return product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
+    });
+  };
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = () => {
+    return isUSDTOrder() ? '$' : '₹';
+  };
+
   const generateOrderNumber = () => {
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substr(2, 5);
@@ -357,7 +370,7 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
             {/* Total Amount */}
             <div className="flex justify-end">
               <div className="text-lg font-semibold">
-                Total Amount: ₹{calculateTotalAmount().toFixed(2)}
+                Total Amount: {getCurrencySymbol()}{calculateTotalAmount().toFixed(2)}
               </div>
             </div>
 

@@ -387,22 +387,43 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             <div className="p-4 bg-blue-50 rounded-lg">
               <h4 className="font-medium text-blue-800">Order Details</h4>
               <p className="text-sm text-blue-600">Supplier: {selectedOrder?.supplier_name}</p>
-              <p className="text-sm text-blue-600">
-                Total Amount: ₹{selectedOrder?.total_amount?.toFixed(2)}
-              </p>
-              {selectedOrder?.tds_applied && (
-                <>
-                  <p className="text-sm text-blue-600">TDS Amount: ₹{selectedOrder?.tds_amount?.toFixed(2)}</p>
-                  <p className="text-sm font-medium text-blue-800">
-                    Amount to Pay (After TDS): ₹{selectedOrder?.net_payable_amount?.toFixed(2)}
-                  </p>
-                </>
-              )}
-              {!selectedOrder?.tds_applied && (
-                <p className="text-sm font-medium text-blue-800">
-                  Amount to Pay: ₹{selectedOrder?.total_amount?.toFixed(2)}
-                </p>
-              )}
+               <p className="text-sm text-blue-600">
+                 Total Amount: {(() => {
+                   // Check if any order item contains USDT
+                   const hasUSDT = selectedOrder?.purchase_order_items?.some((item: any) => 
+                     item.products?.code === 'USDT' || item.products?.name?.toUpperCase().includes('USDT')
+                   );
+                   return `${hasUSDT ? '$' : '₹'}${selectedOrder?.total_amount?.toFixed(2)}`;
+                 })()}
+               </p>
+               {selectedOrder?.tds_applied && (
+                 <>
+                   <p className="text-sm text-blue-600">TDS Amount: {(() => {
+                     const hasUSDT = selectedOrder?.purchase_order_items?.some((item: any) => 
+                       item.products?.code === 'USDT' || item.products?.name?.toUpperCase().includes('USDT')
+                     );
+                     return `${hasUSDT ? '$' : '₹'}${selectedOrder?.tds_amount?.toFixed(2)}`;
+                   })()}</p>
+                   <p className="text-sm font-medium text-blue-800">
+                     Amount to Pay (After TDS): {(() => {
+                       const hasUSDT = selectedOrder?.purchase_order_items?.some((item: any) => 
+                         item.products?.code === 'USDT' || item.products?.name?.toUpperCase().includes('USDT')
+                       );
+                       return `${hasUSDT ? '$' : '₹'}${selectedOrder?.net_payable_amount?.toFixed(2)}`;
+                     })()}
+                   </p>
+                 </>
+               )}
+               {!selectedOrder?.tds_applied && (
+                 <p className="text-sm font-medium text-blue-800">
+                   Amount to Pay: {(() => {
+                     const hasUSDT = selectedOrder?.purchase_order_items?.some((item: any) => 
+                       item.products?.code === 'USDT' || item.products?.name?.toUpperCase().includes('USDT')
+                     );
+                     return `${hasUSDT ? '$' : '₹'}${selectedOrder?.total_amount?.toFixed(2)}`;
+                   })()}
+                 </p>
+               )}
             </div>
 
             <div>
@@ -458,7 +479,12 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             <div className="p-4 bg-red-50 rounded-lg">
               <h4 className="font-medium text-red-800">Order Details</h4>
               <p className="text-sm text-red-600">Supplier: {selectedOrder?.supplier_name}</p>
-              <p className="text-sm text-red-600">Amount: ₹{selectedOrder?.total_amount?.toFixed(2)}</p>
+               <p className="text-sm text-red-600">Amount: {(() => {
+                 const hasUSDT = selectedOrder?.purchase_order_items?.some((item: any) => 
+                   item.products?.code === 'USDT' || item.products?.name?.toUpperCase().includes('USDT')
+                 );
+                 return `${hasUSDT ? '$' : '₹'}${selectedOrder?.total_amount?.toFixed(2)}`;
+               })()}</p>
             </div>
 
             <div>

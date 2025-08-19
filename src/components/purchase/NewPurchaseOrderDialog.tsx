@@ -80,6 +80,33 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     },
   });
 
+  // Fetch products for currency determination
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Helper function to determine if order contains USDT
+  const isUSDTOrder = () => {
+    return productItems.some(item => {
+      const product = products?.find(p => p.id === item.product_id);
+      return product?.code === 'USDT' || product?.name?.toUpperCase().includes('USDT');
+    });
+  };
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = () => {
+    return isUSDTOrder() ? '$' : '₹';
+  };
+
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -377,7 +404,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             <div>
               <Label>Total Amount</Label>
               <Input
-                value={`₹${totalAmount.toFixed(2)}`}
+                value={`${getCurrencySymbol()}${totalAmount.toFixed(2)}`}
                 readOnly
                 className="bg-gray-50 font-semibold"
               />
@@ -407,16 +434,16 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                     required={formData.tds_applied}
                   />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>TDS Amount (1%):</span>
-                    <span className="font-semibold">₹{tdsAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Net Payable Amount:</span>
-                    <span>₹{netPayableAmount.toFixed(2)}</span>
-                  </div>
-                </div>
+                 <div className="space-y-2">
+                   <div className="flex justify-between">
+                     <span>TDS Amount (1%):</span>
+                     <span className="font-semibold">{getCurrencySymbol()}{tdsAmount.toFixed(2)}</span>
+                   </div>
+                   <div className="flex justify-between text-lg font-bold">
+                     <span>Net Payable Amount:</span>
+                     <span>{getCurrencySymbol()}{netPayableAmount.toFixed(2)}</span>
+                   </div>
+                 </div>
               </div>
             )}
           </div>

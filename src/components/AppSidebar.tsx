@@ -167,7 +167,7 @@ const items = [{
   permissions: ["hrms_view", "hrms_manage"]
 }, {
   id: "statistics",
-  title: "Statistics",
+  title: "Statistics & Analytics",
   url: "/statistics",
   icon: BarChart3,
   color: "text-green-600",

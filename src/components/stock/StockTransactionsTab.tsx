@@ -76,6 +76,7 @@ export function StockTransactionsTab() {
   const { data: walletTransactions } = useQuery({
     queryKey: ['wallet_stock_transactions'],
     queryFn: async () => {
+      console.log('🔄 Fetching wallet transactions...');
       const { data, error } = await supabase
         .from('wallet_transactions')
         .select(`
@@ -85,9 +86,16 @@ export function StockTransactionsTab() {
         .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Wallet transactions error:', error);
+        throw error;
+      }
+      console.log('✅ Wallet transactions loaded:', data?.length || 0, 'transactions');
+      console.log('📊 Recent wallet transactions:', data?.slice(0, 3));
       return data;
     },
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache data
   });
 
   // Get USDT product info for wallet transactions
@@ -255,11 +263,12 @@ export function StockTransactionsTab() {
       ...w,
       type: 'wallet',
       date: w.created_at,
-      supplier_name: w.wallets?.wallet_name || 'Wallet Transfer',
-      reference_number: `WT-${w.id.slice(0, 8)}`,
+      supplier_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
+      reference_number: `WT-${w.id.slice(-8)}b`, // Use last 8 chars + 'b' to match the pattern in UI
       quantity: w.amount,
       unit_price: w.transaction_type?.includes('TRANSFER') ? null : 1, // Nil for transfers, ₹1 for manual adjustments
       total_amount: w.amount,
+      transaction_type: w.transaction_type, // Use the actual transaction type from wallet
       products: usdtProduct ? {
         name: usdtProduct.name,
         code: usdtProduct.code,
@@ -267,6 +276,11 @@ export function StockTransactionsTab() {
       } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Pieces' }
     }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  console.log('📈 Total combined entries:', allEntries.length);
+  console.log('💰 Wallet entries:', walletTransactions?.length || 0);
+  console.log('📦 Stock entries:', transactions?.length || 0);
+  console.log('🛒 Purchase entries:', purchaseEntries?.length || 0);
 
   return (
     <div className="space-y-6">

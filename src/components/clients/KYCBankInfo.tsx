@@ -8,9 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface KYCBankInfoProps {
   clientId?: string;
+  isSeller?: boolean;
 }
 
-export function KYCBankInfo({ clientId }: KYCBankInfoProps) {
+export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
   const { data: client } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
@@ -19,7 +20,7 @@ export function KYCBankInfo({ clientId }: KYCBankInfoProps) {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('id', clientId)
         .single();
       
       if (error) throw error;
@@ -192,7 +193,7 @@ export function KYCBankInfo({ clientId }: KYCBankInfoProps) {
         </div>
 
         {/* Only show linked bank accounts, pattern mismatch, and re-kyc for buyers */}
-        {!client.buying_purpose?.toLowerCase().includes('sell') && (
+        {!isSeller && (
           <>
             <div>
               <label className="text-sm font-medium text-gray-600">Linked Bank Accounts</label>

@@ -15,9 +15,10 @@ import { KYCDocumentsDialog } from "./KYCDocumentsDialog";
 
 interface ClientOverviewPanelProps {
   clientId?: string;
+  isSeller?: boolean;
 }
 
-export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
+export function ClientOverviewPanel({ clientId, isSeller }: ClientOverviewPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
 
@@ -226,7 +227,7 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
         </div>
 
         {/* Only show monthly limits for buyers (not sellers) */}
-        {!client.buying_purpose || !client.buying_purpose.toLowerCase().includes('sell') ? (
+        {!isSeller && (
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
@@ -237,7 +238,7 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
               <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString() || '0'}</p>
             </div>
           </div>
-        ) : null}
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -281,7 +282,7 @@ export function ClientOverviewPanel({ clientId }: ClientOverviewPanelProps) {
           </div>
           
           {/* Only show limit and cosmos buttons for buyers */}
-          {!client.buying_purpose?.toLowerCase().includes('sell') && (
+          {!isSeller && (
             <div className="grid grid-cols-2 gap-2">
               <Button 
                 size="sm" 

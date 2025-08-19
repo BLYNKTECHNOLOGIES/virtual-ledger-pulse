@@ -31,8 +31,10 @@ export default function ClientDetail() {
     enabled: !!clientId,
   });
 
-  // Check if client is a seller (has selling purpose)
-  const isSeller = client?.buying_purpose?.toLowerCase().includes('sell');
+  // Check if client is a seller (has selling purpose or client_type indicates seller)
+  const isSeller = client?.buying_purpose?.toLowerCase().includes('sell') || 
+                   client?.client_type?.toLowerCase() === 'seller' ||
+                   (client?.buying_purpose && client.buying_purpose.toLowerCase().includes('selling'));
 
   return (
     <div className="space-y-6 p-6">
@@ -43,14 +45,14 @@ export default function ClientDetail() {
 
       {/* Row 1: Client Overview and Monthly Limits (only for buyers) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ClientOverviewPanel clientId={clientId} />
+        <ClientOverviewPanel clientId={clientId} isSeller={isSeller} />
         {!isSeller && <MonthlyLimitsPanel clientId={clientId} />}
       </div>
 
       {/* Row 2: Client Value Score and KYC/Bank Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ClientValueScore clientId={clientId} />
-        <KYCBankInfo clientId={clientId} />
+        <KYCBankInfo clientId={clientId} isSeller={isSeller} />
       </div>
 
       {/* Row 3: Purpose Communication and Buying/Selling Tracker */}

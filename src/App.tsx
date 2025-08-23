@@ -21,6 +21,7 @@ import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import { HelpCentrePage } from './components/website/pages/HelpCentrePage';
+import { BulkTradingPage } from './components/website/pages/BulkTradingPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -153,6 +154,10 @@ const router = createBrowserRouter([
   {
     path: "/website/help",
     element: <WebsiteLayout><HelpCentrePage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/bulk-trading",
+    element: <WebsiteLayout><BulkTradingPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

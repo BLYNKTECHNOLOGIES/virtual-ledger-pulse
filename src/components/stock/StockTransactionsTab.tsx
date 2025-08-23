@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 export function StockTransactionsTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -344,7 +345,7 @@ export function StockTransactionsTab() {
                 <tbody>
                   {allEntries?.map((entry, index) => (
                     <tr key={`${entry.type}-${entry.id}-${index}`} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{format(new Date(entry.date), 'dd/MM/yyyy HH:mm:ss')}</td>
+                      <td className="py-3 px-4">{formatInTimeZone(new Date(entry.date), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm:ss')}</td>
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium">{entry.products?.name}</div>

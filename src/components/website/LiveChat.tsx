@@ -148,23 +148,86 @@ export function LiveChat({ isOpen, onClose }: LiveChatProps) {
   const getBotResponse = (input: string): string => {
     const lowerInput = input.toLowerCase();
     
-    if (lowerInput.includes('kyc') || lowerInput.includes('verification')) {
-      return 'For KYC verification, please upload clear documents (Aadhar, PAN, Bank proof) in your profile. The process usually takes 24-48 hours. Need specific help with your KYC status?';
+    // Greetings
+    if (lowerInput.includes('hello') || lowerInput.includes('hi') || lowerInput.includes('hey')) {
+      const greetings = [
+        'Hello! Welcome to Blynk support. How can I assist you today?',
+        'Hi there! I\'m here to help you with any questions about Blynk services.',
+        'Hey! Thanks for reaching out. What can I help you with?'
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
     }
     
-    if (lowerInput.includes('buy') || lowerInput.includes('usdt') || lowerInput.includes('purchase')) {
-      return 'To buy USDT: 1) Go to Buy USDT page 2) Enter amount 3) Choose payment method 4) Complete payment. USDT is credited within 10 minutes. Current rate is ₹89.69 per USDT.';
+    // KYC related
+    if (lowerInput.includes('kyc') || lowerInput.includes('verification') || lowerInput.includes('documents')) {
+      const kycResponses = [
+        'For KYC verification, please upload clear documents (Aadhar, PAN, Bank proof) in your profile. The process usually takes 24-48 hours. Need specific help with your KYC status?',
+        'KYC verification is simple! Upload your Aadhar, PAN, and bank proof. Make sure documents are clear and not expired. Any specific KYC issues you\'re facing?',
+        'Having trouble with KYC? Ensure your documents are clear, colored, and match your profile information. Feel free to share your specific concern!'
+      ];
+      return kycResponses[Math.floor(Math.random() * kycResponses.length)];
     }
     
-    if (lowerInput.includes('failed') || lowerInput.includes('problem') || lowerInput.includes('issue')) {
-      return 'Sorry to hear about the issue! Please share your transaction ID and details. Our team will investigate and resolve this within 24 hours. You can also email us at support@blynkvirtual.com';
+    // Trading/buying related
+    if (lowerInput.includes('buy') || lowerInput.includes('usdt') || lowerInput.includes('purchase') || lowerInput.includes('trade')) {
+      const tradingResponses = [
+        'To buy USDT: 1) Go to Buy USDT page 2) Enter amount 3) Choose payment method 4) Complete payment. USDT is credited within 10 minutes. Current rate is ₹89.69 per USDT.',
+        'Ready to buy crypto? You can purchase USDT instantly with UPI, IMPS, or NEFT. Current rate: ₹89.69/USDT. Minimum order: ₹100. Need help with the process?',
+        'Buying USDT is easy! Select amount → Choose payment → Complete transaction → Get USDT in 10 mins. What amount are you looking to purchase?'
+      ];
+      return tradingResponses[Math.floor(Math.random() * tradingResponses.length)];
     }
     
-    if (lowerInput.includes('limit') || lowerInput.includes('increase')) {
-      return 'To increase limits: 1) Complete full KYC 2) Verify bank account 3) Build transaction history 4) For corporate limits, contact our relationship manager. What specific limit are you looking to increase?';
+    // Issues/problems
+    if (lowerInput.includes('failed') || lowerInput.includes('problem') || lowerInput.includes('issue') || lowerInput.includes('error')) {
+      const issueResponses = [
+        'Sorry to hear about the issue! Please share your transaction ID and details. Our team will investigate and resolve this within 24 hours.',
+        'I understand you\'re facing a problem. Can you share more details about what happened? Transaction ID would be helpful too.',
+        'Let me help you resolve this! Please provide your transaction details or error message, and I\'ll escalate to our technical team immediately.'
+      ];
+      return issueResponses[Math.floor(Math.random() * issueResponses.length)];
     }
     
-    return 'Thank you for contacting Blynk support! A human agent will be with you shortly. For immediate assistance, please check our FAQ section or email support@blynkvirtual.com';
+    // Limits
+    if (lowerInput.includes('limit') || lowerInput.includes('increase') || lowerInput.includes('maximum')) {
+      const limitResponses = [
+        'To increase limits: 1) Complete full KYC 2) Verify bank account 3) Build transaction history 4) For corporate limits, contact our relationship manager. What specific limit are you looking to increase?',
+        'Higher trading limits available after KYC completion! Corporate clients can get unlimited trading with our enterprise solutions. Need details about specific limits?',
+        'Current limits depend on your KYC status. Verified users get higher limits. For bulk trading (₹5L+), we offer special rates and dedicated support!'
+      ];
+      return limitResponses[Math.floor(Math.random() * limitResponses.length)];
+    }
+    
+    // Fees/rates
+    if (lowerInput.includes('fee') || lowerInput.includes('rate') || lowerInput.includes('price') || lowerInput.includes('cost')) {
+      const feeResponses = [
+        'Our rates are highly competitive! Current USDT rate: ₹89.69. Zero hidden fees. For bulk orders (₹5L+), get even better negotiated rates!',
+        'Transparent pricing with live market rates! USDT: ₹89.69, zero processing fees for UPI payments. Bulk traders get special rates!',
+        'Best rates in the market! Current: ₹89.69/USDT. Corporate clients get customized pricing. Check our fees page for complete details.'
+      ];
+      return feeResponses[Math.floor(Math.random() * feeResponses.length)];
+    }
+    
+    // Security
+    if (lowerInput.includes('safe') || lowerInput.includes('secure') || lowerInput.includes('security') || lowerInput.includes('2fa')) {
+      const securityResponses = [
+        'Blynk is 100% secure! We\'re a registered VASP with bank-grade security, 2FA authentication, and full regulatory compliance. Your funds are always safe.',
+        'Security is our priority! We use advanced encryption, cold storage for crypto, and follow all RBI guidelines. Enable 2FA for extra protection!',
+        'Your security matters! Multi-layer protection, regulated operations, and 24/7 monitoring. We\'re fully compliant with Indian crypto regulations.'
+      ];
+      return securityResponses[Math.floor(Math.random() * securityResponses.length)];
+    }
+    
+    // Generic responses for unmatched queries
+    const genericResponses = [
+      'I\'m here to help! Could you please provide more details about your question?',
+      'Thanks for reaching out! Let me connect you with the right information. What specifically would you like to know?',
+      'Great question! I\'d be happy to assist. Could you share more details so I can provide the best help?',
+      'I want to make sure I give you the most accurate information. Can you tell me more about what you\'re looking for?',
+      'Let me help you with that! For personalized assistance, you can also reach our human agents at support@blynkvirtual.com'
+    ];
+    
+    return genericResponses[Math.floor(Math.random() * genericResponses.length)];
   };
 
   const filteredFAQs = faqs.map(category => ({

@@ -579,6 +579,7 @@ export type Database = {
           name: string
           operator_notes: string | null
           other_documents_urls: string[] | null
+          pan_card_number: string | null
           pan_card_url: string | null
           phone: string | null
           risk_appetite: string
@@ -605,6 +606,7 @@ export type Database = {
           name: string
           operator_notes?: string | null
           other_documents_urls?: string[] | null
+          pan_card_number?: string | null
           pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string
@@ -631,6 +633,7 @@ export type Database = {
           name?: string
           operator_notes?: string | null
           other_documents_urls?: string[] | null
+          pan_card_number?: string | null
           pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string

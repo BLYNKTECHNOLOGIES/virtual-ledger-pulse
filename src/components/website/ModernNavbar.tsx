@@ -270,54 +270,6 @@ export function ModernNavbar() {
                 Dedicated Account Manager
               </Link>
 
-              {/* Resources Dropdown */}
-              <div className="relative dropdown-container">
-                <button
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => toggleDropdown('resources')}
-                >
-                  Resources
-                  <ChevronDown className={cn(
-                    "h-4 w-4 transition-transform duration-200",
-                    activeDropdown === 'resources' && "rotate-180"
-                  )} />
-                </button>
-                {activeDropdown === 'resources' && (
-                  <div 
-                    className="absolute top-full left-0 mt-2 w-[400px] bg-background dark:bg-background border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
-                  >
-                    <div className="grid grid-cols-1 gap-8">
-                      {resourcesDropdown.sections.map((section, index) => (
-                        <div key={index}>
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                            {section.title}
-                          </h3>
-                          <div className="space-y-1">
-                            {section.items.map((item) => (
-                                <Link
-                                  key={item.path}
-                                  to={item.path}
-                                  className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                                  onClick={() => setActiveDropdown(null)}
-                                >
-                                <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
-                                    {item.name}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground mt-1">
-                                    {item.description}
-                                  </span>
-                                </div>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
               <Link
                 to="/website/contact"
                 className={cn(
@@ -434,27 +386,6 @@ export function ModernNavbar() {
                 >
                   Dedicated Account Manager
                 </Link>
-
-                <div>
-                  <div className="font-medium text-foreground mb-2">Resources</div>
-                  <div className="space-y-3 ml-4">
-                    {resourcesDropdown.sections.map((section) => (
-                      <div key={section.title}>
-                        <div className="text-xs font-medium text-muted-foreground mb-1">{section.title}</div>
-                        {section.items.map((item) => (
-                          <Link
-                            key={item.path}
-                            to={item.path}
-                            className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-                            onClick={() => setIsOpen(false)}
-                          >
-                            {item.name}
-                          </Link>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 <Link
                   to="/website/contact"

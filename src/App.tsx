@@ -24,6 +24,7 @@ import { HelpCentrePage } from './components/website/pages/HelpCentrePage';
 import { BulkTradingPage } from './components/website/pages/BulkTradingPage';
 import { CorporateKYCPage } from './components/website/pages/CorporateKYCPage';
 import { RelationshipManagerPage } from './components/website/pages/RelationshipManagerPage';
+import { SellUSDTPage } from './components/website/pages/SellUSDTPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -168,6 +169,10 @@ const router = createBrowserRouter([
   {
     path: "/website/relationship-manager",
     element: <WebsiteLayout><RelationshipManagerPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/sell-usdt",
+    element: <WebsiteLayout><SellUSDTPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

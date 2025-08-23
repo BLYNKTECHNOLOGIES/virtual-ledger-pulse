@@ -354,9 +354,11 @@ export function LienCaseTrackingTab() {
                 </Badge>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString()}
-                </div>
+                {Number(lien.amount) > 0 && (
+                  <div>
+                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString()}
+                  </div>
+                )}
                 <div>
                   <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Date:</span> {new Date(lien.date_imposed).toLocaleDateString()}
                 </div>

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { LiveChat } from '../LiveChat';
 import { 
   Search, 
   User, 
@@ -24,6 +25,7 @@ import {
 
 export function HelpCentrePage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const categories = [
     {
@@ -262,7 +264,11 @@ export function HelpCentrePage() {
                   <p className="text-sm font-medium text-foreground mb-4">
                     {option.contact}
                   </p>
-                  <Button className="w-full" variant={index === 1 ? 'default' : 'outline'}>
+                  <Button 
+                    className="w-full" 
+                    variant={index === 1 ? 'default' : 'outline'}
+                    onClick={index === 1 ? () => setIsChatOpen(true) : undefined}
+                  >
                     {option.action}
                   </Button>
                 </CardContent>
@@ -312,6 +318,12 @@ export function HelpCentrePage() {
           </div>
         </div>
       </div>
+
+      {/* Live Chat Component */}
+      <LiveChat 
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { RMApplicationForm } from '../RMApplicationForm';
 import { 
   UserCheck2, 
   HeadphonesIcon, 
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 
 export function RelationshipManagerPage() {
+  const [isApplicationOpen, setIsApplicationOpen] = useState(false);
   const benefits = [
     {
       icon: UserCheck2,
@@ -285,6 +287,7 @@ export function RelationshipManagerPage() {
               <Button 
                 size="lg" 
                 className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg"
+                onClick={() => setIsApplicationOpen(true)}
               >
                 <UserCheck2 className="h-5 w-5 mr-2" />
                 Apply for a Relationship Manager
@@ -309,6 +312,12 @@ export function RelationshipManagerPage() {
           </div>
         </div>
       </div>
+      
+      {/* RM Application Form Modal */}
+      <RMApplicationForm 
+        isOpen={isApplicationOpen}
+        onClose={() => setIsApplicationOpen(false)}
+      />
     </div>
   );
 }

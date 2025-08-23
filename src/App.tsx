@@ -26,6 +26,7 @@ import { CorporateKYCPage } from './components/website/pages/CorporateKYCPage';
 import { RelationshipManagerPage } from './components/website/pages/RelationshipManagerPage';
 import { SellUSDTPage } from './components/website/pages/SellUSDTPage';
 import { WhatsAppSupportPage } from './components/website/pages/WhatsAppSupportPage';
+import { PaymentMethodsPage } from './components/website/pages/PaymentMethodsPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -186,6 +187,10 @@ const router = createBrowserRouter([
   {
     path: "/website/p2p-trading",
     element: <WebsiteLayout><P2PTradingPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/payment-methods",
+    element: <WebsiteLayout><PaymentMethodsPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

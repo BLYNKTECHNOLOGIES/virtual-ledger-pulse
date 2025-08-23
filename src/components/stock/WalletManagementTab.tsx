@@ -329,13 +329,25 @@ export function WalletManagementTab() {
     const [formData, setFormData] = useState({
       wallet_id: '',
       transaction_type: 'CREDIT',
-      amount: 0,
+      amount: '',
       description: ''
     });
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      addTransactionMutation.mutate(formData);
+      const amount = parseFloat(formData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        toast({
+          title: "Error",
+          description: "Please enter a valid amount",
+          variant: "destructive"
+        });
+        return;
+      }
+      addTransactionMutation.mutate({
+        ...formData,
+        amount
+      });
     };
 
     return (
@@ -379,7 +391,7 @@ export function WalletManagementTab() {
                 type="number"
                 step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 required
               />
             </div>

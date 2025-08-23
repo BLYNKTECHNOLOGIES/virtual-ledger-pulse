@@ -46,7 +46,7 @@ export function CompliancePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-purple-25 to-background dark:from-purple-950/10 dark:via-purple-950/5 dark:to-background">
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-16">
@@ -60,15 +60,15 @@ export function CompliancePage() {
         </div>
 
         {/* Main Compliance Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 max-w-6xl mx-auto">
           {complianceFeatures.map((feature, index) => (
-            <Card key={index} className="border-0 shadow-xl bg-gradient-to-br from-card/80 to-card/60 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
-              <CardContent className="p-8 text-center">
-                <div className={`w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r ${feature.gradient} flex items-center justify-center`}>
-                  <feature.icon className="h-10 w-10 text-white" />
-                </div>
+            <Card key={index} className="border-0 shadow-xl bg-white dark:bg-card hover:shadow-2xl transition-all duration-300 p-8 text-center">
+              <CardContent className="p-0">
                 <h3 className="text-xl font-bold text-foreground mb-4">{feature.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                <div className={`w-24 h-24 mx-auto mb-6 rounded-lg bg-gradient-to-r ${feature.gradient} flex items-center justify-center`}>
+                  <feature.icon className="h-12 w-12 text-white" />
+                </div>
+                <p className="text-muted-foreground leading-relaxed text-center">{feature.description}</p>
               </CardContent>
             </Card>
           ))}

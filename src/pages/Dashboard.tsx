@@ -491,7 +491,9 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">₹{(metrics?.totalSales || 0).toLocaleString()}</p>
+                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                    ₹{(metrics?.totalSales || 0).toLocaleString()}
+                  </div>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4 text-green-500" />
                     <span className="text-sm font-medium text-slate-500">Period: {selectedPeriod}</span>
@@ -529,7 +531,9 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                   <p className="text-slate-600 text-sm font-medium">Total Clients</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalClients || 0}</p>
+                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                    {metrics?.totalClients || 0}
+                  </div>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4 text-blue-500" />
                     <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>

@@ -67,14 +67,12 @@ export function ModernNavbar() {
         title: "BULK TRADING",
         items: [
           { name: 'Bulk Buy/Sell USDT, BTC, ETH', path: '/website/bulk-trading', description: 'High-volume transactions' },
-          { name: 'Custom Rates & Pricing', path: '/website/custom-rates', description: 'Negotiated institutional rates' },
         ]
       },
       {
         title: "ENTERPRISE SERVICES",
         items: [
           { name: 'INR Settlement for Institutions', path: '/website/institutional-settlement', description: 'Corporate banking integration' },
-          { name: 'Dedicated Account Manager', path: '/website/dedicated-support', description: 'Personal relationship manager' },
           { name: 'Corporate KYC', path: '/website/corporate-kyc', description: 'Business verification process' },
         ]
       }
@@ -255,6 +253,16 @@ export function ModernNavbar() {
                 Compliance
               </Link>
 
+              <Link
+                to="/website/relationship-manager"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground transition-colors",
+                  isActive('/website/relationship-manager') && "text-foreground font-medium"
+                )}
+              >
+                Dedicated Account Manager
+              </Link>
+
               {/* Resources Dropdown */}
               <div className="relative dropdown-container">
                 <button
@@ -410,6 +418,14 @@ export function ModernNavbar() {
                   onClick={() => setIsOpen(false)}
                 >
                   Compliance
+                </Link>
+
+                <Link
+                  to="/website/relationship-manager"
+                  className="block text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Dedicated Account Manager
                 </Link>
 
                 <div>

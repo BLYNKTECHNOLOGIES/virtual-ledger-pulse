@@ -20,6 +20,7 @@ import { CompliancePage } from './components/website/pages/CompliancePage';
 import { VASPHomePage } from './components/website/pages/VASPHomePage';
 import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
+import { HelpCentrePage } from './components/website/pages/HelpCentrePage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -148,6 +149,10 @@ const router = createBrowserRouter([
   {
     path: "/website/individual-kyc",
     element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/help",
+    element: <WebsiteLayout><HelpCentrePage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

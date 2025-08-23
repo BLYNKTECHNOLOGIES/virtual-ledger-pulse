@@ -332,7 +332,7 @@ export function BulkTradingPage() {
                 <Phone className="h-4 w-4" />
                 Schedule a Call
               </Button>
-              <Button variant="outline" size="lg" className="flex items-center gap-2 border-white text-white hover:bg-white/10">
+              <Button variant="secondary" size="lg" className="flex items-center gap-2 bg-white text-primary hover:bg-white/90">
                 <Mail className="h-4 w-4" />
                 Send Inquiry
               </Button>

@@ -22,6 +22,7 @@ import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import { HelpCentrePage } from './components/website/pages/HelpCentrePage';
 import { BulkTradingPage } from './components/website/pages/BulkTradingPage';
+import { CorporateKYCPage } from './components/website/pages/CorporateKYCPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -158,6 +159,10 @@ const router = createBrowserRouter([
   {
     path: "/website/bulk-trading",
     element: <WebsiteLayout><BulkTradingPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/corporate-kyc",
+    element: <WebsiteLayout><CorporateKYCPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

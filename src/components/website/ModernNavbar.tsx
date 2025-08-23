@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Menu, X, Shield, Flag } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChevronDown, Menu, X, Shield, Flag, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveCryptoRates } from './LiveCryptoRates';
 
 export function ModernNavbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [showSecurityAlert, setShowSecurityAlert] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -105,9 +107,14 @@ export function ModernNavbar() {
         {/* Security Banner */}
         <div className="bg-warning/10 border-b border-warning/20 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm">
-            <Shield className="h-4 w-4 text-warning" />
-            <span className="text-warning font-medium">Security Alert: Always verify official communication channels</span>
-            <Button variant="link" size="sm" className="text-warning underline">
+            <Lock className="h-4 w-4 text-warning" />
+            <span className="text-warning font-medium">🔒 Security Alert: Always verify official communication channels</span>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="text-warning underline"
+              onClick={() => setShowSecurityAlert(true)}
+            >
               Learn More
             </Button>
           </div>
@@ -485,6 +492,85 @@ export function ModernNavbar() {
           )}
         </div>
       </nav>
+
+      {/* Security Alert Dialog */}
+      <Dialog open={showSecurityAlert} onOpenChange={setShowSecurityAlert}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-warning">
+              <Lock className="h-5 w-5" />
+              🔒 Security Alert
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 text-sm">
+            <p className="font-medium text-foreground">
+              Always verify official communication channels.
+            </p>
+            
+            <p className="text-muted-foreground">
+              Blynk Virtual Technologies will never ask for your passwords, OTPs, or private keys.
+            </p>
+            
+            <div className="space-y-3">
+              <p className="font-medium text-foreground">Official communication will only come from:</p>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-muted-foreground">Our verified website</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-muted-foreground">Official email domain (@blynkvirtual.com)</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span className="text-muted-foreground">Verified WhatsApp support numbers listed on our Support Page</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-red-50 dark:bg-red-950/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-red-800 dark:text-red-200 font-medium">
+                    Beware of fake profiles, groups, or offers.
+                  </p>
+                  <p className="text-red-700 dark:text-red-300 text-sm">
+                    Report suspicious activity immediately to our Compliance Team.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 dark:bg-amber-950/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-amber-800 dark:text-amber-200 font-medium text-center">
+                ⚠️ Stay safe. Trade smart. Always double-check before sharing sensitive information.
+              </p>
+            </div>
+            
+            <div className="flex gap-3 pt-4">
+              <Button 
+                onClick={() => navigate('/website/whatsapp-support')}
+                className="flex-1"
+              >
+                Contact Support
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSecurityAlert(false)}
+                className="flex-1"
+              >
+                Got It
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

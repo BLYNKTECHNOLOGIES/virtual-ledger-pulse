@@ -555,7 +555,10 @@ export function ModernNavbar() {
             
             <div className="flex gap-3 pt-4">
               <Button 
-                onClick={() => navigate('/website/whatsapp-support')}
+                onClick={() => {
+                  setShowSecurityAlert(false);
+                  navigate('/website/whatsapp-support');
+                }}
                 className="flex-1"
               >
                 Contact Support

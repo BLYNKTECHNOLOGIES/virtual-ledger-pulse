@@ -141,6 +141,10 @@ const router = createBrowserRouter([
     path: "/website/fees",
     element: <WebsiteLayout><CryptoFeesPage /></WebsiteLayout>,
   },
+  {
+    path: "/website/kyc",
+    element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
+  },
   // ERP System Routes - All protected with authentication
   {
     path: "/dashboard",

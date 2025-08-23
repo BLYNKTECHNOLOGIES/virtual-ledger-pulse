@@ -183,6 +183,10 @@ const router = createBrowserRouter([
     path: "/website/whatsapp-support",
     element: <WebsiteLayout><WhatsAppSupportPage /></WebsiteLayout>,
   },
+  {
+    path: "/website/p2p-trading",
+    element: <WebsiteLayout><P2PTradingPage /></WebsiteLayout>,
+  },
   // ERP System Routes - All protected with authentication
   {
     path: "/dashboard",

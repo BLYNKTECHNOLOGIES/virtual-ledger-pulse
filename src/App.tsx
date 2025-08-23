@@ -27,6 +27,7 @@ import { RelationshipManagerPage } from './components/website/pages/Relationship
 import { SellUSDTPage } from './components/website/pages/SellUSDTPage';
 import { WhatsAppSupportPage } from './components/website/pages/WhatsAppSupportPage';
 import { PaymentMethodsPage } from './components/website/pages/PaymentMethodsPage';
+import { GettingStartedPage } from './components/website/pages/GettingStartedPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
@@ -191,6 +192,10 @@ const router = createBrowserRouter([
   {
     path: "/website/payment-methods",
     element: <WebsiteLayout><PaymentMethodsPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/getting-started",
+    element: <WebsiteLayout><GettingStartedPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

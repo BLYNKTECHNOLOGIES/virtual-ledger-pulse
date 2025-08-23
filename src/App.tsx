@@ -22,6 +22,7 @@ import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
 import { KYCFormPage } from './components/website/pages/KYCFormPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
+import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Purchase from './pages/Purchase';
@@ -135,6 +136,10 @@ const router = createBrowserRouter([
   {
     path: "/website/buy-usdt",
     element: <WebsiteLayout><BuyUSDTPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/fees",
+    element: <WebsiteLayout><CryptoFeesPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

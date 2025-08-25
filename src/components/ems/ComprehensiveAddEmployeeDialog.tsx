@@ -227,20 +227,47 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('📋 Form submission started');
+    console.log('📋 Current form data:', formData);
+    
     // Validate required fields
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-      toast.error("Please fill in all required fields (First Name, Last Name, Email, Phone)");
+    if (!formData.firstName?.trim()) {
+      toast.error("First Name is required");
       setCurrentTab("personal");
       return;
     }
     
-    if (!formData.department || !formData.designation) {
-      toast.error("Please fill in employment details (Department, Designation)");
+    if (!formData.lastName?.trim()) {
+      toast.error("Last Name is required");
+      setCurrentTab("personal");
+      return;
+    }
+    
+    if (!formData.email?.trim()) {
+      toast.error("Email is required");
+      setCurrentTab("personal");
+      return;
+    }
+    
+    if (!formData.phone?.trim()) {
+      toast.error("Phone number is required");
+      setCurrentTab("personal");
+      return;
+    }
+    
+    if (!formData.department?.trim()) {
+      toast.error("Department is required");
       setCurrentTab("employment");
       return;
     }
     
-    console.log('📋 Submitting form with data:', formData);
+    if (!formData.designation?.trim()) {
+      toast.error("Designation is required");
+      setCurrentTab("employment");
+      return;
+    }
+    
+    console.log('✅ Validation passed, submitting employee data');
     addEmployeeMutation.mutate(formData);
   };
 
@@ -902,18 +929,6 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                   className="bg-primary hover:bg-primary/90"
                 >
                   {addEmployeeMutation.isPending ? "Registering..." : "Register Employee"}
-                </Button>
-              )}
-              
-              {/* Quick Register Button - available on all tabs */}
-              {currentTab !== "compliance" && (
-                <Button 
-                  type="submit"
-                  variant="secondary"
-                  disabled={addEmployeeMutation.isPending || !formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.department || !formData.designation}
-                  className="ml-2"
-                >
-                  {addEmployeeMutation.isPending ? "Registering..." : "Quick Register"}
                 </Button>
               )}
             </div>

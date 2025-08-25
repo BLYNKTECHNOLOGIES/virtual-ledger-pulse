@@ -129,11 +129,15 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
 
   const addEmployeeMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
+      console.log('🔄 Starting employee registration...', data);
+      
       // Generate employee ID
       const employeeId = await generateEmployeeId(data.department, data.designation);
+      console.log('✅ Generated employee ID:', employeeId);
       
       // Generate a UUID for user_id since it's required
       const tempUserId = crypto.randomUUID();
+      console.log('✅ Generated temp user ID:', tempUserId);
       
       const employeeData = {
         employee_id: employeeId,
@@ -185,13 +189,23 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         user_id: tempUserId
       };
       
-      const { error } = await supabase
-        .from('employees')
-        .insert([employeeData]);
+      console.log('📝 Employee data to insert:', employeeData);
       
-      if (error) throw error;
+      const { data: insertResult, error } = await supabase
+        .from('employees')
+        .insert([employeeData])
+        .select();
+      
+      if (error) {
+        console.error('❌ Database error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Employee inserted successfully:', insertResult);
+      return insertResult;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('✅ Mutation successful:', result);
       queryClient.invalidateQueries({ queryKey: ['employees_data'] });
       toast.success("Employee added successfully!");
       onOpenChange(false);
@@ -199,8 +213,8 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
       setCurrentTab("personal");
     },
     onError: (error) => {
-      console.error('Error adding employee:', error);
-      toast.error("Failed to add employee");
+      console.error('❌ Mutation error:', error);
+      toast.error(`Failed to add employee: ${error.message || 'Unknown error'}`);
     },
   });
 

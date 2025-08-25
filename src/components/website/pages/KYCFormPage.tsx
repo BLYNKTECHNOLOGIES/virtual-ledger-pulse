@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
 import { 
   User, 
@@ -27,6 +29,8 @@ import {
 } from 'lucide-react';
 
 export function KYCFormPage() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Personal Information
@@ -131,6 +135,25 @@ export function KYCFormPage() {
     console.log('Submitting KYC:', formData);
   };
 
+  const handleContactSupport = () => {
+    // Show multiple contact options
+    toast({
+      title: "Contact Support Options",
+      description: "Choose how you'd like to reach us",
+      duration: 8000,
+    });
+    
+    // Multiple options for contacting support
+    const options = [
+      { method: 'WhatsApp', action: () => window.open('https://wa.me/918889923366', '_blank') },
+      { method: 'Email', action: () => window.location.href = 'mailto:support@blynkvirtual.com?subject=KYC Support Request' },
+      { method: 'Support Page', action: () => navigate('/website/whatsapp-support') }
+    ];
+    
+    // For now, let's direct them to the WhatsApp support page
+    navigate('/website/whatsapp-support');
+  };
+
   const FileUploadArea = ({ field, label, accept = "image/*,.pdf", multiple = false, required = true }: any) => (
     <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
       <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
@@ -198,7 +221,7 @@ export function KYCFormPage() {
               </Badge>
               
               <div className="space-y-3">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" onClick={handleContactSupport}>
                   <Mail className="h-4 w-4 mr-2" />
                   Contact Support
                 </Button>

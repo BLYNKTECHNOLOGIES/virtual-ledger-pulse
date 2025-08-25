@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Wallet, 
-  RefreshCw, 
-  ShoppingCart, 
-  CreditCard, 
+  Zap, 
   Shield, 
-  Zap,
+  Users, 
+  Globe, 
+  MessageCircle, 
+  CheckCircle,
   ArrowRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,40 +16,40 @@ export function ModernFeaturesSection() {
 
   const features = [
     {
-      icon: Wallet,
-      title: 'Self-Custody Wallet',
-      description: 'Store your assets with complete control. Your keys, your crypto.',
-      color: 'text-primary'
-    },
-    {
-      icon: RefreshCw,
-      title: 'Multi-Network Support',
-      description: 'Manage multiple wallets across the top blockchain networks.',
-      color: 'text-success'
-    },
-    {
       icon: Zap,
-      title: 'Instant Trading',
-      description: 'Buy BTC and hundreds of other cryptocurrencies instantly.',
-      color: 'text-warning'
-    },
-    {
-      icon: RefreshCw,
-      title: 'Crypto Exchange',
-      description: 'Exchange thousands of crypto pairs with a single tap.',
-      color: 'text-info'
-    },
-    {
-      icon: ShoppingCart,
-      title: 'Spend Crypto',
-      description: 'Use crypto for purchases, gift cards, and bill payments.',
-      color: 'text-primary'
+      title: 'Instant INR Settlements',
+      description: 'Seamless and fast INR settlements for both retail and institutional clients, ensuring smooth cash flow.',
+      color: 'text-green-600'
     },
     {
       icon: Shield,
-      title: 'Enterprise Security',
-      description: 'Bank-grade security with advanced encryption and protection.',
-      color: 'text-destructive'
+      title: 'Escrow-Backed Secure Trading',
+      description: 'All trades are protected through secure escrow systems, giving both buyers and sellers complete peace of mind.',
+      color: 'text-blue-600'
+    },
+    {
+      icon: Users,
+      title: 'Dedicated Relationship Managers',
+      description: 'Every institutional and high-volume client gets a personal Relationship Manager for faster resolutions and priority service.',
+      color: 'text-purple-600'
+    },
+    {
+      icon: Globe,
+      title: 'Multi-Exchange Trust Integration',
+      description: 'Trade confidently with support across Binance, Bybit, Bitget, while enjoying the personalized services of Blynk.',
+      color: 'text-orange-600'
+    },
+    {
+      icon: MessageCircle,
+      title: '24/7 Human Support via WhatsApp',
+      description: 'Round-the-clock real human support (not just chatbots) through WhatsApp, live chat, and email.',
+      color: 'text-green-500'
+    },
+    {
+      icon: CheckCircle,
+      title: 'Strong Compliance & KYC/AML Framework',
+      description: 'Strict adherence to regulatory norms, verified traders, and advanced fraud detection systems for maximum safety.',
+      color: 'text-indigo-600'
     }
   ];
 
@@ -59,7 +59,7 @@ export function ModernFeaturesSection() {
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Everything you need in a crypto app,{' '}
+            Everything you need for crypto trading,{' '}
             <span className="text-muted-foreground">nothing you don't.</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -86,42 +86,15 @@ export function ModernFeaturesSection() {
           ))}
         </div>
 
-        {/* CTA Section */}
+        {/* Call to Action */}
         <div className="text-center">
           <Button 
             size="lg" 
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
-            onClick={() => navigate('/website/download')}
+            onClick={() => navigate('/website/p2p-trading')}
           >
-            Get the App
+            Start Trading Now
             <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* App Store Buttons */}
-        <div className="flex justify-center items-center gap-4 mt-8">
-          <Button variant="outline" size="lg" className="h-14">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-foreground rounded-md flex items-center justify-center">
-                <span className="text-background text-xs font-bold">A</span>
-              </div>
-              <div className="text-left">
-                <div className="text-xs text-muted-foreground">Download on the</div>
-                <div className="text-sm font-semibold">App Store</div>
-              </div>
-            </div>
-          </Button>
-          
-          <Button variant="outline" size="lg" className="h-14">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-foreground rounded-md flex items-center justify-center">
-                <span className="text-background text-xs font-bold">G</span>
-              </div>
-              <div className="text-left">
-                <div className="text-xs text-muted-foreground">Get it on</div>
-                <div className="text-sm font-semibold">Google Play</div>
-              </div>
-            </div>
           </Button>
         </div>
       </div>

@@ -267,7 +267,7 @@ export function ModernNavbar() {
                   isActive('/website/relationship-manager') && "text-foreground font-medium"
                 )}
               >
-                Dedicated Account Manager
+                Dedicated RM
               </Link>
 
               <Link
@@ -384,7 +384,7 @@ export function ModernNavbar() {
                   className="block text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
-                  Dedicated Account Manager
+                  Dedicated RM
                 </Link>
 
                 <Link

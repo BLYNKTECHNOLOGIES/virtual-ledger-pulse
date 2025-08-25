@@ -30,6 +30,7 @@ import { PaymentMethodsPage } from './components/website/pages/PaymentMethodsPag
 import { GettingStartedPage } from './components/website/pages/GettingStartedPage';
 import { CareersPage } from './components/website/pages/CareersPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
+import { INRSettlementPage } from './components/website/pages/INRSettlementPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { SellCryptoPage } from './components/website/pages/SellCryptoPage';
 import { SafetyTipsPage } from './components/website/pages/SafetyTipsPage';
@@ -207,6 +208,14 @@ const router = createBrowserRouter([
   {
     path: "/website/careers",
     element: <WebsiteLayout><CareersPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/inr-settlement",
+    element: <WebsiteLayout><INRSettlementPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/institutional-settlement",
+    element: <WebsiteLayout><INRSettlementPage /></WebsiteLayout>,
   },
   {
     path: "/website/safety-tips",

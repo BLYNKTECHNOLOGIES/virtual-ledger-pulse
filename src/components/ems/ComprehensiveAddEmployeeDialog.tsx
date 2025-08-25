@@ -98,7 +98,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
   const queryClient = useQueryClient();
 
   const departments = [
-    "Operations", "Finance", "Compliance", "Technology", "HR", "Sales", "Marketing", "Legal"
+    "Operations", "Finance", "Compliance", "Administrative", "Support Staff"
   ];
 
   const genders = ["Male", "Female", "Other"];

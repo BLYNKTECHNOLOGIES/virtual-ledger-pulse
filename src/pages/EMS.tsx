@@ -55,7 +55,13 @@ export default function EMS() {
         .select('employee_id, net_salary, month_year')
         .order('created_at', { ascending: false });
 
-      // Get department counts
+      // Fetch departments from departments table
+      const { data: departments } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true);
+
+      // Get department counts from employees
       const departmentCounts = employees?.reduce((acc, emp) => {
         acc[emp.department] = (acc[emp.department] || 0) + 1;
         return acc;
@@ -70,6 +76,7 @@ export default function EMS() {
       return {
         employees: employees || [],
         payslips: payslips || [],
+        departments: departments || [],
         departmentCounts,
         statusCounts,
         totalEmployees: employees?.length || 0,
@@ -90,7 +97,7 @@ export default function EMS() {
   }) || [];
 
   const getDepartments = () => {
-    return [...new Set(employeesData?.employees.map(emp => emp.department) || [])];
+    return employeesData?.departments?.map(dept => dept.name) || [];
   };
 
   const getStatusBadgeColor = (status: string) => {
@@ -192,7 +199,7 @@ export default function EMS() {
             <CardContent className="p-4">
               <div className="text-sm text-orange-700 mb-1">Departments</div>
               <div className="text-2xl font-bold text-orange-900">
-                {Object.keys(employeesData?.departmentCounts || {}).length}
+                {employeesData?.departments?.length || 0}
               </div>
               <div className="text-xs text-orange-600">Department units</div>
             </CardContent>

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, CheckCircle, Circle } from "lucide-react";
+import { Plus, X, CheckCircle, Circle, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -383,8 +383,40 @@ export function InvestigationDetailsDialog({
               <div className="space-y-3 max-h-40 overflow-y-auto">
                 {updates.slice(0, 3).map((update) => (
                   <div key={update.id} className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-800">{update.update_text}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    {update.update_text && (
+                      <p className="text-sm text-gray-800 mb-2">{update.update_text}</p>
+                    )}
+                    
+                    {/* Display file attachments */}
+                    {update.attachment_urls && update.attachment_urls.length > 0 && (
+                      <div className="space-y-1">
+                        {update.attachment_urls.map((url: string, index: number) => {
+                          const fileName = url.split('/').pop()?.split('-').slice(3).join('-') || 'Document';
+                          return (
+                            <div key={index} className="flex items-center gap-2 p-2 bg-blue-50 rounded border">
+                              <FileText className="h-4 w-4 text-blue-600" />
+                              <span className="text-sm text-blue-800 flex-1">File uploaded: {fileName}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => window.open(url, '_blank')}
+                                className="h-6 px-2 text-blue-600 hover:text-blue-800"
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                View File
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Show message if no text and no files */}
+                    {!update.update_text && (!update.attachment_urls || update.attachment_urls.length === 0) && (
+                      <p className="text-sm text-gray-500 italic">No update text provided</p>
+                    )}
+                    
+                    <p className="text-xs text-gray-500 mt-2">
                       {new Date(update.created_at).toLocaleDateString()} by {update.created_by}
                     </p>
                   </div>

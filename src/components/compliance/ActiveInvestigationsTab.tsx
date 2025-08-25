@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { InvestigationDetailsDialog } from "./InvestigationDetailsDialog";
 
 const priorityColors = {
-  'HIGH': 'bg-red-50 text-red-600 border-red-100',
-  'MEDIUM': 'bg-orange-50 text-orange-600 border-orange-100',
-  'LOW': 'bg-emerald-50 text-emerald-600 border-emerald-100'
+  'HIGH': 'bg-red-50/30 text-red-500 border-red-100',
+  'MEDIUM': 'bg-orange-50/30 text-orange-500 border-orange-100',
+  'LOW': 'bg-emerald-50/30 text-emerald-500 border-emerald-100'
 };
 
 const caseTypeLabels = {
@@ -114,13 +114,13 @@ export function ActiveInvestigationsTab() {
   const getPriorityBadgeColor = (priority: string) => {
     switch (priority) {
       case 'HIGH':
-        return 'bg-red-100 text-red-700 border border-red-200';
+        return 'bg-red-50 text-red-500 border border-red-100';
       case 'MEDIUM':
-        return 'bg-orange-100 text-orange-700 border border-orange-200';
+        return 'bg-orange-50 text-orange-500 border border-orange-100';
       case 'LOW':
-        return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+        return 'bg-emerald-50 text-emerald-500 border border-emerald-100';
       default:
-        return 'bg-gray-100 text-gray-700 border border-gray-200';
+        return 'bg-gray-50 text-gray-500 border border-gray-100';
     }
   };
 
@@ -211,7 +211,7 @@ export function ActiveInvestigationsTab() {
           {/* High Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'HIGH').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-red-500 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-red-400 mb-3">
                 <AlertTriangle className="h-5 w-5" />
                 High Priority Investigations ({investigations.filter(inv => inv.priority === 'HIGH').length})
               </h3>
@@ -258,7 +258,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-red-200 text-red-600 hover:bg-red-50"
+                        className="border-red-100 text-red-500 hover:bg-red-50"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <RotateCcw className="h-4 w-4 mr-2" />
@@ -267,7 +267,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
                         onClick={() => completeInvestigationMutation.mutate({ 
                           caseId: investigation.id, 
                           resolutionNotes: "Investigation completed through active investigations tab" 
@@ -287,7 +287,7 @@ export function ActiveInvestigationsTab() {
           {/* Low Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'LOW').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-emerald-500 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-emerald-400 mb-3">
                 <Clock className="h-5 w-5" />
                 Low Priority Investigations ({investigations.filter(inv => inv.priority === 'LOW').length})
               </h3>
@@ -334,7 +334,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                        className="border-emerald-100 text-emerald-500 hover:bg-emerald-50"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <RotateCcw className="h-4 w-4 mr-2" />
@@ -343,7 +343,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
                         onClick={() => completeInvestigationMutation.mutate({ 
                           caseId: investigation.id, 
                           resolutionNotes: "Investigation completed through active investigations tab" 
@@ -363,7 +363,7 @@ export function ActiveInvestigationsTab() {
           {/* Medium Priority Investigations */}
           {investigations?.filter(inv => inv.priority === 'MEDIUM').length > 0 && (
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-orange-500 mb-3">
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-orange-400 mb-3">
                 <Clock className="h-5 w-5" />
                 Medium Priority Investigations ({investigations.filter(inv => inv.priority === 'MEDIUM').length})
               </h3>
@@ -410,7 +410,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                        className="border-orange-100 text-orange-500 hover:bg-orange-50"
                         onClick={() => handleViewDetails(investigation)}
                       >
                         <RotateCcw className="h-4 w-4 mr-2" />
@@ -419,7 +419,7 @@ export function ActiveInvestigationsTab() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                        className="border-blue-100 text-blue-500 hover:bg-blue-50"
                         onClick={() => completeInvestigationMutation.mutate({ 
                           caseId: investigation.id, 
                           resolutionNotes: "Investigation completed through active investigations tab" 

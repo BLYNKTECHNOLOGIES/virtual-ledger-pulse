@@ -156,7 +156,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                     <TableCell>{order.contact_number || '-'}</TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
-                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 1}
+                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 0}
                     </TableCell>
                     <TableCell>
                       ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.total_amount).toLocaleString()}

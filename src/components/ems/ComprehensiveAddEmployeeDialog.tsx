@@ -811,7 +811,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                   disabled={addEmployeeMutation.isPending}
                   className="bg-primary hover:bg-primary/90"
                 >
-                  {addEmployeeMutation.isPending ? "Submitting..." : "✅ Submit for Approval"}
+                  {addEmployeeMutation.isPending ? "Registering..." : "Register Staff"}
                 </Button>
               )}
             </div>

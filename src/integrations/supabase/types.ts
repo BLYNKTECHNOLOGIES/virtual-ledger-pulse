@@ -900,7 +900,7 @@ export type Database = {
           ctc: number | null
           current_address: string | null
           date_of_birth: string | null
-          date_of_joining: string
+          date_of_joining: string | null
           deductions: number | null
           department: string
           department_code: string | null
@@ -942,7 +942,7 @@ export type Database = {
           reporting_manager_id: string | null
           reports_to: string | null
           resume_url: string | null
-          salary: number
+          salary: number | null
           shift: string | null
           status: string
           updated_at: string
@@ -967,7 +967,7 @@ export type Database = {
           ctc?: number | null
           current_address?: string | null
           date_of_birth?: string | null
-          date_of_joining: string
+          date_of_joining?: string | null
           deductions?: number | null
           department: string
           department_code?: string | null
@@ -1009,7 +1009,7 @@ export type Database = {
           reporting_manager_id?: string | null
           reports_to?: string | null
           resume_url?: string | null
-          salary: number
+          salary?: number | null
           shift?: string | null
           status?: string
           updated_at?: string
@@ -1034,7 +1034,7 @@ export type Database = {
           ctc?: number | null
           current_address?: string | null
           date_of_birth?: string | null
-          date_of_joining?: string
+          date_of_joining?: string | null
           deductions?: number | null
           department?: string
           department_code?: string | null
@@ -1076,7 +1076,7 @@ export type Database = {
           reporting_manager_id?: string | null
           reports_to?: string | null
           resume_url?: string | null
-          salary?: number
+          salary?: number | null
           shift?: string | null
           status?: string
           updated_at?: string

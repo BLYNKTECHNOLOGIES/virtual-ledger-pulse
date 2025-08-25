@@ -143,7 +143,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         alternate_phone: data.alternatePhone,
         department: data.department,
         designation: data.designation,
-        date_of_joining: data.dateOfJoining?.toISOString().split('T')[0],
+        date_of_joining: data.dateOfJoining?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
         date_of_birth: data.dateOfBirth?.toISOString().split('T')[0],
         gender: data.gender,
         blood_group: data.bloodGroup,
@@ -169,7 +169,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         allowances: data.allowances ? parseFloat(data.allowances) : 0,
         incentives: data.incentives ? parseFloat(data.incentives) : 0,
         deductions: data.deductions ? parseFloat(data.deductions) : 0,
-        salary: data.ctc ? parseFloat(data.ctc) : 0,
+        salary: data.ctc ? parseFloat(data.ctc) : 50000, // Default salary
         aadhaar_card_url: data.aadhaarCardUrl,
         pan_card_url: data.panCardUrl,
         photo_url: data.photoUrl,

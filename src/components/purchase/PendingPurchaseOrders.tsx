@@ -76,8 +76,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           id,
           type,
           bank_account_name,
-          upi_id,
-          bank_account_id
+          upi_id
         `)
         .eq('is_active', true)
         .eq('type', selectedOrder.payment_method_type); // Filter by order's payment method type
@@ -93,12 +92,13 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
     queryFn: async () => {
       if (!selectedPaymentMethod) return null;
       const selectedMethod = paymentMethods?.find(pm => pm.id === selectedPaymentMethod);
-      if (!selectedMethod?.bank_account_id) return null;
+      if (!selectedMethod?.bank_account_name) return null;
       
+      // Find bank account by name since purchase_payment_methods doesn't have bank_account_id
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('balance, account_name')
-        .eq('id', selectedMethod.bank_account_id)
+        .select('balance, account_name, id')
+        .eq('account_name', selectedMethod.bank_account_name)
         .single();
       
       if (error) throw error;
@@ -195,7 +195,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
       // Create bank EXPENSE transaction so balance auto-deducts
       try {
-        let bankAccountId: string | null = selectedOrder?.bank_account_id || selectedMethod?.bank_account_id || null;
+        let bankAccountId: string | null = selectedOrder?.bank_account_id || null;
         if (!bankAccountId && selectedMethod?.bank_account_name) {
           const { data: bankRow } = await supabase
             .from('bank_accounts')

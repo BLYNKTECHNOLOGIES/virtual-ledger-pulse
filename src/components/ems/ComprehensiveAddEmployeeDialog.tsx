@@ -137,30 +137,6 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         const employeeId = await generateEmployeeId(data.department, data.designation);
         console.log('✅ Generated employee ID:', employeeId);
         
-        // Create user record first since employee table requires a valid user_id
-        const { data: userData, error: userError } = await supabase.auth.admin.createUser({
-          email: data.email,
-          email_confirm: true,
-          user_metadata: {
-            full_name: `${data.firstName} ${data.middleName} ${data.lastName}`.trim(),
-            first_name: data.firstName,
-            last_name: data.lastName,
-            employee_id: employeeId
-          }
-        });
-
-        if (userError) {
-          console.error('❌ Error creating user:', userError);
-          throw new Error(`Failed to create user account: ${userError.message}`);
-        }
-
-        const userId = userData.user?.id;
-        if (!userId) {
-          throw new Error('Failed to get user ID from created user');
-        }
-
-        console.log('✅ Created user with ID:', userId);
-        
         const employeeData = {
           employee_id: employeeId,
           name: `${data.firstName} ${data.middleName} ${data.lastName}`.trim(),
@@ -208,7 +184,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
           handbook_acknowledged_at: data.handbookAcknowledged ? new Date().toISOString() : null,
           job_contract_signed: data.jobContractSigned,
           status: 'ACTIVE' as const,
-          user_id: userId // Use the actual user ID from auth
+          user_id: null // Now nullable since we removed the foreign key constraint
         };
         
         console.log('📝 Employee data to insert:', employeeData);

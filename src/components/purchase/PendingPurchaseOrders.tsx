@@ -76,7 +76,6 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           id,
           type,
           bank_account_name,
-          bank_account_id,
           upi_id
         `)
         .eq('is_active', true);

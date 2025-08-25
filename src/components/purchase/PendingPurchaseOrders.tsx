@@ -78,7 +78,8 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           bank_account_name,
           upi_id
         `)
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .eq('type', selectedOrder.payment_method_type); // Filter by order's payment method type
       return (data as any[]) || [];
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
@@ -386,6 +387,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             <div className="p-4 bg-blue-50 rounded-lg">
               <h4 className="font-medium text-blue-800">Order Details</h4>
               <p className="text-sm text-blue-600">Supplier: {selectedOrder?.supplier_name}</p>
+              <p className="text-sm text-blue-600">Contact: {selectedOrder?.contact_number}</p>
               <p className="text-sm text-blue-600">
                 Total Amount: ₹{selectedOrder?.total_amount?.toFixed(2)}
               </p>
@@ -404,21 +406,47 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
               )}
             </div>
 
+            {/* Payment Details Section */}
+            {selectedOrder?.payment_method_type && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-medium text-green-800">Payment Details - Where to Pay</h4>
+                <p className="text-sm text-green-600">Required Payment Type: <span className="font-medium">{selectedOrder.payment_method_type}</span></p>
+                {selectedOrder?.upi_id && (
+                  <p className="text-sm text-green-600">UPI ID: <span className="font-medium">{selectedOrder.upi_id}</span></p>
+                )}
+                {selectedOrder?.bank_account_name && (
+                  <p className="text-sm text-green-600">Bank Account: <span className="font-medium">{selectedOrder.bank_account_name}</span></p>
+                )}
+                {selectedOrder?.bank_account_number && (
+                  <p className="text-sm text-green-600">Account Number: <span className="font-medium">{selectedOrder.bank_account_number}</span></p>
+                )}
+                {selectedOrder?.ifsc_code && (
+                  <p className="text-sm text-green-600">IFSC Code: <span className="font-medium">{selectedOrder.ifsc_code}</span></p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label htmlFor="payment_method">Payment Method Used</Label>
               <Select onValueChange={setSelectedPaymentMethod}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent>
-                  {paymentMethods?.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {method.type === 'UPI' && method.upi_id 
-                        ? `${method.upi_id} (${method.type})` 
-                        : `${method.type} - ${method.bank_account_name}`
-                      }
-                    </SelectItem>
-                  ))}
+                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                  {paymentMethods?.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      No {selectedOrder?.payment_method_type} payment methods available
+                    </div>
+                  ) : (
+                    paymentMethods?.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {method.type === 'UPI' && method.upi_id 
+                          ? `${method.upi_id} (${method.type})` 
+                          : `${method.type} - ${method.bank_account_name}`
+                        }
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

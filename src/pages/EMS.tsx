@@ -33,11 +33,13 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { AddEmployeeDialog } from "@/components/ems/AddEmployeeDialog";
 
 export default function EMS() {
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
 
   // Fetch employees data
   const { data: employeesData, isLoading } = useQuery({
@@ -130,6 +132,7 @@ export default function EMS() {
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white hover:text-primary px-8 py-4 text-lg rounded-full"
+                onClick={() => setAddEmployeeOpen(true)}
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add Employee
@@ -514,6 +517,12 @@ export default function EMS() {
           </Tabs>
         </div>
       </section>
+
+      {/* Add Employee Dialog */}
+      <AddEmployeeDialog 
+        open={addEmployeeOpen} 
+        onOpenChange={setAddEmployeeOpen} 
+      />
     </div>
   );
 }

@@ -884,73 +884,202 @@ export type Database = {
       }
       employees: {
         Row: {
+          aadhaar_card_url: string | null
+          aadhaar_number: string | null
+          account_number: string | null
+          allowances: number | null
+          alternate_phone: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          bank_account_holder_name: string | null
+          bank_name: string | null
+          basic_salary: number | null
+          blood_group: string | null
           created_at: string
+          ctc: number | null
+          current_address: string | null
+          date_of_birth: string | null
           date_of_joining: string
+          deductions: number | null
           department: string
           department_code: string | null
           department_id: string | null
           designation: string
           email: string
+          emergency_contact_name: string | null
+          emergency_contact_number: string | null
+          emergency_contact_relation: string | null
           employee_id: string
+          employee_type: string | null
+          gender: string | null
+          handbook_acknowledged: boolean | null
+          handbook_acknowledged_at: string | null
           has_payment_rights: boolean | null
           hierarchy_level: number | null
           id: string
+          ifsc_code: string | null
+          incentives: number | null
+          kyc_status: string | null
+          marital_status: string | null
+          middle_name: string | null
           name: string
+          nda_acknowledged: boolean | null
+          nda_acknowledged_at: string | null
+          offer_letter_url: string | null
           onboarding_completed: boolean | null
+          other_certificates_urls: string[] | null
+          pan_card_url: string | null
+          pan_number: string | null
+          permanent_address: string | null
           phone: string | null
+          photo_url: string | null
           position_id: string | null
+          probation_duration_months: number | null
+          probation_period: boolean | null
+          rejection_reason: string | null
+          reporting_manager_id: string | null
           reports_to: string | null
+          resume_url: string | null
           salary: number
           shift: string | null
           status: string
           updated_at: string
+          upi_id: string | null
           user_id: string
+          work_location: string | null
         }
         Insert: {
+          aadhaar_card_url?: string | null
+          aadhaar_number?: string | null
+          account_number?: string | null
+          allowances?: number | null
+          alternate_phone?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_account_holder_name?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          blood_group?: string | null
           created_at?: string
+          ctc?: number | null
+          current_address?: string | null
+          date_of_birth?: string | null
           date_of_joining: string
+          deductions?: number | null
           department: string
           department_code?: string | null
           department_id?: string | null
           designation: string
           email: string
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relation?: string | null
           employee_id: string
+          employee_type?: string | null
+          gender?: string | null
+          handbook_acknowledged?: boolean | null
+          handbook_acknowledged_at?: string | null
           has_payment_rights?: boolean | null
           hierarchy_level?: number | null
           id?: string
+          ifsc_code?: string | null
+          incentives?: number | null
+          kyc_status?: string | null
+          marital_status?: string | null
+          middle_name?: string | null
           name: string
+          nda_acknowledged?: boolean | null
+          nda_acknowledged_at?: string | null
+          offer_letter_url?: string | null
           onboarding_completed?: boolean | null
+          other_certificates_urls?: string[] | null
+          pan_card_url?: string | null
+          pan_number?: string | null
+          permanent_address?: string | null
           phone?: string | null
+          photo_url?: string | null
           position_id?: string | null
+          probation_duration_months?: number | null
+          probation_period?: boolean | null
+          rejection_reason?: string | null
+          reporting_manager_id?: string | null
           reports_to?: string | null
+          resume_url?: string | null
           salary: number
           shift?: string | null
           status?: string
           updated_at?: string
+          upi_id?: string | null
           user_id: string
+          work_location?: string | null
         }
         Update: {
+          aadhaar_card_url?: string | null
+          aadhaar_number?: string | null
+          account_number?: string | null
+          allowances?: number | null
+          alternate_phone?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          bank_account_holder_name?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          blood_group?: string | null
           created_at?: string
+          ctc?: number | null
+          current_address?: string | null
+          date_of_birth?: string | null
           date_of_joining?: string
+          deductions?: number | null
           department?: string
           department_code?: string | null
           department_id?: string | null
           designation?: string
           email?: string
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relation?: string | null
           employee_id?: string
+          employee_type?: string | null
+          gender?: string | null
+          handbook_acknowledged?: boolean | null
+          handbook_acknowledged_at?: string | null
           has_payment_rights?: boolean | null
           hierarchy_level?: number | null
           id?: string
+          ifsc_code?: string | null
+          incentives?: number | null
+          kyc_status?: string | null
+          marital_status?: string | null
+          middle_name?: string | null
           name?: string
+          nda_acknowledged?: boolean | null
+          nda_acknowledged_at?: string | null
+          offer_letter_url?: string | null
           onboarding_completed?: boolean | null
+          other_certificates_urls?: string[] | null
+          pan_card_url?: string | null
+          pan_number?: string | null
+          permanent_address?: string | null
           phone?: string | null
+          photo_url?: string | null
           position_id?: string | null
+          probation_duration_months?: number | null
+          probation_period?: boolean | null
+          rejection_reason?: string | null
+          reporting_manager_id?: string | null
           reports_to?: string | null
+          resume_url?: string | null
           salary?: number
           shift?: string | null
           status?: string
           updated_at?: string
+          upi_id?: string | null
           user_id?: string
+          work_location?: string | null
         }
         Relationships: [
           {
@@ -965,6 +1094,13 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
           {
@@ -3898,10 +4034,6 @@ export type Database = {
           _phone?: string
           _username: string
         }
-        Returns: string
-      }
-      generate_employee_id: {
-        Args: { dept: string; designation: string }
         Returns: string
       }
       get_active_users: {

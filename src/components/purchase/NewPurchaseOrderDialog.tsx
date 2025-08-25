@@ -221,10 +221,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       resetForm();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error('Purchase order creation error:', error);
       toast({
         title: "Error",
-        description: `Failed to create purchase order: ${error.message}`,
+        description: `Failed to create purchase order: ${error.message || 'Unknown error'}`,
         variant: "destructive",
       });
     },

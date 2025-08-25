@@ -335,27 +335,29 @@ export function CareersApplyPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="resumeFile">Upload Resume</Label>
-                    <Input
-                      id="resumeFile"
-                      type="file"
-                      accept="application/pdf,.doc,.docx,image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] || null;
-                        setResumeFile(file);
-                        if (file) {
-                          toast({
-                            title: "File Selected",
-                            description: `Selected: ${file.name}`,
-                            variant: "default",
-                            duration: 2000,
-                          });
-                        }
-                      }}
-                      required
-                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                    />
+                    <div className="relative">
+                      <Input
+                        id="resumeFile"
+                        type="file"
+                        accept="application/pdf,.doc,.docx,image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setResumeFile(file);
+                          if (file) {
+                            toast({
+                              title: "File Selected",
+                              description: `Selected: ${file.name}`,
+                              variant: "default",
+                              duration: 2000,
+                            });
+                          }
+                        }}
+                        required
+                        className="h-10 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                      />
+                    </div>
                     {resumeFile && (
-                      <p className="text-xs text-muted-foreground">Selected: {resumeFile.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Selected: {resumeFile.name}</p>
                     )}
                   </div>
                 </div>

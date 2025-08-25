@@ -33,7 +33,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AddEmployeeDialog } from "@/components/ems/AddEmployeeDialog";
+import { ComprehensiveAddEmployeeDialog } from "@/components/ems/ComprehensiveAddEmployeeDialog";
 
 export default function EMS() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -519,7 +519,7 @@ export default function EMS() {
       </section>
 
       {/* Add Employee Dialog */}
-      <AddEmployeeDialog 
+      <ComprehensiveAddEmployeeDialog 
         open={addEmployeeOpen} 
         onOpenChange={setAddEmployeeOpen} 
       />

@@ -24,9 +24,9 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     client_phone: order.contact_number,
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
     try {
-      const pdf = await generateInvoicePDF({ order: orderForPdf });
+      const pdf = generateInvoicePDF({ order: orderForPdf });
       pdf.save(`Purchase_${order.order_number}.pdf`);
       toast({ title: "Success", description: "Receipt PDF downloaded" });
     } catch (error) {
@@ -34,9 +34,9 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     }
   };
 
-  const handlePrintPDF = async () => {
+  const handlePrintPDF = () => {
     try {
-      const pdf = await generateInvoicePDF({ order: orderForPdf });
+      const pdf = generateInvoicePDF({ order: orderForPdf });
       pdf.autoPrint();
       window.open(pdf.output('bloburl'), '_blank');
       toast({ title: "Success", description: "Receipt sent to printer" });

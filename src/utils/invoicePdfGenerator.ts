@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { supabase } from '@/integrations/supabase/client';
 
 interface InvoiceData {
   order: any;
@@ -15,95 +14,16 @@ interface InvoiceData {
   };
 }
 
-interface FIFOCalculation {
-  totalCost: number;
-  serviceCharges: number;
-  taxableValue: number;
-  igstAmount: number;
-  totalAmount: number;
-}
-
-// FIFO calculation function
-async function calculateFIFOProfit(order: any): Promise<FIFOCalculation> {
-  try {
-    // Get all purchase order items for USDT to calculate FIFO cost  
-    const { data: purchaseItems } = await supabase
-      .from('purchase_order_items')
-      .select(`
-        quantity,
-        unit_price,
-        purchase_orders!inner(
-          order_date,
-          status
-        )
-      `)
-      .eq('purchase_orders.status', 'COMPLETED')
-      .order('purchase_orders.order_date', { ascending: true });
-
-    let totalCost = 0;
-    let remainingQuantity = order.quantity || 1;
-    
-    // Apply FIFO logic to calculate buy price
-    for (const item of purchaseItems || []) {
-      if (remainingQuantity <= 0) break;
-      
-      const purchaseQuantity = item.quantity || 0;
-      const purchasePrice = item.unit_price || 0;
-      
-      if (purchaseQuantity >= remainingQuantity) {
-        totalCost += remainingQuantity * purchasePrice;
-        remainingQuantity = 0;
-      } else {
-        totalCost += purchaseQuantity * purchasePrice;
-        remainingQuantity -= purchaseQuantity;
-      }
-    }
-    
-    // If no purchase data available, use a default cost
-    if (totalCost === 0) {
-      totalCost = (order.total_amount || 0) * 0.95; // Assume 5% margin as fallback
-    }
-    
-    const serviceCharges = (order.total_amount || 0) - totalCost;
-    const igstAmount = serviceCharges * 0.18; // 18% IGST on service charges only
-    const taxableValue = serviceCharges; // Service charges are taxable
-    const totalAmount = totalCost + serviceCharges + igstAmount;
-    
-    return {
-      totalCost,
-      serviceCharges,
-      taxableValue,
-      igstAmount,
-      totalAmount
-    };
-  } catch (error) {
-    console.error('FIFO calculation error:', error);
-    // Fallback calculation
-    const serviceCharges = (order.total_amount || 0) * 0.05; // 5% service charge
-    const igstAmount = serviceCharges * 0.18;
-    return {
-      totalCost: (order.total_amount || 0) - serviceCharges,
-      serviceCharges,
-      taxableValue: serviceCharges,
-      igstAmount,
-      totalAmount: order.total_amount || 0
-    };
-  }
-}
-
-export const generateInvoicePDF = async ({ order, bankAccountData, companyDetails }: InvoiceData) => {
+export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: InvoiceData) => {
   console.log('Starting PDF generation for order:', order.order_number);
   const doc = new jsPDF();
   
-  // Calculate FIFO-based buy price and service charges
-  const fifoCalculation = await calculateFIFOProfit(order);
-  
   // Company details (default if not provided)
   const company = companyDetails || {
-    name: "BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED", 
+    name: "BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED",
     address: "Plot No.15 First Floor Balwant Arcade",
     city: "Maharana Pratap Nagar Zone 2",
-    state: "Bhopal, Madhya Pradesh, Code : 23",
+    state: "Bhopal, Madhya Pradesh",
     email: "blynkvirtualtechnologiespvtltd@gmail.com",
     gstin: "23AANCB2572J1ZK"
   };
@@ -111,269 +31,172 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   // Set font
   doc.setFont('helvetica');
   
-  // Header - Tax Invoice
-  doc.setFontSize(16);
+  // Header
+  doc.setFontSize(20);
   doc.setTextColor(0, 0, 0);
+  doc.text('INVOICE', 105, 20, { align: 'center' });
+  
+  // Company details box
+  doc.setFontSize(10);
+  doc.rect(15, 30, 180, 45);
+  
+  // Left side - Company details (adjust positioning for better alignment)
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('Tax Invoice', 105, 20, { align: 'center' });
+  // Split company name if too long
+  const companyNameLines = doc.splitTextToSize(company.name, 90);
+  let yPos = 40;
+  companyNameLines.forEach((line: string) => {
+    doc.text(line, 20, yPos);
+    yPos += 5;
+  });
   
-  // Main container rectangle
-  doc.rect(15, 25, 180, 60);
-  
-  // Company details section (left side)
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text(company.name, 18, 33);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.text(company.address, 18, 38);
-  doc.text(company.city, 18, 42);
-  doc.text(`GSTIN/UIN: ${company.gstin}`, 18, 46);
-  doc.text(`State Name: ${company.state}`, 18, 50);
-  doc.text(`E-Mail: ${company.email}`, 18, 54);
-  
-  // Vertical divider
-  doc.line(105, 25, 105, 85);
-  
-  // Invoice details table (right side)
-  const invoiceNo = order.order_number || '352';
-  const invoiceDate = new Date(order.order_date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: '2-digit'
-  });
-  
-  // Create invoice details as table
-  autoTable(doc, {
-    body: [
-      ['Invoice No.', invoiceNo, 'Dated', invoiceDate],
-      ['Delivery Note', '', 'Mode/Terms of Payment', order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending'],
-      ['Reference No. & Date.', '', 'Other References', ''],
-      ['Buyer\'s Order No.', '', 'Dated', ''],
-      ['Dispatch Doc No.', '', 'Delivery Note Date', ''],
-      ['Dispatched through', '', 'Destination', ''],
-      ['Terms of Delivery', '', '', '']
-    ],
-    startY: 28,
-    margin: { left: 107, right: 17 },
-    tableWidth: 86,
-    styles: {
-      fontSize: 7,
-      cellPadding: 1,
-    },
-    columnStyles: {
-      0: { cellWidth: 28, fontStyle: 'bold' },
-      1: { cellWidth: 16 },
-      2: { cellWidth: 26, fontStyle: 'bold' },
-      3: { cellWidth: 16 }
-    },
-    theme: 'grid'
-  });
-
-  // Buyer section only (removed Consignee section)
-  doc.rect(15, 90, 180, 25);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Buyer (Bill to)', 18, 98);
-  doc.setFont('helvetica', 'normal');
-  doc.text(order.client_name || 'Customer Name', 18, 103);
-  doc.text(`C 74 Patel Nagar Bhopal`, 18, 107);
-  if (order.client_phone) {
-    doc.text(`Contact: ${order.client_phone}`, 18, 111);
+  doc.text(company.address, 20, yPos + 2);
+  doc.text(company.city, 20, yPos + 7);
+  doc.text(company.state, 20, yPos + 12);
+  doc.text(`E-Mail: ${company.email}`, 20, yPos + 17);
+  if (company.gstin) {
+    doc.text(`GSTIN/UIN: ${company.gstin}`, 20, yPos + 22);
   }
   
-  // Items table
-  const tableStartY = 125;
+  // Vertical divider line
+  doc.line(115, 30, 115, 75);
   
-  // Calculate values based on FIFO logic
-  const totalSalesValue = order.total_amount || 0;
-  const serviceCharges = fifoCalculation.serviceCharges;
-  const usdtValue = totalSalesValue - serviceCharges; // USDT value = Total Sales - Service Charges (FIFO)
-  const quantity = order.quantity || 22;
-  const usdtRate = usdtValue / quantity;
+  // Right side - Invoice details (better spacing)
+  const invoiceNo = order.order_number || '47';
+  const invoiceDate = new Date(order.order_date).toLocaleDateString('en-GB');
   
-  // Service charges calculations
-  const serviceChargesTaxableValue = serviceCharges / 1.18; // Remove tax to get taxable value
-  const igstAmount = serviceChargesTaxableValue * 0.18; // 18% IGST on service charges
-  const finalTotalAmount = usdtValue + serviceChargesTaxableValue + igstAmount;
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Invoice No.', 120, 40);
+  doc.text('Dated', 160, 40);
+  doc.setFont('helvetica', 'normal');
+  doc.text(invoiceNo, 120, 45);
+  doc.text(invoiceDate, 160, 45);
   
-  // USDT row data (first row - non-taxable)
-  const usdtRowData = [
-    '1',
-    'USDT',
-    '960899', // HSN for USDT
-    `${quantity} NOS`,
-    Number(usdtRate).toFixed(2),
-    'NOS',
-    Number(usdtValue).toFixed(2),
-    '0.00', // Taxable Value = 0
-    '', // Merged IGST Rate cell
-    '0.00', // IGST = 0
-    Number(usdtValue).toFixed(2)
+  doc.setFont('helvetica', 'bold');
+  doc.text('Delivery Note', 120, 52);
+  doc.text('Mode/Terms of Payment', 120, 59);
+  doc.setFont('helvetica', 'normal');
+  doc.text('', 120, 57);
+  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 120, 64);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Reference No. & Date', 150, 52);
+  doc.setFont('helvetica', 'normal');
+  doc.text('', 150, 57);
+  
+  // Customer details box (adjust position to account for larger company box)
+  doc.rect(15, 80, 180, 25);
+  
+  // Customer details
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Buyer (Bill to)', 20, 90);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text(order.client_name || 'Customer Name', 20, 97);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  if (order.client_phone) {
+    doc.text(`Phone: ${order.client_phone}`, 20, 102);
+  }
+  
+  // Items table (adjust start position)
+  const tableStartY = 115;
+  
+  // Table headers
+  const headers = [['Sl No.', 'Description of Goods and Services', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount']];
+  
+  // Table data
+  const productName = order.description || 'USDT';
+  const quantity = order.quantity || 1;
+  const rate = order.price_per_unit || order.total_amount;
+  const amount = order.total_amount;
+  
+  const tableData = [
+    ['1', productName, '', quantity.toString(), Number(rate).toFixed(2), 'NOS', Number(amount).toFixed(2)]
   ];
   
-  // Service Charges row data (second row - taxable)
-  const serviceChargesRowData = [
-    '2',
-    'Service Charges',
-    '997152', // HSN for Service Charges
-    '1 Per Service',
-    Number(serviceChargesTaxableValue).toFixed(2),
-    'Per',
-    Number(serviceChargesTaxableValue).toFixed(2),
-    Number(serviceChargesTaxableValue).toFixed(2), // Taxable Value = Entire value
-    '18%',
-    Number(igstAmount).toFixed(2),
-    Number(serviceChargesTaxableValue + igstAmount).toFixed(2)
-  ];
-  
-  // IGST summary row
-  const igstRow = [
-    '', 'IGST', '', '', '', '', '', '', '18 %', Number(igstAmount).toFixed(2), ''
-  ];
+  // Add round off row if needed
+  const roundOff = Math.round(amount) - amount;
+  if (Math.abs(roundOff) > 0.01) {
+    tableData.push(['', 'Round Off', '', '', '', '', roundOff.toFixed(2)]);
+  }
   
   // Total row
-  const totalRow = [
-    '', 'Total', '', `${quantity + 1} NOS`, '', '', '', 
-    Number(serviceChargesTaxableValue).toFixed(2), '', Number(igstAmount).toFixed(2), Number(finalTotalAmount).toFixed(2)
-  ];
+  const totalAmount = Math.round(amount);
+  tableData.push(['', '', '', '', '', 'Total', totalAmount.toFixed(2)]);
   
-  // Create table with proper structure matching reference exactly
   autoTable(doc, {
-    head: [
-      ['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'IGST', '', 'Total\nAmount'],
-      ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']
-    ],
-    body: [
-      usdtRowData,
-      serviceChargesRowData,
-      igstRow,
-      totalRow
-    ],
+    head: headers,
+    body: tableData,
     startY: tableStartY,
     theme: 'grid',
     styles: {
-      fontSize: 7,
-      cellPadding: 1.5,
-      valign: 'middle',
-      halign: 'center'
+      fontSize: 9,
+      cellPadding: 3,
     },
     headStyles: {
-      fillColor: [255, 255, 255],
+      fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
-      lineWidth: 0.1,
-      lineColor: [0, 0, 0]
-    },
-    bodyStyles: {
-      lineWidth: 0.1,
-      lineColor: [0, 0, 0]
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' },
-      1: { cellWidth: 40, halign: 'left' },
-      2: { cellWidth: 15, halign: 'center' },
-      3: { cellWidth: 15, halign: 'center' },
-      4: { cellWidth: 15, halign: 'right' },
-      5: { cellWidth: 8, halign: 'center' },
-      6: { cellWidth: 18, halign: 'right' },
-      7: { cellWidth: 15, halign: 'right' },
-      8: { cellWidth: 12, halign: 'center' },
-      9: { cellWidth: 20, halign: 'right' },
-      10: { cellWidth: 22, halign: 'right' }
+      0: { cellWidth: 15 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 20 },
+      4: { cellWidth: 25 },
+      5: { cellWidth: 15 },
+      6: { cellWidth: 25 },
     },
-    didParseCell: function (data: any) {
-      // Merge IGST cells for USDT row (first data row)
-      if (data.row.index === 2 && data.column.index === 8) { // USDT row, IGST Rate column
-        data.cell.colSpan = 2; // Merge Rate and Amount columns
-        data.cell.text = ['0.00']; // Show 0.00 in merged cell
-      }
-      if (data.row.index === 2 && data.column.index === 9) { // USDT row, IGST Amount column
-        data.cell.text = []; // Hide this cell content since it's merged
-      }
-    }
   });
-  
-  // Get table end position
-  const tableEndY = (doc as any).lastAutoTable?.finalY || 190;
   
   // Amount in words
-  doc.setFontSize(8);
+  // Get the final Y position from the table
+  const tableEndY = (doc as any).lastAutoTable?.finalY || tableStartY + 50;
+  const finalY = tableEndY + 10;
+  doc.setFontSize(10);
+  doc.text('Amount Chargeable (in words)', 20, finalY);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Amount Chargeable (in words) INR ${numberToWords(Math.round(finalTotalAmount))} Only`, 20, tableEndY + 8);
-  
-  // Tax summary table on right side - matching reference exactly
-  const taxSummaryY = tableEndY + 15;
-  autoTable(doc, {
-    body: [
-      ['', '', '', '', '', '', '', 'Taxable\nValue', 'IGST', '', 'E. & O.E\nTotal\nTax Amount'],
-      ['', '', '', '', '', '', '', 'Rate', 'Amount', '', ''],
-      ['', '', '', '', '', '', 'Total:', Number(serviceChargesTaxableValue).toFixed(2), '18%', Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)]
-    ],
-    startY: taxSummaryY,
-    margin: { left: 90 },
-    tableWidth: 105,
-    theme: 'grid',
-    styles: {
-      fontSize: 7,
-      cellPadding: 1,
-      halign: 'center'
-    },
-    columnStyles: {
-      6: { fontStyle: 'bold' },
-      7: { fontStyle: 'bold', halign: 'right' },
-      8: { fontStyle: 'bold' },
-      9: { fontStyle: 'bold', halign: 'right' },
-      10: { fontStyle: 'bold', halign: 'right' }
-    }
-  });
-  
-  // Tax amount in words
-  const taxAmountY = (doc as any).lastAutoTable?.finalY + 5;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Tax Amount (in words) : INR ${numberToWords(Math.round(igstAmount))} Only`, 20, taxAmountY);
-  
-  // Left section - Company's Bank Details
-  const bankDetailsY = taxAmountY + 8;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text("Company's Bank Details", 20, bankDetailsY);
+  doc.text(numberToWords(totalAmount) + ' Only', 20, finalY + 7);
   doc.setFont('helvetica', 'normal');
   
-  if (bankAccountData) {
-    doc.text(`A/C Holder's Name    : ${bankAccountData.account_name || company.name}`, 20, bankDetailsY + 6);
-    doc.text(`Bank Name           : ${bankAccountData.bank_name || 'AXIS BANK'}`, 20, bankDetailsY + 11);
-    doc.text(`A/C No.             : ${bankAccountData.account_number || '918020115301918'}`, 20, bankDetailsY + 16);
-    doc.text(`Branch & IFS Code   : ${bankAccountData.ifsc_code || 'BAIRAGARH & UTIB0002979'}`, 20, bankDetailsY + 21);
-    doc.text(`SWIFT Code          :`, 20, bankDetailsY + 26);
-  } else {
-    doc.text(`A/C Holder's Name    : ${company.name}`, 20, bankDetailsY + 6);
-    doc.text(`Bank Name           : AXIS BANK`, 20, bankDetailsY + 11);
-    doc.text(`A/C No.             : 918020115301918`, 20, bankDetailsY + 16);
-    doc.text(`Branch & IFS Code   : BAIRAGARH & UTIB0002979`, 20, bankDetailsY + 21);
-    doc.text(`SWIFT Code          :`, 20, bankDetailsY + 26);
+  // Payment received section (if payment is completed)
+  if (order.payment_status === 'COMPLETED' && bankAccountData) {
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payment Received In:', 20, finalY + 20);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Bank: ${bankAccountData.bank_name}`, 20, finalY + 27);
+    doc.text(`Account: ${bankAccountData.account_name}`, 20, finalY + 34);
+    doc.text(`A/C No: ****${bankAccountData.account_number?.slice(-4) || 'N/A'}`, 20, finalY + 41);
   }
   
-  // Declaration section (left bottom)
-  const declarationY = bankDetailsY + 35;
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
+  // Declaration
+  const declarationY = finalY + (order.payment_status === 'COMPLETED' && bankAccountData ? 55 : 25);
+  doc.setFontSize(9);
   doc.text('Declaration', 20, declarationY);
-  doc.setFont('helvetica', 'normal');
-  doc.text('We declare that this invoice shows the actual price of the goods', 20, declarationY + 5);
-  doc.text('described and that all particulars are true and correct.', 20, declarationY + 10);
+  doc.text('We declare that this invoice shows the actual price of the', 20, declarationY + 7);
+  doc.text('goods described and that all particulars are true and correct.', 20, declarationY + 14);
   
-  // Company signature (right side)
-  doc.setFont('helvetica', 'bold');
-  doc.text(`for ${company.name}`, 130, declarationY);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Authorised Signatory', 150, declarationY + 20);
+  // Signature
+  doc.setFontSize(8);
+  const signatureLines = doc.splitTextToSize(`for ${company.name}`, 80);
+  let signatureY = declarationY + 7;
+  signatureLines.forEach((line: string) => {
+    doc.text(line, 130, signatureY);
+    signatureY += 4;
+  });
+  doc.setFontSize(9);
+  doc.text('Authorised Signatory', 150, declarationY + 25);
   
   // Footer
   doc.setFontSize(8);
-  doc.text('This is a Computer Generated Invoice', 105, 285, { align: 'center' });
+  doc.text('This is a Computer Generated Invoice', 105, 280, { align: 'center' });
   
   return doc;
 };

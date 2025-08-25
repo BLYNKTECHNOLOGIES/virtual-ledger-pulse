@@ -88,6 +88,21 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               <p className="text-sm font-medium">₹{Number(order.total_amount).toLocaleString()}</p>
             </div>
             <div>
+              <label className="text-sm font-medium text-gray-600">Quantity</label>
+              <p className="text-sm">{order.quantity || 1}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Price per Unit</label>
+              <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Product</label>
+              <p className="text-sm">{order.product_name || 'N/A'}</p>
+              {order.product_category && (
+                <p className="text-xs text-gray-500">{order.product_category}</p>
+              )}
+            </div>
+            <div>
               <label className="text-sm font-medium text-gray-600">Status</label>
               <div className="mt-1">{getStatusBadge(order.status)}</div>
             </div>

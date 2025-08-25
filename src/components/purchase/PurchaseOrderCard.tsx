@@ -14,6 +14,10 @@ interface PurchaseOrder {
   net_payable_amount?: number;
   tds_applied?: boolean;
   tds_amount?: number;
+  quantity?: number;
+  price_per_unit?: number;
+  product_name?: string;
+  product_category?: string;
   status: string;
   order_date: string;
   assigned_to?: string;
@@ -89,7 +93,25 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
             <span className="text-gray-500">Assigned To:</span>
             <p className="font-medium">{order.assigned_to || 'Unassigned'}</p>
           </div>
+          <div>
+            <span className="text-gray-500">Quantity:</span>
+            <p className="font-medium">{order.quantity || 1}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Price per Unit:</span>
+            <p className="font-medium">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
+          </div>
         </div>
+
+        {order.product_name && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">Product:</span>
+            <span className="font-medium">{order.product_name}</span>
+            {order.product_category && (
+              <Badge variant="outline" className="text-xs">{order.product_category}</Badge>
+            )}
+          </div>
+        )}
 
         {order.bank_account_name && (
           <div className="flex items-center gap-2 text-sm">

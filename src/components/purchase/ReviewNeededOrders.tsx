@@ -153,6 +153,9 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                   <TableHead>Order #</TableHead>
                   <TableHead>Supplier</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Failed Payment Method</TableHead>
                   <TableHead>Failure Reason</TableHead>
                   <TableHead>Date</TableHead>
@@ -165,6 +168,14 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                     <TableCell>{order.supplier_name}</TableCell>
                     <TableCell>₹{order.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell>{order.quantity || 1}</TableCell>
+                    <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">{order.product_name || 'N/A'}</div>
+                      {order.product_category && (
+                        <div className="text-xs text-gray-500">{order.product_category}</div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="destructive">
                         {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id || '-'}` : 

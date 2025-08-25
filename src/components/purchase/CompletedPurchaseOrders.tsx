@@ -122,6 +122,9 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                   <TableHead>Supplier</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Payment Method Used</TableHead>
                   <TableHead>Assigned To</TableHead>
                   <TableHead>Order Date</TableHead>
@@ -144,6 +147,14 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                     </TableCell>
                     <TableCell>{order.contact_number || '-'}</TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell>{order.quantity || 1}</TableCell>
+                    <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="text-sm">{order.product_name || 'N/A'}</div>
+                      {order.product_category && (
+                        <div className="text-xs text-gray-500">{order.product_category}</div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="default">
                         {(() => {

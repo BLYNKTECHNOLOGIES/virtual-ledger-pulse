@@ -2673,7 +2673,11 @@ export type Database = {
           payment_method_type: string | null
           payment_method_used: string | null
           payment_proof_url: string | null
+          price_per_unit: number | null
+          product_category: string | null
+          product_name: string | null
           purchase_payment_method_id: string | null
+          quantity: number | null
           status: string
           supplier_name: string
           tax_amount: number | null
@@ -2704,7 +2708,11 @@ export type Database = {
           payment_method_type?: string | null
           payment_method_used?: string | null
           payment_proof_url?: string | null
+          price_per_unit?: number | null
+          product_category?: string | null
+          product_name?: string | null
           purchase_payment_method_id?: string | null
+          quantity?: number | null
           status?: string
           supplier_name: string
           tax_amount?: number | null
@@ -2735,7 +2743,11 @@ export type Database = {
           payment_method_type?: string | null
           payment_method_used?: string | null
           payment_proof_url?: string | null
+          price_per_unit?: number | null
+          product_category?: string | null
+          product_name?: string | null
           purchase_payment_method_id?: string | null
+          quantity?: number | null
           status?: string
           supplier_name?: string
           tax_amount?: number | null

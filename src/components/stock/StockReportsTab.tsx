@@ -168,16 +168,17 @@ export function StockReportsTab() {
     }, 0) || 0;
   };
 
-  // Normalize movements across different sources to IN/OUT
+  // Normalize movements across different sources to Credit/Debit with wallet info
   const normalizedMovements = [
     ...(stockTransactions || []).map((t: any) => {
       const originalRaw = t.transaction_type;
       const original = String(originalRaw || '').toUpperCase();
-      const isOut = ['OUT', 'SALE', 'SALES', 'SALES_ORDER', 'TRANSFER_OUT', 'DEBIT', 'ADJUSTMENT_DEBIT'].includes(original);
-      const normalized = isOut ? 'OUT' : 'IN';
+      const isDebit = ['OUT', 'SALE', 'SALES', 'SALES_ORDER', 'TRANSFER_OUT', 'DEBIT', 'ADJUSTMENT_DEBIT'].includes(original);
+      const normalized = isDebit ? 'DEBIT' : 'CREDIT';
       return {
         ...t,
         transaction_type: normalized,
+        wallet_name: t.reference_number || '-', // Use reference as wallet info
       };
     }),
     ...(purchaseReport || []).map((p: any) => ({
@@ -188,16 +189,17 @@ export function StockReportsTab() {
         code: p.products?.code,
         unit_of_measurement: p.products?.unit_of_measurement,
       },
-      transaction_type: 'IN',
+      transaction_type: 'CREDIT',
       quantity: p.quantity,
       unit_price: p.unit_price,
       total_amount: p.total_price,
       reference_number: p.purchase_orders?.supplier_name,
+      wallet_name: '-', // No wallet for purchase orders
     })),
     ...(walletTransactions || []).map((w: any) => {
       const type = String(w.transaction_type || '').toUpperCase();
-      const isOut = ['TRANSFER_OUT', 'DEBIT'].includes(type);
-      const isIn = ['TRANSFER_IN', 'CREDIT'].includes(type);
+      const isDebit = ['TRANSFER_OUT', 'DEBIT'].includes(type);
+      const isCredit = ['TRANSFER_IN', 'CREDIT'].includes(type);
       return {
         id: `WT-${w.id}`,
         transaction_date: w.created_at,
@@ -206,18 +208,32 @@ export function StockReportsTab() {
           code: usdtProduct?.code || 'USDT',
           unit_of_measurement: usdtProduct?.unit_of_measurement || 'Pieces',
         },
-        transaction_type: isOut ? 'OUT' : 'IN',
+        transaction_type: isDebit ? 'DEBIT' : 'CREDIT',
         quantity: w.amount,
         unit_price: w.transaction_type?.includes('TRANSFER') ? null : 1,
         total_amount: w.amount,
         reference_number: w.wallets?.wallet_name || 'Wallet',
+        wallet_name: w.wallets?.wallet_name || 'Unknown Wallet',
+        wallet_id: w.wallet_id,
       };
     }),
   ].sort((a: any, b: any) => new Date(b.transaction_date).getTime() - new Date(a.transaction_date).getTime());
 
-  const filteredMovements = reportType === 'all'
-    ? normalizedMovements
-    : normalizedMovements.filter((m: any) => m.transaction_type === reportType);
+  // Apply filters
+  let filteredMovements = normalizedMovements;
+
+  // Filter by transaction type
+  if (reportType !== 'all') {
+    filteredMovements = filteredMovements.filter((m: any) => m.transaction_type === reportType);
+  }
+
+  // Filter by wallet
+  if (walletFilter !== 'all') {
+    filteredMovements = filteredMovements.filter((m: any) => 
+      m.wallet_id === walletFilter || 
+      m.wallet_name?.toLowerCase().includes(wallets?.find(w => w.id === walletFilter)?.wallet_name?.toLowerCase() || '')
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -335,8 +351,8 @@ export function StockReportsTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="IN">Stock In</SelectItem>
-                  <SelectItem value="OUT">Stock Out</SelectItem>
+                  <SelectItem value="CREDIT">Credit</SelectItem>
+                  <SelectItem value="DEBIT">Debit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -390,6 +406,7 @@ export function StockReportsTab() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Total Value</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Wallet</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
                   </tr>
                 </thead>
@@ -404,13 +421,14 @@ export function StockReportsTab() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant={row.transaction_type === 'IN' ? 'default' : 'destructive'}>
+                        <Badge variant={row.transaction_type === 'CREDIT' ? 'default' : 'destructive'}>
                           {row.transaction_type}
                         </Badge>
                       </td>
                       <td className="py-3 px-4">{row.quantity} {row.products?.unit_of_measurement}</td>
                       <td className="py-3 px-4">₹{row.unit_price || 0}</td>
                       <td className="py-3 px-4">₹{row.total_amount || 0}</td>
+                      <td className="py-3 px-4">{row.wallet_name || '-'}</td>
                       <td className="py-3 px-4">{row.reference_number || '-'}</td>
                     </tr>
                   ))}

@@ -490,10 +490,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
                             PURCHASE
                           </span>
-                          {method.type === 'UPI' && method.upi_id 
-                            ? `${method.upi_id} (${method.type})` 
-                            : `${method.type} - ${method.bank_account_name}`
-                          }
+                          {method.bank_account_name || `${method.type} Payment Method`}
                         </div>
                       </SelectItem>
                     ))

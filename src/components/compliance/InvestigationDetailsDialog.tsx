@@ -46,10 +46,45 @@ export function InvestigationDetailsDialog({
     queryFn: async () => {
       if (!investigation?.id) return [];
       
+      // First, check if this is a bank_case that needs to be converted to an account_investigation
+      const { data: existingInvestigation, error: checkError } = await supabase
+        .from('account_investigations')
+        .select('id')
+        .eq('bank_account_id', investigation.bank_account_id)
+        .eq('reason', investigation.reason || investigation.description || investigation.error_message || 'Investigation')
+        .single();
+      
+      let investigationId = investigation.id;
+      
+      // If no account_investigation exists, create one
+      if (!existingInvestigation) {
+        const { data: newInvestigation, error: createError } = await supabase
+          .from('account_investigations')
+          .insert({
+            bank_account_id: investigation.bank_account_id,
+            investigation_type: investigation.case_type?.toLowerCase().replace('_', '_') || 'general',
+            reason: investigation.reason || investigation.description || investigation.error_message || 'Investigation',
+            priority: investigation.priority || 'MEDIUM',
+            status: 'ACTIVE'
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Failed to create account investigation:', createError);
+          return [];
+        }
+        
+        investigationId = newInvestigation.id;
+      } else {
+        investigationId = existingInvestigation.id;
+      }
+      
+      // Now fetch the steps for the account_investigation
       const { data, error } = await supabase
         .from('investigation_steps')
         .select('*')
-        .eq('investigation_id', investigation.id)
+        .eq('investigation_id', investigationId)
         .order('step_number');
       
       if (error) throw error;
@@ -58,7 +93,7 @@ export function InvestigationDetailsDialog({
       if (data.length === 0) {
         const stepsToInsert = defaultSteps.map(step => ({
           ...step,
-          investigation_id: investigation.id
+          investigation_id: investigationId
         }));
         
         const { data: newSteps, error: insertError } = await supabase

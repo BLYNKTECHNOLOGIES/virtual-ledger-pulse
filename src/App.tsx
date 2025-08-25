@@ -32,6 +32,7 @@ import { CareersPage } from './components/website/pages/CareersPage';
 import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
 import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { SellCryptoPage } from './components/website/pages/SellCryptoPage';
+import { SafetyTipsPage } from './components/website/pages/SafetyTipsPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -206,6 +207,10 @@ const router = createBrowserRouter([
   {
     path: "/website/careers",
     element: <WebsiteLayout><CareersPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/safety-tips",
+    element: <WebsiteLayout><SafetyTipsPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

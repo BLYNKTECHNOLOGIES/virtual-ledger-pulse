@@ -103,16 +103,16 @@ export function ModernNavbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/95 dark:bg-background/95">
         {/* Security Banner */}
-        <div className="bg-warning/10 border-b border-warning/20 px-4 py-2">
+        <div className="bg-orange-50 border-b border-orange-200 px-4 py-2.5 dark:bg-orange-950/20 dark:border-orange-800">
           <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm">
-            <Lock className="h-4 w-4 text-warning" />
-            <span className="text-warning font-medium">🔒 Security Alert: Always verify official communication channels</span>
+            <Lock className="h-4 w-4 text-orange-600" />
+            <span className="text-orange-700 font-medium">🔒 Security Alert: Always verify official communication channels</span>
             <Button 
               variant="link" 
               size="sm" 
-              className="text-warning underline"
+              className="text-orange-600 underline hover:text-orange-700 p-0 h-auto"
               onClick={() => setShowSecurityAlert(true)}
             >
               Learn More
@@ -123,21 +123,21 @@ export function ModernNavbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo & Tagline */}
-            <Link to="/website" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-              <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center border border-border/20 shadow-sm">
+            <Link to="/website" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
                 <img 
                   src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
                   alt="Blynk"
-                  className="h-10 w-10 object-contain"
+                  className="h-8 w-8 object-contain"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-2xl font-bold text-foreground tracking-tight hover:text-primary transition-colors italic">
+                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight italic">
                   blynk
                 </span>
                 <div className="flex items-center gap-1">
                   <Flag className="h-3 w-3 text-green-600" />
-                  <span className="text-xs text-muted-foreground font-medium">VASP • India</span>
+                  <span className="text-xs text-gray-500 font-medium">VASP • India</span>
                 </div>
               </div>
             </Link>
@@ -147,8 +147,8 @@ export function ModernNavbar() {
               <Link
                 to="/website"
                 className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isActive('/website') && "text-foreground font-medium"
+                  "text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white",
+                  isActive('/website') && "text-gray-900 dark:text-white"
                 )}
               >
                 Home
@@ -157,7 +157,7 @@ export function ModernNavbar() {
               {/* For Traders Dropdown */}
               <div className="relative dropdown-container">
                 <button
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white"
                   onClick={() => toggleDropdown('traders')}
                 >
                   For Traders
@@ -168,12 +168,12 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'traders' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-background dark:bg-background border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
                   >
                     <div className="grid grid-cols-1 gap-8">
                       {tradersDropdown.sections.map((section, index) => (
                         <div key={index}>
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                             {section.title}
                           </h3>
                           <div className="space-y-1">
@@ -181,14 +181,14 @@ export function ModernNavbar() {
                               <Link
                                 key={item.path}
                                 to={item.path}
-                                className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                className="group/item block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                 onClick={() => setActiveDropdown(null)}
                               >
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white group-hover/item:text-blue-600 transition-colors">
                                     {item.name}
                                   </span>
-                                  <span className="text-xs text-muted-foreground mt-1">
+                                  <span className="text-xs text-gray-500 mt-1">
                                     {item.description}
                                   </span>
                                 </div>
@@ -205,7 +205,7 @@ export function ModernNavbar() {
               {/* For Businesses Dropdown */}
               <div className="relative dropdown-container">
                 <button
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white"
                   onClick={() => toggleDropdown('businesses')}
                 >
                   For Businesses
@@ -216,12 +216,12 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'businesses' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-background dark:bg-background border border-border rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
                   >
                     <div className="grid grid-cols-1 gap-8">
                       {businessDropdown.sections.map((section, index) => (
                         <div key={index}>
-                          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
                             {section.title}
                           </h3>
                           <div className="space-y-1">
@@ -229,14 +229,14 @@ export function ModernNavbar() {
                               <Link
                                 key={item.path}
                                 to={item.path}
-                                className="group/item block p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                                className="group/item block p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                                 onClick={() => setActiveDropdown(null)}
                               >
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white group-hover/item:text-blue-600 transition-colors">
                                     {item.name}
                                   </span>
-                                  <span className="text-xs text-muted-foreground mt-1">
+                                  <span className="text-xs text-gray-500 mt-1">
                                     {item.description}
                                   </span>
                                 </div>
@@ -253,8 +253,8 @@ export function ModernNavbar() {
               <Link
                 to="/website/compliance"
                 className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isActive('/website/compliance') && "text-foreground font-medium"
+                  "text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white",
+                  isActive('/website/compliance') && "text-gray-900 dark:text-white"
                 )}
               >
                 Compliance
@@ -263,18 +263,18 @@ export function ModernNavbar() {
               <Link
                 to="/website/relationship-manager"
                 className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isActive('/website/relationship-manager') && "text-foreground font-medium"
+                  "text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white",
+                  isActive('/website/relationship-manager') && "text-gray-900 dark:text-white"
                 )}
               >
-                Dedicated RM
+                Dedicated Account Manager
               </Link>
 
               <Link
                 to="/website/contact"
                 className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isActive('/website/contact') && "text-foreground font-medium"
+                  "text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white",
+                  isActive('/website/contact') && "text-gray-900 dark:text-white"
                 )}
               >
                 Contact
@@ -283,8 +283,8 @@ export function ModernNavbar() {
               <Link
                 to="/website/careers/apply"
                 className={cn(
-                  "text-muted-foreground hover:text-foreground transition-colors",
-                  isActive('/website/careers/apply') && "text-foreground font-medium"
+                  "text-gray-600 hover:text-gray-900 transition-colors font-medium dark:text-gray-300 dark:hover:text-white",
+                  isActive('/website/careers/apply') && "text-gray-900 dark:text-white"
                 )}
               >
                 Apply Now
@@ -292,17 +292,17 @@ export function ModernNavbar() {
             </div>
 
             {/* Auth Buttons */}
-            <div className="hidden lg:flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-3">
               <Button 
                 variant="ghost" 
                 onClick={() => navigate('/dashboard')}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-gray-600 hover:text-gray-900 font-medium dark:text-gray-300 dark:hover:text-white"
               >
                 Log In
               </Button>
               <Button 
                 onClick={() => navigate('/dashboard')}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium px-6"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg"
               >
                 Get Started
               </Button>
@@ -384,7 +384,7 @@ export function ModernNavbar() {
                   className="block text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
-                  Dedicated RM
+                  Dedicated Account Manager
                 </Link>
 
                 <Link

@@ -21,6 +21,14 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
         .from('purchase_orders')
         .select(`
           *,
+          purchase_order_items (
+            id,
+            product_id,
+            quantity,
+            unit_price,
+            total_price,
+            products (name, code)
+          ),
           purchase_payment_method:purchase_payment_method_id(
             id,
             type,
@@ -147,12 +155,18 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                     </TableCell>
                     <TableCell>{order.contact_number || '-'}</TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
-                    <TableCell>{order.quantity || 1}</TableCell>
-                    <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
                     <TableCell>
-                      <div className="text-sm">{order.product_name || 'N/A'}</div>
-                      {order.product_category && (
-                        <div className="text-xs text-gray-500">{order.product_category}</div>
+                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 1}
+                    </TableCell>
+                    <TableCell>
+                      ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.total_amount).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {order.purchase_order_items?.[0]?.products?.name || order.product_name || 'N/A'}
+                      </div>
+                      {order.purchase_order_items?.[0]?.products?.code && (
+                        <div className="text-xs text-gray-500">Code: {order.purchase_order_items[0].products.code}</div>
                       )}
                     </TableCell>
                     <TableCell>

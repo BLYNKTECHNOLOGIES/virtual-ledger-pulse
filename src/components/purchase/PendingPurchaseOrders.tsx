@@ -409,7 +409,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             {/* Payment Details Section */}
             {selectedOrder?.payment_method_type && (
               <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-800">Payment Details - Where to Pay</h4>
+                <h4 className="font-medium text-green-800">Payment Details</h4>
                 <p className="text-sm text-green-600">Required Payment Type: <span className="font-medium">{selectedOrder.payment_method_type}</span></p>
                 {selectedOrder?.upi_id && (
                   <p className="text-sm text-green-600">UPI ID: <span className="font-medium">{selectedOrder.upi_id}</span></p>

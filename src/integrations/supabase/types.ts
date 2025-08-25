@@ -4036,6 +4036,10 @@ export type Database = {
         }
         Returns: string
       }
+      generate_employee_id: {
+        Args: { dept: string; designation: string }
+        Returns: string
+      }
       get_active_users: {
         Args: Record<PropertyKey, never>
         Returns: {

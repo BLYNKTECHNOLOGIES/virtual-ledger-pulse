@@ -52,17 +52,22 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
 
   // Generate employee ID based on department and designation
   const generateEmployeeId = async (department: string, designation: string) => {
-    const { data, error } = await supabase.rpc('generate_employee_id', {
-      dept: department,
-      designation: designation
-    });
+    try {
+      const { data, error } = await supabase.rpc('generate_employee_id', {
+        dept: department,
+        designation: designation
+      });
 
-    if (error) {
-      console.error('Error generating employee ID:', error);
+      if (error) {
+        console.error('Error generating employee ID:', error);
+        return `EMP${Date.now()}`;
+      }
+
+      return data as string;
+    } catch (error) {
+      console.error('Error calling generate_employee_id:', error);
       return `EMP${Date.now()}`;
     }
-
-    return data;
   };
 
   const onboardEmployeeMutation = useMutation({
@@ -70,22 +75,27 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
       // Generate employee ID
       const employeeId = await generateEmployeeId(data.department, data.designation);
       
+      // Generate a UUID for user_id since it's required
+      const tempUserId = crypto.randomUUID();
+      
+      const employeeData = {
+        employee_id: employeeId,
+        name: data.name,
+        email: data.email,
+        phone: data.phone || '',
+        department: data.department,
+        designation: data.designation,
+        salary: data.salary ? parseFloat(data.salary) : 0,
+        shift: data.shift || '',
+        date_of_joining: data.date_of_joining,
+        onboarding_completed: true,
+        status: 'ACTIVE' as const,
+        user_id: tempUserId
+      };
+      
       const { error } = await supabase
         .from('employees')
-         .insert([{
-           employee_id: employeeId,
-           name: data.name,
-           email: data.email,
-           phone: data.phone,
-           department: data.department,
-           designation: data.designation,
-           salary: parseFloat(data.salary),
-           shift: data.shift,
-           date_of_joining: data.date_of_joining,
-           onboarding_completed: true,
-           status: 'ACTIVE',
-           user_id: null
-         }]);
+        .insert([employeeData]);
       
       if (error) throw error;
 

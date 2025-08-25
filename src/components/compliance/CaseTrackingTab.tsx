@@ -264,7 +264,7 @@ export function CaseTrackingTab() {
               
               <div className="mb-3">
                 <h5 className="font-medium text-gray-900">{bankCase.title}</h5>
-                {bankCase.description && (
+                {bankCase.description && bankCase.description.trim() && (
                   <p className="text-sm text-gray-600 mt-1">{bankCase.description}</p>
                 )}
               </div>
@@ -282,7 +282,13 @@ export function CaseTrackingTab() {
                 )}
                 {bankCase.priority && (
                   <div>
-                    <span className="text-gray-600">Priority:</span> {bankCase.priority}
+                    <span className="text-gray-600">Priority:</span> 
+                    <span className={`ml-1 font-medium ${
+                      bankCase.priority === 'HIGH' ? 'text-red-600' : 
+                      bankCase.priority === 'MEDIUM' ? 'text-orange-600' : 'text-green-600'
+                    }`}>
+                      {bankCase.priority}
+                    </span>
                   </div>
                 )}
                 {bankCase.assigned_to && (

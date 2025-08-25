@@ -186,39 +186,57 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   // Items table
   const tableStartY = 125;
   
-  // Calculate values
+  // Calculate values based on FIFO logic
+  const totalSalesValue = order.total_amount || 0;
   const serviceCharges = fifoCalculation.serviceCharges;
-  const igstAmount = fifoCalculation.igstAmount;
-  const totalAmount = fifoCalculation.totalAmount;
-  const productName = order.description || 'G.I. STEEL TUBE 150MM 6MTR (PCS)';
+  const usdtValue = totalSalesValue - serviceCharges; // USDT value = Total Sales - Service Charges (FIFO)
   const quantity = order.quantity || 22;
-  const rate = (order.total_amount || 0) / quantity;
-  const amount = order.total_amount || 0;
+  const usdtRate = usdtValue / quantity;
   
-  // Main product row data with exact formatting
-  const mainProductData = [
+  // Service charges calculations
+  const serviceChargesTaxableValue = serviceCharges / 1.18; // Remove tax to get taxable value
+  const igstAmount = serviceChargesTaxableValue * 0.18; // 18% IGST on service charges
+  const finalTotalAmount = usdtValue + serviceChargesTaxableValue + igstAmount;
+  
+  // USDT row data (first row - non-taxable)
+  const usdtRowData = [
     '1',
-    productName,
-    '997152', // Updated HSN code
+    'USDT',
+    '960899', // HSN for USDT
     `${quantity} NOS`,
-    Number(rate).toFixed(2),
+    Number(usdtRate).toFixed(2),
     'NOS',
-    Number(amount).toFixed(2),
-    Number(serviceCharges).toFixed(2),
-    '18%',
-    Number(igstAmount).toFixed(2),
-    Number(totalAmount).toFixed(2)
+    Number(usdtValue).toFixed(2),
+    '0.00', // Taxable Value = 0
+    '', // Merged IGST Rate cell
+    '0.00', // IGST = 0
+    Number(usdtValue).toFixed(2)
   ];
   
-  // IGST row
+  // Service Charges row data (second row - taxable)
+  const serviceChargesRowData = [
+    '2',
+    'Service Charges',
+    '997152', // HSN for Service Charges
+    '1 Per Service',
+    Number(serviceChargesTaxableValue).toFixed(2),
+    'Per',
+    Number(serviceChargesTaxableValue).toFixed(2),
+    Number(serviceChargesTaxableValue).toFixed(2), // Taxable Value = Entire value
+    '18%',
+    Number(igstAmount).toFixed(2),
+    Number(serviceChargesTaxableValue + igstAmount).toFixed(2)
+  ];
+  
+  // IGST summary row
   const igstRow = [
     '', 'IGST', '', '', '', '', '', '', '18 %', Number(igstAmount).toFixed(2), ''
   ];
   
   // Total row
   const totalRow = [
-    '', 'Total', '', `${quantity} NOS`, '', '', '', 
-    Number(serviceCharges).toFixed(2), '', Number(igstAmount).toFixed(2), Number(totalAmount).toFixed(2)
+    '', 'Total', '', `${quantity + 1} NOS`, '', '', '', 
+    Number(serviceChargesTaxableValue).toFixed(2), '', Number(igstAmount).toFixed(2), Number(finalTotalAmount).toFixed(2)
   ];
   
   // Create table with proper structure matching reference exactly
@@ -228,7 +246,8 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']
     ],
     body: [
-      mainProductData,
+      usdtRowData,
+      serviceChargesRowData,
       igstRow,
       totalRow
     ],
@@ -272,7 +291,7 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   // Amount in words
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Amount Chargeable (in words) INR ${numberToWords(Math.round(totalAmount))} Only`, 20, tableEndY + 8);
+  doc.text(`Amount Chargeable (in words) INR ${numberToWords(Math.round(finalTotalAmount))} Only`, 20, tableEndY + 8);
   
   // Tax summary table on right side - matching reference exactly
   const taxSummaryY = tableEndY + 15;
@@ -280,7 +299,7 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
     body: [
       ['', '', '', '', '', '', '', 'Taxable\nValue', 'IGST', '', 'E. & O.E\nTotal\nTax Amount'],
       ['', '', '', '', '', '', '', 'Rate', 'Amount', '', ''],
-      ['', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '18%', Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)]
+      ['', '', '', '', '', '', 'Total:', Number(serviceChargesTaxableValue).toFixed(2), '18%', Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)]
     ],
     startY: taxSummaryY,
     margin: { left: 90 },

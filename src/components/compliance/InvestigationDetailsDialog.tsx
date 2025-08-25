@@ -29,6 +29,9 @@ export function InvestigationDetailsDialog({
   const [showResolutionForm, setShowResolutionForm] = useState(false);
   const [selectedStep, setSelectedStep] = useState<any>(null);
   const [showStepCompletionDialog, setShowStepCompletionDialog] = useState(false);
+  const [finalResolution, setFinalResolution] = useState("");
+  const [finalResolutionFiles, setFinalResolutionFiles] = useState<File[]>([]);
+  const [showFinalResolutionDialog, setShowFinalResolutionDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -226,8 +229,85 @@ export function InvestigationDetailsDialog({
   };
 
   const handleResolveInvestigation = () => {
-    onResolve("Investigation resolved successfully");
-    onOpenChange(false);
+    // Check if all steps are completed
+    const allStepsCompleted = steps?.every(step => step.status === 'COMPLETED') ?? false;
+    
+    if (!allStepsCompleted) {
+      toast({
+        title: "Cannot Resolve Investigation",
+        description: "Please complete all 5 steps before resolving the investigation.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Show final resolution dialog
+    setShowFinalResolutionDialog(true);
+  };
+
+  const handleFinalResolutionSubmit = async () => {
+    if (!finalResolution.trim()) {
+      toast({
+        title: "Final Resolution Required",
+        description: "Please provide a final resolution summary before resolving the investigation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (finalResolutionFiles.length === 0) {
+      toast({
+        title: "Resolution Files Required",
+        description: "Please attach supporting documents for the final resolution.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Upload final resolution files
+      let attachmentUrls: string[] = [];
+      const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
+      
+      for (const file of finalResolutionFiles) {
+        const fileName = `final-resolution-${investigationIdToUse}-${Date.now()}-${file.name}`;
+        const { data, error } = await supabase.storage
+          .from('investigation-documents')
+          .upload(fileName, file);
+        
+        if (error) throw error;
+        
+        const { data: urlData } = supabase.storage
+          .from('investigation-documents')
+          .getPublicUrl(fileName);
+        
+        attachmentUrls.push(urlData.publicUrl);
+      }
+
+      // Add final resolution as an update
+      await addUpdateMutation.mutateAsync({ 
+        updateText: `FINAL RESOLUTION: ${finalResolution}`, 
+        files: finalResolutionFiles 
+      });
+
+      onResolve(finalResolution);
+      onOpenChange(false);
+      setShowFinalResolutionDialog(false);
+      setFinalResolution("");
+      setFinalResolutionFiles([]);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to submit final resolution. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFinalResolutionFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFinalResolutionFiles(Array.from(e.target.files));
+    }
   };
 
   // Helper function to check if a step can be completed (sequential constraint)
@@ -238,6 +318,11 @@ export function InvestigationDetailsDialog({
     // Check if all previous steps are completed
     const previousSteps = steps.filter(s => s.step_number < step.step_number);
     return previousSteps.every(s => s.status === 'COMPLETED');
+  };
+
+  // Helper function to check if investigation can be resolved
+  const canResolveInvestigation = () => {
+    return steps?.every(step => step.status === 'COMPLETED') ?? false;
   };
 
   return (
@@ -463,10 +548,20 @@ export function InvestigationDetailsDialog({
           <div className="pt-4">
             <Button 
               onClick={handleResolveInvestigation}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-lg font-medium"
+              disabled={!canResolveInvestigation()}
+              className={`px-8 py-2 rounded-lg font-medium ${
+                canResolveInvestigation() 
+                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
             >
               Resolve Investigation
             </Button>
+            {!canResolveInvestigation() && (
+              <p className="text-sm text-orange-600 mt-2">
+                Complete all 5 steps before resolving the investigation
+              </p>
+            )}
           </div>
         </div>
 
@@ -481,6 +576,100 @@ export function InvestigationDetailsDialog({
             }}
           />
         )}
+
+        {/* Final Resolution Dialog */}
+        <Dialog open={showFinalResolutionDialog} onOpenChange={setShowFinalResolutionDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Final Resolution Required</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 p-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Final Resolution Summary <span className="text-red-500">*</span>
+                </label>
+                <Textarea
+                  value={finalResolution}
+                  onChange={(e) => setFinalResolution(e.target.value)}
+                  placeholder="Provide a comprehensive summary of the investigation resolution, including all actions taken and final outcome..."
+                  rows={6}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Supporting Documents <span className="text-red-500">*</span>
+                </label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('final-resolution-file-input')?.click()}
+                    >
+                      Choose Files
+                    </Button>
+                    <Input
+                      id="final-resolution-file-input"
+                      type="file"
+                      multiple
+                      onChange={handleFinalResolutionFileSelect}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    />
+                    <span className="text-sm text-gray-600">
+                      {finalResolutionFiles.length > 0 ? (
+                        <span className="text-green-600">{finalResolutionFiles.length} file(s) selected</span>
+                      ) : (
+                        'No files selected'
+                      )}
+                    </span>
+                  </div>
+                  
+                  {finalResolutionFiles.length > 0 && (
+                    <div className="space-y-2">
+                      {finalResolutionFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-green-50 px-3 py-2 rounded border">
+                          <span className="text-green-800 text-sm">{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newFiles = finalResolutionFiles.filter((_, i) => i !== index);
+                              setFinalResolutionFiles(newFiles);
+                            }}
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFinalResolutionDialog(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleFinalResolutionSubmit}
+                  disabled={!finalResolution.trim() || finalResolutionFiles.length === 0}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Submit Final Resolution
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

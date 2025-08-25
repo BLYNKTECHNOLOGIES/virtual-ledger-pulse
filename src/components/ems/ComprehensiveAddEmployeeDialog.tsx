@@ -423,6 +423,10 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                         selected={formData.dateOfBirth}
                         onSelect={(date) => updateFormData('dateOfBirth', date)}
                         initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={1940}
+                        toYear={new Date().getFullYear()}
+                        className="pointer-events-auto"
                       />
                     </PopoverContent>
                   </Popover>

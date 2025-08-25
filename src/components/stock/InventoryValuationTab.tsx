@@ -147,8 +147,12 @@ export function InventoryValuationTab() {
               </thead>
               <tbody>
                 {inventoryData?.products?.map((product) => {
-                  const buyingPrice = product.average_buying_price || product.cost_price;
-                  const sellingPrice = product.average_selling_price || product.selling_price;
+                  // Use cost_price and selling_price as fallback if average prices are unrealistic
+                  const buyingPrice = (product.average_buying_price && product.average_buying_price < 10000) ? 
+                    product.average_buying_price : product.cost_price;
+                  const sellingPrice = (product.average_selling_price && product.current_stock_quantity > 0) ? 
+                    product.average_selling_price : product.selling_price;
+                  
                   const totalCostValue = product.current_stock_quantity * buyingPrice;
                   const totalSellingValue = product.current_stock_quantity * sellingPrice;
                   const profit = totalSellingValue - totalCostValue;
@@ -157,8 +161,8 @@ export function InventoryValuationTab() {
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
-                      <td className="py-3 px-4">₹{buyingPrice}</td>
-                      <td className="py-3 px-4">₹{sellingPrice}</td>
+                      <td className="py-3 px-4">₹{buyingPrice.toFixed(1)}</td>
+                      <td className="py-3 px-4">₹{sellingPrice.toFixed(1)}</td>
                       <td className="py-3 px-4 font-medium">₹{totalCostValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">₹{totalSellingValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">

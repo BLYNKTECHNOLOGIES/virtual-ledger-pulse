@@ -263,7 +263,7 @@ export function ProductCardListingTab() {
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded-lg">
                         <div className="text-green-600 text-xs font-medium">Avg Selling</div>
-                        <div className="text-green-700 font-bold text-sm">₹{(asset.selling_price || 0).toFixed(1)}</div>
+                        <div className="text-green-700 font-bold text-sm">₹{((asset.average_selling_price && asset.calculated_stock > 0) ? asset.average_selling_price : asset.selling_price || 0).toFixed(1)}</div>
                       </div>
                     </div>
                     

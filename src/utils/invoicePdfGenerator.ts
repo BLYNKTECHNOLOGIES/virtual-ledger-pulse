@@ -208,7 +208,8 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
     'NOS',
     Number(usdtValue).toFixed(2),
     '0.00', // Taxable Value = 0
-    { content: '0.00', colSpan: 2 }, // Merged IGST Rate and Amount cells
+    '', // Merged IGST Rate cell
+    '0.00', // IGST = 0
     Number(usdtValue).toFixed(2)
   ];
   

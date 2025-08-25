@@ -186,47 +186,28 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   // Items table
   const tableStartY = 125;
   
-  // Calculate values for two-row structure
-  const totalSalesValue = order.total_amount || 0;
+  // Calculate values
+  const serviceCharges = fifoCalculation.serviceCharges;
+  const igstAmount = fifoCalculation.igstAmount;
+  const totalAmount = fifoCalculation.totalAmount;
+  const productName = order.description || 'G.I. STEEL TUBE 150MM 6MTR (PCS)';
   const quantity = order.quantity || 22;
+  const rate = (order.total_amount || 0) / quantity;
+  const amount = order.total_amount || 0;
   
-  // Row 1: USDT (non-taxable)
-  const usdtAmount = totalSalesValue / 1.18;
-  const usdtRate = usdtAmount / quantity;
-  
-  // Row 2: Service Charges (taxable)
-  const serviceCharges = totalSalesValue - usdtAmount;
-  const igstAmount = serviceCharges * 0.18;
-  const totalAmount = totalSalesValue + igstAmount;
-  
-  // USDT row data (non-taxable)
-  const usdtRowData = [
+  // Main product row data with exact formatting
+  const mainProductData = [
     '1',
-    'USDT',
-    '960899',
+    productName,
+    '997152', // Updated HSN code
     `${quantity} NOS`,
-    Number(usdtRate).toFixed(2),
+    Number(rate).toFixed(2),
     'NOS',
-    Number(usdtAmount).toFixed(2),
-    '0.00', // Taxable Value = 0
-    '0%',   // IGST Rate = 0
-    '0.00', // IGST Amount = 0
-    Number(usdtAmount).toFixed(2)
-  ];
-  
-  // Service Charges row data (taxable)
-  const serviceChargesRowData = [
-    '2',
-    'Service Charges',
-    '997152',
-    '1 Service',
+    Number(amount).toFixed(2),
     Number(serviceCharges).toFixed(2),
-    'Service',
-    Number(serviceCharges).toFixed(2),
-    Number(serviceCharges).toFixed(2), // Taxable Value = Entire value
     '18%',
     Number(igstAmount).toFixed(2),
-    Number(serviceCharges + igstAmount).toFixed(2)
+    Number(totalAmount).toFixed(2)
   ];
   
   // IGST row
@@ -236,7 +217,7 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   
   // Total row
   const totalRow = [
-    '', 'Total', '', `${quantity} NOS + 1 Service`, '', '', '', 
+    '', 'Total', '', `${quantity} NOS`, '', '', '', 
     Number(serviceCharges).toFixed(2), '', Number(igstAmount).toFixed(2), Number(totalAmount).toFixed(2)
   ];
   
@@ -247,8 +228,7 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']
     ],
     body: [
-      usdtRowData,
-      serviceChargesRowData,
+      mainProductData,
       igstRow,
       totalRow
     ],

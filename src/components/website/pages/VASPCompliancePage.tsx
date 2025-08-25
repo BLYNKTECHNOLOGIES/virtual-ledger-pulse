@@ -72,17 +72,17 @@ export function VASPCompliancePage() {
             <p className="text-xl text-gray-600">Built on international standards and best practices</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {complianceFeatures.map((feature, index) => (
-              <Card key={index} className="hover:shadow-lg transition-shadow">
+              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/20">
                 <CardHeader className="text-center">
-                  <div className="mx-auto mb-4 p-3 bg-orange-100 rounded-full w-16 h-16 flex items-center justify-center">
-                    <feature.icon className="h-8 w-8 text-orange-600" />
+                  <div className="mx-auto mb-4 p-3 bg-muted rounded-full w-16 h-16 flex items-center justify-center group-hover:bg-primary/10 transition-colors duration-300">
+                    <feature.icon className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+                  <CardTitle className="text-xl text-foreground">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <CardDescription className="text-gray-600 text-center">
+                  <CardDescription className="text-muted-foreground text-center text-sm leading-relaxed">
                     {feature.description}
                   </CardDescription>
                 </CardContent>
@@ -147,31 +147,31 @@ export function VASPCompliancePage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="bg-orange-600 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Shield className="h-8 w-8 text-white" />
+           <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center group">
+              <div className="bg-muted p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center group-hover:bg-primary/10 transition-colors duration-300">
+                <Shield className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Data Protection</h3>
-              <p className="text-gray-400">
+              <h3 className="text-xl font-semibold mb-4 text-white">Data Protection</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
                 End-to-end encryption, secure data storage, and privacy protection measures
               </p>
             </div>
-            <div className="text-center">
-              <div className="bg-orange-600 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <AlertCircle className="h-8 w-8 text-white" />
+            <div className="text-center group">
+              <div className="bg-muted p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center group-hover:bg-primary/10 transition-colors duration-300">
+                <AlertCircle className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Risk Assessment</h3>
-              <p className="text-gray-400">
+              <h3 className="text-xl font-semibold mb-4 text-white">Risk Assessment</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
                 Continuous risk monitoring and assessment of all transactions and users
               </p>
             </div>
-            <div className="text-center">
-              <div className="bg-orange-600 p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <FileText className="h-8 w-8 text-white" />
+            <div className="text-center group">
+              <div className="bg-muted p-4 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center group-hover:bg-primary/10 transition-colors duration-300">
+                <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
               </div>
-              <h3 className="text-xl font-semibold mb-4">Audit Trail</h3>
-              <p className="text-gray-400">
+              <h3 className="text-xl font-semibold mb-4 text-white">Audit Trail</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
                 Complete audit trails and transaction records for regulatory reporting
               </p>
             </div>

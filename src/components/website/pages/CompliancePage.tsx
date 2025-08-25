@@ -136,20 +136,20 @@ export function CompliancePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {complianceFeatures.map((feature, index) => (
-              <Card key={index} className="border-2 hover:border-blue-300 transition-colors group">
+              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/20">
                 <CardContent className="p-6 text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full mb-4 group-hover:scale-110 transition-transform">
-                    <feature.icon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-muted rounded-full mb-4 group-hover:bg-primary/10 transition-colors duration-300">
+                    <feature.icon className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                   </div>
-                  <Badge variant="secondary" className="mb-3 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                  <Badge variant="outline" className="mb-3 text-xs font-medium">
                     {feature.badge}
                   </Badge>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-xl font-semibold text-foreground mb-3">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-300">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     {feature.description}
                   </p>
                 </CardContent>

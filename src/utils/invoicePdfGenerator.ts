@@ -171,87 +171,67 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
     theme: 'grid'
   });
 
-  // Consignee section
+  // Buyer section only (removed Consignee section)
   doc.rect(15, 90, 180, 25);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('Consignee (Ship to)', 18, 98);
+  doc.text('Buyer (Bill to)', 18, 98);
   doc.setFont('helvetica', 'normal');
   doc.text(order.client_name || 'Customer Name', 18, 103);
+  doc.text(`C 74 Patel Nagar Bhopal`, 18, 107);
   if (order.client_phone) {
-    doc.text(`Phone: ${order.client_phone}`, 18, 108);
+    doc.text(`Contact: ${order.client_phone}`, 18, 111);
   }
-  doc.text(`GSTIN/UIN: ${order.client_gstin || ''}`, 18, 110);
-  doc.text(`State Name: ${order.client_state || 'Madhya Pradesh, Code: 23'}`, 18, 112);
-  
-  // Buyer section
-  doc.rect(15, 120, 180, 25);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Buyer (Bill to)', 18, 128);
-  doc.setFont('helvetica', 'normal');
-  doc.text(order.client_name || 'Customer Name', 18, 133);
-  if (order.client_phone) {
-    doc.text(`Phone: ${order.client_phone}`, 18, 138);
-  }
-  doc.text(`GSTIN/UIN: ${order.client_gstin || ''}`, 18, 140);
-  doc.text(`State Name: ${order.client_state || 'Madhya Pradesh, Code: 23'}`, 18, 142);
   
   // Items table
-  const tableStartY = 155;
+  const tableStartY = 125;
   
   // Calculate values
   const serviceCharges = fifoCalculation.serviceCharges;
   const igstAmount = fifoCalculation.igstAmount;
   const totalAmount = fifoCalculation.totalAmount;
-  const productName = order.description || 'USDT Cryptocurrency';
-  const quantity = order.quantity || 1;
+  const productName = order.description || 'G.I. STEEL TUBE 150MM 6MTR (PCS)';
+  const quantity = order.quantity || 22;
   const rate = (order.total_amount || 0) / quantity;
   const amount = order.total_amount || 0;
   
-  // Main product row data
+  // Main product row data with exact formatting
   const mainProductData = [
     '1',
     productName,
-    '960899', // HSN for USDT
+    '997152', // Updated HSN code
     `${quantity} NOS`,
     Number(rate).toFixed(2),
     'NOS',
     Number(amount).toFixed(2),
     Number(serviceCharges).toFixed(2),
-    '9%',
-    Number(igstAmount/2).toFixed(2),
-    '9%', 
-    Number(igstAmount/2).toFixed(2),
+    '18%',
+    Number(igstAmount).toFixed(2),
+    '',
+    '',
     Number(totalAmount).toFixed(2)
   ];
   
-  // CGST row
-  const cgstRow = [
-    '', 'CGST', '', '', '', '', '', '', '9 %', Number(igstAmount/2).toFixed(2), '', '', ''
-  ];
-  
-  // SGST row  
-  const sgstRow = [
-    '', 'SGST', '', '', '', '', '', '', '', '', '9 %', Number(igstAmount/2).toFixed(2), ''
+  // IGST row
+  const igstRow = [
+    '', 'IGST', '', '', '', '', '', '', '18 %', Number(igstAmount).toFixed(2), '', '', ''
   ];
   
   // Total row
   const totalRow = [
     '', 'Total', '', `${quantity} NOS`, '', '', '', 
-    Number(serviceCharges).toFixed(2), '', Number(igstAmount/2).toFixed(2), '', Number(igstAmount/2).toFixed(2), Number(totalAmount).toFixed(2)
+    Number(serviceCharges).toFixed(2), '', Number(igstAmount).toFixed(2), '', '', Number(totalAmount).toFixed(2)
   ];
   
-  // Create table with proper structure
+  // Create table with proper structure matching reference exactly
   autoTable(doc, {
     head: [
-      ['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'CGST', '', 'SGST/UTGST', '', 'Total\nAmount'],
-      ['', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', '']
+      ['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'IGST', '', '', '', 'Total\nAmount'],
+      ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '', '', '']
     ],
     body: [
       mainProductData,
-      cgstRow,
-      sgstRow,
+      igstRow,
       totalRow
     ],
     startY: tableStartY,
@@ -291,20 +271,20 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   });
   
   // Get table end position
-  const tableEndY = (doc as any).lastAutoTable?.finalY || 220;
+  const tableEndY = (doc as any).lastAutoTable?.finalY || 190;
   
   // Amount in words
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text(`Amount Chargeable (in words) INR ${numberToWords(Math.round(totalAmount))} Only`, 20, tableEndY + 8);
   
-  // Tax summary table on right side
+  // Tax summary table on right side - matching reference exactly
   const taxSummaryY = tableEndY + 15;
   autoTable(doc, {
     body: [
-      ['', '', '', '', '', '', '', '', '', '', 'Taxable\nValue', 'CGST', 'SGST/UTGST', 'E. & O.E\nTotal\nTax Amount'],
-      ['', '', '', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', ''],
-      ['', '', '', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '9%', Number(igstAmount/2).toFixed(2), '9%', Number(igstAmount/2).toFixed(2), Number(igstAmount).toFixed(2)]
+      ['', '', '', '', '', '', '', '', '', '', 'Taxable\nValue', 'IGST', '', 'E. & O.E\nTotal\nTax Amount'],
+      ['', '', '', '', '', '', '', '', '', '', 'Rate', 'Amount', '', ''],
+      ['', '', '', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '18%', Number(igstAmount).toFixed(2), '', Number(igstAmount).toFixed(2)]
     ],
     startY: taxSummaryY,
     margin: { left: 90 },
@@ -321,8 +301,7 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       10: { fontStyle: 'bold' },
       11: { fontStyle: 'bold', halign: 'right' },
       12: { fontStyle: 'bold' },
-      13: { fontStyle: 'bold', halign: 'right' },
-      14: { fontStyle: 'bold', halign: 'right' }
+      13: { fontStyle: 'bold', halign: 'right' }
     }
   });
   

@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
 import { 
   User, 
   Home, 
@@ -21,7 +22,8 @@ import {
   Shield,
   Phone,
   Mail,
-  FileText
+  FileText,
+  AlertTriangle
 } from 'lucide-react';
 
 export function KYCFormPage() {
@@ -86,7 +88,28 @@ export function KYCFormPage() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.fullName && formData.dateOfBirth && formData.gender && formData.email && formData.mobile;
+      case 2:
+        return formData.permanentAddress && formData.state && formData.city && formData.pincode && formData.addressProof;
+      case 3:
+        return formData.documentType && formData.documentNumber && formData.documentFront && formData.documentBack && formData.selfie;
+      case 5:
+        return formData.accountHolderName && formData.bankName && formData.accountNumber && formData.ifscCode && formData.bankProof;
+      case 6:
+        return formData.detailsConfirmed && formData.termsAccepted;
+      default:
+        return true;
+    }
+  };
+
   const nextStep = () => {
+    if (!validateCurrentStep()) {
+      alert('Please fill all required fields and upload all mandatory documents before proceeding.');
+      return;
+    }
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     }
@@ -99,15 +122,21 @@ export function KYCFormPage() {
   };
 
   const submitKYC = () => {
+    if (!validateCurrentStep()) {
+      alert('Please complete all required fields and document uploads.');
+      return;
+    }
     setKycStatus('pending');
     // Here you would submit the form data to your backend
     console.log('Submitting KYC:', formData);
   };
 
-  const FileUploadArea = ({ field, label, accept = "image/*,.pdf", multiple = false }: any) => (
+  const FileUploadArea = ({ field, label, accept = "image/*,.pdf", multiple = false, required = true }: any) => (
     <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
       <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-      <p className="text-sm font-medium text-foreground mb-1">{label}</p>
+      <p className="text-sm font-medium text-foreground mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </p>
       <p className="text-xs text-muted-foreground mb-3">JPG, PNG, PDF (Max 5MB)</p>
       <input
         type="file"
@@ -116,12 +145,22 @@ export function KYCFormPage() {
         onChange={(e) => e.target.files?.[0] && handleFileUpload(field, e.target.files[0])}
         className="hidden"
         id={field}
+        required={required}
       />
       <Button variant="outline" size="sm" onClick={() => document.getElementById(field)?.click()}>
         Choose File
       </Button>
       {formData[field] && (
-        <p className="text-xs text-green-600 mt-2">✓ File uploaded</p>
+        <p className="text-xs text-green-600 mt-2 flex items-center justify-center gap-1">
+          <CheckCircle className="h-3 w-3" />
+          ✓ File uploaded: {formData[field]?.name || 'File selected'}
+        </p>
+      )}
+      {required && !formData[field] && (
+        <p className="text-xs text-red-500 mt-2 flex items-center justify-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Required document
+        </p>
       )}
     </div>
   );
@@ -314,54 +353,66 @@ export function KYCFormPage() {
               {currentStep === 2 && (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="permanentAddress">Permanent Address (as per Aadhaar/Utility Bill)</Label>
+                    <Label htmlFor="permanentAddress">Permanent Address (as per Aadhaar/Utility Bill) <span className="text-red-500">*</span></Label>
                     <Textarea
                       id="permanentAddress"
                       value={formData.permanentAddress}
                       onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
                       placeholder="Enter your permanent address"
                       rows={3}
+                      required
                     />
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="state">State</Label>
-                      <Input
-                        id="state"
-                        value={formData.state}
-                        onChange={(e) => handleInputChange('state', e.target.value)}
-                        placeholder="Enter state"
-                      />
+                      <Label htmlFor="state">State <span className="text-red-500">*</span></Label>
+                      <Select value={formData.state} onValueChange={(value) => handleInputChange('state', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state/UT" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INDIAN_STATES_AND_UTS.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
-                      <Label htmlFor="city">City</Label>
+                      <Label htmlFor="city">City <span className="text-red-500">*</span></Label>
                       <Input
                         id="city"
                         value={formData.city}
                         onChange={(e) => handleInputChange('city', e.target.value)}
                         placeholder="Enter city"
+                        required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="pincode">Pincode</Label>
+                      <Label htmlFor="pincode">Pincode <span className="text-red-500">*</span></Label>
                       <Input
                         id="pincode"
                         value={formData.pincode}
                         onChange={(e) => handleInputChange('pincode', e.target.value)}
                         placeholder="Enter pincode"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        required
                       />
                     </div>
                   </div>
 
                   <div>
-                    <Label>Upload Proof of Address</Label>
+                    <Label>Upload Proof of Address <span className="text-red-500">*</span></Label>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Aadhaar / Passport / Driving License / Utility Bill
+                      Aadhaar / Passport / Driving License / Utility Bill (Required)
                     </p>
                     <FileUploadArea
                       field="addressProof"
                       label="Upload Address Proof"
+                      required={true}
                     />
                   </div>
                 </div>

@@ -45,11 +45,11 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
 
   if (!order) return null;
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     console.log('Download PDF clicked for order:', order.order_number);
     try {
       console.log('Generating PDF with data:', { order, bankAccountData });
-      const pdf = generateInvoicePDF({ 
+      const pdf = await generateInvoicePDF({ 
         order, 
         bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
       });
@@ -70,11 +70,11 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
     }
   };
 
-  const handlePrintPDF = () => {
+  const handlePrintPDF = async () => {
     console.log('Print PDF clicked for order:', order.order_number);
     try {
       console.log('Generating PDF for printing with data:', { order, bankAccountData });
-      const pdf = generateInvoicePDF({ 
+      const pdf = await generateInvoicePDF({ 
         order, 
         bankAccountData: order.payment_status === 'COMPLETED' ? bankAccountData : undefined 
       });

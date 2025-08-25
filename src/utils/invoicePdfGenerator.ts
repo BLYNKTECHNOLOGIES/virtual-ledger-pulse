@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '@/integrations/supabase/client';
 
 interface InvoiceData {
   order: any;
@@ -14,16 +15,95 @@ interface InvoiceData {
   };
 }
 
-export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: InvoiceData) => {
+interface FIFOCalculation {
+  totalCost: number;
+  serviceCharges: number;
+  taxableValue: number;
+  igstAmount: number;
+  totalAmount: number;
+}
+
+// FIFO calculation function
+async function calculateFIFOProfit(order: any): Promise<FIFOCalculation> {
+  try {
+    // Get all purchase order items for USDT to calculate FIFO cost  
+    const { data: purchaseItems } = await supabase
+      .from('purchase_order_items')
+      .select(`
+        quantity,
+        unit_price,
+        purchase_orders!inner(
+          order_date,
+          status
+        )
+      `)
+      .eq('purchase_orders.status', 'COMPLETED')
+      .order('purchase_orders.order_date', { ascending: true });
+
+    let totalCost = 0;
+    let remainingQuantity = order.quantity || 1;
+    
+    // Apply FIFO logic to calculate buy price
+    for (const item of purchaseItems || []) {
+      if (remainingQuantity <= 0) break;
+      
+      const purchaseQuantity = item.quantity || 0;
+      const purchasePrice = item.unit_price || 0;
+      
+      if (purchaseQuantity >= remainingQuantity) {
+        totalCost += remainingQuantity * purchasePrice;
+        remainingQuantity = 0;
+      } else {
+        totalCost += purchaseQuantity * purchasePrice;
+        remainingQuantity -= purchaseQuantity;
+      }
+    }
+    
+    // If no purchase data available, use a default cost
+    if (totalCost === 0) {
+      totalCost = (order.total_amount || 0) * 0.95; // Assume 5% margin as fallback
+    }
+    
+    const serviceCharges = (order.total_amount || 0) - totalCost;
+    const igstAmount = serviceCharges * 0.18; // 18% IGST on service charges only
+    const taxableValue = serviceCharges; // Service charges are taxable
+    const totalAmount = totalCost + serviceCharges + igstAmount;
+    
+    return {
+      totalCost,
+      serviceCharges,
+      taxableValue,
+      igstAmount,
+      totalAmount
+    };
+  } catch (error) {
+    console.error('FIFO calculation error:', error);
+    // Fallback calculation
+    const serviceCharges = (order.total_amount || 0) * 0.05; // 5% service charge
+    const igstAmount = serviceCharges * 0.18;
+    return {
+      totalCost: (order.total_amount || 0) - serviceCharges,
+      serviceCharges,
+      taxableValue: serviceCharges,
+      igstAmount,
+      totalAmount: order.total_amount || 0
+    };
+  }
+}
+
+export const generateInvoicePDF = async ({ order, bankAccountData, companyDetails }: InvoiceData) => {
   console.log('Starting PDF generation for order:', order.order_number);
   const doc = new jsPDF();
   
+  // Calculate FIFO-based buy price and service charges
+  const fifoCalculation = await calculateFIFOProfit(order);
+  
   // Company details (default if not provided)
   const company = companyDetails || {
-    name: "BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED",
+    name: "BLYNK VIRTUAL TECHNOLOGIES PRIVATE LIMITED", 
     address: "Plot No.15 First Floor Balwant Arcade",
     city: "Maharana Pratap Nagar Zone 2",
-    state: "Bhopal, Madhya Pradesh",
+    state: "Bhopal, Madhya Pradesh, Code : 23",
     email: "blynkvirtualtechnologiespvtltd@gmail.com",
     gstin: "23AANCB2572J1ZK"
   };
@@ -107,21 +187,19 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   // Items table (adjust start position)
   const tableStartY = 115;
   
-  // Tax calculations (P2P Trading Mechanism)
-  const totalAmount = order.total_amount;
-  const netAmountBeforeTax = totalAmount / 1.18; // Remove GST to get base amount
-  const gstAmount = totalAmount - netAmountBeforeTax;
-  const cgstAmount = gstAmount / 2; // CGST 9%
-  const sgstAmount = gstAmount / 2; // SGST 9%
+  // Use FIFO calculation for service charges and tax
+  const serviceCharges = fifoCalculation.serviceCharges;
+  const igstAmount = fifoCalculation.igstAmount;
+  const totalAmount = fifoCalculation.totalAmount;
   
-  // Table headers for tax invoice
-  const headers = [['Sl No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable Value', 'CGST', '', 'SGST/UTGST', '', 'Total Amount']];
-  const subHeaders = [['', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', '']];
+  // Table headers matching reference format exactly
+  const headers = [['Sl No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable Value', 'IGST', '', 'Total Amount']];
+  const subHeaders = [['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']];
   
-  // Table data
+  // Table data - USDT product and Service Charges as separate lines
   const productName = order.description || 'USDT';
   const quantity = order.quantity || 1;
-  const rate = order.price_per_unit || (totalAmount / quantity);
+  const rate = order.price_per_unit || (order.total_amount / quantity);
   const hsnCode = '960899'; // HSN code for USDT
   
   const tableData = [
@@ -132,29 +210,40 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
       quantity.toString(), 
       Number(rate).toFixed(2), 
       'NOS', 
-      Number(totalAmount).toFixed(2),
-      Number(netAmountBeforeTax).toFixed(2),
-      '9%',
-      Number(cgstAmount).toFixed(2),
-      '9%', 
-      Number(sgstAmount).toFixed(2),
-      Number(totalAmount).toFixed(2)
+      Number(order.total_amount).toFixed(2),
+      '0.00', // USDT itself is not taxable
+      '',
+      '0.00',
+      Number(order.total_amount).toFixed(2)
+    ],
+    [
+      '2',
+      'Service Charges',
+      '998314', // SAC code for service charges
+      '1',
+      Number(serviceCharges).toFixed(2),
+      'NOS',
+      Number(serviceCharges).toFixed(2),
+      Number(serviceCharges).toFixed(2), // Service charges are taxable
+      '18%',
+      Number(igstAmount).toFixed(2),
+      Number(serviceCharges + igstAmount).toFixed(2)
     ]
   ];
   
-  // Add total tax summary row
+  // Add IGST breakdown row
+  tableData.push([
+    '', 'IGST', '', '', '', '', '', '', '18%', Number(igstAmount).toFixed(2), ''
+  ]);
+  
+  // Add total row
   tableData.push([
     '', 'Total', '', quantity.toString(), '', '', 
     Number(totalAmount).toFixed(2), 
-    Number(netAmountBeforeTax).toFixed(2),
-    '', Number(cgstAmount).toFixed(2),
-    '', Number(sgstAmount).toFixed(2),
+    Number(serviceCharges).toFixed(2),
+    '', Number(igstAmount).toFixed(2),
     Number(totalAmount).toFixed(2)
   ]);
-  
-  // Add tax amount in words row
-  const totalTaxAmount = cgstAmount + sgstAmount;
-  const taxAmountInWords = `INR ${numberToWords(Math.round(totalTaxAmount))} Only`;
   
   autoTable(doc, {
     head: [headers[0], subHeaders[0]],
@@ -171,30 +260,28 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
       fontStyle: 'bold',
     },
     columnStyles: {
-      0: { cellWidth: 12 }, // Sl No
-      1: { cellWidth: 35 }, // Description
-      2: { cellWidth: 18 }, // HSN
-      3: { cellWidth: 12 }, // Quantity
-      4: { cellWidth: 15 }, // Rate
-      5: { cellWidth: 8 },  // per
-      6: { cellWidth: 18 }, // Amount
-      7: { cellWidth: 18 }, // Taxable Value
-      8: { cellWidth: 8 },  // CGST Rate
-      9: { cellWidth: 15 }, // CGST Amount
-      10: { cellWidth: 8 }, // SGST Rate
-      11: { cellWidth: 15 }, // SGST Amount
-      12: { cellWidth: 18 }, // Total Amount
+      0: { cellWidth: 15 }, // Sl No
+      1: { cellWidth: 40 }, // Description
+      2: { cellWidth: 20 }, // HSN
+      3: { cellWidth: 15 }, // Quantity
+      4: { cellWidth: 20 }, // Rate
+      5: { cellWidth: 10 }, // per
+      6: { cellWidth: 20 }, // Amount
+      7: { cellWidth: 20 }, // Taxable Value
+      8: { cellWidth: 15 }, // IGST Rate
+      9: { cellWidth: 20 }, // IGST Amount
+      10: { cellWidth: 25 }, // Total Amount
     },
   });
   
-  // Add tax summary table
+  // Add summary table exactly like reference
   const taxSummaryY = (doc as any).lastAutoTable?.finalY + 10 || tableStartY + 80;
   
   autoTable(doc, {
     body: [
-      ['', '', '', '', '', '', '', 'Taxable Value', 'CGST', 'SGST/UTGST', 'Total Tax Amount'],
-      ['', '', '', '', '', '', '', Number(netAmountBeforeTax).toFixed(2), Number(cgstAmount).toFixed(2), Number(sgstAmount).toFixed(2), Number(totalTaxAmount).toFixed(2)],
-      ['', '', '', '', '', '', 'Total:', Number(netAmountBeforeTax).toFixed(2), Number(cgstAmount).toFixed(2), Number(sgstAmount).toFixed(2), Number(totalAmount).toFixed(2)]
+      ['', '', '', '', '', '', '', 'Taxable Value', 'IGST', 'Total Tax Amount'],
+      ['', '', '', '', '', '', '', Number(serviceCharges).toFixed(2), Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)],
+      ['', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), Number(igstAmount).toFixed(2), Number(totalAmount).toFixed(2)]
     ],
     startY: taxSummaryY,
     theme: 'grid',
@@ -207,19 +294,17 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
       6: { fontStyle: 'bold' },
       7: { fontStyle: 'bold' },
       8: { fontStyle: 'bold' },
-      9: { fontStyle: 'bold' },
-      10: { fontStyle: 'bold' }
+      9: { fontStyle: 'bold' }
     }
   });
   
   // Amount in words
-  // Get the final Y position from the table
   const tableEndY = (doc as any).lastAutoTable?.finalY || tableStartY + 50;
   const finalY = tableEndY + 10;
   doc.setFontSize(10);
   doc.text('Amount Chargeable (in words)  INR ' + numberToWords(Math.round(totalAmount)) + ' Only', 20, finalY);
   doc.setFontSize(9);
-  doc.text('Tax Amount (in words) : ' + taxAmountInWords, 20, finalY + 7);
+  doc.text('Tax Amount (in words) : INR ' + numberToWords(Math.round(igstAmount)) + ' Only', 20, finalY + 7);
   doc.setFont('helvetica', 'normal');
   
   // Payment received section (if payment is completed)

@@ -156,15 +156,18 @@ export function InvestigationDetailsDialog({
     },
   });
 
-  // Add update mutation
+  // Add update mutation - Fixed to use correct investigation ID
   const addUpdateMutation = useMutation({
     mutationFn: async ({ updateText, files }: { updateText: string; files: File[] }) => {
       let attachmentUrls: string[] = [];
       
+      // Get the correct investigation ID from steps if available
+      const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
+      
       // Upload files if any
       if (files.length > 0) {
         for (const file of files) {
-          const fileName = `investigation-${investigation.id}-${Date.now()}-${file.name}`;
+          const fileName = `investigation-${investigationIdToUse}-${Date.now()}-${file.name}`;
           const { data, error } = await supabase.storage
             .from('investigation-documents')
             .upload(fileName, file);
@@ -183,7 +186,7 @@ export function InvestigationDetailsDialog({
       const { error } = await supabase
         .from('investigation_updates')
         .insert({
-          investigation_id: investigation.id,
+          investigation_id: investigationIdToUse,
           update_text: updateText,
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
           created_by: 'Current User'
@@ -198,6 +201,13 @@ export function InvestigationDetailsDialog({
       toast({
         title: "Update Added",
         description: "Investigation update has been added successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add update. Please try again.",
+        variant: "destructive",
       });
     },
   });
@@ -317,19 +327,58 @@ export function InvestigationDetailsDialog({
               />
               
               <div className="flex items-center gap-4">
-                <label className="cursor-pointer">
-                  <span className="text-sm text-gray-600">Choose Files</span>
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('investigation-file-input')?.click()}
+                    className="bg-white border-2 border-gray-300 hover:border-blue-400 text-gray-700 font-medium px-4 py-2 rounded-lg"
+                  >
+                    Choose Files
+                  </Button>
                   <Input
+                    id="investigation-file-input"
                     type="file"
                     multiple
                     onChange={handleFileSelect}
-                    className="hidden"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
                   />
-                </label>
-                <span className="text-sm text-gray-500">
-                  {selectedFiles.length > 0 ? `${selectedFiles.length} files selected` : 'no files selected'}
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {selectedFiles.length > 0 ? (
+                    <span className="text-blue-600">{selectedFiles.length} file(s) selected</span>
+                  ) : (
+                    'No files selected'
+                  )}
                 </span>
               </div>
+              
+              {/* Show selected files */}
+              {selectedFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                  <div className="space-y-1">
+                    {selectedFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-blue-50 p-2 rounded-lg">
+                        <span className="text-sm text-blue-800">{file.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const newFiles = selectedFiles.filter((_, i) => i !== index);
+                            setSelectedFiles(newFiles);
+                          }}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               
               <Button 
                 onClick={handleAddUpdate} 

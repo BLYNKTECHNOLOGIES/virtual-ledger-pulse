@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -22,6 +27,35 @@ import {
 
 export function BulkTradingPage() {
   const [activeTab, setActiveTab] = useState('buy');
+  const [buyDialogOpen, setBuyDialogOpen] = useState(false);
+  const [sellDialogOpen, setSellDialogOpen] = useState(false);
+  const [quoteForm, setQuoteForm] = useState({
+    amount: '',
+    currency: 'USDT',
+    contactName: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    requirements: ''
+  });
+
+  const handleFormChange = (field: string, value: string) => {
+    setQuoteForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleBulkBuyRequest = () => {
+    // Here you would submit the bulk buy request
+    console.log('Bulk Buy Request:', { ...quoteForm, type: 'buy' });
+    setBuyDialogOpen(false);
+    alert('Your bulk buy quote request has been submitted! Our team will contact you within 2 hours.');
+  };
+
+  const handleBulkSellRequest = () => {
+    // Here you would submit the bulk sell request
+    console.log('Bulk Sell Request:', { ...quoteForm, type: 'sell' });
+    setSellDialogOpen(false);
+    alert('Your bulk sell quote request has been submitted! Our team will contact you within 2 hours.');
+  };
 
   const benefits = [
     {
@@ -206,10 +240,92 @@ export function BulkTradingPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-6 text-lg">
-                  Request Bulk Buy Quote
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                <Dialog open={buyDialogOpen} onOpenChange={setBuyDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white py-6 text-lg">
+                      Request Bulk Buy Quote
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Request Bulk Buy Quote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="amount">Amount (INR)</Label>
+                        <Input
+                          id="amount"
+                          placeholder="Minimum ₹5,00,000"
+                          value={quoteForm.amount}
+                          onChange={(e) => handleFormChange('amount', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="currency">Cryptocurrency</Label>
+                        <Select value={quoteForm.currency} onValueChange={(value) => handleFormChange('currency', value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USDT">USDT</SelectItem>
+                            <SelectItem value="BTC">Bitcoin (BTC)</SelectItem>
+                            <SelectItem value="ETH">Ethereum (ETH)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="contactName">Contact Name</Label>
+                        <Input
+                          id="contactName"
+                          placeholder="Your full name"
+                          value={quoteForm.contactName}
+                          onChange={(e) => handleFormChange('contactName', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={quoteForm.email}
+                          onChange={(e) => handleFormChange('email', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          placeholder="+91 XXXXXXXXXX"
+                          value={quoteForm.phone}
+                          onChange={(e) => handleFormChange('phone', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="companyName">Company Name (Optional)</Label>
+                        <Input
+                          id="companyName"
+                          placeholder="Your company name"
+                          value={quoteForm.companyName}
+                          onChange={(e) => handleFormChange('companyName', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="requirements">Special Requirements</Label>
+                        <Textarea
+                          id="requirements"
+                          placeholder="Any specific requirements or timeline"
+                          value={quoteForm.requirements}
+                          onChange={(e) => handleFormChange('requirements', e.target.value)}
+                        />
+                      </div>
+                      <Button onClick={handleBulkBuyRequest} className="w-full">
+                        Submit Quote Request
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
 
@@ -251,10 +367,92 @@ export function BulkTradingPage() {
                   </div>
                 </div>
 
-                <Button className="w-full bg-gradient-to-r from-red-600 to-blue-600 hover:from-red-700 hover:to-blue-700 text-white py-6 text-lg">
-                  Request Bulk Sell Quote
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                <Dialog open={sellDialogOpen} onOpenChange={setSellDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full bg-gradient-to-r from-red-600 to-blue-600 hover:from-red-700 hover:to-blue-700 text-white py-6 text-lg">
+                      Request Bulk Sell Quote
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Request Bulk Sell Quote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="sellAmount">Amount</Label>
+                        <Input
+                          id="sellAmount"
+                          placeholder="Minimum 5,000 USDT"
+                          value={quoteForm.amount}
+                          onChange={(e) => handleFormChange('amount', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sellCurrency">Cryptocurrency</Label>
+                        <Select value={quoteForm.currency} onValueChange={(value) => handleFormChange('currency', value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="USDT">USDT</SelectItem>
+                            <SelectItem value="BTC">Bitcoin (BTC)</SelectItem>
+                            <SelectItem value="ETH">Ethereum (ETH)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="sellContactName">Contact Name</Label>
+                        <Input
+                          id="sellContactName"
+                          placeholder="Your full name"
+                          value={quoteForm.contactName}
+                          onChange={(e) => handleFormChange('contactName', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sellEmail">Email</Label>
+                        <Input
+                          id="sellEmail"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={quoteForm.email}
+                          onChange={(e) => handleFormChange('email', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sellPhone">Phone</Label>
+                        <Input
+                          id="sellPhone"
+                          placeholder="+91 XXXXXXXXXX"
+                          value={quoteForm.phone}
+                          onChange={(e) => handleFormChange('phone', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sellCompanyName">Company Name (Optional)</Label>
+                        <Input
+                          id="sellCompanyName"
+                          placeholder="Your company name"
+                          value={quoteForm.companyName}
+                          onChange={(e) => handleFormChange('companyName', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sellRequirements">Special Requirements</Label>
+                        <Textarea
+                          id="sellRequirements"
+                          placeholder="Any specific requirements or timeline"
+                          value={quoteForm.requirements}
+                          onChange={(e) => handleFormChange('requirements', e.target.value)}
+                        />
+                      </div>
+                      <Button onClick={handleBulkSellRequest} className="w-full">
+                        Submit Quote Request
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </div>

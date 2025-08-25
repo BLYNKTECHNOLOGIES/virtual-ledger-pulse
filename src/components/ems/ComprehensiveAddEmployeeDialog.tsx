@@ -792,12 +792,6 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                   </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">KYC Verification</h4>
-                  <p className="text-sm text-blue-700">
-                    KYC verification will be completed automatically after document upload and review by the HR team.
-                  </p>
-                </div>
               </div>
             </TabsContent>
           </Tabs>

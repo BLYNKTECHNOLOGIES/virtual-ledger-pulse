@@ -22,41 +22,85 @@ export function InventoryValuationTab() {
 
       if (productsError) throw productsError;
 
-      // Calculate total inventory value using average buying price
-      const totalValue = products?.reduce((sum, product) => {
-        const buyingPrice = product.average_buying_price || product.cost_price;
-        return sum + (product.current_stock_quantity * buyingPrice);
+      // Fetch all stock transactions to calculate real averages
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('stock_transactions')
+        .select('*')
+        .order('transaction_date', { ascending: false });
+
+      if (transactionsError) throw transactionsError;
+
+      // Process each product with real transaction data
+      const processedProducts = products?.map(product => {
+        // Get sales transactions for this product
+        const salesTransactions = transactions?.filter(t => 
+          t.product_id === product.id && 
+          t.transaction_type === 'Sales' && 
+          t.quantity < 0 // Sales have negative quantity
+        ) || [];
+
+        // Get purchase transactions for this product
+        const purchaseTransactions = transactions?.filter(t => 
+          t.product_id === product.id && 
+          t.transaction_type === 'Purchase' && 
+          t.quantity > 0 // Purchases have positive quantity
+        ) || [];
+
+        // Calculate total sales amount and quantity
+        const totalSalesAmount = salesTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        const totalSalesQuantity = Math.abs(salesTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0));
+
+        // Calculate total purchase amount and quantity
+        const totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        const totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
+
+        // Calculate real average prices
+        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : product.selling_price;
+        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : product.cost_price;
+
+        return {
+          ...product,
+          real_avg_selling_price: realAvgSellingPrice,
+          real_avg_buying_price: realAvgBuyingPrice,
+          total_sales_amount: totalSalesAmount,
+          total_sales_quantity: totalSalesQuantity,
+          total_purchase_amount: totalPurchaseAmount,
+          total_purchase_quantity: totalPurchaseQuantity
+        };
+      }) || [];
+
+      // Calculate totals using real average prices
+      const totalValue = processedProducts.reduce((sum, product) => {
+        return sum + (product.current_stock_quantity * product.real_avg_buying_price);
       }, 0) || 0;
 
-      // Calculate total selling value using average selling price
-      const totalSellingValue = products?.reduce((sum, product) => {
-        const sellingPrice = product.average_selling_price || product.selling_price;
-        return sum + (product.current_stock_quantity * sellingPrice);
+      const totalSellingValue = processedProducts.reduce((sum, product) => {
+        return sum + (product.current_stock_quantity * product.real_avg_selling_price);
       }, 0) || 0;
 
       // Count low stock items (using threshold of 10)
-      const lowStockItems = products?.filter(product => 
+      const lowStockItems = processedProducts.filter(product => 
         product.current_stock_quantity <= 10 && product.current_stock_quantity > 0
       ).length || 0;
 
       // Count out of stock items
-      const outOfStockItems = products?.filter(product => 
+      const outOfStockItems = processedProducts.filter(product => 
         product.current_stock_quantity === 0
       ).length || 0;
 
       // Calculate total units
-      const totalUnits = products?.reduce((sum, product) => {
+      const totalUnits = processedProducts.reduce((sum, product) => {
         return sum + product.current_stock_quantity;
       }, 0) || 0;
 
       return {
-        products: products || [],
+        products: processedProducts,
         totalValue,
         totalSellingValue,
         lowStockItems,
         outOfStockItems,
         totalUnits,
-        totalProducts: products?.length || 0
+        totalProducts: processedProducts.length
       };
     },
     refetchInterval: 30000,
@@ -147,11 +191,9 @@ export function InventoryValuationTab() {
               </thead>
               <tbody>
                 {inventoryData?.products?.map((product) => {
-                  // Use cost_price and selling_price as fallback if average prices are unrealistic
-                  const buyingPrice = (product.average_buying_price && product.average_buying_price < 10000) ? 
-                    product.average_buying_price : product.cost_price;
-                  const sellingPrice = (product.average_selling_price && product.current_stock_quantity > 0) ? 
-                    product.average_selling_price : product.selling_price;
+                  // Use real calculated averages from transactions
+                  const buyingPrice = product.real_avg_buying_price || product.cost_price;
+                  const sellingPrice = product.real_avg_selling_price || product.selling_price;
                   
                   const totalCostValue = product.current_stock_quantity * buyingPrice;
                   const totalSellingValue = product.current_stock_quantity * sellingPrice;
@@ -161,8 +203,8 @@ export function InventoryValuationTab() {
                     <tr key={product.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4">{product.current_stock_quantity} {product.unit_of_measurement}</td>
-                      <td className="py-3 px-4">₹{buyingPrice.toFixed(1)}</td>
-                      <td className="py-3 px-4">₹{sellingPrice.toFixed(1)}</td>
+                      <td className="py-3 px-4">₹{buyingPrice.toFixed(2)}</td>
+                      <td className="py-3 px-4">₹{sellingPrice.toFixed(2)}</td>
                       <td className="py-3 px-4 font-medium">₹{totalCostValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">₹{totalSellingValue.toLocaleString()}</td>
                       <td className="py-3 px-4 font-medium">

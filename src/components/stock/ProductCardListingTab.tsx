@@ -12,7 +12,7 @@ export function ProductCardListingTab() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch assets with actual wallet stock quantities
+  // Fetch assets with actual wallet stock quantities and real transaction averages
   const { data: assets, isLoading, refetch } = useQuery({
     queryKey: ['assets_with_wallet_stock_cards', searchTerm],
     queryFn: async () => {
@@ -42,6 +42,14 @@ export function ProductCardListingTab() {
       
       if (productsError) throw productsError;
 
+      // Fetch all stock transactions to calculate real averages
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('stock_transactions')
+        .select('*')
+        .order('transaction_date', { ascending: false });
+
+      if (transactionsError) throw transactionsError;
+
       // Get wallet stock data for USDT distribution
       console.log('🔄 Fetching wallet data...');
       const { data: wallets, error: walletsError } = await supabase
@@ -58,8 +66,33 @@ export function ProductCardListingTab() {
 
       console.log('📊 Wallets data:', wallets);
 
-      // Process each asset to calculate wallet distribution
+      // Process each asset to calculate wallet distribution and real averages
       const processedAssets = productsData?.map(asset => {
+        // Calculate real average prices from transactions
+        const salesTransactions = transactions?.filter(t => 
+          t.product_id === asset.id && 
+          t.transaction_type === 'Sales' && 
+          t.quantity < 0 // Sales have negative quantity
+        ) || [];
+
+        const purchaseTransactions = transactions?.filter(t => 
+          t.product_id === asset.id && 
+          t.transaction_type === 'Purchase' && 
+          t.quantity > 0 // Purchases have positive quantity
+        ) || [];
+
+        // Calculate total sales amount and quantity
+        const totalSalesAmount = salesTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        const totalSalesQuantity = Math.abs(salesTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0));
+
+        // Calculate total purchase amount and quantity  
+        const totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        const totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
+
+        // Calculate real average prices
+        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : asset.selling_price;
+        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : asset.cost_price;
+
         if (asset.code === 'USDT') {
           // For USDT, calculate total from wallets and wallet distribution
           let totalWalletStock = 0;
@@ -99,7 +132,9 @@ export function ProductCardListingTab() {
             ...asset,
             calculated_stock,
             wallet_stocks: walletDistribution,
-            stock_value: calculated_stock * (asset.average_buying_price || asset.cost_price)
+            stock_value: calculated_stock * realAvgBuyingPrice,
+            real_avg_selling_price: realAvgSellingPrice,
+            real_avg_buying_price: realAvgBuyingPrice
           };
         } else {
           // For other products, use current stock quantity
@@ -107,7 +142,9 @@ export function ProductCardListingTab() {
             ...asset,
             calculated_stock: asset.current_stock_quantity || 0,
             wallet_stocks: [],
-            stock_value: (asset.current_stock_quantity || 0) * (asset.average_buying_price || asset.cost_price)
+            stock_value: (asset.current_stock_quantity || 0) * realAvgBuyingPrice,
+            real_avg_selling_price: realAvgSellingPrice,
+            real_avg_buying_price: realAvgBuyingPrice
           };
         }
       }) || [];
@@ -259,11 +296,11 @@ export function ProductCardListingTab() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="text-center p-2 bg-red-50 rounded-lg">
                         <div className="text-red-600 text-xs font-medium">Avg Cost</div>
-                        <div className="text-red-700 font-bold text-sm">₹{(asset.average_buying_price || asset.cost_price || 0).toFixed(1)}</div>
+                        <div className="text-red-700 font-bold text-sm">₹{(asset.real_avg_buying_price || asset.cost_price || 0).toFixed(2)}</div>
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded-lg">
                         <div className="text-green-600 text-xs font-medium">Avg Selling</div>
-                        <div className="text-green-700 font-bold text-sm">₹{((asset.average_selling_price && asset.calculated_stock > 0) ? asset.average_selling_price : asset.selling_price || 0).toFixed(1)}</div>
+                        <div className="text-green-700 font-bold text-sm">₹{(asset.real_avg_selling_price || asset.selling_price || 0).toFixed(2)}</div>
                       </div>
                     </div>
                     

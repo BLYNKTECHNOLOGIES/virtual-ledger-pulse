@@ -90,8 +90,8 @@ export function ProductCardListingTab() {
         const totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
 
         // Calculate real average prices
-        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : asset.selling_price;
-        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : asset.cost_price;
+        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : 0;
+        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : 0;
 
         if (asset.code === 'USDT') {
           // For USDT, calculate total from wallets and wallet distribution
@@ -296,11 +296,11 @@ export function ProductCardListingTab() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="text-center p-2 bg-red-50 rounded-lg">
                         <div className="text-red-600 text-xs font-medium">Avg Cost</div>
-                        <div className="text-red-700 font-bold text-sm">₹{(asset.real_avg_buying_price || asset.cost_price || 0).toFixed(2)}</div>
+                        <div className="text-red-700 font-bold text-sm">₹{(asset.real_avg_buying_price || 0).toFixed(2)}</div>
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded-lg">
                         <div className="text-green-600 text-xs font-medium">Avg Selling</div>
-                        <div className="text-green-700 font-bold text-sm">₹{(asset.real_avg_selling_price || asset.selling_price || 0).toFixed(2)}</div>
+                        <div className="text-green-700 font-bold text-sm">₹{(asset.real_avg_selling_price || 0).toFixed(2)}</div>
                       </div>
                     </div>
                     

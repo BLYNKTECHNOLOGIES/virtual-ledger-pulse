@@ -55,8 +55,8 @@ export function InventoryValuationTab() {
         const totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
 
         // Calculate real average prices
-        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : product.selling_price;
-        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : product.cost_price;
+        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : 0;
+        const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : 0;
 
         return {
           ...product,
@@ -191,9 +191,9 @@ export function InventoryValuationTab() {
               </thead>
               <tbody>
                 {inventoryData?.products?.map((product) => {
-                  // Use real calculated averages from transactions
-                  const buyingPrice = product.real_avg_buying_price || product.cost_price;
-                  const sellingPrice = product.real_avg_selling_price || product.selling_price;
+                  // Use real calculated averages from transactions only
+                  const buyingPrice = product.real_avg_buying_price || 0;
+                  const sellingPrice = product.real_avg_selling_price || 0;
                   
                   const totalCostValue = product.current_stock_quantity * buyingPrice;
                   const totalSellingValue = product.current_stock_quantity * sellingPrice;

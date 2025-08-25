@@ -123,16 +123,16 @@ export function ModernNavbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo & Tagline */}
-            <Link to="/website" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <div className="h-10 w-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Link to="/website" className="flex items-center hover:opacity-80 transition-opacity">
+              <div className="h-16 w-16 bg-blue-600 rounded-lg flex items-center justify-center mr-4">
                 <img 
                   src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
                   alt="Blynk"
-                  className="h-8 w-8 object-contain"
+                  className="h-12 w-12 object-contain"
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight italic">
+                <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight italic">
                   blynk
                 </span>
                 <div className="flex items-center gap-1">

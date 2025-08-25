@@ -55,8 +55,8 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
     const newItem: ProductItem = {
       id: Date.now().toString(),
       product_id: "",
-      quantity: 0,
-      unit_price: 0,
+      quantity: undefined as any,
+      unit_price: undefined as any,
       wallet_id: ""
     };
     onItemsChange([...items, newItem]);
@@ -143,9 +143,9 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                 <Input
                   type="number"
                   step="0.01"
-                  value={item.quantity}
+                  value={item.quantity || ""}
                   onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
+                    const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
                     updateItem(index, 'quantity', value);
                   }}
                   placeholder="0.00"
@@ -157,9 +157,9 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                 <Input
                   type="number"
                   step="0.01"
-                  value={item.unit_price}
+                  value={item.unit_price || ""}
                   onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0;
+                    const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
                     updateItem(index, 'unit_price', value);
                   }}
                   placeholder="0.00"

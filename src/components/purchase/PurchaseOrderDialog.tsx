@@ -36,7 +36,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
   });
   
   const [items, setItems] = useState<PurchaseItem[]>([
-    { product_id: "", quantity: 0, unit_price: 0, wallet_id: "" }
+    { product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }
   ]);
 
   // Fetch purchase payment methods with bank account details
@@ -242,11 +242,11 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
       order_date: new Date().toISOString().split('T')[0],
       description: "",
     });
-    setItems([{ product_id: "", quantity: 0, unit_price: 0, wallet_id: "" }]);
+    setItems([{ product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }]);
   };
 
   const addItem = () => {
-    setItems([...items, { product_id: "", quantity: 0, unit_price: 0, wallet_id: "" }]);
+    setItems([...items, { product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -406,8 +406,8 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                       <Label>Quantity</Label>
                       <Input
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                        value={item.quantity || ""}
+                        onChange={(e) => updateItem(index, 'quantity', e.target.value === "" ? undefined : parseInt(e.target.value) || 0)}
                       />
                     </div>
 
@@ -416,8 +416,8 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                       <Input
                         type="number"
                         step="0.01"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                        value={item.unit_price || ""}
+                        onChange={(e) => updateItem(index, 'unit_price', e.target.value === "" ? undefined : parseFloat(e.target.value) || 0)}
                       />
                     </div>
 

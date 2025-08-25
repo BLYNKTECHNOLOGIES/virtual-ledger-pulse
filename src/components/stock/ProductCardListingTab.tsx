@@ -77,10 +77,13 @@ export function ProductCardListingTab() {
             });
           });
           
-          // Calculate percentages
+          // Calculate percentages and sort by balance (highest first)
           walletDistribution.forEach(dist => {
             dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
           });
+          
+          // Sort by quantity (highest balance first) and filter out zero balances for display
+          walletDistribution.sort((a, b) => b.quantity - a.quantity);
           
           // Use the higher value between synced product stock and calculated wallet stock
           const calculated_stock = Math.max(asset.current_stock_quantity || 0, totalWalletStock);
@@ -208,7 +211,10 @@ export function ProductCardListingTab() {
                         </div>
                         
                         <div className="grid gap-2">
-                          {asset.wallet_stocks.slice(0, 3).map((ws: any, index: number) => (
+                          {asset.wallet_stocks
+                            .filter((ws: any) => ws.quantity > 0) // Only show wallets with balance
+                            .slice(0, 3)
+                            .map((ws: any, index: number) => (
                             <div key={index} className="bg-white rounded-lg p-3 shadow-sm border border-blue-100">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 flex-1">
@@ -231,17 +237,17 @@ export function ProductCardListingTab() {
                                     })}
                                   </div>
                                   <div className="text-slate-500 text-xs">
-                                    {((ws.quantity / (asset.calculated_stock || 1)) * 100).toFixed(1)}%
+                                    {ws.percentage.toFixed(1)}%
                                   </div>
                                 </div>
                               </div>
                             </div>
                           ))}
                           
-                          {asset.wallet_stocks.length > 3 && (
+                          {asset.wallet_stocks.filter((ws: any) => ws.quantity > 0).length > 3 && (
                              <div className="bg-white/50 rounded-lg p-2 text-center border border-blue-100">
                                <span className="text-slate-500 text-xs font-medium">
-                                 +{asset.wallet_stocks.length - 3} more wallets
+                                 +{asset.wallet_stocks.filter((ws: any) => ws.quantity > 0).length - 3} more wallets
                                </span>
                              </div>
                           )}

@@ -94,6 +94,7 @@ const initialFormData: EmployeeFormData = {
 export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: ComprehensiveAddEmployeeDialogProps) {
   const [formData, setFormData] = useState<EmployeeFormData>(initialFormData);
   const [currentTab, setCurrentTab] = useState("personal");
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
 
   const departments = [
@@ -210,6 +211,83 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
 
   const updateFormData = (field: keyof EmployeeFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // File upload handler
+  const handleFileUpload = async (file: File, fieldName: keyof EmployeeFormData) => {
+    try {
+      setUploading(prev => ({ ...prev, [fieldName]: true }));
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = `employee-documents/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('employee-documents')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data } = supabase.storage
+        .from('employee-documents')
+        .getPublicUrl(filePath);
+
+      updateFormData(fieldName, data.publicUrl);
+      toast.success(`${fieldName} uploaded successfully!`);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload ${fieldName}`);
+    } finally {
+      setUploading(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const createFileUploadArea = (fieldName: keyof EmployeeFormData, label: string, acceptedFiles: string, allowMultiple = false) => {
+    const isUploading = uploading[fieldName];
+    const hasFile = formData[fieldName];
+    
+    return (
+      <div className="space-y-2">
+        <Label>{label}</Label>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+          <input
+            type="file"
+            accept={acceptedFiles}
+            multiple={allowMultiple}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileUpload(file, fieldName);
+              }
+            }}
+            className="hidden"
+            id={`file-${fieldName}`}
+          />
+          <label htmlFor={`file-${fieldName}`} className="cursor-pointer">
+            {isUploading ? (
+              <>
+                <div className="animate-spin h-8 w-8 mx-auto mb-2 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <p className="text-sm text-blue-600">Uploading...</p>
+              </>
+            ) : hasFile ? (
+              <>
+                <FileText className="h-8 w-8 mx-auto mb-2 text-green-600" />
+                <p className="text-sm text-green-600">File uploaded</p>
+                <p className="text-xs text-gray-400">Click to replace</p>
+              </>
+            ) : (
+              <>
+                <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                <p className="text-sm text-gray-500">Click to upload {label.toLowerCase()}</p>
+                <p className="text-xs text-gray-400">{acceptedFiles}</p>
+              </>
+            )}
+          </label>
+        </div>
+      </div>
+    );
   };
 
   const nextTab = () => {
@@ -684,51 +762,12 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
               <h3 className="text-lg font-semibold text-primary">📂 Official Documents Upload</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Aadhaar Card (Upload)</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500">Click to upload Aadhaar card</p>
-                    <p className="text-xs text-gray-400">PDF or Image files</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>PAN Card (Upload)</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500">Click to upload PAN card</p>
-                    <p className="text-xs text-gray-400">PDF or Image files</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Passport Size Photo (Upload)</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500">Click to upload photo</p>
-                    <p className="text-xs text-gray-400">Image files only</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Resume / CV (Upload)</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500">Click to upload resume</p>
-                    <p className="text-xs text-gray-400">PDF files preferred</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Other Certificates (Optional)</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                    <p className="text-sm text-gray-500">Click to upload certificates</p>
-                    <p className="text-xs text-gray-400">Multiple files allowed</p>
-                  </div>
-                </div>
-
+                {createFileUploadArea('aadhaarCardUrl', 'Aadhaar Card (Upload)', 'image/*,.pdf')}
+                {createFileUploadArea('panCardUrl', 'PAN Card (Upload)', 'image/*,.pdf')}
+                {createFileUploadArea('photoUrl', 'Passport Size Photo (Upload)', 'image/*')}
+                {createFileUploadArea('resumeUrl', 'Resume / CV (Upload)', '.pdf,.doc,.docx')}
+                {createFileUploadArea('otherCertificatesUrls', 'Other Certificates (Optional)', 'image/*,.pdf', true)}
+                
                 <div className="space-y-2">
                   <Label>Offer Letter (Auto-generated)</Label>
                   <div className="border border-gray-300 rounded-lg p-6 text-center bg-gray-50">

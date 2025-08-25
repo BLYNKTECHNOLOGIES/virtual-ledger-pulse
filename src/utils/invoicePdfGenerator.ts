@@ -207,27 +207,25 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
     Number(serviceCharges).toFixed(2),
     '18%',
     Number(igstAmount).toFixed(2),
-    '',
-    '',
     Number(totalAmount).toFixed(2)
   ];
   
   // IGST row
   const igstRow = [
-    '', 'IGST', '', '', '', '', '', '', '18 %', Number(igstAmount).toFixed(2), '', '', ''
+    '', 'IGST', '', '', '', '', '', '', '18 %', Number(igstAmount).toFixed(2), ''
   ];
   
   // Total row
   const totalRow = [
     '', 'Total', '', `${quantity} NOS`, '', '', '', 
-    Number(serviceCharges).toFixed(2), '', Number(igstAmount).toFixed(2), '', '', Number(totalAmount).toFixed(2)
+    Number(serviceCharges).toFixed(2), '', Number(igstAmount).toFixed(2), Number(totalAmount).toFixed(2)
   ];
   
   // Create table with proper structure matching reference exactly
   autoTable(doc, {
     head: [
-      ['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'IGST', '', '', '', 'Total\nAmount'],
-      ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '', '', '']
+      ['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'IGST', '', 'Total\nAmount'],
+      ['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']
     ],
     body: [
       mainProductData,
@@ -262,11 +260,9 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       5: { cellWidth: 8, halign: 'center' },
       6: { cellWidth: 18, halign: 'right' },
       7: { cellWidth: 15, halign: 'right' },
-      8: { cellWidth: 8, halign: 'center' },
-      9: { cellWidth: 15, halign: 'right' },
-      10: { cellWidth: 8, halign: 'center' },
-      11: { cellWidth: 15, halign: 'right' },
-      12: { cellWidth: 18, halign: 'right' }
+      8: { cellWidth: 12, halign: 'center' },
+      9: { cellWidth: 20, halign: 'right' },
+      10: { cellWidth: 22, halign: 'right' }
     }
   });
   
@@ -282,9 +278,9 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   const taxSummaryY = tableEndY + 15;
   autoTable(doc, {
     body: [
-      ['', '', '', '', '', '', '', '', '', '', 'Taxable\nValue', 'IGST', '', 'E. & O.E\nTotal\nTax Amount'],
-      ['', '', '', '', '', '', '', '', '', '', 'Rate', 'Amount', '', ''],
-      ['', '', '', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '18%', Number(igstAmount).toFixed(2), '', Number(igstAmount).toFixed(2)]
+      ['', '', '', '', '', '', '', 'Taxable\nValue', 'IGST', '', 'E. & O.E\nTotal\nTax Amount'],
+      ['', '', '', '', '', '', '', 'Rate', 'Amount', '', ''],
+      ['', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '18%', Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)]
     ],
     startY: taxSummaryY,
     margin: { left: 90 },
@@ -296,12 +292,11 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       halign: 'center'
     },
     columnStyles: {
+      6: { fontStyle: 'bold' },
+      7: { fontStyle: 'bold', halign: 'right' },
       8: { fontStyle: 'bold' },
       9: { fontStyle: 'bold', halign: 'right' },
-      10: { fontStyle: 'bold' },
-      11: { fontStyle: 'bold', halign: 'right' },
-      12: { fontStyle: 'bold' },
-      13: { fontStyle: 'bold', halign: 'right' }
+      10: { fontStyle: 'bold', halign: 'right' }
     }
   });
   

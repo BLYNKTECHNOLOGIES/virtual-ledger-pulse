@@ -70,7 +70,10 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
     queryKey: ['purchase_payment_methods', selectedOrder?.payment_method_type],
     queryFn: async () => {
       if (!selectedOrder?.payment_method_type) return [] as any[];
-      const { data } = await supabase
+      
+      console.log('🔍 Fetching purchase payment methods for type:', selectedOrder.payment_method_type);
+      
+      const { data, error } = await supabase
         .from('purchase_payment_methods')
         .select(`
           id,
@@ -79,8 +82,15 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           upi_id
         `)
         .eq('is_active', true)
-        .eq('type', selectedOrder.payment_method_type); // Filter by order's payment method type
-      return (data as any[]) || [];
+        .eq('type', selectedOrder.payment_method_type);
+      
+      if (error) {
+        console.error('❌ Error fetching purchase payment methods:', error);
+        return [];
+      }
+      
+      console.log('✅ Purchase payment methods fetched:', data);
+      return data || [];
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
     staleTime: 300000, // 5 minutes
@@ -471,20 +481,30 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
                 <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
                   {paymentMethods?.length === 0 ? (
                     <div className="p-3 text-sm text-gray-500 text-center">
-                      No {selectedOrder?.payment_method_type} payment methods available
+                      No {selectedOrder?.payment_method_type} purchase payment methods available
                     </div>
                   ) : (
                     paymentMethods?.map((method) => (
                       <SelectItem key={method.id} value={method.id}>
-                        {method.type === 'UPI' && method.upi_id 
-                          ? `${method.upi_id} (${method.type})` 
-                          : `${method.type} - ${method.bank_account_name}`
-                        }
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
+                            PURCHASE
+                          </span>
+                          {method.type === 'UPI' && method.upi_id 
+                            ? `${method.upi_id} (${method.type})` 
+                            : `${method.type} - ${method.bank_account_name}`
+                          }
+                        </div>
                       </SelectItem>
                     ))
                   )}
                 </SelectContent>
               </Select>
+              {paymentMethods && paymentMethods.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Showing {paymentMethods.length} available purchase payment method(s) for {selectedOrder?.payment_method_type}
+                </p>
+              )}
             </div>
 
             {/* Bank Balance Display */}

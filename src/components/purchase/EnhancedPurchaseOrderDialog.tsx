@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { WalletSelector } from "@/components/stock/WalletSelector";
+
 
 interface EnhancedPurchaseOrderDialogProps {
   open: boolean;
@@ -26,7 +26,6 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
-  wallet_id?: string;
 }
 
 export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }: EnhancedPurchaseOrderDialogProps) {

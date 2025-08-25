@@ -20,7 +20,6 @@ interface PurchaseItem {
   product_id: string;
   quantity: number;
   unit_price: number;
-  wallet_id: string;
 }
 
 export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogProps) {
@@ -36,7 +35,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
   });
   
   const [items, setItems] = useState<PurchaseItem[]>([
-    { product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }
+    { product_id: "", quantity: undefined as any, unit_price: undefined as any }
   ]);
 
   // Fetch purchase payment methods with bank account details
@@ -72,20 +71,6 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     },
   });
 
-  // Fetch wallets
-  const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (purchaseData: any) => {
@@ -117,8 +102,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price,
-        wallet_id: item.wallet_id
+        total_price: item.quantity * item.unit_price
       }));
 
       const { error: itemsError } = await supabase
@@ -242,11 +226,11 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
       order_date: new Date().toISOString().split('T')[0],
       description: "",
     });
-    setItems([{ product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }]);
+    setItems([{ product_id: "", quantity: undefined as any, unit_price: undefined as any }]);
   };
 
   const addItem = () => {
-    setItems([...items, { product_id: "", quantity: undefined as any, unit_price: undefined as any, wallet_id: "" }]);
+    setItems([...items, { product_id: "", quantity: undefined as any, unit_price: undefined as any }]);
   };
 
   const removeItem = (index: number) => {
@@ -369,7 +353,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
             <div className="space-y-4">
               {items.map((item, index) => (
                 <div key={index} className="border rounded-lg p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <Label>Product</Label>
                       <Select onValueChange={(value) => updateItem(index, 'product_id', value)}>
@@ -386,21 +370,6 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                       </Select>
                     </div>
 
-                    <div>
-                      <Label>Wallet</Label>
-                      <Select onValueChange={(value) => updateItem(index, 'wallet_id', value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select wallet" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {wallets?.map((wallet) => (
-                            <SelectItem key={wallet.id} value={wallet.id}>
-                              {wallet.wallet_name} ({wallet.wallet_type})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
                     <div>
                       <Label>Quantity</Label>

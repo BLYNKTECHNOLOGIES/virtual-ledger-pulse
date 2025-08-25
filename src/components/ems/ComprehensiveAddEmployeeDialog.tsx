@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface ComprehensiveAddEmployeeDialogProps {
   open: boolean;
@@ -96,6 +96,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
   const [currentTab, setCurrentTab] = useState("personal");
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const departments = [
     "Operations", "Finance", "Compliance", "Administrative", "Support Staff"
@@ -105,7 +106,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
   const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
   const maritalStatuses = ["Single", "Married", "Divorced", "Widowed"];
   const employeeTypes = ["Full-time", "Part-time", "Contract", "Intern", "Consultant"];
-  const workLocations = ["Office", "Remote", "Hybrid"];
+  const workLocations = ["OFFICE", "REMOTE", "HYBRID"];
 
   // Generate employee ID
   const generateEmployeeId = async (department: string, designation: string) => {
@@ -213,14 +214,21 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
       console.log('✅ Mutation successful:', result);
       queryClient.invalidateQueries({ queryKey: ['employees_data'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      toast.success("Employee registered successfully!");
+      toast({
+        title: "Success!",
+        description: "Employee registered successfully!",
+      });
       onOpenChange(false);
       setFormData(initialFormData);
       setCurrentTab("personal");
     },
     onError: (error: Error) => {
       console.error('❌ Mutation error:', error);
-      toast.error(`Failed to register employee: ${error.message}`);
+      toast({
+        title: "Error",
+        description: `Failed to register employee: ${error.message}`,
+        variant: "destructive",
+      });
     },
   });
 
@@ -232,37 +240,61 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
     
     // Validate required fields
     if (!formData.firstName?.trim()) {
-      toast.error("First Name is required");
+      toast({
+        title: "Validation Error",
+        description: "First Name is required",
+        variant: "destructive",
+      });
       setCurrentTab("personal");
       return;
     }
     
     if (!formData.lastName?.trim()) {
-      toast.error("Last Name is required");
+      toast({
+        title: "Validation Error",
+        description: "Last Name is required",
+        variant: "destructive",
+      });
       setCurrentTab("personal");
       return;
     }
     
     if (!formData.email?.trim()) {
-      toast.error("Email is required");
+      toast({
+        title: "Validation Error",
+        description: "Email is required",
+        variant: "destructive",
+      });
       setCurrentTab("personal");
       return;
     }
     
     if (!formData.phone?.trim()) {
-      toast.error("Phone number is required");
+      toast({
+        title: "Validation Error",
+        description: "Phone number is required",
+        variant: "destructive",
+      });
       setCurrentTab("personal");
       return;
     }
     
     if (!formData.department?.trim()) {
-      toast.error("Department is required");
+      toast({
+        title: "Validation Error",
+        description: "Department is required",
+        variant: "destructive",
+      });
       setCurrentTab("employment");
       return;
     }
     
     if (!formData.designation?.trim()) {
-      toast.error("Designation is required");
+      toast({
+        title: "Validation Error",
+        description: "Designation is required",
+        variant: "destructive",
+      });
       setCurrentTab("employment");
       return;
     }
@@ -297,10 +329,17 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         .getPublicUrl(filePath);
 
       updateFormData(fieldName, data.publicUrl);
-      toast.success(`${fieldName} uploaded successfully!`);
+      toast({
+        title: "Success!",
+        description: `${fieldName} uploaded successfully!`,
+      });
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error(`Failed to upload ${fieldName}`);
+      toast({
+        title: "Upload Error",
+        description: `Failed to upload ${fieldName}`,
+        variant: "destructive",
+      });
     } finally {
       setUploading(prev => ({ ...prev, [fieldName]: false }));
     }

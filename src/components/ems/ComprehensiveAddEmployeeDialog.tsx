@@ -74,6 +74,7 @@ interface EmployeeFormData {
   // Compliance & Policy Acknowledgement
   ndaAcknowledged: boolean;
   handbookAcknowledged: boolean;
+  jobContractSigned: boolean;
 }
 
 const initialFormData: EmployeeFormData = {
@@ -87,7 +88,7 @@ const initialFormData: EmployeeFormData = {
   accountNumber: "", ifscCode: "", upiId: "", ctc: "", basicSalary: "",
   allowances: "", incentives: "", deductions: "", aadhaarCardUrl: "",
   panCardUrl: "", photoUrl: "", resumeUrl: "", offerLetterUrl: "",
-  otherCertificatesUrls: [], ndaAcknowledged: false, handbookAcknowledged: false
+  otherCertificatesUrls: [], ndaAcknowledged: false, handbookAcknowledged: false, jobContractSigned: false
 };
 
 export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: ComprehensiveAddEmployeeDialogProps) {
@@ -740,7 +741,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
 
             {/* Compliance Tab */}
             <TabsContent value="compliance" className="space-y-4">
-              <h3 className="text-lg font-semibold text-primary">🛡️ Compliance & Policy Acknowledgement</h3>
+              <h3 className="text-lg font-semibold text-primary">🛡️ Compliance & Policy Documentation</h3>
               
               <div className="space-y-6">
                 <div className="flex items-start space-x-3">
@@ -754,7 +755,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                       NDA / Confidentiality Agreement
                     </Label>
                     <p className="text-sm text-gray-600">
-                      ✅ "I agree to the Non-Disclosure Agreement and confidentiality terms as outlined in the company policy."
+                      Document provided and explained to employee
                     </p>
                   </div>
                 </div>
@@ -767,10 +768,26 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                   />
                   <div className="space-y-1">
                     <Label htmlFor="handbookAcknowledged" className="text-base font-medium">
-                      Company Handbook Acceptance
+                      Company Handbook
                     </Label>
                     <p className="text-sm text-gray-600">
-                      ✅ "I acknowledge that I have received, read, and understand the company handbook and agree to comply with all policies."
+                      Company handbook provided to employee
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="jobContractSigned"
+                    checked={formData.jobContractSigned}
+                    onCheckedChange={(checked) => updateFormData('jobContractSigned', checked)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="jobContractSigned" className="text-base font-medium">
+                      Job Contract
+                    </Label>
+                    <p className="text-sm text-gray-600">
+                      Employment contract signed by employee
                     </p>
                   </div>
                 </div>

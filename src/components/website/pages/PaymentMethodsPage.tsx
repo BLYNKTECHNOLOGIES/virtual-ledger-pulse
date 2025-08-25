@@ -135,8 +135,8 @@ export function PaymentMethodsPage() {
   ];
 
   const stats = [
-    { icon: TrendingUp, value: '₹50Cr+', label: 'Monthly Processed' },
-    { icon: Clock, value: '<30 sec', label: 'Avg Processing Time' },
+    { icon: TrendingUp, value: '₹5Cr+', label: 'Monthly Processed' },
+    { icon: Clock, value: '<30 min', label: 'Avg Processing Time' },
     { icon: Star, value: '99.9%', label: 'Success Rate' },
     { icon: Users, value: '15,000+', label: 'Active Users' }
   ];

@@ -210,9 +210,69 @@ export function InvestigationDetailsDialog({
           </div>
 
           {/* Investigation Steps */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Investigation Steps</h3>
-            {/* Steps are hidden in the reference image, so keeping this minimal */}
+            
+            {steps && steps.length > 0 ? (
+              <div className="space-y-4">
+                {steps.map((step) => (
+                  <div key={step.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
+                    <div className="flex-shrink-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        step.status === 'COMPLETED' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {step.status === 'COMPLETED' ? '✓' : step.step_number}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          step.status === 'COMPLETED' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {step.status === 'COMPLETED' ? '✓ COMPLETED' : 'PENDING'}
+                        </div>
+                      </div>
+                      
+                      <h4 className="font-medium text-gray-900 mb-1">
+                        {step.step_number}. {step.step_title}
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-3">
+                        {step.step_description}
+                      </p>
+                      
+                      {step.status === 'PENDING' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedStep(step);
+                            setShowStepCompletionDialog(true);
+                          }}
+                          className="text-sm"
+                        >
+                          Complete
+                        </Button>
+                      )}
+                      
+                      {step.status === 'COMPLETED' && step.completed_at && (
+                        <p className="text-xs text-gray-500">
+                          Completed on {new Date(step.completed_at).toLocaleDateString()} by {step.completed_by}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                Loading investigation steps...
+              </div>
+            )}
           </div>
 
           {/* Add Investigation Update */}

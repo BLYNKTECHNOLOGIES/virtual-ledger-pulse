@@ -258,30 +258,12 @@ export function ProductCardListingTab() {
                     {/* Pricing Grid */}
                     <div className="grid grid-cols-2 gap-2">
                       <div className="text-center p-2 bg-red-50 rounded-lg">
-                        <div className="text-red-600 text-xs font-medium">Cost</div>
-                        <div className="text-red-700 font-bold text-sm">₹{asset.cost_price}</div>
+                        <div className="text-red-600 text-xs font-medium">Avg Cost</div>
+                        <div className="text-red-700 font-bold text-sm">₹{(asset.average_buying_price || asset.cost_price || 0).toFixed(1)}</div>
                       </div>
                       <div className="text-center p-2 bg-green-50 rounded-lg">
-                        <div className="text-green-600 text-xs font-medium">Selling</div>
-                        <div className="text-green-700 font-bold text-sm">₹{asset.selling_price}</div>
-                      </div>
-                    </div>
-                    
-                    {/* Trading Stats */}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <TrendingDown className="h-3 w-3 text-blue-500" />
-                          <span className="text-blue-600 font-semibold text-sm">{asset.total_purchases || 0}</span>
-                        </div>
-                        <div className="text-slate-500 text-xs">Buys</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <TrendingUp className="h-3 w-3 text-green-500" />
-                          <span className="text-green-600 font-semibold text-sm">{asset.total_sales || 0}</span>
-                        </div>
-                        <div className="text-slate-500 text-xs">Sells</div>
+                        <div className="text-green-600 text-xs font-medium">Avg Selling</div>
+                        <div className="text-green-700 font-bold text-sm">₹{(asset.selling_price || 0).toFixed(1)}</div>
                       </div>
                     </div>
                     

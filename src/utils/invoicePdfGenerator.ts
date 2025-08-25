@@ -112,80 +112,93 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   doc.setFont('helvetica');
   
   // Header
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setTextColor(0, 0, 0);
   doc.text('Tax Invoice', 105, 20, { align: 'center' });
   
-  // Company details box
-  doc.setFontSize(10);
-  doc.rect(15, 30, 180, 45);
+  // Main header box
+  doc.rect(15, 25, 180, 55);
   
-  // Left side - Company details (adjust positioning for better alignment)
-  doc.setFontSize(11);
+  // Left side - Company details
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  // Split company name if too long
-  const companyNameLines = doc.splitTextToSize(company.name, 90);
-  let yPos = 40;
+  const companyNameLines = doc.splitTextToSize(company.name, 85);
+  let yPos = 33;
   companyNameLines.forEach((line: string) => {
-    doc.text(line, 20, yPos);
-    yPos += 5;
+    doc.text(line, 18, yPos);
+    yPos += 4;
   });
   
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(company.address, 20, yPos + 2);
-  doc.text(company.city, 20, yPos + 7);
-  doc.text(company.state, 20, yPos + 12);
-  doc.text(`E-Mail: ${company.email}`, 20, yPos + 17);
+  doc.setFontSize(8);
+  doc.text(company.address, 18, yPos + 2);
+  doc.text(company.city, 18, yPos + 6);
+  doc.text(company.state, 18, yPos + 10);
+  doc.text(`E-Mail: ${company.email}`, 18, yPos + 14);
   if (company.gstin) {
-    doc.text(`GSTIN/UIN: ${company.gstin}`, 20, yPos + 22);
+    doc.text(`GSTIN/UIN: ${company.gstin}`, 18, yPos + 18);
   }
   
   // Vertical divider line
-  doc.line(115, 30, 115, 75);
+  doc.line(105, 25, 105, 80);
   
-  // Right side - Invoice details (better spacing)
+  // Right side - Invoice details in table format
   const invoiceNo = order.order_number || '47';
   const invoiceDate = new Date(order.order_date).toLocaleDateString('en-GB');
   
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Invoice No.', 120, 40);
-  doc.text('Dated', 160, 40);
-  doc.setFont('helvetica', 'normal');
-  doc.text(invoiceNo, 120, 45);
-  doc.text(invoiceDate, 160, 45);
+  // Create invoice details table
+  const invoiceDetailsData = [
+    ['Invoice No.', invoiceNo, 'Dated', invoiceDate],
+    ['Delivery Note', '', 'Mode/Terms of Payment', order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending'],
+    ['Reference No. & Date.', '', 'Other References', ''],
+    ['Buyer\'s Order No.', '', 'Dated', ''],
+    ['Dispatch Doc No.', '', 'Delivery Note Date', ''],
+    ['Dispatched through', '', 'Destination', ''],
+    ['Terms of Delivery', '', '', '']
+  ];
   
+  autoTable(doc, {
+    body: invoiceDetailsData,
+    startY: 28,
+    margin: { left: 107, right: 17 },
+    tableWidth: 86,
+    styles: {
+      fontSize: 7,
+      cellPadding: 1,
+    },
+    columnStyles: {
+      0: { cellWidth: 30, fontStyle: 'bold' },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 22, fontStyle: 'bold' },
+      3: { cellWidth: 14 }
+    },
+    theme: 'grid'
+  });
+
+  // Consignee section
+  doc.rect(15, 85, 180, 20);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
-  doc.text('Delivery Note', 120, 52);
-  doc.text('Mode/Terms of Payment', 120, 59);
+  doc.text('Consignee (Ship to)', 18, 93);
   doc.setFont('helvetica', 'normal');
-  doc.text('', 120, 57);
-  doc.text(order.payment_status === 'COMPLETED' ? 'Paid' : 'Pending', 120, 64);
-  
-  doc.setFont('helvetica', 'bold');
-  doc.text('Reference No. & Date', 150, 52);
-  doc.setFont('helvetica', 'normal');
-  doc.text('', 150, 57);
-  
-  // Customer details box (adjust position to account for larger company box)
-  doc.rect(15, 80, 180, 25);
-  
-  // Customer details
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Buyer (Bill to)', 20, 90);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text(order.client_name || 'Customer Name', 20, 97);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
+  doc.text(order.client_name || 'Customer Name', 18, 98);
   if (order.client_phone) {
-    doc.text(`Phone: ${order.client_phone}`, 20, 102);
+    doc.text(`Phone: ${order.client_phone}`, 18, 102);
   }
   
-  // Items table (adjust start position)
-  const tableStartY = 115;
+  // Buyer section
+  doc.rect(15, 110, 180, 20);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Buyer (Bill to)', 18, 118);
+  doc.setFont('helvetica', 'normal');
+  doc.text(order.client_name || 'Customer Name', 18, 123);
+  if (order.client_phone) {
+    doc.text(`Phone: ${order.client_phone}`, 18, 127);
+  }
+  
+  // Items table start position
+  const tableStartY = 140;
   
   // Use FIFO calculation for service charges and tax
   const serviceCharges = fifoCalculation.serviceCharges;
@@ -193,13 +206,13 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
   const totalAmount = fifoCalculation.totalAmount;
   
   // Table headers matching reference format exactly
-  const headers = [['Sl No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable Value', 'IGST', '', 'Total Amount']];
-  const subHeaders = [['', '', '', '', '', '', '', '', 'Rate', 'Amount', '']];
+  const headers = [['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable\nValue', 'CGST', '', 'SGST/UTGST', '', 'Total\nAmount']];
+  const subHeaders = [['', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', '']];
   
-  // Table data - USDT product and Service Charges as separate lines
+  // Table data - Only USDT as main product
   const productName = order.description || 'USDT';
   const quantity = order.quantity || 1;
-  const rate = order.price_per_unit || (order.total_amount / quantity);
+  const rate = fifoCalculation.totalCost / quantity; // FIFO buy price
   const hsnCode = '960899'; // HSN code for USDT
   
   const tableData = [
@@ -210,38 +223,31 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       quantity.toString(), 
       Number(rate).toFixed(2), 
       'NOS', 
-      Number(order.total_amount).toFixed(2),
-      '0.00', // USDT itself is not taxable
-      '',
-      '0.00',
-      Number(order.total_amount).toFixed(2)
-    ],
-    [
-      '2',
-      'Service Charges',
-      '998314', // SAC code for service charges
-      '1',
-      Number(serviceCharges).toFixed(2),
-      'NOS',
-      Number(serviceCharges).toFixed(2),
+      Number(fifoCalculation.totalCost).toFixed(2),
       Number(serviceCharges).toFixed(2), // Service charges are taxable
-      '18%',
-      Number(igstAmount).toFixed(2),
-      Number(serviceCharges + igstAmount).toFixed(2)
+      '9%',
+      Number(igstAmount/2).toFixed(2), // Split IGST as CGST for display
+      '9%',
+      Number(igstAmount/2).toFixed(2), // Split IGST as SGST for display
+      Number(totalAmount).toFixed(2)
     ]
   ];
   
-  // Add IGST breakdown row
+  // Add CGST and SGST breakdown rows
   tableData.push([
-    '', 'IGST', '', '', '', '', '', '', '18%', Number(igstAmount).toFixed(2), ''
+    '', 'CGST', '', '', '', '', '', '', '9%', Number(igstAmount/2).toFixed(2), '', '', ''
+  ]);
+  
+  tableData.push([
+    '', 'SGST', '', '', '', '', '', '', '', '', '9%', Number(igstAmount/2).toFixed(2), ''
   ]);
   
   // Add total row
   tableData.push([
-    '', 'Total', '', quantity.toString(), '', '', 
-    Number(totalAmount).toFixed(2), 
+    '', 'Total', '', quantity.toString(), '', 'NOS', '', 
     Number(serviceCharges).toFixed(2),
-    '', Number(igstAmount).toFixed(2),
+    '', Number(igstAmount/2).toFixed(2),
+    '', Number(igstAmount/2).toFixed(2),
     Number(totalAmount).toFixed(2)
   ]);
   
@@ -251,89 +257,109 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
     startY: tableStartY,
     theme: 'grid',
     styles: {
-      fontSize: 8,
-      cellPadding: 2,
+      fontSize: 7,
+      cellPadding: 1.5,
+      valign: 'middle',
+      halign: 'center'
     },
     headStyles: {
-      fillColor: [240, 240, 240],
+      fillColor: [255, 255, 255],
       textColor: [0, 0, 0],
       fontStyle: 'bold',
+      lineWidth: 0.1,
+      lineColor: [0, 0, 0]
     },
     columnStyles: {
-      0: { cellWidth: 15 }, // Sl No
-      1: { cellWidth: 40 }, // Description
-      2: { cellWidth: 20 }, // HSN
-      3: { cellWidth: 15 }, // Quantity
-      4: { cellWidth: 20 }, // Rate
-      5: { cellWidth: 10 }, // per
-      6: { cellWidth: 20 }, // Amount
-      7: { cellWidth: 20 }, // Taxable Value
-      8: { cellWidth: 15 }, // IGST Rate
-      9: { cellWidth: 20 }, // IGST Amount
-      10: { cellWidth: 25 }, // Total Amount
+      0: { cellWidth: 12, halign: 'center' }, // Sl No
+      1: { cellWidth: 35, halign: 'left' }, // Description
+      2: { cellWidth: 15, halign: 'center' }, // HSN
+      3: { cellWidth: 12, halign: 'center' }, // Quantity
+      4: { cellWidth: 15, halign: 'right' }, // Rate
+      5: { cellWidth: 8, halign: 'center' }, // per
+      6: { cellWidth: 18, halign: 'right' }, // Amount
+      7: { cellWidth: 15, halign: 'right' }, // Taxable Value
+      8: { cellWidth: 10, halign: 'center' }, // CGST Rate
+      9: { cellWidth: 15, halign: 'right' }, // CGST Amount
+      10: { cellWidth: 10, halign: 'center' }, // SGST Rate
+      11: { cellWidth: 15, halign: 'right' }, // SGST Amount
+      12: { cellWidth: 20, halign: 'right' }, // Total Amount
     },
   });
   
-  // Add summary table exactly like reference
-  const taxSummaryY = (doc as any).lastAutoTable?.finalY + 10 || tableStartY + 80;
+  // Add bottom summary section exactly like reference
+  const tableEndY = (doc as any).lastAutoTable?.finalY + 5;
   
+  // Amount in words section
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Amount Chargeable (in words) INR ${numberToWords(Math.round(totalAmount))} Only`, 20, tableEndY + 10);
+  
+  // Tax summary table (right side)
   autoTable(doc, {
     body: [
-      ['', '', '', '', '', '', '', 'Taxable Value', 'IGST', 'Total Tax Amount'],
-      ['', '', '', '', '', '', '', Number(serviceCharges).toFixed(2), Number(igstAmount).toFixed(2), Number(igstAmount).toFixed(2)],
-      ['', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), Number(igstAmount).toFixed(2), Number(totalAmount).toFixed(2)]
+      ['', '', '', '', '', '', '', '', '', '', '', 'Taxable\nValue', 'CGST', 'SGST/UTGST', 'E. & O.E\nTotal\nTax Amount'],
+      ['', '', '', '', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', ''],
+      ['', '', '', '', '', '', '', '', '', 'Total:', Number(serviceCharges).toFixed(2), '9%', Number(igstAmount/2).toFixed(2), '9%', Number(igstAmount/2).toFixed(2), Number(igstAmount).toFixed(2)]
     ],
-    startY: taxSummaryY,
+    startY: tableEndY + 15,
+    margin: { left: 95 },
+    tableWidth: 100,
     theme: 'grid',
     styles: {
-      fontSize: 9,
-      cellPadding: 3,
-      halign: 'right'
+      fontSize: 7,
+      cellPadding: 1,
+      halign: 'center'
     },
     columnStyles: {
-      6: { fontStyle: 'bold' },
-      7: { fontStyle: 'bold' },
-      8: { fontStyle: 'bold' },
-      9: { fontStyle: 'bold' }
+      9: { fontStyle: 'bold' },
+      10: { fontStyle: 'bold' },
+      11: { fontStyle: 'bold' },
+      12: { fontStyle: 'bold' },
+      13: { fontStyle: 'bold' },
+      14: { fontStyle: 'bold' }
     }
   });
   
-  // Amount in words
-  const tableEndY = (doc as any).lastAutoTable?.finalY || tableStartY + 50;
-  const finalY = tableEndY + 10;
-  doc.setFontSize(10);
-  doc.text('Amount Chargeable (in words)  INR ' + numberToWords(Math.round(totalAmount)) + ' Only', 20, finalY);
-  doc.setFontSize(9);
-  doc.text('Tax Amount (in words) : INR ' + numberToWords(Math.round(igstAmount)) + ' Only', 20, finalY + 7);
+  // Tax Amount in words
+  const taxWordsY = (doc as any).lastAutoTable?.finalY + 5;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Tax Amount (in words) : INR ${numberToWords(Math.round(igstAmount))} Only`, 20, taxWordsY);
+  
+  // Company's Bank Details section
+  const bankDetailsY = taxWordsY + 10;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text("Company's Bank Details", 20, bankDetailsY);
   doc.setFont('helvetica', 'normal');
   
-  // Payment received section (if payment is completed)
-  if (order.payment_status === 'COMPLETED' && bankAccountData) {
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Payment Received In:', 20, finalY + 20);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Bank: ${bankAccountData.bank_name}`, 20, finalY + 27);
-    doc.text(`Account: ${bankAccountData.account_name}`, 20, finalY + 34);
-    doc.text(`A/C No: ****${bankAccountData.account_number?.slice(-4) || 'N/A'}`, 20, finalY + 41);
+  if (bankAccountData) {
+    doc.text(`A/C Holder's Name : ${bankAccountData.account_name || company.name}`, 20, bankDetailsY + 6);
+    doc.text(`Bank Name : ${bankAccountData.bank_name || 'AXIS BANK'}`, 20, bankDetailsY + 11);
+    doc.text(`A/C No. : ${bankAccountData.account_number || '918020115301918'}`, 20, bankDetailsY + 16);
+    doc.text(`Branch & IFS Code : ${bankAccountData.ifsc_code || 'BAIRAGARH & UTIB0002979'}`, 20, bankDetailsY + 21);
+    doc.text(`SWIFT Code :`, 20, bankDetailsY + 26);
+  } else {
+    doc.text(`A/C Holder's Name : ${company.name}`, 20, bankDetailsY + 6);
+    doc.text(`Bank Name : AXIS BANK`, 20, bankDetailsY + 11);
+    doc.text(`A/C No. : 918020115301918`, 20, bankDetailsY + 16);
+    doc.text(`Branch & IFS Code : BAIRAGARH & UTIB0002979`, 20, bankDetailsY + 21);
+    doc.text(`SWIFT Code :`, 20, bankDetailsY + 26);
   }
   
-  // Declaration
-  const declarationY = finalY + (order.payment_status === 'COMPLETED' && bankAccountData ? 55 : 25);
-  doc.setFontSize(9);
-  doc.text('Declaration', 20, declarationY);
-  doc.text('We declare that this invoice shows the actual price of the', 20, declarationY + 7);
-  doc.text('goods described and that all particulars are true and correct.', 20, declarationY + 14);
-  
-  // Signature
+  // Declaration section
+  const declarationY = bankDetailsY + 35;
   doc.setFontSize(8);
-  const signatureLines = doc.splitTextToSize(`for ${company.name}`, 80);
-  let signatureY = declarationY + 7;
-  signatureLines.forEach((line: string) => {
-    doc.text(line, 130, signatureY);
-    signatureY += 4;
-  });
-  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Declaration', 20, declarationY);
+  doc.setFont('helvetica', 'normal');
+  doc.text('We declare that this invoice shows the actual price of the goods described and that all', 20, declarationY + 5);
+  doc.text('particulars are true and correct.', 20, declarationY + 10);
+  
+  // Company signature (right side)
+  doc.setFont('helvetica', 'bold');
+  doc.text(`for ${company.name}`, 130, declarationY + 5);
+  doc.setFont('helvetica', 'normal');
   doc.text('Authorised Signatory', 150, declarationY + 25);
   
   // Footer

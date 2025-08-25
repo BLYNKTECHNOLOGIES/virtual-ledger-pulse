@@ -110,22 +110,25 @@ export function InvestigationDetailsDialog({
     enabled: !!investigation?.id && open,
   });
 
-  // Fetch investigation updates
+  // Fetch investigation updates using the correct investigation ID
   const { data: updates } = useQuery({
     queryKey: ['investigation_updates', investigation?.id],
     queryFn: async () => {
       if (!investigation?.id) return [];
       
+      // Use the same investigation ID that was used for steps
+      const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
+      
       const { data, error } = await supabase
         .from('investigation_updates')
         .select('*')
-        .eq('investigation_id', investigation.id)
+        .eq('investigation_id', investigationIdToUse)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!investigation?.id && open,
+    enabled: !!investigation?.id && open && !!steps?.length,
   });
 
   // Complete step mutation
@@ -220,19 +223,9 @@ export function InvestigationDetailsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader className="border-b pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-medium text-gray-900">
-              Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
-            </DialogTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onOpenChange(false)}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-xl font-medium text-gray-900">
+            Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="p-6 space-y-8">
@@ -240,7 +233,7 @@ export function InvestigationDetailsDialog({
           <div className="space-y-3">
             <h3 className="text-lg font-medium text-gray-900">Reason</h3>
             <p className="text-gray-600 text-base">
-              {investigation?.reason || investigation?.description || investigation?.bank_reason || 'Investigation reason not specified'}
+              {investigation?.reason || investigation?.error_message || investigation?.description || investigation?.title || 'Investigation reason not specified'}
             </p>
           </div>
 

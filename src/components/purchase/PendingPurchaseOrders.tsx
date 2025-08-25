@@ -76,7 +76,8 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           id,
           type,
           bank_account_name,
-          upi_id
+          upi_id,
+          bank_account_id
         `)
         .eq('is_active', true)
         .eq('type', selectedOrder.payment_method_type); // Filter by order's payment method type
@@ -84,6 +85,27 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
     },
     enabled: !!selectedOrder?.payment_method_type && actionType === 'complete',
     staleTime: 300000, // 5 minutes
+  });
+
+  // Fetch bank account balance for selected payment method
+  const { data: bankAccountBalance } = useQuery({
+    queryKey: ['bank_account_balance', selectedPaymentMethod],
+    queryFn: async () => {
+      if (!selectedPaymentMethod) return null;
+      const selectedMethod = paymentMethods?.find(pm => pm.id === selectedPaymentMethod);
+      if (!selectedMethod?.bank_account_id) return null;
+      
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('balance, account_name')
+        .eq('id', selectedMethod.bank_account_id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedPaymentMethod && !!paymentMethods,
+    staleTime: 30000, // 30 seconds
   });
 
   // Optimized mutations with better error handling and validation
@@ -309,6 +331,20 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
   const handleCompleteOrder = () => {
     if (!selectedOrder || !selectedPaymentMethod) return;
     
+    // Check bank balance before proceeding
+    const amountToPay = selectedOrder.tds_applied && selectedOrder.net_payable_amount 
+      ? selectedOrder.net_payable_amount 
+      : selectedOrder.total_amount;
+    
+    if (bankAccountBalance && bankAccountBalance.balance < amountToPay) {
+      toast({
+        title: "Insufficient Funds",
+        description: `Bank balance (₹${bankAccountBalance.balance.toFixed(2)}) is less than required amount (₹${amountToPay.toFixed(2)})`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     completeOrderMutation.mutate({
       orderId: selectedOrder.id,
       paymentMethodId: selectedPaymentMethod,
@@ -451,6 +487,48 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
               </Select>
             </div>
 
+            {/* Bank Balance Display */}
+            {bankAccountBalance && selectedPaymentMethod && (
+              <div className={`p-4 rounded-lg ${
+                bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                  ? selectedOrder.net_payable_amount 
+                  : selectedOrder?.total_amount) 
+                  ? 'bg-red-50' : 'bg-yellow-50'
+              }`}>
+                <h4 className={`font-medium ${
+                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                    ? selectedOrder.net_payable_amount 
+                    : selectedOrder?.total_amount) 
+                    ? 'text-red-800' : 'text-yellow-800'
+                }`}>
+                  Available Bank Balance
+                </h4>
+                <p className={`text-sm ${
+                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                    ? selectedOrder.net_payable_amount 
+                    : selectedOrder?.total_amount) 
+                    ? 'text-red-600' : 'text-yellow-600'
+                }`}>
+                  Account: {bankAccountBalance.account_name}
+                </p>
+                <p className={`text-sm font-medium ${
+                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                    ? selectedOrder.net_payable_amount 
+                    : selectedOrder?.total_amount) 
+                    ? 'text-red-800' : 'text-yellow-800'
+                }`}>
+                  Available: ₹{bankAccountBalance.balance.toFixed(2)}
+                </p>
+                {bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                  ? selectedOrder.net_payable_amount 
+                  : selectedOrder?.total_amount) && (
+                  <p className="text-sm text-red-600 font-medium mt-1">
+                    ⚠️ Insufficient funds! Cannot proceed with payment.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <Label>Payment Proof</Label>
               <FileUpload 
@@ -465,7 +543,13 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
               </Button>
               <Button 
                 onClick={handleCompleteOrder}
-                disabled={!selectedPaymentMethod || completeOrderMutation.isPending}
+                disabled={
+                  !selectedPaymentMethod || 
+                  completeOrderMutation.isPending ||
+                  (bankAccountBalance && bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
+                    ? selectedOrder.net_payable_amount 
+                    : selectedOrder?.total_amount))
+                }
               >
                 {completeOrderMutation.isPending ? "Processing..." : "Complete Payment"}
               </Button>

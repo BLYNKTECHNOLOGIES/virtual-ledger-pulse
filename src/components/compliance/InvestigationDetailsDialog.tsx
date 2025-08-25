@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X } from "lucide-react";
+import { Plus, X, CheckCircle, Circle } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -238,71 +239,54 @@ export function InvestigationDetailsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="p-6 space-y-8">
-          {/* Reason */}
-          <div className="space-y-3">
-            <h3 className="text-lg font-medium text-gray-900">Reason</h3>
-            <p className="text-gray-600 text-base">
+        <div className="p-6 space-y-6">
+          {/* Reason Section */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reason</h3>
+            <p className="text-gray-700 text-sm leading-relaxed bg-white p-3 rounded border">
               {investigation?.reason || investigation?.error_message || investigation?.description || investigation?.title || 'Investigation reason not specified'}
             </p>
           </div>
 
           {/* Investigation Steps */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Investigation Steps</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Investigation Steps</h3>
             
             {steps && steps.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {steps.map((step) => (
-                  <div key={step.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
-                    <div className="flex-shrink-0">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        step.status === 'COMPLETED' 
-                          ? 'bg-green-100 text-green-700' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {step.status === 'COMPLETED' ? '✓' : step.step_number}
+                  <div key={step.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center justify-center">
+                        {step.status === 'COMPLETED' ? (
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        ) : (
+                          <Circle className="w-6 h-6 text-gray-400" />
+                        )}
                       </div>
-                    </div>
-                    
-                    <div className="flex-grow">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          step.status === 'COMPLETED' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {step.status === 'COMPLETED' ? '✓ COMPLETED' : 'PENDING'}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant={step.status === 'COMPLETED' ? 'default' : 'secondary'} className="text-xs font-medium">
+                            {step.status}
+                          </Badge>
+                          <span className="font-medium text-gray-900">{step.step_number}. {step.step_title}</span>
                         </div>
+                        <p className="text-sm text-gray-600">{step.step_description}</p>
                       </div>
-                      
-                      <h4 className="font-medium text-gray-900 mb-1">
-                        {step.step_number}. {step.step_title}
-                      </h4>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {step.step_description}
-                      </p>
-                      
-                      {step.status === 'PENDING' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedStep(step);
-                            setShowStepCompletionDialog(true);
-                          }}
-                          className="text-sm"
-                        >
-                          Complete
-                        </Button>
-                      )}
-                      
-                      {step.status === 'COMPLETED' && step.completed_at && (
-                        <p className="text-xs text-gray-500">
-                          Completed on {new Date(step.completed_at).toLocaleDateString()} by {step.completed_by}
-                        </p>
-                      )}
                     </div>
+                    {step.status !== 'COMPLETED' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedStep(step);
+                          setShowStepCompletionDialog(true);
+                        }}
+                        className="ml-4 bg-white hover:bg-gray-50"
+                      >
+                        Complete
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -313,81 +297,82 @@ export function InvestigationDetailsDialog({
             )}
           </div>
 
-          {/* Add Investigation Update */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Add Investigation Update</h3>
+          {/* Add Investigation Update - Compact Version */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-base font-medium text-gray-900 mb-3">Add Investigation Update</h3>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               <Textarea
                 value={newUpdate}
                 onChange={(e) => setNewUpdate(e.target.value)}
                 placeholder="Enter investigation update..."
-                rows={6}
-                className="w-full resize-none border-2 border-blue-200 rounded-lg p-4 focus:border-blue-400 focus:ring-0 text-base"
+                rows={3}
+                className="w-full resize-none text-sm"
               />
               
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('investigation-file-input')?.click()}
-                    className="bg-white border-2 border-gray-300 hover:border-blue-400 text-gray-700 font-medium px-4 py-2 rounded-lg"
-                  >
-                    Choose Files
-                  </Button>
-                  <Input
-                    id="investigation-file-input"
-                    type="file"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                  />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('investigation-file-input')?.click()}
+                      className="text-xs"
+                    >
+                      Choose Files
+                    </Button>
+                    <Input
+                      id="investigation-file-input"
+                      type="file"
+                      multiple
+                      onChange={handleFileSelect}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-600">
+                    {selectedFiles.length > 0 ? (
+                      <span className="text-blue-600">{selectedFiles.length} file(s) selected</span>
+                    ) : (
+                      'No files selected'
+                    )}
+                  </span>
                 </div>
-                <span className="text-sm font-medium text-gray-600">
-                  {selectedFiles.length > 0 ? (
-                    <span className="text-blue-600">{selectedFiles.length} file(s) selected</span>
-                  ) : (
-                    'No files selected'
-                  )}
-                </span>
+                
+                <Button 
+                  onClick={handleAddUpdate} 
+                  disabled={!newUpdate.trim() && selectedFiles.length === 0}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Update
+                </Button>
               </div>
               
-              {/* Show selected files */}
+              {/* Show selected files in compact format */}
               {selectedFiles.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Selected Files:</p>
-                  <div className="space-y-1">
-                    {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-blue-50 p-2 rounded-lg">
-                        <span className="text-sm text-blue-800">{file.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newFiles = selectedFiles.filter((_, i) => i !== index);
-                            setSelectedFiles(newFiles);
-                          }}
-                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="space-y-1">
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between bg-blue-50 px-2 py-1 rounded text-xs">
+                      <span className="text-blue-800 truncate">{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const newFiles = selectedFiles.filter((_, i) => i !== index);
+                          setSelectedFiles(newFiles);
+                        }}
+                        className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
-              
-              <Button 
-                onClick={handleAddUpdate} 
-                disabled={!newUpdate.trim() && selectedFiles.length === 0}
-                className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-base font-medium flex items-center justify-center gap-2"
-              >
-                <Plus className="h-5 w-5" />
-                Add Update
-              </Button>
             </div>
           </div>
 

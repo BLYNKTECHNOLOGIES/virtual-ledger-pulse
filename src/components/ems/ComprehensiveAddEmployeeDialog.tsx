@@ -131,95 +131,116 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
     mutationFn: async (data: EmployeeFormData) => {
       console.log('🔄 Starting employee registration...', data);
       
-      // Generate employee ID
-      const employeeId = await generateEmployeeId(data.department, data.designation);
-      console.log('✅ Generated employee ID:', employeeId);
-      
-      // Generate a UUID for user_id since it's required
-      const tempUserId = crypto.randomUUID();
-      console.log('✅ Generated temp user ID:', tempUserId);
-      
-      const employeeData = {
-        employee_id: employeeId,
-        name: `${data.firstName} ${data.middleName} ${data.lastName}`.trim(),
-        email: data.email,
-        phone: data.phone,
-        alternate_phone: data.alternatePhone,
-        department: data.department,
-        designation: data.designation,
-        date_of_joining: data.dateOfJoining?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-        date_of_birth: data.dateOfBirth?.toISOString().split('T')[0],
-        gender: data.gender,
-        blood_group: data.bloodGroup,
-        marital_status: data.maritalStatus,
-        current_address: data.currentAddress,
-        permanent_address: data.permanentAddress,
-        emergency_contact_name: data.emergencyContactName,
-        emergency_contact_relation: data.emergencyContactRelation,
-        emergency_contact_number: data.emergencyContactNumber,
-        work_location: data.workLocation,
-        employee_type: data.employeeType,
-        probation_period: data.probationPeriod,
-        probation_duration_months: data.probationDurationMonths,
-        pan_number: data.panNumber,
-        aadhaar_number: data.aadhaarNumber,
-        bank_account_holder_name: data.bankAccountHolderName,
-        bank_name: data.bankName,
-        account_number: data.accountNumber,
-        ifsc_code: data.ifscCode,
-        upi_id: data.upiId,
-        ctc: data.ctc ? parseFloat(data.ctc) : 0,
-        basic_salary: data.basicSalary ? parseFloat(data.basicSalary) : 0,
-        allowances: data.allowances ? parseFloat(data.allowances) : 0,
-        incentives: data.incentives ? parseFloat(data.incentives) : 0,
-        deductions: data.deductions ? parseFloat(data.deductions) : 0,
-        salary: data.ctc ? parseFloat(data.ctc) : 50000, // Default salary
-        aadhaar_card_url: data.aadhaarCardUrl,
-        pan_card_url: data.panCardUrl,
-        photo_url: data.photoUrl,
-        resume_url: data.resumeUrl,
-        offer_letter_url: data.offerLetterUrl,
-        other_certificates_urls: Array.isArray(data.otherCertificatesUrls) ? data.otherCertificatesUrls : [],
-        nda_acknowledged: data.ndaAcknowledged,
-        nda_acknowledged_at: data.ndaAcknowledged ? new Date().toISOString() : null,
-        handbook_acknowledged: data.handbookAcknowledged,
-        handbook_acknowledged_at: data.handbookAcknowledged ? new Date().toISOString() : null,
-        job_contract_signed: data.jobContractSigned,
-        status: 'ACTIVE' as const,
-        user_id: tempUserId
-      };
-      
-      console.log('📝 Employee data to insert:', employeeData);
-      
-      const { data: insertResult, error } = await supabase
-        .from('employees')
-        .insert([employeeData])
-        .select();
-      
-      if (error) {
-        console.error('❌ Database error:', error);
-        throw error;
+      try {
+        // Generate employee ID
+        const employeeId = await generateEmployeeId(data.department, data.designation);
+        console.log('✅ Generated employee ID:', employeeId);
+        
+        // Generate a UUID for user_id since it's required
+        const tempUserId = crypto.randomUUID();
+        console.log('✅ Generated temp user ID:', tempUserId);
+        
+        const employeeData = {
+          employee_id: employeeId,
+          name: `${data.firstName} ${data.middleName} ${data.lastName}`.trim(),
+          email: data.email,
+          phone: data.phone,
+          alternate_phone: data.alternatePhone || null,
+          department: data.department,
+          designation: data.designation,
+          date_of_joining: data.dateOfJoining?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+          date_of_birth: data.dateOfBirth?.toISOString().split('T')[0] || null,
+          gender: data.gender || null,
+          blood_group: data.bloodGroup || null,
+          marital_status: data.maritalStatus || null,
+          current_address: data.currentAddress || null,
+          permanent_address: data.permanentAddress || null,
+          emergency_contact_name: data.emergencyContactName || null,
+          emergency_contact_relation: data.emergencyContactRelation || null,
+          emergency_contact_number: data.emergencyContactNumber || null,
+          work_location: data.workLocation || null,
+          employee_type: data.employeeType || null,
+          probation_period: data.probationPeriod,
+          probation_duration_months: data.probationDurationMonths || null,
+          pan_number: data.panNumber || null,
+          aadhaar_number: data.aadhaarNumber || null,
+          bank_account_holder_name: data.bankAccountHolderName || null,
+          bank_name: data.bankName || null,
+          account_number: data.accountNumber || null,
+          ifsc_code: data.ifscCode || null,
+          upi_id: data.upiId || null,
+          ctc: data.ctc ? parseFloat(data.ctc) : null,
+          basic_salary: data.basicSalary ? parseFloat(data.basicSalary) : null,
+          allowances: data.allowances ? parseFloat(data.allowances) : null,
+          incentives: data.incentives ? parseFloat(data.incentives) : null,
+          deductions: data.deductions ? parseFloat(data.deductions) : null,
+          salary: data.ctc ? parseFloat(data.ctc) : 50000, // Default salary
+          aadhaar_card_url: data.aadhaarCardUrl || null,
+          pan_card_url: data.panCardUrl || null,
+          photo_url: data.photoUrl || null,
+          resume_url: data.resumeUrl || null,
+          offer_letter_url: data.offerLetterUrl || null,
+          other_certificates_urls: Array.isArray(data.otherCertificatesUrls) ? data.otherCertificatesUrls : [],
+          nda_acknowledged: data.ndaAcknowledged,
+          nda_acknowledged_at: data.ndaAcknowledged ? new Date().toISOString() : null,
+          handbook_acknowledged: data.handbookAcknowledged,
+          handbook_acknowledged_at: data.handbookAcknowledged ? new Date().toISOString() : null,
+          job_contract_signed: data.jobContractSigned,
+          status: 'ACTIVE' as const,
+          user_id: tempUserId
+        };
+        
+        console.log('📝 Employee data to insert:', employeeData);
+        
+        const { data: insertResult, error } = await supabase
+          .from('employees')
+          .insert([employeeData])
+          .select();
+        
+        if (error) {
+          console.error('❌ Database error:', error);
+          throw new Error(`Database error: ${error.message}`);
+        }
+        
+        console.log('✅ Employee inserted successfully:', insertResult);
+        return insertResult;
+      } catch (error: any) {
+        console.error('❌ Error in employee registration:', error);
+        throw new Error(error.message || 'Failed to register employee');
       }
-      
-      console.log('✅ Employee inserted successfully:', insertResult);
-      return insertResult;
     },
     onSuccess: (result) => {
       console.log('✅ Mutation successful:', result);
       queryClient.invalidateQueries({ queryKey: ['employees_data'] });
-      toast.success("Employee added successfully!");
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      toast.success("Employee registered successfully!");
       onOpenChange(false);
       setFormData(initialFormData);
       setCurrentTab("personal");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('❌ Mutation error:', error);
-      toast.error(`Failed to add employee: ${error.message || 'Unknown error'}`);
+      toast.error(`Failed to register employee: ${error.message}`);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
+      toast.error("Please fill in all required fields (First Name, Last Name, Email, Phone)");
+      setCurrentTab("personal");
+      return;
+    }
+    
+    if (!formData.department || !formData.designation) {
+      toast.error("Please fill in employment details (Department, Designation)");
+      setCurrentTab("employment");
+      return;
+    }
+    
+    console.log('📋 Submitting form with data:', formData);
     addEmployeeMutation.mutate(formData);
   };
 
@@ -880,7 +901,19 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                   disabled={addEmployeeMutation.isPending}
                   className="bg-primary hover:bg-primary/90"
                 >
-                  {addEmployeeMutation.isPending ? "Registering..." : "Register Staff"}
+                  {addEmployeeMutation.isPending ? "Registering..." : "Register Employee"}
+                </Button>
+              )}
+              
+              {/* Quick Register Button - available on all tabs */}
+              {currentTab !== "compliance" && (
+                <Button 
+                  type="submit"
+                  variant="secondary"
+                  disabled={addEmployeeMutation.isPending || !formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.department || !formData.designation}
+                  className="ml-2"
+                >
+                  {addEmployeeMutation.isPending ? "Registering..." : "Quick Register"}
                 </Button>
               )}
             </div>

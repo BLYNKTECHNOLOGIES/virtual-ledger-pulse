@@ -228,14 +228,14 @@ export function InvestigationDetailsDialog({
     }
   };
 
-  const handleResolveInvestigation = () => {
+  const handleSubmitForApproval = () => {
     // Check if all steps are completed
     const allStepsCompleted = steps?.every(step => step.status === 'COMPLETED') ?? false;
     
     if (!allStepsCompleted) {
       toast({
-        title: "Cannot Resolve Investigation",
-        description: "Please complete all 5 steps before resolving the investigation.",
+        title: "Cannot Submit for Approval",
+        description: "Please complete all 5 steps before submitting for approval.",
         variant: "destructive",
       });
       return;
@@ -249,7 +249,7 @@ export function InvestigationDetailsDialog({
     if (!finalResolution.trim()) {
       toast({
         title: "Final Resolution Required",
-        description: "Please provide a final resolution summary before resolving the investigation.",
+        description: "Please provide a final resolution summary before submitting for approval.",
         variant: "destructive",
       });
       return;
@@ -284,13 +284,38 @@ export function InvestigationDetailsDialog({
         attachmentUrls.push(urlData.publicUrl);
       }
 
+      // Create approval request
+      const { error: approvalError } = await supabase
+        .from('investigation_approvals')
+        .insert({
+          investigation_id: investigationIdToUse,
+          final_resolution: finalResolution,
+          supporting_documents_urls: attachmentUrls,
+          submitted_by: 'Current User',
+          approval_status: 'PENDING'
+        });
+
+      if (approvalError) throw approvalError;
+
+      // Update investigation status to PENDING_APPROVAL
+      const { error: updateError } = await supabase
+        .from('account_investigations')
+        .update({ status: 'PENDING_APPROVAL' })
+        .eq('id', investigationIdToUse);
+
+      if (updateError) throw updateError;
+
       // Add final resolution as an update
       await addUpdateMutation.mutateAsync({ 
-        updateText: `FINAL RESOLUTION: ${finalResolution}`, 
+        updateText: `SUBMITTED FOR APPROVAL: ${finalResolution}`, 
         files: finalResolutionFiles 
       });
 
-      onResolve(finalResolution);
+      toast({
+        title: "Submitted for Approval",
+        description: "Investigation has been submitted for officer approval.",
+      });
+
       onOpenChange(false);
       setShowFinalResolutionDialog(false);
       setFinalResolution("");
@@ -298,7 +323,7 @@ export function InvestigationDetailsDialog({
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to submit final resolution. Please try again.",
+        description: "Failed to submit for approval. Please try again.",
         variant: "destructive",
       });
     }
@@ -320,8 +345,8 @@ export function InvestigationDetailsDialog({
     return previousSteps.every(s => s.status === 'COMPLETED');
   };
 
-  // Helper function to check if investigation can be resolved
-  const canResolveInvestigation = () => {
+  // Helper function to check if investigation can be submitted for approval
+  const canSubmitForApproval = () => {
     return steps?.every(step => step.status === 'COMPLETED') ?? false;
   };
 
@@ -544,22 +569,22 @@ export function InvestigationDetailsDialog({
             </div>
           )}
 
-          {/* Resolve Investigation Button */}
+          {/* Submit for Approval Button */}
           <div className="pt-4">
             <Button 
-              onClick={handleResolveInvestigation}
-              disabled={!canResolveInvestigation()}
+              onClick={handleSubmitForApproval}
+              disabled={!canSubmitForApproval()}
               className={`px-8 py-2 rounded-lg font-medium ${
-                canResolveInvestigation() 
-                  ? "bg-green-600 hover:bg-green-700 text-white" 
+                canSubmitForApproval() 
+                  ? "bg-blue-600 hover:bg-blue-700 text-white" 
                   : "bg-gray-300 text-gray-500 cursor-not-allowed"
               }`}
             >
-              Resolve Investigation
+              Submit for Approval
             </Button>
-            {!canResolveInvestigation() && (
+            {!canSubmitForApproval() && (
               <p className="text-sm text-orange-600 mt-2">
-                Complete all 5 steps before resolving the investigation
+                Complete all 5 steps before submitting for approval
               </p>
             )}
           </div>
@@ -581,7 +606,7 @@ export function InvestigationDetailsDialog({
         <Dialog open={showFinalResolutionDialog} onOpenChange={setShowFinalResolutionDialog}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Final Resolution Required</DialogTitle>
+              <DialogTitle>Submit for Approval</DialogTitle>
             </DialogHeader>
             
             <div className="space-y-4 p-4">
@@ -662,9 +687,9 @@ export function InvestigationDetailsDialog({
                 <Button
                   onClick={handleFinalResolutionSubmit}
                   disabled={!finalResolution.trim() || finalResolutionFiles.length === 0}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Submit Final Resolution
+                  Submit for Approval
                 </Button>
               </div>
             </div>

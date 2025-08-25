@@ -1159,6 +1159,59 @@ export type Database = {
           },
         ]
       }
+      investigation_approvals: {
+        Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          final_resolution: string
+          id: string
+          investigation_id: string
+          rejection_reason: string | null
+          submitted_at: string
+          submitted_by: string | null
+          supporting_documents_urls: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          final_resolution: string
+          id?: string
+          investigation_id: string
+          rejection_reason?: string | null
+          submitted_at?: string
+          submitted_by?: string | null
+          supporting_documents_urls?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          final_resolution?: string
+          id?: string
+          investigation_id?: string
+          rejection_reason?: string | null
+          submitted_at?: string
+          submitted_by?: string | null
+          supporting_documents_urls?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investigation_approvals_investigation_id_fkey"
+            columns: ["investigation_id"]
+            isOneToOne: false
+            referencedRelation: "account_investigations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       investigation_steps: {
         Row: {
           completed_at: string | null

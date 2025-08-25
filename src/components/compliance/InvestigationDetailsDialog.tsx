@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, CheckCircle, Circle, FileText, ExternalLink } from "lucide-react";
+import { Plus, X, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 
 interface InvestigationDetailsDialogProps {
@@ -53,7 +53,7 @@ export function InvestigationDetailsDialog({
         .select('id')
         .eq('bank_account_id', investigation.bank_account_id)
         .eq('reason', investigation.reason || investigation.description || investigation.error_message || 'Investigation')
-        .single();
+        .maybeSingle();
       
       let investigationId = investigation.id;
       
@@ -230,6 +230,16 @@ export function InvestigationDetailsDialog({
     onOpenChange(false);
   };
 
+  // Helper function to check if a step can be completed (sequential constraint)
+  const canCompleteStep = (step: any) => {
+    if (!steps) return false;
+    if (step.status === 'COMPLETED') return false;
+    
+    // Check if all previous steps are completed
+    const previousSteps = steps.filter(s => s.step_number < step.step_number);
+    return previousSteps.every(s => s.status === 'COMPLETED');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
@@ -254,41 +264,65 @@ export function InvestigationDetailsDialog({
             
             {steps && steps.length > 0 ? (
               <div className="space-y-3">
-                {steps.map((step) => (
-                  <div key={step.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="flex items-center justify-center">
-                        {step.status === 'COMPLETED' ? (
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                        ) : (
-                          <Circle className="w-6 h-6 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Badge variant={step.status === 'COMPLETED' ? 'default' : 'secondary'} className="text-xs font-medium">
-                            {step.status}
-                          </Badge>
-                          <span className="font-medium text-gray-900">{step.step_number}. {step.step_title}</span>
+                {steps.map((step) => {
+                  const stepCanBeCompleted = canCompleteStep(step);
+                  const isStepCompleted = step.status === 'COMPLETED';
+                  
+                  return (
+                    <div key={step.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex items-center justify-center">
+                          {isStepCompleted ? (
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          ) : (
+                            <Clock className="w-6 h-6 text-orange-500" />
+                          )}
                         </div>
-                        <p className="text-sm text-gray-600">{step.step_description}</p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant={isStepCompleted ? 'default' : 'secondary'} className="text-xs font-medium">
+                              {step.status}
+                            </Badge>
+                            <span className="font-medium text-gray-900">{step.step_number}. {step.step_title}</span>
+                          </div>
+                          <p className="text-sm text-gray-600">{step.step_description}</p>
+                          {isStepCompleted && step.completed_at && (
+                            <p className="text-xs text-green-600 mt-1">
+                              Completed on {new Date(step.completed_at).toLocaleDateString()} by {step.completed_by}
+                            </p>
+                          )}
+                          {!isStepCompleted && !stepCanBeCompleted && (
+                            <p className="text-xs text-orange-600 mt-1">
+                              Complete previous steps first
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      {!isStepCompleted && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!stepCanBeCompleted}
+                          onClick={() => {
+                            if (stepCanBeCompleted) {
+                              setSelectedStep(step);
+                              setShowStepCompletionDialog(true);
+                            } else {
+                              toast({
+                                title: "Cannot Complete Step",
+                                description: "Please complete previous steps in order.",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                          className={`ml-4 ${!stepCanBeCompleted ? 'opacity-50 cursor-not-allowed' : 'bg-white hover:bg-gray-50'}`}
+                        >
+                          Complete
+                        </Button>
+                      )}
                     </div>
-                    {step.status !== 'COMPLETED' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedStep(step);
-                          setShowStepCompletionDialog(true);
-                        }}
-                        className="ml-4 bg-white hover:bg-gray-50"
-                      >
-                        Complete
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-4 text-gray-500">

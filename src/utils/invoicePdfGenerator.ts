@@ -34,7 +34,7 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   // Header
   doc.setFontSize(20);
   doc.setTextColor(0, 0, 0);
-  doc.text('INVOICE', 105, 20, { align: 'center' });
+  doc.text('Tax Invoice', 105, 20, { align: 'center' });
   
   // Company details box
   doc.setFontSize(10);
@@ -107,37 +107,63 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   // Items table (adjust start position)
   const tableStartY = 115;
   
-  // Table headers
-  const headers = [['Sl No.', 'Description of Goods and Services', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount']];
+  // Tax calculations (P2P Trading Mechanism)
+  const totalAmount = order.total_amount;
+  const netAmountBeforeTax = totalAmount / 1.18; // Remove GST to get base amount
+  const gstAmount = totalAmount - netAmountBeforeTax;
+  const cgstAmount = gstAmount / 2; // CGST 9%
+  const sgstAmount = gstAmount / 2; // SGST 9%
+  
+  // Table headers for tax invoice
+  const headers = [['Sl No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Amount', 'Taxable Value', 'CGST', '', 'SGST/UTGST', '', 'Total Amount']];
+  const subHeaders = [['', '', '', '', '', '', '', '', 'Rate', 'Amount', 'Rate', 'Amount', '']];
   
   // Table data
   const productName = order.description || 'USDT';
   const quantity = order.quantity || 1;
-  const rate = order.price_per_unit || order.total_amount;
-  const amount = order.total_amount;
+  const rate = order.price_per_unit || (totalAmount / quantity);
+  const hsnCode = '960899'; // HSN code for USDT
   
   const tableData = [
-    ['1', productName, '', quantity.toString(), Number(rate).toFixed(2), 'NOS', Number(amount).toFixed(2)]
+    [
+      '1', 
+      productName, 
+      hsnCode, 
+      quantity.toString(), 
+      Number(rate).toFixed(2), 
+      'NOS', 
+      Number(totalAmount).toFixed(2),
+      Number(netAmountBeforeTax).toFixed(2),
+      '9%',
+      Number(cgstAmount).toFixed(2),
+      '9%', 
+      Number(sgstAmount).toFixed(2),
+      Number(totalAmount).toFixed(2)
+    ]
   ];
   
-  // Add round off row if needed
-  const roundOff = Math.round(amount) - amount;
-  if (Math.abs(roundOff) > 0.01) {
-    tableData.push(['', 'Round Off', '', '', '', '', roundOff.toFixed(2)]);
-  }
+  // Add total tax summary row
+  tableData.push([
+    '', 'Total', '', quantity.toString(), '', '', 
+    Number(totalAmount).toFixed(2), 
+    Number(netAmountBeforeTax).toFixed(2),
+    '', Number(cgstAmount).toFixed(2),
+    '', Number(sgstAmount).toFixed(2),
+    Number(totalAmount).toFixed(2)
+  ]);
   
-  // Total row
-  const totalAmount = Math.round(amount);
-  tableData.push(['', '', '', '', '', 'Total', totalAmount.toFixed(2)]);
+  // Add tax amount in words row
+  const totalTaxAmount = cgstAmount + sgstAmount;
+  const taxAmountInWords = `INR ${numberToWords(Math.round(totalTaxAmount))} Only`;
   
   autoTable(doc, {
-    head: headers,
+    head: [headers[0], subHeaders[0]],
     body: tableData,
     startY: tableStartY,
     theme: 'grid',
     styles: {
-      fontSize: 9,
-      cellPadding: 3,
+      fontSize: 8,
+      cellPadding: 2,
     },
     headStyles: {
       fillColor: [240, 240, 240],
@@ -145,14 +171,45 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
       fontStyle: 'bold',
     },
     columnStyles: {
-      0: { cellWidth: 15 },
-      1: { cellWidth: 60 },
-      2: { cellWidth: 20 },
-      3: { cellWidth: 20 },
-      4: { cellWidth: 25 },
-      5: { cellWidth: 15 },
-      6: { cellWidth: 25 },
+      0: { cellWidth: 12 }, // Sl No
+      1: { cellWidth: 35 }, // Description
+      2: { cellWidth: 18 }, // HSN
+      3: { cellWidth: 12 }, // Quantity
+      4: { cellWidth: 15 }, // Rate
+      5: { cellWidth: 8 },  // per
+      6: { cellWidth: 18 }, // Amount
+      7: { cellWidth: 18 }, // Taxable Value
+      8: { cellWidth: 8 },  // CGST Rate
+      9: { cellWidth: 15 }, // CGST Amount
+      10: { cellWidth: 8 }, // SGST Rate
+      11: { cellWidth: 15 }, // SGST Amount
+      12: { cellWidth: 18 }, // Total Amount
     },
+  });
+  
+  // Add tax summary table
+  const taxSummaryY = (doc as any).lastAutoTable?.finalY + 10 || tableStartY + 80;
+  
+  autoTable(doc, {
+    body: [
+      ['', '', '', '', '', '', '', 'Taxable Value', 'CGST', 'SGST/UTGST', 'Total Tax Amount'],
+      ['', '', '', '', '', '', '', Number(netAmountBeforeTax).toFixed(2), Number(cgstAmount).toFixed(2), Number(sgstAmount).toFixed(2), Number(totalTaxAmount).toFixed(2)],
+      ['', '', '', '', '', '', 'Total:', Number(netAmountBeforeTax).toFixed(2), Number(cgstAmount).toFixed(2), Number(sgstAmount).toFixed(2), Number(totalAmount).toFixed(2)]
+    ],
+    startY: taxSummaryY,
+    theme: 'grid',
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      halign: 'right'
+    },
+    columnStyles: {
+      6: { fontStyle: 'bold' },
+      7: { fontStyle: 'bold' },
+      8: { fontStyle: 'bold' },
+      9: { fontStyle: 'bold' },
+      10: { fontStyle: 'bold' }
+    }
   });
   
   // Amount in words
@@ -160,9 +217,9 @@ export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: I
   const tableEndY = (doc as any).lastAutoTable?.finalY || tableStartY + 50;
   const finalY = tableEndY + 10;
   doc.setFontSize(10);
-  doc.text('Amount Chargeable (in words)', 20, finalY);
-  doc.setFont('helvetica', 'bold');
-  doc.text(numberToWords(totalAmount) + ' Only', 20, finalY + 7);
+  doc.text('Amount Chargeable (in words)  INR ' + numberToWords(Math.round(totalAmount)) + ' Only', 20, finalY);
+  doc.setFontSize(9);
+  doc.text('Tax Amount (in words) : ' + taxAmountInWords, 20, finalY + 7);
   doc.setFont('helvetica', 'normal');
   
   // Payment received section (if payment is completed)

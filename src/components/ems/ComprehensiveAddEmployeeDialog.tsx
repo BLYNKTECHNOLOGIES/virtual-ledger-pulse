@@ -179,6 +179,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         nda_acknowledged_at: data.ndaAcknowledged ? new Date().toISOString() : null,
         handbook_acknowledged: data.handbookAcknowledged,
         handbook_acknowledged_at: data.handbookAcknowledged ? new Date().toISOString() : null,
+        job_contract_signed: data.jobContractSigned,
         status: 'ACTIVE' as const,
         user_id: tempUserId
       };

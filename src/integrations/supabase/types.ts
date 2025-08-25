@@ -920,6 +920,7 @@ export type Database = {
           id: string
           ifsc_code: string | null
           incentives: number | null
+          job_contract_signed: boolean | null
           kyc_status: string | null
           marital_status: string | null
           middle_name: string | null
@@ -986,6 +987,7 @@ export type Database = {
           id?: string
           ifsc_code?: string | null
           incentives?: number | null
+          job_contract_signed?: boolean | null
           kyc_status?: string | null
           marital_status?: string | null
           middle_name?: string | null
@@ -1052,6 +1054,7 @@ export type Database = {
           id?: string
           ifsc_code?: string | null
           incentives?: number | null
+          job_contract_signed?: boolean | null
           kyc_status?: string | null
           marital_status?: string | null
           middle_name?: string | null

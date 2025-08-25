@@ -282,6 +282,16 @@ export const generateInvoicePDF = async ({ order, bankAccountData, companyDetail
       8: { cellWidth: 12, halign: 'center' },
       9: { cellWidth: 20, halign: 'right' },
       10: { cellWidth: 22, halign: 'right' }
+    },
+    didParseCell: function (data: any) {
+      // Merge IGST cells for USDT row (first data row)
+      if (data.row.index === 2 && data.column.index === 8) { // USDT row, IGST Rate column
+        data.cell.colSpan = 2; // Merge Rate and Amount columns
+        data.cell.text = ['0.00']; // Show 0.00 in merged cell
+      }
+      if (data.row.index === 2 && data.column.index === 9) { // USDT row, IGST Amount column
+        data.cell.text = []; // Hide this cell content since it's merged
+      }
     }
   });
   

@@ -30,7 +30,7 @@ export function StockTransactionsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: transactions, isLoading } = useQuery({
+  const { data: transactions, isLoading, refetch } = useQuery({
     queryKey: ['stock_transactions', searchTerm, filterType],
     queryFn: async () => {
       let query = supabase
@@ -39,7 +39,7 @@ export function StockTransactionsTab() {
           *,
           products(name, code, unit_of_measurement)
         `)
-        .order('transaction_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (searchTerm) {
         query = query.or(`supplier_customer_name.ilike.%${searchTerm}%,reference_number.ilike.%${searchTerm}%`);
@@ -53,6 +53,8 @@ export function StockTransactionsTab() {
       if (error) throw error;
       return data;
     },
+    staleTime: 10000, // Refresh every 10 seconds
+    gcTime: 30000, // Cache for 30 seconds
   });
 
   // Also fetch purchase order items to show purchase entries
@@ -243,7 +245,7 @@ export function StockTransactionsTab() {
     ...(transactions || []).map(t => ({
       ...t,
       type: 'transaction',
-      date: t.transaction_date,
+      date: t.created_at, // Use created_at for accurate timestamp instead of transaction_date
       supplier_name: t.supplier_customer_name,
       transaction_type: t.transaction_type,
       products: t.products

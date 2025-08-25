@@ -104,419 +104,236 @@ export default function EMS() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Header Section */}
-      <section className="relative bg-gradient-to-r from-primary via-primary/90 to-blue-700 text-white py-20">
-        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                <Users className="h-12 w-12" />
+      {/* Header Section - Simple and Clean */}
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-gray-100 rounded-lg">
+                <Users className="h-6 w-6 text-gray-600" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Employee Management System</h1>
+                <p className="text-sm text-gray-600">Analytics-driven workforce management using comprehensive data methodology</p>
               </div>
             </div>
-            <h1 className="text-4xl lg:text-6xl font-bold mb-6">
-              Employee Management System
-            </h1>
-            <p className="text-xl lg:text-2xl text-blue-100 mb-8 max-w-3xl mx-auto">
-              Comprehensive employee lifecycle management for modern businesses
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex items-center gap-3">
+              <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option>Current Month</option>
+                <option>Last Month</option>
+                <option>Quarter</option>
+              </select>
+              <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                <option>All Departments</option>
+                {getDepartments().map(dept => (
+                  <option key={dept}>{dept}</option>
+                ))}
+              </select>
               <Button
-                size="lg"
-                className="bg-white text-primary hover:bg-gray-100 px-8 py-4 text-lg rounded-full"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Export Data
-              </Button>
-              <Button
-                size="lg"
+                size="sm"
                 variant="outline"
-                className="border-white text-white hover:bg-white hover:text-primary px-8 py-4 text-lg rounded-full"
+                className="text-sm"
                 onClick={() => setAddEmployeeOpen(true)}
               >
-                <Plus className="h-5 w-5 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Add Employee
+              </Button>
+              <Button size="sm" variant="outline" className="text-sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
               </Button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Key Metrics Section */}
-      <section className="py-20 bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-foreground mb-6">Key Metrics</h2>
-            <p className="text-xl text-muted-foreground">Real-time insights into your workforce</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-primary to-blue-700 text-white">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white/80 text-sm font-medium mb-2">Total Employees</p>
-                    <p className="text-4xl font-bold mb-4">
-                      {employeesData?.totalEmployees || 0}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      <span className="text-sm">All Departments</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                    <Users className="h-10 w-10" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-green-600 to-emerald-700 text-white">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white/80 text-sm font-medium mb-2">Active Employees</p>
-                    <p className="text-4xl font-bold mb-4">
-                      {employeesData?.activeEmployees || 0}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm">Currently Working</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                    <UserCheck className="h-10 w-10" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-purple-600 to-indigo-700 text-white">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white/80 text-sm font-medium mb-2">Departments</p>
-                    <p className="text-4xl font-bold mb-4">
-                      {Object.keys(employeesData?.departmentCounts || {}).length}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Building className="h-4 w-4" />
-                      <span className="text-sm">Active Departments</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                    <Building className="h-10 w-10" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="group hover:shadow-lg transition-all duration-300 border-0 bg-gradient-to-br from-orange-600 to-red-700 text-white">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white/80 text-sm font-medium mb-2">This Month Onboarding</p>
-                    <p className="text-4xl font-bold mb-4">
-                      {employeesData?.employees.filter(emp => 
-                        new Date(emp.created_at).getMonth() === new Date().getMonth()
-                      ).length || 0}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <UserPlus className="h-4 w-4" />
-                      <span className="text-sm">New Joiners</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-sm">
-                    <UserPlus className="h-10 w-10" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {/* Key Metrics Summary */}
+      <div className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-5 gap-8 border-b pb-8">
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Total Employees</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ₹ {(employeesData?.totalEmployees || 0).toLocaleString()}.00
+              </div>
+              <div className="text-xs text-gray-500">Headcount</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Active Employees</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ₹ {(employeesData?.activeEmployees || 0).toLocaleString()}.00
+              </div>
+              <div className="text-xs text-gray-500">Active workforce</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Total Payroll</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ₹ {(employeesData?.employees.reduce((sum, emp) => sum + (emp.salary || 0), 0) || 0).toLocaleString()}.00
+              </div>
+              <div className="text-xs text-gray-500">Monthly disbursements</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Departments</div>
+              <div className="text-3xl font-bold text-gray-900">
+                {Object.keys(employeesData?.departmentCounts || {}).length}.00
+              </div>
+              <div className="text-xs text-gray-500">Department units</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Net Onboarding</div>
+              <div className="text-3xl font-bold text-gray-900">
+                ₹ {(employeesData?.employees.filter(emp => 
+                  new Date(emp.created_at).getMonth() === new Date().getMonth()
+                ).length || 0).toLocaleString()}.00
+              </div>
+              <div className="text-xs text-gray-500">117.0% growth</div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* EMS Tabs */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Tabs defaultValue="employees" className="w-full">
-            <div className="bg-white rounded-2xl shadow-lg border-0 overflow-hidden">
-              <TabsList className="grid w-full grid-cols-5 bg-gray-100 rounded-none h-16">
-                <TabsTrigger value="employees" className="text-lg font-medium">Employees</TabsTrigger>
-                <TabsTrigger value="departments" className="text-lg font-medium">Departments</TabsTrigger>
-                <TabsTrigger value="performance" className="text-lg font-medium">Performance</TabsTrigger>
-                <TabsTrigger value="attendance" className="text-lg font-medium">Attendance</TabsTrigger>
-                <TabsTrigger value="reports" className="text-lg font-medium">Reports</TabsTrigger>
-              </TabsList>
+      {/* Department-wise Employee Analysis */}
+      <div className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">📊 Department-wise Employee Analysis</h3>
+            <p className="text-sm text-gray-600">Every employee mapped with department performance using comprehensive methodology</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-gray-600">
+                  <th className="text-left py-3 px-4 font-medium">Department</th>
+                  <th className="text-left py-3 px-4 font-medium">Headcount</th>
+                  <th className="text-left py-3 px-4 font-medium">Type</th>
+                  <th className="text-left py-3 px-4 font-medium">Active %</th>
+                  <th className="text-left py-3 px-4 font-medium">Avg Salary (₹)</th>
+                  <th className="text-left py-3 px-4 font-medium">Total Cost (₹)</th>
+                  <th className="text-left py-3 px-4 font-medium">Efficiency</th>
+                  <th className="text-left py-3 px-4 font-medium">Growth Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(employeesData?.departmentCounts || {}).map(([department, count]) => {
+                  const deptEmployees = employeesData?.employees.filter(emp => emp.department === department) || [];
+                  const activeCount = deptEmployees.filter(emp => emp.status === 'ACTIVE').length;
+                  const avgSalary = deptEmployees.reduce((sum, emp) => sum + (emp.salary || 0), 0) / deptEmployees.length || 0;
+                  const totalCost = deptEmployees.reduce((sum, emp) => sum + (emp.salary || 0), 0);
+                  
+                  return (
+                    <tr key={department} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 font-medium">{department}</td>
+                      <td className="py-3 px-4">{count}</td>
+                      <td className="py-3 px-4">Full-time</td>
+                      <td className="py-3 px-4">{activeCount > 0 ? Math.round((activeCount / count) * 100) : 0}%</td>
+                      <td className="py-3 px-4">₹{avgSalary.toLocaleString()}</td>
+                      <td className="py-3 px-4">₹{totalCost.toLocaleString()}</td>
+                      <td className="py-3 px-4">-</td>
+                      <td className="py-3 px-4">-</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-            <TabsContent value="employees" className="p-8 space-y-8">
-              {/* Search and Filter Bar */}
-              <div className="bg-white rounded-xl border shadow-sm p-6">
-                <div className="flex flex-col lg:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-4 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        placeholder="Search employees by name, email, or ID..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-12 h-12 text-lg border-2 border-gray-200 focus:border-primary"
-                      />
-                    </div>
-                  </div>
-                  <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                    <SelectTrigger className="w-48 h-12 border-2 border-gray-200">
-                      <SelectValue placeholder="Filter by Department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Departments</SelectItem>
-                      {getDepartments().map(dept => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40 h-12 border-2 border-gray-200">
-                      <SelectValue placeholder="Filter by Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                      <SelectItem value="ON_LEAVE">On Leave</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Employee List */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-                {isLoading ? (
-                  <div className="col-span-full text-center py-16">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-4 text-muted-foreground text-lg">Loading employees...</p>
-                  </div>
-                ) : filteredEmployees.length > 0 ? (
-                  filteredEmployees.map((employee) => (
-                    <Card key={employee.id} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white shadow-lg">
-                      <CardHeader className="bg-gradient-to-r from-primary to-blue-700 text-white rounded-t-xl">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="text-xl">{employee.name}</CardTitle>
-                            <p className="text-white/80 text-sm">{employee.designation}</p>
-                          </div>
-                          <Badge className={`${getStatusBadgeColor(employee.status)} font-medium`}>
-                            {employee.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3 text-sm">
-                            <Building className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">{employee.department}</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-sm">
-                            <Mail className="h-5 w-5 text-muted-foreground" />
-                            <span className="truncate">{employee.email}</span>
-                          </div>
-                          {employee.phone && (
-                            <div className="flex items-center gap-3 text-sm">
-                              <Phone className="h-5 w-5 text-muted-foreground" />
-                              <span>{employee.phone}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-3 text-sm">
-                            <Calendar className="h-5 w-5 text-muted-foreground" />
-                            <span>Joined: {format(new Date(employee.date_of_joining), 'MMM dd, yyyy')}</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-sm">
-                            <Target className="h-5 w-5 text-muted-foreground" />
-                            <span>ID: {employee.employee_id}</span>
-                          </div>
-                          <div className="pt-4 border-t flex gap-3">
-                            <Button size="sm" variant="outline" className="flex-1 rounded-full">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View
-                            </Button>
-                            <Button size="sm" className="flex-1 rounded-full">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-16">
-                    <Users className="h-20 w-20 mx-auto mb-6 text-muted-foreground opacity-50" />
-                    <h3 className="text-xl font-semibold mb-2">No employees found</h3>
-                    <p className="text-muted-foreground">Try adjusting your search or filters</p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="departments" className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {Object.entries(employeesData?.departmentCounts || {}).map(([department, count]) => (
-                  <Card key={department} className="group hover:shadow-xl transition-all duration-300 border-0 bg-white shadow-lg">
-                    <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-t-xl">
-                      <CardTitle className="flex items-center gap-3 text-xl">
-                        <Building className="h-6 w-6" />
-                        {department}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-8">
-                      <div className="text-center">
-                        <div className="text-4xl font-bold text-indigo-600 mb-3">{count}</div>
-                        <p className="text-muted-foreground mb-6">Total Employees</p>
-                        <Button size="lg" variant="outline" className="w-full rounded-full">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Department
+      {/* Employee Performance Details */}
+      <div className="bg-white border-t">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">⏱️ Employee Performance Tracking</h3>
+            <p className="text-sm text-gray-600">Transparency view showing how each employee maps to specific performance metrics</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 text-gray-600">
+                  <th className="text-left py-3 px-4 font-medium">Employee ID</th>
+                  <th className="text-left py-3 px-4 font-medium">Name</th>
+                  <th className="text-left py-3 px-4 font-medium">Department</th>
+                  <th className="text-left py-3 px-4 font-medium">Join Date</th>
+                  <th className="text-left py-3 px-4 font-medium">Salary (₹)</th>
+                  <th className="text-left py-3 px-4 font-medium">Status</th>
+                  <th className="text-left py-3 px-4 font-medium">Performance Score</th>
+                  <th className="text-left py-3 px-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEmployees.slice(0, 10).map((employee) => (
+                  <tr key={employee.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 font-medium text-blue-600">{employee.employee_id}</td>
+                    <td className="py-3 px-4">{employee.name}</td>
+                    <td className="py-3 px-4">{employee.department}</td>
+                    <td className="py-3 px-4">{format(new Date(employee.date_of_joining), 'dd MMM yyyy')}</td>
+                    <td className="py-3 px-4">₹{(employee.salary || 0).toLocaleString()}</td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeColor(employee.status)}`}>
+                        {employee.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">-</td>
+                    <td className="py-3 px-4">
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs">
+                          <Edit className="h-3 w-3" />
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            </TabsContent>
-
-        <TabsContent value="performance" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-white border-2 border-gray-200 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-green-700 rounded-lg shadow-md">
-                    <Award className="h-6 w-6" />
-                  </div>
-                  Performance Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Excellent Performance</span>
-                    <Badge className="bg-green-100 text-green-800">25%</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Good Performance</span>
-                    <Badge className="bg-blue-100 text-blue-800">60%</Badge>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Needs Improvement</span>
-                    <Badge className="bg-yellow-100 text-yellow-800">15%</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-2 border-gray-200 shadow-xl">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-blue-700 rounded-lg shadow-md">
-                    <TrendingUp className="h-6 w-6" />
-                  </div>
-                  Quick Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-3">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  <Award className="h-4 w-4 mr-2" />
-                  Schedule Performance Review
-                </Button>
-                <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate Performance Reports
-                </Button>
-                <Button variant="outline" className="w-full border-blue-200 text-blue-700 hover:bg-blue-50">
-                  <Target className="h-4 w-4 mr-2" />
-                  Set Goals & Objectives
-                </Button>
-              </CardContent>
-            </Card>
+              </tbody>
+            </table>
           </div>
-        </TabsContent>
-
-        <TabsContent value="attendance" className="space-y-6">
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
-            <CardHeader className="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 bg-orange-700 rounded-lg shadow-md">
-                  <Clock className="h-6 w-6" />
-                </div>
-                Attendance Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 bg-green-50 rounded-lg">
-                  <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-green-600">85%</div>
-                  <p className="text-sm text-gray-600">Present Today</p>
-                </div>
-                <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                  <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-yellow-600">10%</div>
-                  <p className="text-sm text-gray-600">On Leave</p>
-                </div>
-                <div className="text-center p-4 bg-red-50 rounded-lg">
-                  <Clock className="h-8 w-8 text-red-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-red-600">5%</div>
-                  <p className="text-sm text-gray-600">Absent</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="bg-white border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Employee Report</h3>
-                <p className="text-sm text-gray-600 mb-4">Comprehensive employee data</p>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                  Generate Report
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-8 w-8 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Attendance Report</h3>
-                <p className="text-sm text-gray-600 mb-4">Detailed attendance analysis</p>
-                <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                  Generate Report
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white border-2 border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <Award className="h-8 w-8 text-purple-600" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Performance Report</h3>
-                <p className="text-sm text-gray-600 mb-4">Employee performance metrics</p>
-                <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                  Generate Report
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-            </div>
-          </Tabs>
         </div>
-      </section>
+      </div>
+
+      {/* Payroll & Benefits Breakdown */}
+      <div className="bg-white border-t">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">💰 Payroll & Benefits Breakdown</h3>
+            <p className="text-sm text-gray-600">Detailed view of operational expenses and additional income streams</p>
+          </div>
+          
+          <div className="grid grid-cols-4 gap-8">
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Base Salary</div>
+              <div className="text-2xl font-bold text-gray-900">
+                ₹{(employeesData?.employees.reduce((sum, emp) => sum + (emp.basic_salary || 0), 0) || 0).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500">Monthly base pay</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Allowances</div>
+              <div className="text-2xl font-bold text-gray-900">
+                ₹{(employeesData?.employees.reduce((sum, emp) => sum + (emp.allowances || 0), 0) || 0).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500">Additional benefits</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Incentives</div>
+              <div className="text-2xl font-bold text-gray-900">
+                ₹{(employeesData?.employees.reduce((sum, emp) => sum + (emp.incentives || 0), 0) || 0).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500">Performance bonuses</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600 mb-1">Deductions</div>
+              <div className="text-2xl font-bold text-gray-900">
+                ₹{(employeesData?.employees.reduce((sum, emp) => sum + (emp.deductions || 0), 0) || 0).toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500">Tax & PF deductions</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Add Employee Dialog */}
       <ComprehensiveAddEmployeeDialog 

@@ -175,7 +175,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         photo_url: data.photoUrl,
         resume_url: data.resumeUrl,
         offer_letter_url: data.offerLetterUrl,
-        other_certificates_urls: data.otherCertificatesUrls,
+        other_certificates_urls: Array.isArray(data.otherCertificatesUrls) ? data.otherCertificatesUrls : [],
         nda_acknowledged: data.ndaAcknowledged,
         nda_acknowledged_at: data.ndaAcknowledged ? new Date().toISOString() : null,
         handbook_acknowledged: data.handbookAcknowledged,

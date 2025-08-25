@@ -247,7 +247,7 @@ export function BankAccountManagement() {
       ifsc_code: account.IFSC || "",
       branch: account.branch || "",
       balance: account.balance.toString(),
-      status: account.status as "ACTIVE" | "INACTIVE",
+      status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
       bank_account_holder_name: account.bank_account_holder_name || "",
       account_type: account.account_type || "SAVINGS"
     });
@@ -411,6 +411,7 @@ export function BankAccountManagement() {
                     <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="INACTIVE">Inactive</SelectItem>
+                      <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

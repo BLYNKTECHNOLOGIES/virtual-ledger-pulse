@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Building2, MessageSquare, Key, Search, Archive } from "lucide-react";
 import { CaseTrackingTab } from "./CaseTrackingTab";
 import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
-import { AccountStatusTab } from "./AccountStatusTab";
+
 import { BankCommunicationsTab } from "./BankCommunicationsTab";
 import { BankingCredentialsTab } from "./BankingCredentialsTab";
 import { PastInvestigationsTab } from "./PastInvestigationsTab";
@@ -12,14 +12,10 @@ import { PastInvestigationsTab } from "./PastInvestigationsTab";
 export function BankingComplianceTab() {
   return (
     <Tabs defaultValue="cases" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-6">
+      <TabsList className="grid w-full grid-cols-5">
         <TabsTrigger value="cases" className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
           Cases
-        </TabsTrigger>
-        <TabsTrigger value="account-status" className="flex items-center gap-2">
-          <Building2 className="h-4 w-4" />
-          Account Status
         </TabsTrigger>
         <TabsTrigger value="active-investigations" className="flex items-center gap-2">
           <Search className="h-4 w-4" />
@@ -43,9 +39,6 @@ export function BankingComplianceTab() {
         <CaseTrackingTab />
       </TabsContent>
 
-      <TabsContent value="account-status">
-        <AccountStatusTab />
-      </TabsContent>
 
       <TabsContent value="active-investigations">
         <ActiveInvestigationsTab />

@@ -124,7 +124,7 @@ export function ModernNavbar() {
           <div className="flex justify-between items-center h-16">
             {/* Logo & Tagline */}
             <Link to="/website" className="flex items-center hover:opacity-80 transition-opacity">
-              <div className="h-16 w-16 bg-blue-600 rounded-lg flex items-center justify-center mr-4">
+              <div className="h-16 w-16 flex items-center justify-center mr-4">
                 <img 
                   src="/lovable-uploads/5ded23b1-7889-4913-bc29-77b1c4b4019b.png" 
                   alt="Blynk"

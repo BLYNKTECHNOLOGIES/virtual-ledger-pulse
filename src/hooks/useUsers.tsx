@@ -347,7 +347,12 @@ export function useUsers() {
 
   const deleteUser = async (userId: string) => {
     try {
+      console.log('=== DELETE USER PROCESS STARTED ===');
       console.log('Starting deletion process for user:', userId);
+      console.log('Current authenticated user:', user);
+      console.log('Is admin:', isAdmin);
+      console.log('Has admin role:', hasRole('admin'));
+      console.log('Has user_management role:', hasRole('user_management'));
 
       // Check if user is authenticated
       if (!user) {
@@ -359,14 +364,14 @@ export function useUsers() {
         throw new Error('You do not have permission to delete users');
       }
 
-      // Prevent deleting demo admin user
-      if (userId === 'demo-admin-id') {
+      // Prevent deleting the system admin user (real admin)
+      if (userId === '06f5dad7-b024-4ea0-9da4-41c005501426' || userId === 'demo-admin-id') {
         toast({
           title: "Warning",
-          description: "Cannot delete demo admin user",
+          description: "Cannot delete the system administrator account",
           variant: "destructive",
         });
-        return { success: false, error: "Cannot delete demo admin user" };
+        return { success: false, error: "Cannot delete system administrator account" };
       }
 
       // Delete user roles first

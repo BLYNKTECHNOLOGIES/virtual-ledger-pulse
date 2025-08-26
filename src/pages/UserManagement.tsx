@@ -281,8 +281,14 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    console.log('handleDeleteUser called for userId:', userId);
+    console.log('Current user permissions:', permissions);
+    console.log('hasPermission user_management_manage:', hasPermission('user_management_manage'));
+    
     if (window.confirm('Are you sure you want to permanently delete this user and all related data? This action cannot be undone.')) {
-      await deleteUser(userId);
+      console.log('User confirmed deletion, calling deleteUser...');
+      const result = await deleteUser(userId);
+      console.log('Delete result:', result);
     }
   };
 

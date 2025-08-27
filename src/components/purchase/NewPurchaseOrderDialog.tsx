@@ -21,7 +21,7 @@ interface ProductItem {
   product_id: string;
   quantity: number;
   unit_price: number;
-  wallet_id: string;
+  warehouse_id: string;
 }
 
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
@@ -121,7 +121,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.quantity * item.unit_price,
-          wallet_id: item.wallet_id
+          warehouse_id: item.warehouse_id
         }));
 
         const { error: itemsError } = await supabase

@@ -13,7 +13,7 @@ interface ProductItem {
   product_id: string;
   quantity: number;
   unit_price: number;
-  wallet_id: string;
+  warehouse_id: string;
 }
 
 interface ProductSelectionSectionProps {
@@ -57,7 +57,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       product_id: "",
       quantity: undefined as any,
       unit_price: undefined as any,
-      wallet_id: ""
+      warehouse_id: ""
     };
     onItemsChange([...items, newItem]);
   };
@@ -82,7 +82,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       product_id: "",
       quantity: 0,
       unit_price: 0,
-      wallet_id: ""
+      warehouse_id: ""
     }]);
   }
 
@@ -122,8 +122,8 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
               <div>
                 <Label>Wallet *</Label>
                 <Select 
-                  value={item.wallet_id} 
-                  onValueChange={(value) => updateItem(index, 'wallet_id', value)}
+                  value={item.warehouse_id} 
+                  onValueChange={(value) => updateItem(index, 'warehouse_id', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select wallet" />

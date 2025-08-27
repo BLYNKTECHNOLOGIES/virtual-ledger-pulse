@@ -78,7 +78,7 @@ export function DirectoryTab() {
 
       if (salesError) throw salesError;
 
-      // Purchase orders with bank account details
+      // Purchase orders with bank account details - only show completed ones
       const { data: purchaseData, error: purchaseError } = await supabase
         .from('purchase_orders')
         .select(`
@@ -93,6 +93,7 @@ export function DirectoryTab() {
           bank_account_id,
           bank_accounts!purchase_orders_bank_account_id_fkey(account_name, bank_name, id, account_number)
         `)
+        .eq('status', 'COMPLETED')  // Only show completed purchase orders
         .order('order_date', { ascending: false });
 
       if (purchaseError) throw purchaseError;

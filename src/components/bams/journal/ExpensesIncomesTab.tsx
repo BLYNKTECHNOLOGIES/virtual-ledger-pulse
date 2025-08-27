@@ -26,7 +26,7 @@ export function ExpensesIncomesTab() {
 
   // Fetch bank transactions and purchase orders
   const { data: transactions } = useQuery({
-    queryKey: ['bank_transactions_with_purchases'],
+    queryKey: ['bank_transactions_with_purchases_v2'],
     queryFn: async () => {
       console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
       

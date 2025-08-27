@@ -1,12 +1,14 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Phone, Mail, Calendar, DollarSign } from "lucide-react";
+import { Users, Phone, Mail, Calendar, DollarSign, Trash2 } from "lucide-react";
 import { EmployeeDetailsDialog } from "./EmployeeDetailsDialog";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface Employee {
   id: string;
@@ -22,6 +24,8 @@ interface Employee {
 }
 
 export function EmployeeInformationTab() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -36,6 +40,31 @@ export function EmployeeInformationTab() {
       
       if (error) throw error;
       return data as Employee[];
+    },
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', employeeId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Employee Deleted",
+        description: "Employee has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['employees_info'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to delete employee: ${error.message}`,
+        variant: "destructive",
+      });
     },
   });
 
@@ -58,6 +87,10 @@ export function EmployeeInformationTab() {
     setSelectedEmployee(employee);
     setIsEditMode(true);
     setDialogOpen(true);
+  };
+
+  const handleDelete = (employeeId: string) => {
+    deleteEmployeeMutation.mutate(employeeId);
   };
 
   if (isLoading) {
@@ -143,6 +176,30 @@ export function EmployeeInformationTab() {
                           <Button size="sm" variant="outline" onClick={() => handleEdit(employee)}>
                             Edit
                           </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {employee.name}? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(employee.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </td>
                     </tr>

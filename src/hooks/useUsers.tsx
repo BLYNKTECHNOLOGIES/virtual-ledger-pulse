@@ -374,90 +374,23 @@ export function useUsers() {
         return { success: false, error: "Cannot delete system administrator account" };
       }
 
-      // Delete user roles first
-      console.log('Deleting user roles...');
-      const { error: rolesError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-
-      if (rolesError) {
-        console.warn('Warning: Could not delete user roles:', rolesError);
-      }
-
-      // Delete user preferences
-      console.log('Deleting user preferences...');
-      const { error: preferencesError } = await supabase
-        .from('user_preferences')
-        .delete()
-        .eq('user_id', userId);
-
-      if (preferencesError) {
-        console.warn('Warning: Could not delete user preferences:', preferencesError);
-      }
-
-      // Delete user activity log
-      console.log('Deleting user activity log...');
-      const { error: activityError } = await supabase
-        .from('user_activity_log')
-        .delete()
-        .eq('user_id', userId);
-
-      if (activityError) {
-        console.warn('Warning: Could not delete user activity log:', activityError);
-      }
-
-      // Delete password reset tokens
-      console.log('Deleting password reset tokens...');
-      const { error: passwordTokensError } = await supabase
-        .from('password_reset_tokens')
-        .delete()
-        .eq('user_id', userId);
-
-      if (passwordTokensError) {
-        console.warn('Warning: Could not delete password reset tokens:', passwordTokensError);
-      }
-
-      // Delete email verification tokens
-      console.log('Deleting email verification tokens...');
-      const { error: emailTokensError } = await supabase
-        .from('email_verification_tokens')
-        .delete()
-        .eq('user_id', userId);
-
-      if (emailTokensError) {
-        console.warn('Warning: Could not delete email verification tokens:', emailTokensError);
-      }
-
-      // Clean up records where user might be referenced as creator/reviewer
-      console.log('Cleaning up related records...');
+      console.log('Calling delete function for user:', userId);
       
-      // Update records that reference this user as creator/reviewer to null
-      const updatePromises = [
-        supabase.from('kyc_approval_requests').update({ created_by: null }).eq('created_by', userId),
-        supabase.from('kyc_queries').update({ created_by: null }).eq('created_by', userId),
-        supabase.from('purchase_orders').update({ created_by: null }).eq('created_by', userId),
-        supabase.from('sales_orders').update({ created_by: null }).eq('created_by', userId),
-        supabase.from('stock_adjustments').update({ created_by: null }).eq('created_by', userId),
-        // Warehouse stock movements removed - using wallet-based functionality
-        supabase.from('pending_registrations').update({ reviewed_by: null }).eq('reviewed_by', userId),
-      ];
+      // Use the new database function to handle deletion with proper permissions
+      const { data, error } = await supabase.rpc('delete_user_with_cleanup', {
+        target_user_id: userId
+      });
 
-      await Promise.allSettled(updatePromises);
-
-      // Finally, delete the user
-      console.log('Deleting user from users table...');
-      const { error: deleteError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
-
-      if (deleteError) {
-        console.error('Delete user error:', deleteError);
-        throw deleteError;
+      if (error) {
+        console.error('Delete user error:', error);
+        throw error;
       }
 
-      console.log('User deleted successfully');
+      if (!data) {
+        throw new Error('User deletion failed - no result returned');
+      }
+
+      console.log('User deleted successfully:', data);
 
       toast({
         title: "Success",

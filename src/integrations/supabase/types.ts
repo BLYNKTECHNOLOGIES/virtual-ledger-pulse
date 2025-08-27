@@ -4104,6 +4104,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_user_with_cleanup: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string

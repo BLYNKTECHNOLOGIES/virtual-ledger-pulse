@@ -278,9 +278,33 @@ export function StockTransactionsTab() {
         unit_of_measurement: usdtProduct.unit_of_measurement
       } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Pieces' }
     }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  ];
+
+  // Apply filters to combined entries
+  const filteredEntries = allEntries
+    .filter(entry => {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          entry.supplier_name?.toLowerCase().includes(searchLower) ||
+          entry.reference_number?.toLowerCase().includes(searchLower) ||
+          entry.products?.name?.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    })
+    .filter(entry => {
+      // Type filter
+      if (filterType !== "all") {
+        return entry.transaction_type === filterType;
+      }
+      return true;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   console.log('📈 Total combined entries:', allEntries.length);
+  console.log('🔍 Filtered entries:', filteredEntries.length);
   console.log('💰 Wallet entries:', walletTransactions?.length || 0);
   console.log('📦 Stock entries:', transactions?.length || 0);
   console.log('🛒 Purchase entries:', purchaseEntries?.length || 0);
@@ -345,7 +369,7 @@ export function StockTransactionsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {allEntries?.map((entry, index) => (
+                  {filteredEntries?.map((entry, index) => (
                     <tr key={`${entry.type}-${entry.id}-${index}`} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">{formatInTimeZone(new Date(entry.date), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm:ss')}</td>
                       <td className="py-3 px-4">
@@ -372,7 +396,7 @@ export function StockTransactionsTab() {
                 </tbody>
               </table>
               
-              {allEntries?.length === 0 && (
+              {filteredEntries?.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   No stock transactions found.
                 </div>

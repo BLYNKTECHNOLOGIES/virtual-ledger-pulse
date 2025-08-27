@@ -281,14 +281,33 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    console.log('=== HANDLE DELETE USER TRIGGERED ===');
     console.log('handleDeleteUser called for userId:', userId);
     console.log('Current user permissions:', permissions);
     console.log('hasPermission user_management_manage:', hasPermission('user_management_manage'));
+    console.log('Delete button should be visible:', hasPermission('user_management_manage'));
+    
+    if (!hasPermission('user_management_manage')) {
+      console.error('User does not have permission to delete users');
+      alert('You do not have permission to delete users');
+      return;
+    }
     
     if (window.confirm('Are you sure you want to permanently delete this user and all related data? This action cannot be undone.')) {
       console.log('User confirmed deletion, calling deleteUser...');
-      const result = await deleteUser(userId);
-      console.log('Delete result:', result);
+      try {
+        const result = await deleteUser(userId);
+        console.log('Delete result:', result);
+        if (result?.success) {
+          console.log('User deleted successfully');
+        } else {
+          console.error('Delete failed:', result?.error);
+        }
+      } catch (error) {
+        console.error('Exception during delete:', error);
+      }
+    } else {
+      console.log('User cancelled deletion');
     }
   };
 

@@ -30,6 +30,22 @@ export function InventoryValuationTab() {
 
       if (transactionsError) throw transactionsError;
 
+      // Fetch purchase orders to get USDT purchase costs
+      const { data: purchaseOrders, error: purchaseOrdersError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          purchase_order_items (
+            product_id,
+            quantity,
+            unit_price,
+            total_price
+          )
+        `)
+        .eq('status', 'COMPLETED');
+
+      if (purchaseOrdersError) throw purchaseOrdersError;
+
       // Process each product with real transaction data
       const processedProducts = products?.map(product => {
         // Get sales transactions for this product
@@ -51,8 +67,29 @@ export function InventoryValuationTab() {
         const totalSalesQuantity = Math.abs(salesTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0));
 
         // Calculate total purchase amount and quantity
-        const totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-        const totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
+        let totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        let totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
+
+        // Add purchase order data for more accurate calculations
+        const purchaseOrderItems = purchaseOrders?.flatMap(po => po.purchase_order_items || [])
+          .filter(item => item.product_id === product.id) || [];
+        
+        const purchaseOrderAmount = purchaseOrderItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
+        const purchaseOrderQuantity = purchaseOrderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+        // Combine stock transactions and purchase orders
+        totalPurchaseAmount += purchaseOrderAmount;
+        totalPurchaseQuantity += purchaseOrderQuantity;
+
+        console.log(`📊 Product ${product.name}: Purchase amount: ${totalPurchaseAmount}, Quantity: ${totalPurchaseQuantity}`);
+
+        // For USDT products, if still no purchase data found, use fallback
+        if (product.code === 'USDT' && totalPurchaseQuantity === 0 && product.current_stock_quantity > 0) {
+          console.log(`⚠️ No purchase data found for USDT, using fallback price`);
+          const fallbackUsdtPrice = 89.69; // Current market rate
+          totalPurchaseAmount = product.current_stock_quantity * fallbackUsdtPrice;
+          totalPurchaseQuantity = product.current_stock_quantity;
+        }
 
         // Calculate real average prices
         const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : 0;

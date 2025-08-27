@@ -24,25 +24,69 @@ export function ExpensesIncomesTab() {
     },
   });
 
-  // Fetch only manual income/expense transactions (excluding buy and sales orders)
+  // Fetch bank transactions and purchase orders
   const { data: transactions } = useQuery({
-    queryKey: ['bank_transactions_manual_only'],
+    queryKey: ['bank_transactions_with_purchases'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch bank transactions
+      const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
           *,
           bank_accounts!bank_account_id(account_name, bank_name)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
-        .or('category.neq.Purchase,category.is.null')
-        .not('description', 'like', '%Order Payment%')
-        .not('description', 'like', '%Stock Sold%')
-        .not('description', 'like', '%Stock Purchase%')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      return data;
+      if (bankError) throw bankError;
+
+      // Fetch purchase orders (buy orders)
+      const { data: purchaseData, error: purchaseError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          id,
+          total_amount,
+          order_date,
+          order_number,
+          supplier_name,
+          description,
+          status,
+          created_at,
+          bank_accounts!bank_account_id(account_name, bank_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (purchaseError) throw purchaseError;
+
+      // Combine and format transactions
+      const combinedTransactions = [
+        ...(bankData || []).map(t => ({
+          ...t,
+          source: 'BANK',
+          display_type: t.transaction_type,
+          display_description: t.description || '',
+          display_reference: t.reference_number || '',
+          display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name
+        })),
+        ...(purchaseData || []).map(p => ({
+          ...p,
+          source: 'PURCHASE',
+          amount: p.total_amount,
+          transaction_date: p.order_date,
+          transaction_type: 'EXPENSE',
+          display_type: 'PURCHASE_ORDER',
+          description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
+          display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
+          display_reference: p.order_number,
+          display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
+            `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
+            'Bank Account Not Specified',
+          category: 'Purchase',
+          reference_number: p.order_number
+        }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      return combinedTransactions;
     },
   });
 
@@ -92,14 +136,14 @@ export function ExpensesIncomesTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-            Recent Manual Expenses & Incomes
+            Recent Expenses & Incomes (Including Buy Orders)
             <Badge variant="secondary">{recentTransactions.length} recent entries</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {recentTransactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              No recent manual transactions found
+              No recent transactions found
             </div>
           ) : (
             <div className="space-y-3">
@@ -115,11 +159,16 @@ export function ExpensesIncomesTab() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          {transaction.bank_accounts?.account_name} - {transaction.bank_accounts?.bank_name}
+                          {transaction.display_account || (transaction.bank_accounts?.account_name + ' - ' + transaction.bank_accounts?.bank_name)}
                         </span>
                         <Badge variant={getBadgeVariant(transaction.transaction_type)}>
-                          {transaction.transaction_type}
+                          {transaction.display_type || transaction.transaction_type}
                         </Badge>
+                        {transaction.source === 'PURCHASE' && (
+                          <Badge variant="outline" className="text-xs">
+                            BUY ORDER
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-sm text-gray-600">
                         {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}

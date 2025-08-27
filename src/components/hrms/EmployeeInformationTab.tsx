@@ -32,7 +32,6 @@ export function EmployeeInformationTab() {
       const { data, error } = await supabase
         .from('employees')
         .select('*')
-        .eq('onboarding_completed', true)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

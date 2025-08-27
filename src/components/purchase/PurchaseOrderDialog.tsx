@@ -247,6 +247,39 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!formData.order_number || !formData.supplier_name) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate items
+    const validItems = items.filter(item => 
+      item.product_id && 
+      item.quantity > 0 && 
+      item.unit_price > 0
+    );
+
+    if (validItems.length === 0) {
+      toast({
+        title: "Validation Error", 
+        description: "Please add at least one valid item with product, quantity, and unit price",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update items to only include valid ones
+    setItems(validItems);
+    
+    console.log("Submitting purchase order with data:", formData);
+    console.log("Valid items:", validItems);
+    
     createPurchaseOrderMutation.mutate(formData);
   };
 

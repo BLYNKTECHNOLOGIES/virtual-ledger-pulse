@@ -48,27 +48,31 @@ export function InventoryValuationTab() {
 
       // Process each product with real transaction data
       const processedProducts = products?.map(product => {
-        // Get sales transactions for this product
+        console.log(`🔍 Processing product: ${product.name} (${product.code})`);
+        
+        // Get sales transactions for this product - check various transaction types
         const salesTransactions = transactions?.filter(t => 
           t.product_id === product.id && 
-          t.transaction_type === 'Sales' && 
+          (t.transaction_type === 'Sales' || t.transaction_type === 'SALE') && 
           t.quantity < 0 // Sales have negative quantity
         ) || [];
 
-        // Get purchase transactions for this product
+        // Get purchase transactions for this product - check various transaction types
         const purchaseTransactions = transactions?.filter(t => 
           t.product_id === product.id && 
-          t.transaction_type === 'Purchase' && 
+          (t.transaction_type === 'Purchase' || t.transaction_type === 'PURCHASE' || t.transaction_type === 'BUY') && 
           t.quantity > 0 // Purchases have positive quantity
         ) || [];
 
+        console.log(`📦 ${product.name}: Found ${purchaseTransactions.length} purchase transactions, ${salesTransactions.length} sales transactions`);
+
         // Calculate total sales amount and quantity
-        const totalSalesAmount = salesTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
+        const totalSalesAmount = salesTransactions.reduce((sum, t) => sum + Math.abs(t.total_amount || 0), 0);
         const totalSalesQuantity = Math.abs(salesTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0));
 
-        // Calculate total purchase amount and quantity
-        let totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-        let totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + (t.quantity || 0), 0);
+        // Calculate total purchase amount and quantity from stock transactions
+        let totalPurchaseAmount = purchaseTransactions.reduce((sum, t) => sum + Math.abs(t.total_amount || 0), 0);
+        let totalPurchaseQuantity = purchaseTransactions.reduce((sum, t) => sum + Math.abs(t.quantity || 0), 0);
 
         // Add purchase order data for more accurate calculations
         const purchaseOrderItems = purchaseOrders?.flatMap(po => po.purchase_order_items || [])
@@ -77,23 +81,45 @@ export function InventoryValuationTab() {
         const purchaseOrderAmount = purchaseOrderItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
         const purchaseOrderQuantity = purchaseOrderItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
 
+        console.log(`💰 ${product.name}: Stock purchases: ₹${totalPurchaseAmount} for ${totalPurchaseQuantity} units`);
+        console.log(`🛒 ${product.name}: Purchase orders: ₹${purchaseOrderAmount} for ${purchaseOrderQuantity} units`);
+
         // Combine stock transactions and purchase orders
         totalPurchaseAmount += purchaseOrderAmount;
         totalPurchaseQuantity += purchaseOrderQuantity;
 
-        console.log(`📊 Product ${product.name}: Purchase amount: ${totalPurchaseAmount}, Quantity: ${totalPurchaseQuantity}`);
-
-        // For USDT products, if still no purchase data found, use fallback
-        if (product.code === 'USDT' && totalPurchaseQuantity === 0 && product.current_stock_quantity > 0) {
+        // For USDT products, if still no purchase data found, use a reasonable fallback
+        if ((product.code === 'USDT' || product.name.toLowerCase().includes('usdt')) && totalPurchaseQuantity === 0 && product.current_stock_quantity > 0) {
           console.log(`⚠️ No purchase data found for USDT, using fallback price`);
-          const fallbackUsdtPrice = 89.69; // Current market rate
+          const fallbackUsdtPrice = 89.50; // Current market rate
           totalPurchaseAmount = product.current_stock_quantity * fallbackUsdtPrice;
           totalPurchaseQuantity = product.current_stock_quantity;
         }
 
+        // If we still have no purchase data but the product has stock, use the product's stored prices
+        if (totalPurchaseQuantity === 0 && product.current_stock_quantity > 0) {
+          if (product.cost_price && product.cost_price > 0) {
+            console.log(`📋 ${product.name}: Using stored cost price: ₹${product.cost_price}`);
+            totalPurchaseAmount = product.current_stock_quantity * product.cost_price;
+            totalPurchaseQuantity = product.current_stock_quantity;
+          } else if (product.average_buying_price && product.average_buying_price > 0) {
+            console.log(`📋 ${product.name}: Using stored average buying price: ₹${product.average_buying_price}`);
+            totalPurchaseAmount = product.current_stock_quantity * product.average_buying_price;
+            totalPurchaseQuantity = product.current_stock_quantity;
+          } else if (product.selling_price && product.selling_price > 0) {
+            // Use 85% of selling price as estimated purchase price
+            const estimatedPurchasePrice = product.selling_price * 0.85;
+            console.log(`📋 ${product.name}: Using estimated purchase price (85% of selling): ₹${estimatedPurchasePrice}`);
+            totalPurchaseAmount = product.current_stock_quantity * estimatedPurchasePrice;
+            totalPurchaseQuantity = product.current_stock_quantity;
+          }
+        }
+
         // Calculate real average prices
-        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : 0;
+        const realAvgSellingPrice = totalSalesQuantity > 0 ? totalSalesAmount / totalSalesQuantity : (product.selling_price || 0);
         const realAvgBuyingPrice = totalPurchaseQuantity > 0 ? totalPurchaseAmount / totalPurchaseQuantity : 0;
+
+        console.log(`📊 ${product.name} FINAL: Avg Buy Price: ₹${realAvgBuyingPrice.toFixed(2)}, Avg Sell Price: ₹${realAvgSellingPrice.toFixed(2)}`);
 
         return {
           ...product,

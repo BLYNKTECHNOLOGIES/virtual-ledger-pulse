@@ -76,7 +76,9 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     mutationFn: async (purchaseData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      // Use validItems from mutation data, fallback to items for backward compatibility
+      const itemsToProcess = purchaseData.validItems || items;
+      const totalAmount = itemsToProcess.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
       
       // Create purchase order
       const { data: purchaseOrder, error: purchaseError } = await supabase
@@ -97,7 +99,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
       if (purchaseError) throw purchaseError;
 
       // Create purchase order items
-      const itemsData = items.map(item => ({
+      const itemsData = itemsToProcess.map(item => ({
         purchase_order_id: purchaseOrder.id,
         product_id: item.product_id,
         quantity: item.quantity,
@@ -112,7 +114,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
       if (itemsError) throw itemsError;
 
       // Update product stock quantities manually
-      for (const item of items) {
+      for (const item of itemsToProcess) {
         const { data: product } = await supabase
           .from('products')
           .select('current_stock_quantity')
@@ -274,13 +276,16 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
       return;
     }
 
-    // Update items to only include valid ones
-    setItems(validItems);
-    
     console.log("Submitting purchase order with data:", formData);
     console.log("Valid items:", validItems);
     
-    createPurchaseOrderMutation.mutate(formData);
+    // Create mutation data with valid items
+    const mutationData = {
+      ...formData,
+      validItems
+    };
+    
+    createPurchaseOrderMutation.mutate(mutationData);
   };
 
   const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);

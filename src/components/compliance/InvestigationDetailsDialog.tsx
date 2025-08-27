@@ -439,7 +439,9 @@ export function InvestigationDetailsDialog({
 
   // Helper function to check if investigation can be submitted for approval
   const canSubmitForApproval = () => {
-    return steps?.every(step => step.status === 'COMPLETED') ?? false;
+    const allStepsCompleted = steps?.every(step => step.status === 'COMPLETED') ?? false;
+    const notAlreadyPending = investigationData?.status !== 'PENDING_APPROVAL';
+    return allStepsCompleted && notAlreadyPending;
   };
 
   return (
@@ -676,7 +678,7 @@ export function InvestigationDetailsDialog({
           )}
 
           {/* Submit for Approval Button */}
-          {investigation?.status !== 'PENDING_APPROVAL' && (
+          {investigationData?.status !== 'PENDING_APPROVAL' && (
           <div className="pt-4">
             <Button 
               onClick={handleSubmitForApproval}
@@ -691,7 +693,10 @@ export function InvestigationDetailsDialog({
             </Button>
             {!canSubmitForApproval() && (
               <p className="text-sm text-orange-600 mt-2">
-                Complete all 5 steps before submitting for approval
+                {investigationData?.status === 'PENDING_APPROVAL' 
+                  ? "Investigation already submitted for approval" 
+                  : "Complete all 5 steps before submitting for approval"
+                }
               </p>
             )}
           </div>

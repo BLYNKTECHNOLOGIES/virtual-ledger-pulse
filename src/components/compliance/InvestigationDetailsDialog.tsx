@@ -135,6 +135,27 @@ export function InvestigationDetailsDialog({
     enabled: !!investigation?.id && open && !!steps?.length,
   });
 
+  // Fetch actual investigation status from account_investigations table
+  const { data: investigationData, refetch: refetchInvestigation } = useQuery({
+    queryKey: ['account_investigation_status', investigation?.id],
+    queryFn: async () => {
+      if (!investigation?.id) return null;
+      
+      // Get the investigation ID from steps if available
+      const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
+      
+      const { data, error } = await supabase
+        .from('account_investigations')
+        .select('*')
+        .eq('id', investigationIdToUse)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!investigation?.id && open && !!steps?.length,
+  });
+
   // Complete step mutation
   const completeStepMutation = useMutation({
     mutationFn: async ({ stepId, notes, reportUrl }: { stepId: string; notes?: string; reportUrl?: string }) => {
@@ -374,6 +395,12 @@ export function InvestigationDetailsDialog({
       });
 
       console.log('🎉 SUBMIT FOR APPROVAL COMPLETED SUCCESSFULLY');
+      
+      // Refetch investigation data to update status
+      refetchInvestigation();
+      queryClient.invalidateQueries({ queryKey: ['investigation_updates', investigation.id] });
+      queryClient.invalidateQueries({ queryKey: ['investigation_steps', investigation.id] });
+      
       onOpenChange(false);
       setShowFinalResolutionDialog(false);
       setFinalResolution("");
@@ -423,7 +450,7 @@ export function InvestigationDetailsDialog({
             Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
           </DialogTitle>
           {/* Status Indicator */}
-          {investigation?.status === 'PENDING_APPROVAL' && (
+          {investigationData?.status === 'PENDING_APPROVAL' && (
             <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-orange-600" />

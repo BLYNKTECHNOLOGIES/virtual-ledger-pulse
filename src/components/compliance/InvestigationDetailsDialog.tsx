@@ -171,7 +171,15 @@ export function InvestigationDetailsDialog({
       // Upload files if any
       if (files.length > 0) {
         for (const file of files) {
-          const fileName = `investigation-${investigationIdToUse}-${Date.now()}-${file.name}`;
+          // Sanitize filename aggressively by replacing ALL non-alphanumeric characters except dots for extensions
+          const sanitizedFileName = file.name
+            .replace(/\s+/g, '_') // Replace spaces with underscores
+            .replace(/[^a-zA-Z0-9._-]/g, '') // Keep only alphanumeric, dots, underscores, and hyphens
+            .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+            .replace(/^_|_$/g, '') // Remove leading/trailing underscores
+            .replace(/\.+/g, '.'); // Replace multiple dots with single dot
+          
+          const fileName = `investigation-${investigationIdToUse}-${Date.now()}-${sanitizedFileName}`;
           const { data, error } = await supabase.storage
             .from('investigation-documents')
             .upload(fileName, file);

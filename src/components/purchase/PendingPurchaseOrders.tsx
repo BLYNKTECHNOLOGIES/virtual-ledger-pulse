@@ -132,13 +132,25 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
         ? order.net_payable_amount 
         : order.total_amount;
 
-      // Update order status first
+      // Get bank account ID for the selected payment method
+      let bankAccountId: string | null = selectedOrder?.bank_account_id || null;
+      if (!bankAccountId && selectedMethod?.bank_account_name) {
+        const { data: bankRow } = await supabase
+          .from('bank_accounts')
+          .select('id')
+          .eq('account_name', selectedMethod.bank_account_name)
+          .maybeSingle();
+        bankAccountId = bankRow?.id || null;
+      }
+
+      // Update order status first with bank account ID
       const { error: updateError } = await supabase
         .from('purchase_orders')
         .update({ 
           status: 'COMPLETED',
           payment_proof_url: proofUrls[0] || null,
           payment_method_used: selectedMethod.id,
+          bank_account_id: bankAccountId, // Set the bank account ID here
           updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
@@ -205,15 +217,6 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
       // Create bank EXPENSE transaction so balance auto-deducts
       try {
-        let bankAccountId: string | null = selectedOrder?.bank_account_id || null;
-        if (!bankAccountId && selectedMethod?.bank_account_name) {
-          const { data: bankRow } = await supabase
-            .from('bank_accounts')
-            .select('id')
-            .eq('account_name', selectedMethod.bank_account_name)
-            .maybeSingle();
-          bankAccountId = bankRow?.id || null;
-        }
         if (bankAccountId) {
           await validateBankAccountBalance(bankAccountId, amountToDeduct);
           const { error: txError } = await supabase

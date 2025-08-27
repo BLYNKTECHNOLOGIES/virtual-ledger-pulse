@@ -270,7 +270,7 @@ export function CaseTrackingTab() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {bankCase.amount_involved && Number(bankCase.amount_involved) > 0 && (
+                {bankCase.amount_involved !== null && bankCase.amount_involved !== undefined && (
                   <div>
                     <span className="text-gray-600">Amount:</span> ₹{Number(bankCase.amount_involved).toLocaleString()}
                   </div>

@@ -28,6 +28,8 @@ export function ExpensesIncomesTab() {
   const { data: transactions } = useQuery({
     queryKey: ['bank_transactions_with_purchases'],
     queryFn: async () => {
+      console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
+      
       // Fetch bank transactions
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
@@ -38,7 +40,13 @@ export function ExpensesIncomesTab() {
         .in('transaction_type', ['INCOME', 'EXPENSE'])
         .order('created_at', { ascending: false });
       
-      if (bankError) throw bankError;
+      if (bankError) {
+        console.error('❌ Bank transactions fetch error:', bankError);
+        throw bankError;
+      }
+      
+      console.log(`📊 Found ${bankData?.length || 0} bank transactions`);
+      console.log('💳 Bank transactions sample:', bankData?.slice(0, 3));
 
       // Fetch purchase orders (buy orders)
       const { data: purchaseData, error: purchaseError } = await supabase

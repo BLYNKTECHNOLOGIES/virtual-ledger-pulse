@@ -4156,6 +4156,10 @@ export type Database = {
         Args: { reason?: string; registration_id: string }
         Returns: boolean
       }
+      sync_existing_payment_methods_with_bank_status: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       sync_usdt_stock: {
         Args: Record<PropertyKey, never>
         Returns: undefined

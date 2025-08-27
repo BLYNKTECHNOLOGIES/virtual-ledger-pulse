@@ -96,6 +96,8 @@ export function ExpensesIncomesTab() {
 
       return combinedTransactions;
     },
+    refetchInterval: 5000, // Refresh every 5 seconds to catch new transactions
+    staleTime: 0,
   });
 
   // Get recent transactions (last 10)

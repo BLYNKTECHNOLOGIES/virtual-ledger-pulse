@@ -199,7 +199,10 @@ export function PurchaseManagement() {
     const fetchPurchaseMethods = async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
-        .select('*')
+        .select(`
+          *,
+          bank_accounts!purchase_payment_methods_bank_account_name_fkey(status)
+        `)
         .order('created_at');
 
       if (error) {
@@ -210,7 +213,12 @@ export function PurchaseManagement() {
           variant: "destructive",
         });
       } else {
-        const formattedMethods = data?.map(method => ({
+        // Filter out methods with inactive bank accounts
+        const filteredData = (data || []).filter(method => 
+          method.bank_accounts?.status === 'ACTIVE'
+        );
+        
+        const formattedMethods = filteredData.map(method => ({
           id: method.id,
           type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',
@@ -224,7 +232,7 @@ export function PurchaseManagement() {
           safeFund: method.safe_fund || false,
           bankAccountName: method.bank_account_name,
           beneficiariesPer24h: method.beneficiaries_per_24h || 5
-        })) || [];
+        }));
         setPurchaseMethods(formattedMethods);
       }
     };

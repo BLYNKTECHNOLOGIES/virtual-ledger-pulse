@@ -47,13 +47,14 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         .select(`
           *,
           upi_id,
-          bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name, bank_name, balance)
+          bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name, bank_name, balance, status)
         `)
         .eq('is_active', true)
         .order('created_at');
       
       if (error) throw error;
-      return data;
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
     },
   });
 

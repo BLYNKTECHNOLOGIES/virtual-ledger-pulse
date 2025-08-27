@@ -45,7 +45,8 @@ export function PaymentMethodSelectionDialog({
             bank_name,
             account_number,
             IFSC,
-            bank_account_holder_name
+            bank_account_holder_name,
+            status
           )
         `)
         .eq('is_active', true)
@@ -54,9 +55,10 @@ export function PaymentMethodSelectionDialog({
 
       if (error) throw error;
       
-      // Filter methods that have available capacity
+      // Filter methods that have available capacity AND active bank accounts
       const filteredData = (data || []).filter(method => 
-        method.current_usage < method.payment_limit
+        method.current_usage < method.payment_limit &&
+        method.bank_accounts?.status === 'ACTIVE'
       );
       
       return filteredData;

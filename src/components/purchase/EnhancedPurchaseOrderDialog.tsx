@@ -114,12 +114,16 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
-        .select('*')
+        .select(`
+          *,
+          bank_accounts!purchase_payment_methods_bank_account_name_fkey(status)
+        `)
         .eq('is_active', true)
         .order('type');
       
       if (error) throw error;
-      return data;
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
     },
     enabled: open,
   });

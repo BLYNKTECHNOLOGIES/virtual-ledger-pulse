@@ -58,7 +58,7 @@ export function PaymentMethodSelectionDialog({
         .from('sales_payment_methods')
         .select(`
           *,
-          bank_accounts:bank_account_id(account_name, bank_name, account_number)
+          bank_accounts:bank_account_id(account_name, bank_name, account_number, status)
         `)
         .eq('type', methodType)
         .eq('is_active', true)
@@ -66,7 +66,8 @@ export function PaymentMethodSelectionDialog({
         .order('current_usage', { ascending: true });
       
       if (error) throw error;
-      return data as PaymentMethod[];
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE') as PaymentMethod[];
     },
     enabled: !!selectedType,
   });

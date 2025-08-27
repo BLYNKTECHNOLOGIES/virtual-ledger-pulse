@@ -51,11 +51,13 @@ export const useSalesPaymentMethods = (enabled: boolean = true) => {
           *,
           bank_accounts:bank_account_id(
             account_name,
-            bank_name
+            bank_name,
+            status
           )
         `);
       if (error) throw error;
-      return data;
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
     },
     enabled,
     staleTime: 5 * 60 * 1000,
@@ -71,13 +73,15 @@ export const usePurchasePaymentMethods = (enabled: boolean = true) => {
         .from('purchase_payment_methods')
         .select(`
           *,
-          upi_id
+          upi_id,
+          bank_accounts!purchase_payment_methods_bank_account_name_fkey(status)
         `)
         .eq('is_active', true)
         .order('type');
       
       if (error) throw error;
-      return data;
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
     },
     enabled,
     staleTime: 5 * 60 * 1000,

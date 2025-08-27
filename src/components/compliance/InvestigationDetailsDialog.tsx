@@ -357,6 +357,18 @@ export function InvestigationDetailsDialog({
           <DialogTitle className="text-xl font-medium text-gray-900">
             Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
           </DialogTitle>
+          {/* Status Indicator */}
+          {investigation?.status === 'PENDING_APPROVAL' && (
+            <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-orange-600" />
+                <span className="text-orange-800 font-medium">Pending for Approval</span>
+              </div>
+              <p className="text-orange-700 text-sm mt-1">
+                This investigation has been submitted and is awaiting officer approval.
+              </p>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="p-6 space-y-6">
@@ -442,6 +454,7 @@ export function InvestigationDetailsDialog({
           </div>
 
           {/* Add Investigation Update - Compact Version */}
+          {investigation?.status !== 'PENDING_APPROVAL' && (
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="text-base font-medium text-gray-900 mb-3">Add Investigation Update</h3>
             
@@ -519,6 +532,7 @@ export function InvestigationDetailsDialog({
               )}
             </div>
           </div>
+          )}
 
           {/* Updates History */}
           {updates && updates.length > 0 && (
@@ -570,6 +584,7 @@ export function InvestigationDetailsDialog({
           )}
 
           {/* Submit for Approval Button */}
+          {investigation?.status !== 'PENDING_APPROVAL' && (
           <div className="pt-4">
             <Button 
               onClick={handleSubmitForApproval}
@@ -588,6 +603,7 @@ export function InvestigationDetailsDialog({
               </p>
             )}
           </div>
+          )}
         </div>
 
         {/* Step Completion Dialog */}

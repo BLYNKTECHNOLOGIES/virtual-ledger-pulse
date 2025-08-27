@@ -75,13 +75,15 @@ export function PaymentMethodManagement() {
           bank_accounts!bank_account_id (
             account_name,
             bank_name,
-            account_number
+            account_number,
+            status
           )
         `)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as SalesPaymentMethod[];
+      // Filter out methods with inactive bank accounts
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE') as SalesPaymentMethod[];
     },
   });
 

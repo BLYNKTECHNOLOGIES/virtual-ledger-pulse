@@ -168,7 +168,7 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'traders' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in max-h-[80vh] overflow-y-auto"
                   >
                     <div className="grid grid-cols-1 gap-8">
                       {tradersDropdown.sections.map((section, index) => (
@@ -216,7 +216,7 @@ export function ModernNavbar() {
                 </button>
                 {activeDropdown === 'businesses' && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in"
+                    className="absolute top-full left-0 mt-2 w-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-6 px-6 z-50 animate-fade-in max-h-[80vh] overflow-y-auto"
                   >
                     <div className="grid grid-cols-1 gap-8">
                       {businessDropdown.sections.map((section, index) => (
@@ -319,7 +319,7 @@ export function ModernNavbar() {
 
           {/* Mobile Navigation */}
           {isOpen && (
-            <div className="lg:hidden border-t border-border mt-4 pt-4 pb-4">
+            <div className="lg:hidden border-t border-border mt-4 pt-4 pb-4 max-h-[80vh] overflow-y-auto">
               <div className="space-y-4">
                 <Link
                   to="/website"

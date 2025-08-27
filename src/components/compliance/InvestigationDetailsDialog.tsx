@@ -283,11 +283,13 @@ export function InvestigationDetailsDialog({
       for (const file of finalResolutionFiles) {
         console.log('📁 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
         
-        // Sanitize filename by removing/replacing invalid characters
+        // Sanitize filename more aggressively by replacing ALL non-alphanumeric characters except dots for extensions
         const sanitizedFileName = file.name
-          .replace(/[^a-zA-Z0-9.-]/g, '_') // Replace invalid characters with underscore
+          .replace(/\s+/g, '_') // Replace spaces with underscores
+          .replace(/[^a-zA-Z0-9._-]/g, '') // Keep only alphanumeric, dots, underscores, and hyphens
           .replace(/_{2,}/g, '_') // Replace multiple underscores with single
-          .replace(/^_|_$/g, ''); // Remove leading/trailing underscores
+          .replace(/^_|_$/g, '') // Remove leading/trailing underscores
+          .replace(/\.+/g, '.'); // Replace multiple dots with single dot
         
         const fileName = `final-resolution-${investigationIdToUse}-${Date.now()}-${sanitizedFileName}`;
         console.log('📁 Generated filename:', fileName);

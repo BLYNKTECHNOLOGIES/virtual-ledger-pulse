@@ -693,25 +693,39 @@ export function InvestigationDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button
+                  type="button"
                   variant="outline"
-                  onClick={() => setShowFinalResolutionDialog(false)}
+                  onClick={() => {
+                    console.log('Cancel button clicked');
+                    setShowFinalResolutionDialog(false);
+                  }}
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    console.log('Submit button clicked');
+                  type="button"
+                  onClick={(e) => {
+                    console.log('Submit button clicked - event:', e);
                     console.log('Final resolution:', finalResolution);
                     console.log('Final resolution trimmed:', finalResolution.trim());
                     console.log('Files length:', finalResolutionFiles.length);
                     console.log('Files:', finalResolutionFiles);
                     console.log('Button disabled?', !finalResolution.trim() || finalResolutionFiles.length === 0);
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (!finalResolution.trim() || finalResolutionFiles.length === 0) {
+                      console.log('Button should be disabled, but allowing click for debug');
+                    }
+                    
                     handleFinalResolutionSubmit();
                   }}
                   disabled={!finalResolution.trim() || finalResolutionFiles.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed relative z-50"
+                  style={{ pointerEvents: 'auto' }}
                 >
                   Submit for Approval
                 </Button>

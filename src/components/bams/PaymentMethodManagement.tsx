@@ -79,11 +79,11 @@ export function PaymentMethodManagement() {
             status
           )
         `)
+        .eq('is_active', true)  // Only fetch active payment methods
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      // Filter out methods with inactive bank accounts
-      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE') as SalesPaymentMethod[];
+      return data as SalesPaymentMethod[];
     },
   });
 

@@ -203,6 +203,7 @@ export function PurchaseManagement() {
           *,
           bank_accounts!purchase_payment_methods_bank_account_name_fkey(status)
         `)
+        .eq('is_active', true)  // Only fetch active payment methods
         .order('created_at');
 
       if (error) {
@@ -213,12 +214,7 @@ export function PurchaseManagement() {
           variant: "destructive",
         });
       } else {
-        // Filter out methods with inactive bank accounts
-        const filteredData = (data || []).filter(method => 
-          method.bank_accounts?.status === 'ACTIVE'
-        );
-        
-        const formattedMethods = filteredData.map(method => ({
+        const formattedMethods = (data || []).map(method => ({
           id: method.id,
           type: (method.type === 'UPI' ? 'UPI' : 'Bank Transfer') as "UPI" | "Bank Transfer",
           name: method.bank_account_name || 'Unnamed Method',

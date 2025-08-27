@@ -701,9 +701,17 @@ export function InvestigationDetailsDialog({
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleFinalResolutionSubmit}
+                  onClick={() => {
+                    console.log('Submit button clicked');
+                    console.log('Final resolution:', finalResolution);
+                    console.log('Final resolution trimmed:', finalResolution.trim());
+                    console.log('Files length:', finalResolutionFiles.length);
+                    console.log('Files:', finalResolutionFiles);
+                    console.log('Button disabled?', !finalResolution.trim() || finalResolutionFiles.length === 0);
+                    handleFinalResolutionSubmit();
+                  }}
                   disabled={!finalResolution.trim() || finalResolutionFiles.length === 0}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
                   Submit for Approval
                 </Button>

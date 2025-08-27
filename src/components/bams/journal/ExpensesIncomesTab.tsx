@@ -60,7 +60,8 @@ export function ExpensesIncomesTab() {
           description,
           status,
           created_at,
-          bank_accounts!bank_account_id(account_name, bank_name)
+          bank_account_id,
+          bank_accounts!purchase_orders_bank_account_id_fkey(account_name, bank_name)
         `)
         .order('created_at', { ascending: false });
 

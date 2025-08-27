@@ -246,7 +246,14 @@ export function InvestigationDetailsDialog({
   };
 
   const handleFinalResolutionSubmit = async () => {
+    console.log('=== SUBMIT FOR APPROVAL STARTED ===');
+    console.log('Final resolution:', finalResolution);
+    console.log('Final resolution trimmed length:', finalResolution.trim().length);
+    console.log('Files count:', finalResolutionFiles.length);
+    console.log('Files array:', finalResolutionFiles);
+    
     if (!finalResolution.trim()) {
+      console.log('❌ Final resolution validation failed');
       toast({
         title: "Final Resolution Required",
         description: "Please provide a final resolution summary before submitting for approval.",
@@ -256,6 +263,7 @@ export function InvestigationDetailsDialog({
     }
 
     if (finalResolutionFiles.length === 0) {
+      console.log('❌ Files validation failed');
       toast({
         title: "Resolution Files Required",
         description: "Please attach supporting documents for the final resolution.",
@@ -264,66 +272,106 @@ export function InvestigationDetailsDialog({
       return;
     }
 
+    console.log('✅ All validations passed, starting upload process...');
+
     try {
       // Upload final resolution files
       let attachmentUrls: string[] = [];
       const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
+      console.log('Investigation ID to use:', investigationIdToUse);
       
       for (const file of finalResolutionFiles) {
+        console.log('📁 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
         const fileName = `final-resolution-${investigationIdToUse}-${Date.now()}-${file.name}`;
+        console.log('📁 Generated filename:', fileName);
+        
         const { data, error } = await supabase.storage
           .from('investigation-documents')
           .upload(fileName, file);
         
-        if (error) throw error;
+        if (error) {
+          console.error('❌ File upload error:', error);
+          throw error;
+        }
+        
+        console.log('✅ File uploaded successfully:', data);
         
         const { data: urlData } = supabase.storage
           .from('investigation-documents')
           .getPublicUrl(fileName);
         
+        console.log('🔗 Public URL generated:', urlData.publicUrl);
         attachmentUrls.push(urlData.publicUrl);
       }
 
+      console.log('✅ All files uploaded. Attachment URLs:', attachmentUrls);
+
       // Create approval request
+      console.log('💾 Creating approval request...');
+      const approvalData = {
+        investigation_id: investigationIdToUse,
+        final_resolution: finalResolution,
+        supporting_documents_urls: attachmentUrls,
+        submitted_by: 'Current User',
+        approval_status: 'PENDING'
+      };
+      console.log('💾 Approval data:', approvalData);
+      
       const { error: approvalError } = await supabase
         .from('investigation_approvals')
-        .insert({
-          investigation_id: investigationIdToUse,
-          final_resolution: finalResolution,
-          supporting_documents_urls: attachmentUrls,
-          submitted_by: 'Current User',
-          approval_status: 'PENDING'
-        });
+        .insert(approvalData);
 
-      if (approvalError) throw approvalError;
+      if (approvalError) {
+        console.error('❌ Approval creation error:', approvalError);
+        throw approvalError;
+      }
+
+      console.log('✅ Approval request created successfully');
 
       // Update investigation status to PENDING_APPROVAL
+      console.log('🔄 Updating investigation status...');
       const { error: updateError } = await supabase
         .from('account_investigations')
         .update({ status: 'PENDING_APPROVAL' })
         .eq('id', investigationIdToUse);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('❌ Investigation update error:', updateError);
+        throw updateError;
+      }
+
+      console.log('✅ Investigation status updated successfully');
 
       // Add final resolution as an update
+      console.log('📝 Adding final resolution as update...');
       await addUpdateMutation.mutateAsync({ 
         updateText: `SUBMITTED FOR APPROVAL: ${finalResolution}`, 
         files: finalResolutionFiles 
       });
+
+      console.log('✅ Final resolution update added');
 
       toast({
         title: "Submitted for Approval",
         description: "Investigation has been submitted for officer approval.",
       });
 
+      console.log('🎉 SUBMIT FOR APPROVAL COMPLETED SUCCESSFULLY');
       onOpenChange(false);
       setShowFinalResolutionDialog(false);
       setFinalResolution("");
       setFinalResolutionFiles([]);
     } catch (error: any) {
+      console.error('❌ SUBMIT FOR APPROVAL FAILED:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       toast({
         title: "Error",
-        description: "Failed to submit for approval. Please try again.",
+        description: error.message || "Failed to submit for approval. Please try again.",
         variant: "destructive",
       });
     }

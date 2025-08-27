@@ -321,21 +321,30 @@ export default function Sales() {
                    ) : (
                      // Default actions for other orders
                      <>
-                       <Button 
-                         variant="ghost" 
-                         size="sm"
-                         onClick={() => setSelectedOrderForDetails(order)}
-                       >
-                         <Eye className="h-3 w-3 mr-1" />
-                         View Details
-                       </Button>
-                       <Button 
-                         variant="ghost" 
-                         size="sm"
-                         onClick={() => setSelectedOrderForEdit(order)}
-                       >
-                         <Edit className="h-3 w-3" />
-                       </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            console.log('View Details clicked for order:', order);
+                            setSelectedOrderForDetails(order);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            console.log('Edit clicked for order:', order);
+                            setSelectedOrderForEdit(order);
+                          }}
+                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
                        <Button 
                          variant="ghost" 
                          size="sm" 

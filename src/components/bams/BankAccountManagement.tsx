@@ -396,8 +396,15 @@ export function BankAccountManagement() {
                     step="0.01" 
                     value={formData.balance} 
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))} 
+                    disabled={!!editingAccount}
+                    className={editingAccount ? "bg-gray-100 cursor-not-allowed" : ""}
                     required 
                   />
+                  {editingAccount && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      🔒 Initial balance cannot be changed once set. Use Bank Journal Entries to modify the current balance.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="status">Account Status *</Label>

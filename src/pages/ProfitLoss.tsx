@@ -223,11 +223,22 @@ export default function ProfitLoss() {
         supplier_name: item.purchase_orders.supplier_name
       })) || [];
 
-      // Calculate FIFO matches
-      const { fifoMatches, totalGrossProfit } = calculateFIFOMatches(
+      // Calculate FIFO matches and get total quantities
+      const { fifoMatches, totalGrossProfit, totalQuantitySold } = calculateFIFOMatches(
         periodSalesItems, 
         purchaseItemsWithDates
       );
+
+      // Calculate average selling and buying prices
+      const totalSoldValue = periodSalesItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      const avgSellingPrice = totalQuantitySold > 0 ? totalSoldValue / totalQuantitySold : 0;
+      
+      const totalBoughtValue = purchaseItemsWithDates.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      const totalQuantityBought = purchaseItemsWithDates.reduce((sum, item) => sum + item.quantity, 0);
+      const avgBuyingPrice = totalQuantityBought > 0 ? totalBoughtValue / totalQuantityBought : 0;
+      
+      // Correct Gross Profit = Total Qty sold * (Avg Selling price - Avg Buying price)
+      const correctedGrossProfit = totalQuantitySold * (avgSellingPrice - avgBuyingPrice);
 
       // Create trade entries for table
       const tradeEntries: TradeEntry[] = [];
@@ -290,8 +301,8 @@ export default function ProfitLoss() {
       const totalRevenue = salesOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       const totalOtherExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
-      const grossProfit = totalGrossProfit;
-      const netProfit = grossProfit - totalOtherExpenses + totalIncome;
+      const grossProfit = correctedGrossProfit; // Use corrected calculation
+      const netProfit = grossProfit - totalOtherExpenses + totalIncome; // Net Profit = Gross Profit - All Expenses + All Incomes
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
       return {

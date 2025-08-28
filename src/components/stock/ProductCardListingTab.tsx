@@ -150,8 +150,10 @@ export function ProductCardListingTab() {
                       <Building className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium text-gray-700">Portfolio Distribution</span>
                     </div>
-                    <div className="space-y-1">
-                      {product.wallet_stocks.map((wallet, index) => (
+                     <div className="space-y-1">
+                      {product.wallet_stocks
+                        .sort((a, b) => b.balance - a.balance) // Sort from highest to lowest stock
+                        .map((wallet, index) => (
                         <div key={wallet.wallet_id} className="flex justify-between items-center text-xs">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
@@ -168,7 +170,12 @@ export function ProductCardListingTab() {
                 )}
 
                 <div className="flex gap-2 pt-2 border-t">
-                  <Button variant="outline" size="sm" className="flex-1">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => window.location.href = '/stock-management?tab=wallets'}
+                  >
                     <TrendingUp className="h-3 w-3 mr-1" />
                     View Details
                   </Button>

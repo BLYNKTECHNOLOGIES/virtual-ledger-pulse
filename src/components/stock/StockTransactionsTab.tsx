@@ -255,7 +255,7 @@ export function StockTransactionsTab() {
       ...p,
       type: 'purchase',
       transaction_type: 'PURCHASE',
-      date: p.purchase_orders?.order_date,
+      date: p.created_at || p.purchase_orders?.order_date, // Use created_at for actual entry time
       supplier_name: p.purchase_orders?.supplier_name,
       reference_number: p.purchase_orders?.order_number,
       total_amount: p.total_price,

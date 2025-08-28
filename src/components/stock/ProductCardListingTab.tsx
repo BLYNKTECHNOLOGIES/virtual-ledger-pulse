@@ -107,7 +107,7 @@ export function ProductCardListingTab() {
                       #{product.code}
                     </Badge>
                   </div>
-                  <StockStatusBadge currentStock={product.total_stock} minStock={product.minimum_stock_level} />
+                  <StockStatusBadge currentStock={product.total_stock} />
                 </div>
               </CardHeader>
               

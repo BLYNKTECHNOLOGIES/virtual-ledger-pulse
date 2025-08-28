@@ -3,18 +3,39 @@ import { Badge } from "@/components/ui/badge";
 import { useProductStockSummary } from "@/hooks/useWalletStock";
 
 interface StockStatusBadgeProps {
-  productId: string;
+  productId?: string;
+  currentStock?: number;
+  minStock?: number;
   showWarehouseBreakdown?: boolean;
   className?: string;
 }
 
 export function StockStatusBadge({ 
   productId, 
+  currentStock,
+  minStock,
   showWarehouseBreakdown = false, 
   className 
 }: StockStatusBadgeProps) {
   const { data: productSummaries, isLoading } = useProductStockSummary();
 
+  // If currentStock is provided, use it directly (simple mode)
+  if (currentStock !== undefined) {
+    const getBadgeVariant = (stock: number, minLevel?: number) => {
+      if (stock <= 0) return "destructive";
+      if (minLevel && stock <= minLevel) return "secondary";
+      if (stock <= 10) return "secondary";
+      return "default";
+    };
+
+    return (
+      <Badge variant={getBadgeVariant(currentStock, minStock)} className={className}>
+        {currentStock}
+      </Badge>
+    );
+  }
+
+  // Original productId-based logic
   if (isLoading) {
     return <Badge variant="outline" className={className}>Loading...</Badge>;
   }

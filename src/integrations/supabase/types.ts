@@ -2662,30 +2662,36 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          created_at: string | null
           id: string
           product_id: string
           purchase_order_id: string
           quantity: number
           total_price: number
           unit_price: number
+          updated_at: string | null
           warehouse_id: string | null
         }
         Insert: {
+          created_at?: string | null
           id?: string
           product_id: string
           purchase_order_id: string
           quantity: number
           total_price: number
           unit_price: number
+          updated_at?: string | null
           warehouse_id?: string | null
         }
         Update: {
+          created_at?: string | null
           id?: string
           product_id?: string
           purchase_order_id?: string
           quantity?: number
           total_price?: number
           unit_price?: number
+          updated_at?: string | null
           warehouse_id?: string | null
         }
         Relationships: [

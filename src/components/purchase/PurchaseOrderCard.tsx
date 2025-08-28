@@ -25,6 +25,17 @@ interface PurchaseOrder {
   bank_account_name?: string;
   payment_method_type?: string;
   purchase_payment_method?: any;
+  purchase_order_items?: Array<{
+    id: string;
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    products?: {
+      name: string;
+      code: string;
+    };
+  }>;
 }
 
 interface PurchaseOrderCardProps {
@@ -36,6 +47,14 @@ interface PurchaseOrderCardProps {
 
 export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: PurchaseOrderCardProps) {
   const { toast } = useToast();
+  
+  // Calculate total quantity from all order items
+  const totalQuantity = order.purchase_order_items?.reduce((sum, item) => sum + item.quantity, 0) || order.quantity || 0;
+  
+  // Calculate weighted average price per unit
+  const averagePricePerUnit = order.purchase_order_items?.length 
+    ? order.total_amount / totalQuantity
+    : (order.price_per_unit || order.total_amount);
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -95,11 +114,11 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
           </div>
           <div>
             <span className="text-gray-500">Quantity:</span>
-            <p className="font-medium">{order.quantity || 1}</p>
+            <p className="font-medium">{totalQuantity}</p>
           </div>
           <div>
             <span className="text-gray-500">Price per Unit:</span>
-            <p className="font-medium">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
+            <p className="font-medium">₹{Number(averagePricePerUnit).toLocaleString()}</p>
           </div>
         </div>
 

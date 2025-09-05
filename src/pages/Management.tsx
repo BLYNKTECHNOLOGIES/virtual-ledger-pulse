@@ -587,69 +587,6 @@ export default function Management() {
         </div>
       </div>
 
-      {/* Department View Tab */}
-      <div className="container mx-auto px-6 pb-12">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Building2 className="h-6 w-6" />
-              Department View
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {departmentGroups.map(group => (
-                <Card key={group.department} className="overflow-hidden">
-                  <CardHeader 
-                    className="cursor-pointer hover:bg-gray-50" 
-                    onClick={() => toggleDepartment(group.department)}
-                  >
-                    <CardTitle className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{getDepartmentIcon(group.department)}</span>
-                        <span>{group.department}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{group.count}</Badge>
-                        {expandedDepartments.has(group.department) ? 
-                          <ChevronDown className="h-4 w-4" /> : 
-                          <ChevronRight className="h-4 w-4" />
-                        }
-                      </div>
-                    </CardTitle>
-                  </CardHeader>
-                  
-                  {expandedDepartments.has(group.department) && (
-                    <CardContent className="pt-0">
-                      <div className="space-y-3">
-                        {group.employees.map(emp => (
-                          <div key={emp.id} className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100"
-                               onClick={() => handleEmployeeClick(emp)}>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(emp.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{emp.name}</p>
-                                <p className="text-xs text-gray-600 truncate">{emp.designation}</p>
-                              </div>
-                              <Badge className={`text-xs ${getStatusColor(emp.status)}`}>
-                                {emp.status}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Employee Details Dialog */}
       <EmployeeDetailsDialog

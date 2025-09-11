@@ -1,0 +1,149 @@
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { format } from 'date-fns';
+
+interface SettlementData {
+  settlement_batch_id: string;
+  total_amount: number;
+  mdr_amount: number;
+  net_amount: number;
+  mdr_rate: number;
+  settlement_date: string;
+  status: string;
+  bank_accounts: {
+    account_name: string;
+    bank_name: string;
+    account_number: string;
+  };
+  settlement_items: {
+    id: string;
+    amount: number;
+    sales_orders: {
+      order_number: string;
+      client_name: string;
+      order_date: string;
+      total_amount: number;
+      settlement_status: string;
+    };
+  }[];
+}
+
+export const generateSettlementPDF = async (settlement: SettlementData) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  
+  // Title
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text('Settlement Reconciliation Report', pageWidth / 2, 20, { align: 'center' });
+  
+  // Settlement details
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Batch ID: ${settlement.settlement_batch_id}`, 14, 35);
+  doc.text(`Settlement Date: ${format(new Date(settlement.settlement_date), 'MMM dd, yyyy HH:mm')}`, 14, 42);
+  doc.text(`Generated on: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 49);
+  
+  // Bank Account Information
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text('Bank Account Details', 14, 65);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Account Name: ${settlement.bank_accounts.account_name}`, 14, 75);
+  doc.text(`Bank Name: ${settlement.bank_accounts.bank_name}`, 14, 82);
+  doc.text(`Account Number: ${settlement.bank_accounts.account_number}`, 14, 89);
+  
+  // Settlement Summary Box
+  doc.setFillColor(240, 248, 255);
+  doc.rect(14, 95, pageWidth - 28, 35, 'F');
+  doc.setDrawColor(59, 130, 246);
+  doc.rect(14, 95, pageWidth - 28, 35);
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text('Settlement Summary', 18, 105);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString()}`, 18, 115);
+  doc.text(`MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString()}`, 18, 122);
+  
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(34, 197, 94);
+  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString()}`, 18, 129);
+  doc.setTextColor(0, 0, 0);
+  
+  // Transaction Details Table
+  const tableData = settlement.settlement_items.map((item, index) => [
+    (index + 1).toString(),
+    item.sales_orders.order_number,
+    item.sales_orders.client_name,
+    format(new Date(item.sales_orders.order_date), 'MMM dd, yyyy'),
+    `₹${item.amount.toLocaleString()}`,
+    'Payment Gateway',
+    item.sales_orders.settlement_status || 'SETTLED'
+  ]);
+  
+  autoTable(doc, {
+    startY: 140,
+    head: [['S.No', 'Order Number', 'Client Name', 'Order Date', 'Amount', 'Payment Method', 'Status']],
+    body: tableData,
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
+    },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 15 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 30 },
+      3: { cellWidth: 25 },
+      4: { halign: 'right', cellWidth: 25 },
+      5: { cellWidth: 30 },
+      6: { halign: 'center', cellWidth: 20 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+  
+  // Get the final Y position after the table
+  const finalY = (doc as any).lastAutoTable.finalY || 140;
+  
+  // Reconciliation Summary
+  const summaryY = finalY + 20;
+  doc.setFillColor(248, 250, 252);
+  doc.rect(14, summaryY, pageWidth - 28, 45, 'F');
+  doc.setDrawColor(156, 163, 175);
+  doc.rect(14, summaryY, pageWidth - 28, 45);
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text('Reconciliation Summary', 18, summaryY + 10);
+  
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Total Orders: ${settlement.settlement_items.length}`, 18, summaryY + 20);
+  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString()}`, 18, summaryY + 27);
+  doc.text(`Less: MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString()}`, 18, summaryY + 34);
+  
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(34, 197, 94);
+  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString()}`, 18, summaryY + 41);
+  doc.setTextColor(0, 0, 0);
+  
+  // Footer
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(107, 114, 128);
+  doc.text('This is a computer-generated settlement reconciliation report.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+  doc.text(`Page 1 of 1 | Generated by BLYNK Virtual Technologies`, pageWidth / 2, pageHeight - 15, { align: 'center' });
+  
+  // Download the PDF
+  doc.save(`Settlement_Report_${settlement.settlement_batch_id}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+};

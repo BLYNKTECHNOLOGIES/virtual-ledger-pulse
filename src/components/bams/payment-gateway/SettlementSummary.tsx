@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter } from "lucide-react";
+import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { SettlementReviewDialog } from "./SettlementReviewDialog";
 
 interface Settlement {
   id: string;
@@ -58,6 +59,8 @@ export function SettlementSummary() {
   const [dateTo, setDateTo] = useState("");
   const [selectedBank, setSelectedBank] = useState("all");
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedSettlementBatch, setSelectedSettlementBatch] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -165,6 +168,11 @@ export function SettlementSummary() {
     setDateFrom("");
     setDateTo("");
     setSelectedBank("all");
+  };
+
+  const handleViewSettlement = (batchId: string) => {
+    setSelectedSettlementBatch(batchId);
+    setReviewDialogOpen(true);
   };
 
   if (loading) {
@@ -315,6 +323,7 @@ export function SettlementSummary() {
                   <TableHead>Net Amount</TableHead>
                   <TableHead>Settlement Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -345,6 +354,17 @@ export function SettlementSummary() {
                         {settlement.status || 'COMPLETED'}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleViewSettlement(settlement.settlement_batch_id)}
+                        className="flex items-center gap-2"
+                      >
+                        <Eye className="h-4 w-4" />
+                        Review
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -352,6 +372,12 @@ export function SettlementSummary() {
           )}
         </CardContent>
       </Card>
+
+      <SettlementReviewDialog
+        open={reviewDialogOpen}
+        onOpenChange={setReviewDialogOpen}
+        settlementBatchId={selectedSettlementBatch}
+      />
     </div>
   );
 }

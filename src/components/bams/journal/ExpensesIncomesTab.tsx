@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionForm } from "./components/TransactionForm";
@@ -24,13 +23,13 @@ export function ExpensesIncomesTab() {
     },
   });
 
-  // Fetch bank transactions and purchase orders
+  // Fetch only bank transactions (no purchase orders)
   const { data: transactions } = useQuery({
-    queryKey: ['bank_transactions_with_purchases_v2'],
+    queryKey: ['bank_transactions_only'],
     queryFn: async () => {
       console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
       
-      // Fetch bank transactions
+      // Fetch only bank transactions
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
@@ -48,54 +47,17 @@ export function ExpensesIncomesTab() {
       console.log(`📊 Found ${bankData?.length || 0} bank transactions`);
       console.log('💳 Bank transactions sample:', bankData?.slice(0, 3));
 
-      // Fetch purchase orders (buy orders)
-      const { data: purchaseData, error: purchaseError } = await supabase
-        .from('purchase_orders')
-        .select(`
-          id,
-          total_amount,
-          order_date,
-          order_number,
-          supplier_name,
-          description,
-          status,
-          created_at,
-          bank_account_id,
-          bank_accounts!purchase_orders_bank_account_id_fkey(account_name, bank_name)
-        `)
-        .order('created_at', { ascending: false });
+      // Format transactions for display
+      const formattedTransactions = (bankData || []).map(t => ({
+        ...t,
+        source: 'BANK',
+        display_type: t.transaction_type,
+        display_description: t.description || '',
+        display_reference: t.reference_number || '',
+        display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name
+      }));
 
-      if (purchaseError) throw purchaseError;
-
-      // Combine and format transactions
-      const combinedTransactions = [
-        ...(bankData || []).map(t => ({
-          ...t,
-          source: 'BANK',
-          display_type: t.transaction_type,
-          display_description: t.description || '',
-          display_reference: t.reference_number || '',
-          display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name
-        })),
-        ...(purchaseData || []).map(p => ({
-          ...p,
-          source: 'PURCHASE',
-          amount: p.total_amount,
-          transaction_date: p.order_date,
-          transaction_type: 'EXPENSE',
-          display_type: 'PURCHASE_ORDER',
-          description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
-          display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
-          display_reference: p.order_number,
-          display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
-            `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
-            'Bank Account Not Specified',
-          category: 'Purchase',
-          reference_number: p.order_number
-        }))
-      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      return combinedTransactions;
+      return formattedTransactions;
     },
     refetchInterval: 5000, // Refresh every 5 seconds to catch new transactions
     staleTime: 0,
@@ -142,12 +104,12 @@ export function ExpensesIncomesTab() {
       <TransactionForm bankAccounts={bankAccounts || []} />
       <TransactionSummary transactions={transactions || []} />
       
-      {/* Recent Manual Transactions */}
+      {/* Recent Bank Transactions Only */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-            Recent Expenses & Incomes (Including Buy Orders)
+            Recent Expenses & Incomes
             <Badge variant="secondary">{recentTransactions.length} recent entries</Badge>
           </CardTitle>
         </CardHeader>
@@ -173,13 +135,8 @@ export function ExpensesIncomesTab() {
                           {transaction.display_account || (transaction.bank_accounts?.account_name + ' - ' + transaction.bank_accounts?.bank_name)}
                         </span>
                         <Badge variant={getBadgeVariant(transaction.transaction_type)}>
-                          {transaction.display_type || transaction.transaction_type}
+                          {transaction.transaction_type}
                         </Badge>
-                        {transaction.source === 'PURCHASE' && (
-                          <Badge variant="outline" className="text-xs">
-                            BUY ORDER
-                          </Badge>
-                        )}
                       </div>
                       <div className="text-sm text-gray-600">
                         {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}

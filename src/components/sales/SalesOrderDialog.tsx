@@ -35,6 +35,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     amount: 0,
     quantity: "",
     price_per_unit: "",
+    platform_fees: "",
     order_date: new Date().toISOString().split('T')[0],
     order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
     delivery_date: "",
@@ -109,10 +110,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
           throw new Error('Product not found');
         }
 
-        const requiredQuantity = parseFloat(orderData.quantity) || 0;
-        if (product.current_stock_quantity < requiredQuantity) {
+        const netQuantity = parseFloat(orderData.quantity) || 0;
+        const platformFees = parseFloat(orderData.platform_fees) || 0;
+        const totalQuantityNeeded = netQuantity + platformFees;
+        
+        if (product.current_stock_quantity < totalQuantityNeeded) {
           throw new Error(
-            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${requiredQuantity} for product: ${product.name}`
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) for product: ${product.name}`
           );
         }
       }
@@ -131,10 +135,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
           throw new Error('Wallet not found');
         }
 
-        const requiredAmount = parseFloat(orderData.quantity) || 0;
-        if (wallet.current_balance < requiredAmount) {
+        const netQuantity = parseFloat(orderData.quantity) || 0;
+        const platformFees = parseFloat(orderData.platform_fees) || 0;
+        const totalQuantityNeeded = netQuantity + platformFees;
+        
+        if (wallet.current_balance < totalQuantityNeeded) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${requiredAmount} in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${wallet.wallet_name}`
           );
         }
       }
@@ -169,15 +176,19 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
           .single();
         
         if (product?.code === 'USDT') {
+          const netQuantity = parseFloat(orderData.quantity) || 0;
+          const platformFees = parseFloat(orderData.platform_fees) || 0;
+          const totalDebitAmount = netQuantity + platformFees;
+          
           await supabase
             .from('wallet_transactions')
             .insert({
               wallet_id: orderData.wallet_id,
               transaction_type: 'DEBIT',
-              amount: parseFloat(orderData.quantity),
+              amount: totalDebitAmount,
               reference_type: 'SALES_ORDER',
               reference_id: data.id,
-              description: `USDT sold via sales order ${data.order_number}`,
+              description: `USDT sold via sales order ${data.order_number} (${netQuantity} + ${platformFees} platform fees)`,
               balance_before: 0, // Will be updated by trigger
               balance_after: 0   // Will be updated by trigger
             });
@@ -260,6 +271,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       amount: 0,
       quantity: "",
       price_per_unit: "",
+      platform_fees: "",
       order_date: new Date().toISOString().split('T')[0],
       order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
       delivery_date: "",
@@ -412,27 +424,50 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   </div>
                 )}
 
+                <div>
+                  <Label htmlFor="amount">Total Amount *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    value={formData.amount}
+                    onChange={(e) => handleAmountChange(parseFloat(e.target.value) || 0)}
+                    required
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="amount">Total Amount *</Label>
+                    <Label htmlFor="platform_fees">Platform Fees (USDT)</Label>
                     <Input
-                      id="amount"
+                      id="platform_fees"
                       type="number"
                       step="0.01"
-                      value={formData.amount}
-                      onChange={(e) => handleAmountChange(parseFloat(e.target.value) || 0)}
-                      required
+                      placeholder="Enter platform fees"
+                      value={formData.platform_fees}
+                      onChange={(e) => setFormData(prev => ({ ...prev, platform_fees: e.target.value }))}
                     />
+                    {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Fees will be deducted from total quantity
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <Label htmlFor="quantity">Quantity</Label>
+                    <Label htmlFor="quantity">Net Quantity Received *</Label>
                     <Input
                       id="quantity"
                       type="number"
-                      placeholder="Enter quantity"
+                      placeholder="Enter net quantity"
                       value={formData.quantity}
                       onChange={(e) => handleQuantityChange(e.target.value)}
+                      required
                     />
+                    {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && formData.quantity && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Total deducted: {(parseFloat(formData.quantity) + parseFloat(formData.platform_fees)).toFixed(6)} USDT
+                      </p>
+                    )}
                   </div>
                 </div>
 

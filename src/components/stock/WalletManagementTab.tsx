@@ -237,12 +237,15 @@ export function WalletManagementTab() {
       wallet_address: '',
       wallet_type: 'USDT',
       chain_name: '',
-      current_balance: 0
+      current_balance: ''
     });
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
-      addWalletMutation.mutate(formData);
+      addWalletMutation.mutate({
+        ...formData,
+        current_balance: parseFloat(formData.current_balance) || 0
+      });
     };
 
     return (
@@ -307,7 +310,8 @@ export function WalletManagementTab() {
                 type="number"
                 step="0.01"
                 value={formData.current_balance}
-                onChange={(e) => setFormData({ ...formData, current_balance: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, current_balance: e.target.value })}
+                placeholder="Enter initial balance"
                 required
               />
             </div>

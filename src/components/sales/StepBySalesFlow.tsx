@@ -57,10 +57,11 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     order_number: generateOrderNumber(), 
     platform: '', 
     quantity: 1, 
+    platform_fees: 0,
     description: '', 
     stockName: '', 
     warehouseId: '', 
-    price: 0 
+    price: 0
   });
 
   // Fetch existing clients
@@ -205,9 +206,13 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           throw new Error('Product not found');
         }
 
-        if (product.current_stock_quantity < finalOrderData.quantity) {
+        const netQuantity = finalOrderData.quantity;
+        const platformFees = finalOrderData.platform_fees || 0;
+        const totalQuantityNeeded = netQuantity + platformFees;
+
+        if (product.current_stock_quantity < totalQuantityNeeded) {
           throw new Error(
-            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${finalOrderData.quantity} for product: ${product.name}`
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) for product: ${product.name}`
           );
         }
       }
@@ -226,9 +231,13 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
           throw new Error('Wallet not found');
         }
 
-        if (wallet.current_balance < usdtAmount) {
+        const netQuantity = finalOrderData.quantity;
+        const platformFees = finalOrderData.platform_fees || 0;
+        const totalUsdtNeeded = netQuantity + platformFees;
+
+        if (wallet.current_balance < totalUsdtNeeded) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${usdtAmount} in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${totalUsdtNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${wallet.wallet_name}`
           );
         }
       }
@@ -250,6 +259,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         wallet_id: walletId || null,
         platform: platform || null,
         usdt_amount: usdtAmount,
+        platform_fees: finalOrderData.platform_fees || 0,
         product_id: selectedProduct?.id || null,
         warehouse_id: finalOrderData.warehouseId,
         quantity: finalOrderData.quantity,
@@ -284,12 +294,16 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       // Process wallet deduction if USDT amount is specified and wallet is selected
       if (walletId && usdtAmount > 0) {
         try {
+          const netQuantity = finalOrderData.quantity;
+          const platformFees = finalOrderData.platform_fees || 0;
+          const totalDeductionAmount = netQuantity + platformFees;
+          
           const { error: walletError } = await supabase.rpc(
             'process_sales_order_wallet_deduction',
             {
               sales_order_id: salesOrder.id,
               wallet_id: walletId,
-              usdt_amount: usdtAmount
+              usdt_amount: totalDeductionAmount
             }
           );
 
@@ -298,7 +312,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             throw new Error(`Wallet deduction failed: ${walletError.message}`);
           }
 
-          console.log('Wallet deduction processed successfully');
+          console.log(`Wallet deduction processed successfully: ${totalDeductionAmount} USDT (${netQuantity} + ${platformFees} fees)`);
         } catch (walletError) {
           // If wallet deduction fails, we should probably handle this more gracefully
           console.error('Error processing wallet deduction:', walletError);
@@ -367,7 +381,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     setSelectedPaymentMethod(null);
     setAvailablePaymentMethods([]);
     setUsedPaymentMethods([]);
-    setFinalOrderData({ order_number: generateOrderNumber(), platform: '', quantity: 1, description: '', stockName: '', warehouseId: '', price: 0 });
+    setFinalOrderData({ order_number: generateOrderNumber(), platform: '', quantity: 1, platform_fees: 0, description: '', stockName: '', warehouseId: '', price: 0 });
   };
 
   const handleOrderTypeSelection = (type: 'repeat' | 'new') => {
@@ -1131,28 +1145,49 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 />
               </div>
 
-              <div>
-                <Label>Price</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  value={finalOrderData.price}
-                  onChange={(e) => setFinalOrderData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                  placeholder="Enter price"
-                />
-              </div>
+               <div>
+                 <Label>Price</Label>
+                 <Input 
+                   type="number"
+                   step="0.01"
+                   value={finalOrderData.price}
+                   onChange={(e) => setFinalOrderData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                   placeholder="Enter price"
+                 />
+               </div>
 
-              <div>
-                <Label>Quantity</Label>
-                <Input 
-                  type="number"
-                  step="0.01"
-                  value={finalOrderData.quantity}
-                  disabled
-                  className="bg-gray-100"
-                  placeholder="Auto-calculated"
-                />
-              </div>
+               <div>
+                 <Label>Platform Fees (USDT)</Label>
+                 <Input 
+                   type="number"
+                   step="0.01"
+                   value={finalOrderData.platform_fees}
+                   onChange={(e) => setFinalOrderData(prev => ({ ...prev, platform_fees: parseFloat(e.target.value) || 0 }))}
+                   placeholder="Enter platform fees"
+                 />
+                 {finalOrderData.platform_fees > 0 && (
+                   <p className="text-sm text-muted-foreground mt-1">
+                     Fees will be deducted from total quantity
+                   </p>
+                 )}
+               </div>
+
+               <div>
+                 <Label>Net Quantity Received</Label>
+                 <Input 
+                   type="number"
+                   step="0.01"
+                   value={finalOrderData.quantity}
+                   disabled
+                   className="bg-gray-100"
+                   placeholder="Auto-calculated"
+                 />
+                 {finalOrderData.platform_fees > 0 && (
+                   <p className="text-sm text-muted-foreground mt-1">
+                     Total deducted: {(finalOrderData.quantity + finalOrderData.platform_fees).toFixed(6)} USDT
+                   </p>
+                 )}
+               </div>
 
               <div>
                 <Label>Payment Received In</Label>

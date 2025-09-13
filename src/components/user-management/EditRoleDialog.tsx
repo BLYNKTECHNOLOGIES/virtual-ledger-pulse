@@ -55,10 +55,6 @@ const availablePermissions = [
   { id: "statistics_manage", name: "Statistics Manage", description: "Manage statistics" },
   { id: "ems_view", name: "EMS View", description: "View Employee Management System" },
   { id: "ems_manage", name: "EMS Manage", description: "Manage Employee Management System" },
-  { id: "profit_loss_view", name: "P&L View", description: "View Profit & Loss reports" },
-  { id: "profit_loss_manage", name: "P&L Manage", description: "Manage Profit & Loss data" },
-  { id: "financials_view", name: "Financials View", description: "View financial reports" },
-  { id: "financials_manage", name: "Financials Manage", description: "Manage financial data" },
 ];
 
 export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {

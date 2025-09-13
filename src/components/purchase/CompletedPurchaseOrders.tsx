@@ -68,19 +68,40 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
 
   const deleteMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const { error } = await supabase
-        .from('purchase_orders')
-        .delete()
-        .eq('id', orderId);
+      const { data, error } = await supabase.rpc('delete_purchase_order_with_reversal', {
+        order_id: orderId
+      });
+      
       if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; message?: string };
+      
+      if (!result?.success) {
+        throw new Error(result?.error || 'Failed to delete purchase order');
+      }
+      
+      return result;
     },
-    onSuccess: () => {
-      toast({ title: "Deleted", description: "Purchase order deleted" });
+    onSuccess: (data) => {
+      toast({ 
+        title: "Deleted Successfully", 
+        description: data?.message || "Purchase order and all transactions have been reversed" 
+      });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete order", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete purchase order", 
+        variant: "destructive" 
+      });
     },
   });
 
@@ -227,8 +248,20 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => { if (confirm('Delete this purchase order?')) deleteMutation.mutate(order.id); }}
+                          onClick={() => { 
+                            if (confirm(
+                              'Are you sure you want to delete this purchase order?\n\n' +
+                              'This will permanently reverse ALL related transactions:\n' +
+                              '• Bank transactions will be reversed\n' +
+                              '• Stock quantities will be reduced\n' +
+                              '• Wallet transactions will be reversed\n\n' +
+                              'This action cannot be undone.'
+                            )) {
+                              deleteMutation.mutate(order.id);
+                            }
+                          }}
                           disabled={deleteMutation.isPending}
+                          className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

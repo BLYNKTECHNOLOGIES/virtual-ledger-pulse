@@ -48,8 +48,8 @@ export function WalletManagementTab() {
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
 
-  // Fetch wallets
-  const { data: wallets, isLoading: walletsLoading } = useQuery({
+  // Fetch wallets with real-time updates
+  const { data: wallets, isLoading: walletsLoading, refetch: refetchWallets } = useQuery({
     queryKey: ['wallets'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,6 +60,8 @@ export function WalletManagementTab() {
       if (error) throw error;
       return data as Wallet[];
     },
+    refetchInterval: 5000, // Live updates every 5 seconds
+    staleTime: 0, // Always consider data stale to ensure fresh data
   });
 
   // Fetch wallet transactions with real-time updates
@@ -176,8 +178,12 @@ export function WalletManagementTab() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Wallet transaction added successfully. Wallet balance updated automatically." });
-      queryClient.invalidateQueries({ queryKey: ['wallet_transactions', 'wallets'] });
+      // Refresh all wallet-related queries
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['products'] }); // For USDT stock sync
+      refetchWallets(); // Force immediate refresh
       setShowTransactionDialog(false);
     },
     onError: (error) => {
@@ -219,7 +225,11 @@ export function WalletManagementTab() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "USDT stock synced with wallet balances" });
-      queryClient.invalidateQueries({ queryKey: ['products', 'wallets'] });
+      // Refresh all wallet-related queries
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
+      refetchWallets(); // Force immediate refresh
     },
     onError: (error) => {
       toast({ 
@@ -434,6 +444,10 @@ export function WalletManagementTab() {
           <p className="text-gray-600">Manage USDT and cryptocurrency wallets</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => refetchWallets()} variant="outline" disabled={walletsLoading}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Wallets
+          </Button>
           <Button onClick={() => syncStockMutation.mutate()} variant="outline" disabled={syncStockMutation.isPending}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Sync USDT Stock

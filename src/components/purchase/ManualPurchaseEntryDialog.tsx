@@ -31,7 +31,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     contact_number: '',
     status: 'COMPLETED',
     deduction_bank_account_id: '',
-    credit_wallet_id: ''
+    credit_wallet_id: '',
+    platform_fees: '',
+    platform_fees_wallet_id: ''
   });
 
   // Fetch purchase payment methods
@@ -124,7 +126,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     setLoading(true);
 
     try {
-      // Validate required fields (bank account now required again since we're handling deductions)
+      // Validate required fields
       if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id) {
         console.log('❌ ManualPurchase: Validation failed:', {
           supplier_name: !!formData.supplier_name,
@@ -136,6 +138,17 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         toast({
           title: "Error",
           description: "Please fill in all required fields including supplier name, product, quantity, price per unit, and bank account for deduction",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Validate platform fees wallet selection if fees are specified
+      if (formData.platform_fees && parseFloat(formData.platform_fees) > 0 && !formData.platform_fees_wallet_id) {
+        toast({
+          title: "Error",
+          description: "Please select a USDT wallet for platform fees deduction",
           variant: "destructive"
         });
         setLoading(false);
@@ -175,9 +188,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: formData.credit_wallet_id
       });
 
-      // Use the secure function that uses the bypass flag properly
-        const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_secure',
+      // Use the enhanced function that handles platform fees
+      const { data: result, error: functionError } = await supabase.rpc(
+        'create_manual_purchase_with_fees',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
@@ -189,7 +202,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_bank_account_id: formData.deduction_bank_account_id,
           p_description: formData.description || '',
           p_contact_number: formData.contact_number || null,
-          p_credit_wallet_id: formData.credit_wallet_id || null
+          p_credit_wallet_id: formData.credit_wallet_id || null,
+          p_platform_fees: formData.platform_fees ? parseFloat(formData.platform_fees) : null,
+          p_platform_fees_wallet_id: formData.platform_fees_wallet_id || null
         }
       );
 
@@ -219,7 +234,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         contact_number: '',
         status: 'COMPLETED',
         deduction_bank_account_id: '',
-        credit_wallet_id: ''
+        credit_wallet_id: '',
+        platform_fees: '',
+        platform_fees_wallet_id: ''
       });
 
       setOpen(false);
@@ -396,6 +413,46 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </Select>
             </div>
           )}
+
+          {/* Platform Fees Section */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="platform_fees">Platform Fees (USDT)</Label>
+              <Input
+                id="platform_fees"
+                type="number"
+                step="0.01"
+                value={formData.platform_fees}
+                onChange={(e) => handleInputChange('platform_fees', e.target.value)}
+                placeholder="Enter platform fees"
+                min="0"
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                Fees will be deducted from wallet in addition to the purchase amount
+              </div>
+            </div>
+
+            {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="platform_fees_wallet_id">Select Wallet for Platform Fees *</Label>
+                <Select 
+                  value={formData.platform_fees_wallet_id} 
+                  onValueChange={(value) => handleInputChange('platform_fees_wallet_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select USDT wallet" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white z-50">
+                    {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        {wallet.wallet_name} - {wallet.wallet_type} (₹{wallet.current_balance})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="contact_number">Contact Number</Label>

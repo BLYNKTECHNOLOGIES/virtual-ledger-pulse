@@ -44,6 +44,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     quantity: '',
     price_per_unit: '',
     total_amount: 0,
+    platform_fees: '',
     sales_payment_method_id: '',
     payment_status: 'COMPLETED',
     order_date: new Date().toISOString().split('T')[0],
@@ -97,19 +98,22 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     setSelectedWalletBalance(walletBalance?.current_balance || null);
   }, [walletBalance]);
 
-  // Validate stock quantity whenever quantity changes
+  // Validate stock quantity whenever quantity or platform fees changes
   useEffect(() => {
     if (formData.quantity && selectedWalletBalance !== null) {
       const quantity = parseFloat(formData.quantity);
-      if (quantity > selectedWalletBalance) {
-        setStockValidationError("Stock Quantity Cannot be Negative !!");
+      const platformFees = parseFloat(formData.platform_fees) || 0;
+      const totalQuantityNeeded = quantity + platformFees;
+      
+      if (totalQuantityNeeded > selectedWalletBalance) {
+        setStockValidationError(`Total required quantity (${totalQuantityNeeded.toFixed(2)}) exceeds available balance!`);
       } else {
         setStockValidationError(null);
       }
     } else {
       setStockValidationError(null);
     }
-  }, [formData.quantity, selectedWalletBalance]);
+  }, [formData.quantity, formData.platform_fees, selectedWalletBalance]);
 
 
   // Fetch payment methods
@@ -186,11 +190,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
       // Process wallet deduction if wallet is selected and payment is completed
       if (data.wallet_id && data.payment_status === 'COMPLETED') {
+        const quantity = parseFloat(data.quantity);
+        const platformFees = parseFloat(data.platform_fees) || 0;
+        const totalDeduction = quantity + platformFees;
+        
         // Use the function to process wallet deduction which will also sync USDT stock
         const { error: walletError } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: result.id,
           wallet_id: data.wallet_id,
-          usdt_amount: parseFloat(data.quantity)
+          usdt_amount: totalDeduction
         });
 
         if (walletError) {
@@ -226,6 +234,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         quantity: '',
         price_per_unit: '',
         total_amount: 0,
+        platform_fees: '',
         sales_payment_method_id: '',
         payment_status: 'COMPLETED',
         order_date: new Date().toISOString().split('T')[0],
@@ -294,6 +303,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           
           // Reset quantity when wallet changes to avoid validation issues
           updated.quantity = '';
+          updated.platform_fees = '';
           updated.total_amount = 0;
         }
         
@@ -451,6 +461,21 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             )}
 
             <div>
+              <Label>Platform Fees (USDT)</Label>
+              <Input
+                type="number"
+                value={formData.platform_fees}
+                onChange={(e) => handleInputChange('platform_fees', e.target.value)}
+                min="0"
+                step="0.01"
+                placeholder="Enter platform fees"
+              />
+              <div className="text-xs text-muted-foreground mt-1">
+                Fees will be deducted from wallet in addition to the quantity
+              </div>
+            </div>
+
+            <div>
               <Label>Total Amount</Label>
               <Input
                 type="number"
@@ -458,6 +483,13 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 disabled
                 className="bg-gray-100"
               />
+              {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Net Quantity Received: {parseFloat(formData.quantity || '0').toFixed(2)} USDT
+                  <br />
+                  Total Deducted: {(parseFloat(formData.quantity || '0') + parseFloat(formData.platform_fees || '0')).toFixed(2)} USDT
+                </div>
+              )}
             </div>
 
             <div>

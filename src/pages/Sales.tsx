@@ -21,6 +21,7 @@ import { SalesEntryDialog } from "@/components/sales/SalesEntryDialog";
 import { UserPayingStatusDialog } from "@/components/sales/UserPayingStatusDialog";
 import { PaymentMethodSelectionDialog } from "@/components/sales/PaymentMethodSelectionDialog";
 import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
+import { PermissionGate } from "@/components/PermissionGate";
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -306,57 +307,61 @@ export default function Sales() {
               <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
               <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
               <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-               <td className="py-3 px-4">
-                 <div className="flex gap-1">
-                   {order.payment_status === 'USER_PAYING' ? (
-                     // Special action for User Paying orders
-                     <Button 
-                       variant="outline" 
-                       size="sm"
-                       onClick={() => setSelectedOrderForUserPaying(order)}
-                       className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                     >
-                       Take Action
-                     </Button>
-                   ) : (
-                     // Default actions for other orders
-                     <>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            console.log('View Details clicked for order:', order);
-                            setSelectedOrderForDetails(order);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            console.log('Edit clicked for order:', order);
-                            setSelectedOrderForEdit(order);
-                          }}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                       <Button 
-                         variant="ghost" 
-                         size="sm" 
-                         onClick={() => handleDeleteOrder(order.id)}
-                         disabled={deleteSalesOrderMutation.isPending}
-                       >
-                         <Trash2 className="h-3 w-3" />
-                       </Button>
-                     </>
-                   )}
-                 </div>
-               </td>
+                   <td className="py-3 px-4">
+                     <div className="flex gap-1">
+                       {order.payment_status === 'USER_PAYING' ? (
+                         // Special action for User Paying orders
+                         <PermissionGate permissions={["sales_manage"]}>
+                           <Button 
+                             variant="outline" 
+                             size="sm"
+                             onClick={() => setSelectedOrderForUserPaying(order)}
+                             className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                           >
+                             Take Action
+                           </Button>
+                         </PermissionGate>
+                       ) : (
+                         // Default actions for other orders
+                         <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {
+                                console.log('View Details clicked for order:', order);
+                                setSelectedOrderForDetails(order);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <PermissionGate permissions={["sales_manage"]}>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => {
+                                  console.log('Edit clicked for order:', order);
+                                  setSelectedOrderForEdit(order);
+                                }}
+                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDeleteOrder(order.id)}
+                                disabled={deleteSalesOrderMutation.isPending}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </PermissionGate>
+                         </>
+                       )}
+                     </div>
+                   </td>
             </tr>
           ))}
         </tbody>
@@ -395,17 +400,19 @@ export default function Sales() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Manual Sales Entry
-              </Button>
-              <Button 
-                onClick={() => setShowStepByStepFlow(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Order
-              </Button>
+              <PermissionGate permissions={["sales_manage"]}>
+                <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Manual Sales Entry
+                </Button>
+                <Button 
+                  onClick={() => setShowStepByStepFlow(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Order
+                </Button>
+              </PermissionGate>
             </div>
           </div>
         </div>
@@ -555,18 +562,21 @@ export default function Sales() {
       </Card>
 
       {/* Step-by-Step Sales Flow */}
-          <StepBySalesFlow 
-            open={showStepByStepFlow} 
-            onOpenChange={setShowStepByStepFlow}
-            queryClient={queryClient}
-          />
+      <PermissionGate permissions={["sales_manage"]}>
+        <StepBySalesFlow 
+          open={showStepByStepFlow} 
+          onOpenChange={setShowStepByStepFlow}
+          queryClient={queryClient}
+        />
+      </PermissionGate>
 
       {/* Manual Sales Entry Dialog */}
-      <SalesEntryDialog
-        open={showManualSalesEntry}
-        onOpenChange={setShowManualSalesEntry}
-      />
-
+      <PermissionGate permissions={["sales_manage"]}>
+        <SalesEntryDialog
+          open={showManualSalesEntry}
+          onOpenChange={setShowManualSalesEntry}
+        />
+      </PermissionGate>
 
       {/* Details Dialog */}
       <SalesOrderDetailsDialog
@@ -576,66 +586,74 @@ export default function Sales() {
       />
 
       {/* Edit Dialog */}
-      <EditSalesOrderDialog
-        open={!!selectedOrderForEdit}
-        onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
-        order={selectedOrderForEdit}
-      />
+      <PermissionGate permissions={["sales_manage"]}>
+        <EditSalesOrderDialog
+          open={!!selectedOrderForEdit}
+          onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
+          order={selectedOrderForEdit}
+        />
+      </PermissionGate>
 
       {/* User Paying Status Dialog */}
-      <UserPayingStatusDialog
-        open={!!selectedOrderForUserPaying}
-        onOpenChange={(open) => !open && setSelectedOrderForUserPaying(null)}
-        clientName={selectedOrderForUserPaying?.client_name || ''}
-        orderAmount={selectedOrderForUserPaying?.total_amount || 0}
-        onStatusChange={(status) => {
-          if (status === "PAYMENT_DONE") {
-            // Show completion form instead of directly updating status
-            setSelectedOrderForUserPaying(null);
-            setSelectedOrderForCompletion(selectedOrderForUserPaying);
-          } else {
-            // Handle other status changes (ORDER_CANCELLED)
-            if (selectedOrderForUserPaying) {
-              updateOrderStatusMutation.mutate({
-                orderId: selectedOrderForUserPaying.id,
-                status: status
-              });
+      <PermissionGate permissions={["sales_manage"]}>
+        <UserPayingStatusDialog
+          open={!!selectedOrderForUserPaying}
+          onOpenChange={(open) => !open && setSelectedOrderForUserPaying(null)}
+          clientName={selectedOrderForUserPaying?.client_name || ''}
+          orderAmount={selectedOrderForUserPaying?.total_amount || 0}
+          onStatusChange={(status) => {
+            if (status === "PAYMENT_DONE") {
+              // Show completion form instead of directly updating status
               setSelectedOrderForUserPaying(null);
+              setSelectedOrderForCompletion(selectedOrderForUserPaying);
+            } else {
+              // Handle other status changes (ORDER_CANCELLED)
+              if (selectedOrderForUserPaying) {
+                updateOrderStatusMutation.mutate({
+                  orderId: selectedOrderForUserPaying.id,
+                  status: status
+                });
+                setSelectedOrderForUserPaying(null);
+              }
             }
-          }
-        }}
-        onAlternativeMethod={() => {
-          setSelectedOrderForUserPaying(null);
-          setSelectedOrderForAlternativeMethod(selectedOrderForUserPaying);
-        }}
-      />
+          }}
+          onAlternativeMethod={() => {
+            setSelectedOrderForUserPaying(null);
+            setSelectedOrderForAlternativeMethod(selectedOrderForUserPaying);
+          }}
+        />
+      </PermissionGate>
 
       {/* Alternative Payment Method Dialog */}
-      <PaymentMethodSelectionDialog
-        open={!!selectedOrderForAlternativeMethod}
-        onOpenChange={(open) => !open && setSelectedOrderForAlternativeMethod(null)}
-        orderAmount={selectedOrderForAlternativeMethod?.total_amount || 0}
-        clientName={selectedOrderForAlternativeMethod?.client_name || ''}
-        orderId={selectedOrderForAlternativeMethod?.id || ''}
-        riskCategory="MEDIUM"
-        paymentType="UPI"
-        onStatusChange={(status) => {
-          if (selectedOrderForAlternativeMethod) {
-            updateOrderStatusMutation.mutate({
-              orderId: selectedOrderForAlternativeMethod.id,
-              status: status
-            });
-            setSelectedOrderForAlternativeMethod(null);
-          }
-        }}
-      />
+      <PermissionGate permissions={["sales_manage"]}>
+        <PaymentMethodSelectionDialog
+          open={!!selectedOrderForAlternativeMethod}
+          onOpenChange={(open) => !open && setSelectedOrderForAlternativeMethod(null)}
+          orderAmount={selectedOrderForAlternativeMethod?.total_amount || 0}
+          clientName={selectedOrderForAlternativeMethod?.client_name || ''}
+          orderId={selectedOrderForAlternativeMethod?.id || ''}
+          riskCategory="MEDIUM"
+          paymentType="UPI"
+          onStatusChange={(status) => {
+            if (selectedOrderForAlternativeMethod) {
+              updateOrderStatusMutation.mutate({
+                orderId: selectedOrderForAlternativeMethod.id,
+                status: status
+              });
+              setSelectedOrderForAlternativeMethod(null);
+            }
+          }}
+        />
+      </PermissionGate>
 
       {/* Order Completion Form */}
-      <OrderCompletionForm
-        open={!!selectedOrderForCompletion}
-        onOpenChange={(open) => !open && setSelectedOrderForCompletion(null)}
-        order={selectedOrderForCompletion}
-      />
+      <PermissionGate permissions={["sales_manage"]}>
+        <OrderCompletionForm
+          open={!!selectedOrderForCompletion}
+          onOpenChange={(open) => !open && setSelectedOrderForCompletion(null)}
+          order={selectedOrderForCompletion}
+        />
+      </PermissionGate>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ForgotPasswordDialog } from './ForgotPasswordDialog';
 
 interface LoginProps {
   onLogin: (credentials: { email: string; password: string }) => Promise<boolean>;
@@ -15,6 +16,7 @@ export function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +103,22 @@ export function Login({ onLogin }: LoginProps) {
             </Button>
           </form>
           
+          <div className="mt-4 text-center">
+            <Button
+              variant="ghost"
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
+              Forgot your password?
+            </Button>
+          </div>
         </CardContent>
+        
+        <ForgotPasswordDialog
+          open={showForgotPassword}
+          onClose={() => setShowForgotPassword(false)}
+        />
       </Card>
     </div>
   );

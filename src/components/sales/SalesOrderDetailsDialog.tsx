@@ -18,6 +18,23 @@ interface SalesOrderDetailsDialogProps {
 export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrderDetailsDialogProps) {
   const { toast } = useToast();
 
+  // Fetch wallet details if wallet_id exists
+  const { data: walletData } = useQuery({
+    queryKey: ['wallet_for_order', order?.wallet_id],
+    queryFn: async () => {
+      if (!order?.wallet_id) return null;
+      
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('wallet_name, wallet_type, chain_name, current_balance')
+        .eq('id', order.wallet_id)
+        .single();
+
+      return wallet;
+    },
+    enabled: !!order?.wallet_id && open,
+  });
+
   // Fetch bank account details if sales_payment_method_id exists
   const { data: bankAccountData } = useQuery({
     queryKey: ['bank_account_for_order', order?.sales_payment_method_id],
@@ -133,8 +150,10 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               <p className="text-sm">{order.client_phone || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600">Platform</label>
-              <p className="text-sm">{order.platform || 'N/A'}</p>
+              <label className="text-sm font-medium text-gray-600">Wallet</label>
+              <p className="text-sm">
+                {walletData ? `${walletData.wallet_name} (${walletData.wallet_type})` : 'N/A'}
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-600">Total Amount</label>

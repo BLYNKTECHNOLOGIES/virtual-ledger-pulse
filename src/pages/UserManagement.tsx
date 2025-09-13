@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users } from "lucide-react";
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
@@ -14,6 +14,7 @@ import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { PermissionGate } from "@/components/PermissionGate";
 
 interface Role {
   id: string;
@@ -218,49 +219,9 @@ export default function UserManagement() {
     }
   };
 
-  // Check if current user should see a tab based on permissions
-  const shouldShowTab = (tabName: string) => {
-    if (isLoadingPermissions) {
-      return false;
-    }
-    
-    console.log('Checking tab access for:', tabName);
-    console.log('User permissions:', permissions);
-    
-    switch (tabName) {
-      case 'all-users':
-        return hasPermission('user_management_view') || hasPermission('user_management_manage');
-        
-      case 'active-users':
-        return hasPermission('user_management_view') || hasPermission('user_management_manage');
-        
-      case 'manage-roles':
-        return hasPermission('user_management_manage');
-        
-      default:
-        return false;
-    }
-  };
-
-  // Get the list of visible tabs
-  const getVisibleTabs = () => {
-    const tabs = [];
-    
-    if (shouldShowTab('all-users')) {
-      tabs.push('all-users');
-    }
-    if (shouldShowTab('active-users')) {
-      tabs.push('active-users');
-    }
-    if (shouldShowTab('manage-roles')) {
-      tabs.push('manage-roles');
-    }
-    
-    return tabs;
-  };
-
-  const visibleTabs = getVisibleTabs();
-  const defaultTab = visibleTabs.length > 0 ? visibleTabs[0] : null;
+  // Check user management permissions
+  const hasViewPermission = hasPermission('user_management_view') || hasPermission('user_management_manage');
+  const hasManagePermission = hasPermission('user_management_manage');
 
   useEffect(() => {
     fetchRoles();
@@ -324,34 +285,12 @@ export default function UserManagement() {
     }
   };
 
-  // Handle tab change - scroll to top
-  const handleTabChange = (value: string) => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // If user has no permissions to see any tabs, show access denied
-  if (visibleTabs.length === 0 && !isLoadingPermissions) {
+  // If user has no permissions, show access denied
+  if (!hasViewPermission && !isLoadingPermissions) {
     return (
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">Access Denied</p>
-        </div>
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="space-y-4">
-              <div className="text-gray-500">
-                <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <h3 className="text-lg font-medium">Access Denied</h3>
-                <p className="text-sm">You don't have permission to access the User Management module.</p>
-                <p className="text-xs mt-2 text-gray-400">
-                  Your permissions: {permissions.join(', ') || 'No permissions assigned'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+        <div />
+      </PermissionGate>
     );
   }
 
@@ -365,17 +304,6 @@ export default function UserManagement() {
         <div className="flex justify-center items-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           <span className="ml-2">Loading permissions...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!defaultTab) {
-    return (
-      <div className="space-y-6 p-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">No accessible tabs</p>
         </div>
       </div>
     );
@@ -406,305 +334,320 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-        <p className="text-gray-600 mt-1">Manage system users, online activity, and roles</p>
-      </div>
-
-      <Tabs defaultValue={defaultTab} className="space-y-6" onValueChange={handleTabChange}>
-        <TabsList className={`grid w-full grid-cols-${Math.min(visibleTabs.length, 3)}`}>
-          {shouldShowTab('all-users') && (
-            <TabsTrigger value="all-users" className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4" />
-              All Users ({users.length})
-            </TabsTrigger>
-          )}
-          {shouldShowTab('active-users') && (
-            <TabsTrigger value="active-users" className="flex items-center gap-2">
+      <div className="p-6 max-w-7xl mx-auto">
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Active Users ({onlineUsers.length})
+              All Users
             </TabsTrigger>
-          )}
-          {shouldShowTab('manage-roles') && (
-            <TabsTrigger value="manage-roles" className="flex items-center gap-2">
+            <TabsTrigger value="roles" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              Manage Roles ({roles.length})
+              Roles & Permissions
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              User Settings
+            </TabsTrigger>
+          </TabsList>
 
-        {/* All Users Tab */}
-        {shouldShowTab('all-users') && (
-          <TabsContent value="all-users" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>All Users ({users.length} total)</CardTitle>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={fetchUsers}>
-                      🔄 Refresh
-                    </Button>
-                    {hasPermission('user_management_manage') && (
-                      <AddUserDialog onAddUser={createUser} />
-                    )}
+          {/* All Users Tab */}
+          <TabsContent value="users" className="space-y-4">
+            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>All Users ({users.length} total)</CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={fetchUsers}>
+                        🔄 Refresh
+                      </Button>
+                      <PermissionGate permissions={['user_management_manage']}>
+                        <AddUserDialog onAddUser={createUser} />
+                      </PermissionGate>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Search className="h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search users..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Search className="h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search users..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-            {isLoading ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-2">Loading users...</span>
-              </div>
-            ) : (
-              <div>
-                {filteredUsers.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredUsers.map((user: DatabaseUser) => (
-                      <Card key={user.id} className="hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-start">
-                              <h3 className="font-semibold text-gray-900 truncate">
-                                {user.first_name && user.last_name 
-                                  ? `${user.first_name} ${user.last_name}`
-                                  : user.username
-                                }
-                              </h3>
-                              <div className="flex flex-col gap-1">
-                                <Badge variant={getRoleBadgeVariant(user.role?.name)}>
-                                  {user.role?.name || 'No Role'}
-                                </Badge>
-                                <Badge variant={user.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                                  {user.status}
-                                </Badge>
+              {isLoading ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2">Loading users...</span>
+                </div>
+              ) : (
+                <div>
+                  {filteredUsers.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredUsers.map((user: DatabaseUser) => (
+                        <Card key={user.id} className="hover:shadow-lg transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start">
+                                <h3 className="font-semibold text-gray-900 truncate">
+                                  {user.first_name && user.last_name 
+                                    ? `${user.first_name} ${user.last_name}`
+                                    : user.username
+                                  }
+                                </h3>
+                                <div className="flex flex-col gap-1">
+                                  <Badge variant={getRoleBadgeVariant(user.role?.name)}>
+                                    {user.role?.name || 'No Role'}
+                                  </Badge>
+                                  <Badge variant={user.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                                    {user.status}
+                                  </Badge>
+                                </div>
                               </div>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <p className="text-sm text-gray-600 truncate">@{user.username}</p>
-                              <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                              {user.phone && (
-                                <p className="text-sm text-gray-600 truncate">{user.phone}</p>
-                              )}
-                              <p className="text-xs text-gray-500">📅 Created: {formatDate(user.created_at)}</p>
-                            </div>
-
-                            {hasPermission('user_management_manage') && (
-                              <div className="flex justify-between items-center pt-2 border-t">
-                                <div className="flex gap-1">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 px-2"
+                              
+                              <div className="space-y-1 text-sm text-gray-600">
+                                <p><strong>Username:</strong> {user.username}</p>
+                                <p><strong>Email:</strong> {user.email}</p>
+                                {user.phone && <p><strong>Phone:</strong> {user.phone}</p>}
+                                <p><strong>Created:</strong> {formatDate(user.created_at)}</p>
+                              </div>
+                              
+                              <PermissionGate permissions={['user_management_manage']}>
+                                <div className="flex justify-between pt-2 border-t">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => setEditingUser(user)}
+                                    className="flex items-center gap-1"
                                   >
-                                    <Edit className="h-3 w-3 mr-1" />
+                                    <Edit className="h-3 w-3" />
                                     Edit
                                   </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="destructive" 
-                                    className="h-8 px-2 bg-red-600 hover:bg-red-700 text-white"
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleDeleteUser(user.id)}
+                                    className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                                   >
-                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    <Trash2 className="h-3 w-3" />
                                     Delete
                                   </Button>
                                 </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <div className="space-y-4">
-                        <div className="text-gray-500">
-                          <UserCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                          <h3 className="text-lg font-medium">
-                            {searchTerm ? "No Users Match Search" : "No Users Found"}
-                          </h3>
-                          <p className="text-sm">
-                            {searchTerm 
-                              ? "No users match your search criteria. Try a different search term."
-                              : "There are no users in the database yet."
-                            }
-                          </p>
-                        </div>
-                        {!searchTerm && hasPermission('user_management_manage') && (
-                          <div className="space-y-2">
-                            <p className="text-sm text-gray-600">Get started by adding your first user:</p>
-                            <AddUserDialog onAddUser={createUser} />
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        )}
-
-        {/* Active Users Tab */}
-        {shouldShowTab('active-users') && (
-          <TabsContent value="active-users" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Active Users ({onlineUsers.length})</CardTitle>
-                  <Button variant="outline" size="sm" onClick={fetchOnlineUsers}>
-                    🔄 Refresh
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoadingOnlineUsers ? (
-                  <div className="flex justify-center items-center h-32">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                    <span className="ml-2">Loading active users...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {onlineUsers.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            <h3 className="font-semibold">
-                              {user.first_name && user.last_name 
-                                ? `${user.first_name} ${user.last_name}`
-                                : user.username
-                              }
-                            </h3>
-                            <Badge variant="outline" className="text-green-600 border-green-200">
-                              Online
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600">@{user.username}</p>
-                          <p className="text-sm text-gray-600">{user.email}</p>
-                          <p className="text-xs text-gray-500">Last seen: {formatTime(user.last_seen)}</p>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {onlineUsers.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <h3 className="text-lg font-medium">No Active Users</h3>
-                        <p className="text-sm">No users are currently online or recently active.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-
-        {/* Manage Roles Tab */}
-        {shouldShowTab('manage-roles') && (
-          <TabsContent value="manage-roles" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>System Roles ({roles.length})</CardTitle>
-                  <AddRoleDialog onAddRole={createRole} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoadingRoles ? (
-                  <div className="flex justify-center items-center h-32">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-2">Loading roles...</span>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {roles.map((role) => (
-                      <div key={role.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h3 className="font-semibold text-lg">{role.name}</h3>
-                            <p className="text-gray-600 text-sm">{role.description}</p>
-                            <div className="mt-2">
-                              <p className="text-xs text-gray-500 mb-1">Permissions:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {role.permissions.map((permission) => (
-                                  <Badge key={permission} variant="outline" className="text-xs">
-                                    {permission}
-                                  </Badge>
-                                ))}
-                              </div>
+                              </PermissionGate>
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setEditingRole(role)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => deleteRole(role.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto text-blue-600 hover:text-blue-700"
-                              onClick={() => setViewingRoleUsers(role)}
-                            >
-                              Users: <span className="font-medium ml-1">{role.user_count}</span>
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {roles.length === 0 && (
-                      <div className="text-center py-8 text-gray-500">
-                        <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <h3 className="text-lg font-medium">No Roles Found</h3>
-                        <p className="text-sm">Get started by creating your first role.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 text-center text-gray-500">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No users found matching your search.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </PermissionGate>
           </TabsContent>
-        )}
-      </Tabs>
 
-      {/* Edit User Dialog */}
+          {/* Roles & Permissions Tab */}
+          <TabsContent value="roles" className="space-y-4">
+            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Roles & Permissions ({roles.length} roles)</CardTitle>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={fetchRoles}>
+                        🔄 Refresh
+                      </Button>
+                      <PermissionGate permissions={['user_management_manage']}>
+                        <AddRoleDialog onAddRole={createRole} />
+                      </PermissionGate>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingRoles ? (
+                    <div className="flex justify-center items-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2">Loading roles...</span>
+                    </div>
+                  ) : (
+                    <div>
+                      {roles.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {roles.map((role) => (
+                            <Card key={role.id} className="hover:shadow-lg transition-shadow">
+                              <CardContent className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex justify-between items-start">
+                                    <h3 className="font-semibold text-gray-900">{role.name}</h3>
+                                    <Badge variant={getRoleBadgeVariant(role.name)}>
+                                      {role.user_count} users
+                                    </Badge>
+                                  </div>
+                                  
+                                  <p className="text-sm text-gray-600">{role.description}</p>
+                                  
+                                  <div className="space-y-2">
+                                    <p className="text-xs font-medium text-gray-700">Permissions:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {role.permissions.slice(0, 3).map((permission) => (
+                                        <Badge key={permission} variant="outline" className="text-xs">
+                                          {permission.replace('_', ' ')}
+                                        </Badge>
+                                      ))}
+                                      {role.permissions.length > 3 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{role.permissions.length - 3} more
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex justify-between pt-2 border-t gap-2">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setViewingRoleUsers(role)}
+                                      className="flex items-center gap-1"
+                                    >
+                                      <Users className="h-3 w-3" />
+                                      View Users
+                                    </Button>
+                                    
+                                    <PermissionGate permissions={['user_management_manage']}>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => setEditingRole(role)}
+                                          className="flex items-center gap-1"
+                                        >
+                                          <Edit className="h-3 w-3" />
+                                          Edit
+                                        </Button>
+                                        
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => deleteRole(role.id)}
+                                          className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                          Delete
+                                        </Button>
+                                      </div>
+                                    </PermissionGate>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <Card>
+                          <CardContent className="p-8 text-center text-gray-500">
+                            <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No roles found.</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </PermissionGate>
+          </TabsContent>
+
+          {/* User Settings Tab */}
+          <TabsContent value="settings" className="space-y-4">
+            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Users & Settings ({onlineUsers.length} online)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingOnlineUsers ? (
+                    <div className="flex justify-center items-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2">Loading active users...</span>
+                    </div>
+                  ) : (
+                    <div>
+                      {onlineUsers.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {onlineUsers.map((user) => (
+                            <Card key={user.id} className="border-green-200 bg-green-50">
+                              <CardContent className="p-4">
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-start">
+                                    <h3 className="font-semibold text-gray-900">
+                                      {user.first_name && user.last_name 
+                                        ? `${user.first_name} ${user.last_name}`
+                                        : user.username
+                                      }
+                                    </h3>
+                                    <Badge variant="default" className="bg-green-600">
+                                      Online
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="space-y-1 text-sm text-gray-600">
+                                    <p><strong>Username:</strong> {user.username}</p>
+                                    <p><strong>Email:</strong> {user.email}</p>
+                                    <p><strong>Last Seen:</strong> {formatTime(user.last_seen)}</p>
+                                  </div>
+                                  
+                                  <PermissionGate permissions={['user_management_manage']}>
+                                    <div className="pt-2 border-t">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => {
+                                          // Add password reset functionality here
+                                          alert(`Reset password for ${user.username}`);
+                                        }}
+                                      >
+                                        Reset Password
+                                      </Button>
+                                    </div>
+                                  </PermissionGate>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      ) : (
+                        <Card>
+                          <CardContent className="p-8 text-center text-gray-500">
+                            <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No users are currently online.</p>
+                            <p className="text-xs mt-2">Users are considered online if they've been active in the last 5 minutes.</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </PermissionGate>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Dialogs */}
       {editingUser && (
         <EditUserDialog
           user={editingUser}
@@ -713,7 +656,6 @@ export default function UserManagement() {
         />
       )}
 
-      {/* Edit Role Dialog */}
       {editingRole && (
         <EditRoleDialog
           role={editingRole}
@@ -722,14 +664,12 @@ export default function UserManagement() {
         />
       )}
 
-      {/* Role Users Dialog */}
       {viewingRoleUsers && (
         <RoleUsersDialog
           role={viewingRoleUsers}
           onClose={() => setViewingRoleUsers(null)}
         />
       )}
-      </div>
     </div>
   );
 }

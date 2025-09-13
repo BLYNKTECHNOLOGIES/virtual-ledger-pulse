@@ -4162,6 +4162,10 @@ export type Database = {
         Args: { sales_order_id: string; usdt_amount: number; wallet_id: string }
         Returns: boolean
       }
+      recalculate_wallet_balance: {
+        Args: { wallet_id_param: string }
+        Returns: undefined
+      }
       reject_registration: {
         Args: { reason?: string; registration_id: string }
         Returns: boolean

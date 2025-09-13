@@ -205,7 +205,9 @@ export function AppSidebar() {
     localItemsCount: localItems.length,
     filteredItemsCount: filteredItems.length,
     visibleItemsCount: visibleItems.length,
-    isDragMode
+    isDragMode,
+    filteredItemTitles: filteredItems.map(item => item.title),
+    visibleItemTitles: visibleItems.map(item => item.title)
   });
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -315,7 +317,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-white">
+      <SidebarContent className="bg-white overflow-y-auto max-h-screen">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext

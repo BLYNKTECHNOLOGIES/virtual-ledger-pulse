@@ -182,24 +182,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               />
             </div>
 
-            <div>
-              <Label>Payment Status</Label>
-              <Select
-                value={formData.payment_status}
-                onValueChange={(value) => handleInputChange('payment_status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="PARTIAL">Partial</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="FAILED">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="col-span-2">
               <Label>Order Date</Label>
               <Input

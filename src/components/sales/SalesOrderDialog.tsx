@@ -518,20 +518,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="payment_status">Payment Status</Label>
-                  <Select onValueChange={(value) => setFormData(prev => ({ ...prev, payment_status: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PENDING">Pending</SelectItem>
-                      <SelectItem value="PARTIAL">Partial</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="FAILED">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
 
                 <div>
                   <Label htmlFor="sales_payment_method_id">Payment Method</Label>

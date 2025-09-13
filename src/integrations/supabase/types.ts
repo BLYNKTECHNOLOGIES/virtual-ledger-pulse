@@ -4074,6 +4074,24 @@ export type Database = {
         }
         Returns: string
       }
+      create_manual_purchase_with_fees: {
+        Args: {
+          p_bank_account_id: string
+          p_contact_number?: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
+          p_platform_fees?: number
+          p_platform_fees_wallet_id?: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
+          p_unit_price: number
+        }
+        Returns: string
+      }
       create_manual_purchase_working: {
         Args: {
           p_bank_account_id: string

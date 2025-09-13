@@ -59,6 +59,7 @@ import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
 import NotFound from './pages/NotFound';
+import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -544,11 +545,15 @@ const router = createBrowserRouter([
         </QueryProvider>
       ),
     },
+    {
+      path: "/reset-password",
+      element: <ResetPassword />,
+    },
    // Catch-all route for 404 errors
-  {
-    path: "*",
-    element: <NotFound />,
-  },
+    {
+      path: "*",
+      element: <NotFound />,
+    },
 ]);
 
 function App() {

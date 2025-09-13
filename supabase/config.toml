@@ -38,3 +38,12 @@ verify_jwt = false
 
 [functions.generate-case-id]
 verify_jwt = false
+
+[functions.send-password-reset-otp]
+verify_jwt = false
+
+[functions.verify-password-reset-otp]
+verify_jwt = false
+
+[functions.reset-password-with-otp]
+verify_jwt = false

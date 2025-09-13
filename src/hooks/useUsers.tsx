@@ -54,10 +54,12 @@ export function useUsers() {
           updated_at,
           password_hash,
           role_id,
-          roles!role_id(
-            id,
-            name,
-            description
+          user_roles(
+            roles(
+              id,
+              name,
+              description
+            )
           )
         `)
         .order('created_at', { ascending: false });
@@ -140,7 +142,7 @@ export function useUsers() {
       const validatedUsers = allUsers.map((user) => ({
         ...user,
         status: isValidStatus(user.status) ? user.status : "INACTIVE" as ValidStatus,
-        role: user.roles || null
+        role: user.user_roles && user.user_roles.length > 0 ? user.user_roles[0].roles : null
       })) as DatabaseUser[];
 
       setUsers(validatedUsers);

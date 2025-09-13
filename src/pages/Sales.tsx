@@ -311,9 +311,9 @@ export default function Sales() {
                      <div className="flex gap-1">
                        {order.payment_status === 'USER_PAYING' ? (
                          // Special action for User Paying orders
-                         <PermissionGate permissions={["sales_manage"]}>
+                         <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                            <Button 
-                             variant="outline" 
+                             variant="outline"
                              size="sm"
                              onClick={() => setSelectedOrderForUserPaying(order)}
                              className="bg-blue-50 hover:bg-blue-100 text-blue-700"
@@ -336,9 +336,9 @@ export default function Sales() {
                               <Eye className="h-4 w-4 mr-1" />
                               View
                             </Button>
-                            <PermissionGate permissions={["sales_manage"]}>
+                            <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                               <Button 
-                                variant="ghost" 
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => {
                                   console.log('Edit clicked for order:', order);
@@ -400,7 +400,7 @@ export default function Sales() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <PermissionGate permissions={["sales_manage"]}>
+              <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                 <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Manual Sales Entry
@@ -562,16 +562,16 @@ export default function Sales() {
       </Card>
 
       {/* Step-by-Step Sales Flow */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <StepBySalesFlow 
-          open={showStepByStepFlow} 
+          open={showStepByStepFlow}
           onOpenChange={setShowStepByStepFlow}
           queryClient={queryClient}
         />
       </PermissionGate>
 
       {/* Manual Sales Entry Dialog */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <SalesEntryDialog
           open={showManualSalesEntry}
           onOpenChange={setShowManualSalesEntry}
@@ -586,7 +586,7 @@ export default function Sales() {
       />
 
       {/* Edit Dialog */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <EditSalesOrderDialog
           open={!!selectedOrderForEdit}
           onOpenChange={(open) => !open && setSelectedOrderForEdit(null)}
@@ -595,7 +595,7 @@ export default function Sales() {
       </PermissionGate>
 
       {/* User Paying Status Dialog */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <UserPayingStatusDialog
           open={!!selectedOrderForUserPaying}
           onOpenChange={(open) => !open && setSelectedOrderForUserPaying(null)}
@@ -625,7 +625,7 @@ export default function Sales() {
       </PermissionGate>
 
       {/* Alternative Payment Method Dialog */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <PaymentMethodSelectionDialog
           open={!!selectedOrderForAlternativeMethod}
           onOpenChange={(open) => !open && setSelectedOrderForAlternativeMethod(null)}
@@ -647,7 +647,7 @@ export default function Sales() {
       </PermissionGate>
 
       {/* Order Completion Form */}
-      <PermissionGate permissions={["sales_manage"]}>
+      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
         <OrderCompletionForm
           open={!!selectedOrderForCompletion}
           onOpenChange={(open) => !open && setSelectedOrderForCompletion(null)}

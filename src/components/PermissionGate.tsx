@@ -9,12 +9,14 @@ interface PermissionGateProps {
   fallback?: ReactNode;
   requireAll?: boolean;
   children: ReactNode;
+  showFallback?: boolean; // New prop to control fallback display
 }
 
 export function PermissionGate({ 
   permissions, 
   fallback, 
   requireAll = false, 
+  showFallback = true,
   children 
 }: PermissionGateProps) {
   const { hasPermission, hasAnyPermission, hasAllPermissions, isLoading } = usePermissions();
@@ -44,16 +46,19 @@ export function PermissionGate({
       return <>{fallback}</>;
     }
     
+    // Don't show any fallback if showFallback is false
+    if (!showFallback) {
+      return null;
+    }
+    
     return (
-      <Card>
-        <CardContent className="p-8 text-center">
-          <div className="space-y-4">
-            <div className="text-gray-500">
-              <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <h3 className="text-lg font-medium">Access Denied</h3>
-              <p className="text-sm">You don't have permission to access this content.</p>
-              <p className="text-xs mt-2 text-gray-400">
-                Required: {permissions.join(requireAll ? ' AND ' : ' OR ')}
+      <Card className="border-dashed border-gray-200">
+        <CardContent className="p-4 text-center">
+          <div className="space-y-2">
+            <div className="text-gray-400">
+              <Shield className="h-6 w-6 mx-auto mb-1 opacity-40" />
+              <p className="text-xs text-gray-400">
+                Insufficient permissions
               </p>
             </div>
           </div>

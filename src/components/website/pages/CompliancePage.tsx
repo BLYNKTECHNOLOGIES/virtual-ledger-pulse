@@ -99,14 +99,14 @@ export function CompliancePage() {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-white to-gray-50" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.05),transparent_50%)]" />
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-100 via-white to-gray-50 -z-10" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_30%_20%,hsl(var(--primary)/0.05),transparent_50%)] -z-10" />
       
-      <div className="relative">
+      {/* Main Content */}
       {/* Hero Section */}
-      <section className="bg-white/80 backdrop-blur-sm border-b border-gray-200 py-20">
+      <section className="relative bg-white/80 backdrop-blur-sm border-b border-gray-200 py-20 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full text-sm text-gray-600 border mb-6">
@@ -137,7 +137,7 @@ export function CompliancePage() {
       </section>
 
       {/* Compliance Features */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-white z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -166,7 +166,7 @@ export function CompliancePage() {
       </section>
 
       {/* Regulatory Information */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section className="relative py-16 px-4 sm:px-6 lg:px-8 bg-gray-50 z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -198,7 +198,7 @@ export function CompliancePage() {
       </section>
 
       {/* Get in Touch Section */}
-      <section className="bg-white py-20">
+      <section className="relative bg-white py-20 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold mb-4 text-gray-900">Get in Touch</h2>
@@ -314,7 +314,7 @@ export function CompliancePage() {
       </section>
 
       {/* Trust Indicators */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      <section className="relative py-16 px-4 sm:px-6 lg:px-8 bg-gray-50 z-10">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -345,7 +345,6 @@ export function CompliancePage() {
           </div>
         </div>
       </section>
-      </div>
     </div>
   );
 }

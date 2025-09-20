@@ -138,7 +138,7 @@ export function PaymentMethodsPage() {
     { icon: TrendingUp, value: '₹5Cr+', label: 'Monthly Processed' },
     { icon: Clock, value: '<30 min', label: 'Avg Processing Time' },
     { icon: Star, value: '99.9%', label: 'Success Rate' },
-    { icon: Users, value: '15,000+', label: 'Active Users' }
+    { icon: Users, value: '1500+', label: 'Active Users' }
   ];
 
   return (

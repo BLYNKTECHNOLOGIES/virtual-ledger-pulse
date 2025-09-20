@@ -327,7 +327,7 @@ export function CompliancePage() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-3xl font-bold text-gray-900 mb-2">15,000+</div>
+              <div className="text-3xl font-bold text-gray-900 mb-2">1500+</div>
               <div className="text-gray-600">Active Users</div>
             </div>
             <div>

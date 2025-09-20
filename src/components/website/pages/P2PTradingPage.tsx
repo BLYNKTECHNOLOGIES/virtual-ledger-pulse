@@ -302,7 +302,7 @@ export function P2PTradingPage() {
             { icon: TrendingUp, value: '₹100Cr+', label: 'Monthly Volume' },
             { icon: Clock, value: '<5 mins', label: 'Avg Settlement' },
             { icon: Star, value: '4.9/5', label: 'User Rating' },
-            { icon: Users, value: '25,000+', label: 'Active Users' }
+            { icon: Users, value: '1500+', label: 'Active Users' }
           ].map((stat, index) => (
             <Card key={index} className="text-center shadow-md border-0">
               <CardContent className="p-6">

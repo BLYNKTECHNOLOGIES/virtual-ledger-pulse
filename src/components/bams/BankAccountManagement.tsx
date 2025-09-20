@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { CloseAccountDialog } from "./CloseAccountDialog";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface BankAccount {
   id: string;
@@ -48,6 +50,7 @@ interface ClosedBankAccount {
 }
 
 export function BankAccountManagement() {
+  const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -310,6 +313,10 @@ export function BankAccountManagement() {
     return filtered;
   }, [bankAccounts, searchTerm, showActiveOnly]);
 
+  // Check permissions
+  const hasManagePermission = hasPermission('bams_manage');
+  const isViewOnly = !hasManagePermission;
+
   return (
     <div className="space-y-6 px-[15px]">
       <div className="flex justify-between items-center">
@@ -317,16 +324,17 @@ export function BankAccountManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Bank Account Management</h2>
           <p className="text-gray-600">Manage centralized bank accounts for receiving sales and purchase payments</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-          setIsAddDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Bank Account
-            </Button>
-          </DialogTrigger>
+        <ViewOnlyWrapper isViewOnly={isViewOnly}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add Bank Account
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
@@ -451,6 +459,7 @@ export function BankAccountManagement() {
             </form>
           </DialogContent>
         </Dialog>
+      </ViewOnlyWrapper>
       </div>
 
       <Tabs defaultValue="working" className="w-full">
@@ -534,26 +543,28 @@ export function BankAccountManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleEdit(account)} 
-                                className="flex items-center gap-1"
-                              >
-                                <Edit className="h-3 w-3" />
-                                Edit
-                              </Button>
-                              <Button 
-                                variant="destructive" 
-                                size="sm" 
-                                onClick={() => handleCloseAccount(account)}
-                                className="flex items-center gap-1"
-                              >
-                                <X className="h-3 w-3" />
-                                Close
-                              </Button>
-                            </div>
+                            <ViewOnlyWrapper isViewOnly={isViewOnly}>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleEdit(account)} 
+                                  className="flex items-center gap-1"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  onClick={() => handleCloseAccount(account)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <X className="h-3 w-3" />
+                                  Close
+                                </Button>
+                              </div>
+                            </ViewOnlyWrapper>
                           </TableCell>
                         </TableRow>
                       ))}

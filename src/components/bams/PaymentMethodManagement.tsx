@@ -13,6 +13,8 @@ import { Plus, Edit, Smartphone, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface SalesPaymentMethod {
   id: string;
@@ -38,6 +40,7 @@ interface SalesPaymentMethod {
 export function PaymentMethodManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<SalesPaymentMethod | null>(null);
@@ -297,6 +300,10 @@ export function PaymentMethodManagement() {
     }
   };
 
+  // Check permissions
+  const hasManagePermission = hasPermission('bams_manage');
+  const isViewOnly = !hasManagePermission;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -304,32 +311,35 @@ export function PaymentMethodManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Sales Payment Methods</h2>
           <p className="text-gray-600">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => resetLimitsMutation.mutate()}
-            disabled={resetLimitsMutation.isPending}
-            className="flex items-center gap-2"
-          >
-            {resetLimitsMutation.isPending ? "Resetting..." : "Reset All Limits"}
-          </Button>
-        </div>
-      </div>
-      <div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-          setIsAddDialogOpen(open);
-          if (!open) {
-            resetForm();
-          } else {
-            setStep(1); // Always start at step 1 when opening
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Add Payment Method
+        <ViewOnlyWrapper isViewOnly={isViewOnly}>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => resetLimitsMutation.mutate()}
+              disabled={resetLimitsMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              {resetLimitsMutation.isPending ? "Resetting..." : "Reset All Limits"}
             </Button>
-          </DialogTrigger>
+          </div>
+        </ViewOnlyWrapper>
+      </div>
+      <ViewOnlyWrapper isViewOnly={isViewOnly}>
+        <div>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) {
+              resetForm();
+            } else {
+              setStep(1); // Always start at step 1 when opening
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Add Payment Method
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -723,7 +733,8 @@ export function PaymentMethodManagement() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        </div>
+      </ViewOnlyWrapper>
 
       <Card>
         <CardHeader>
@@ -809,15 +820,17 @@ export function PaymentMethodManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(method)}
-                        className="flex items-center gap-1"
-                      >
-                        <Edit className="h-3 w-3" />
-                        Edit
-                      </Button>
+                      <ViewOnlyWrapper isViewOnly={isViewOnly}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(method)}
+                          className="flex items-center gap-1"
+                        >
+                          <Edit className="h-3 w-3" />
+                          Edit
+                        </Button>
+                      </ViewOnlyWrapper>
                     </TableCell>
                   </TableRow>
                 ))}

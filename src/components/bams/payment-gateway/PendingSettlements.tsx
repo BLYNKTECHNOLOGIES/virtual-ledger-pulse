@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 interface PendingSale {
   id: string;
@@ -70,6 +72,7 @@ export function PendingSettlements() {
   const [isSettling, setIsSettling] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     fetchPendingSettlements();
@@ -534,105 +537,107 @@ export function PendingSettlements() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Pending Settlements</h3>
         {selectedSales.length > 0 && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                className="flex items-center gap-2"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <DollarSign className="h-4 w-4" />
-                Settle Selected ({selectedSales.length})
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Settlement Configuration</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="bankAccount">Settlement Bank Account</Label>
-                  <Select value={selectedBankAccount} onValueChange={setSelectedBankAccount}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select bank account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bankAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.account_name} - {account.bank_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="deductMdr" 
-                    checked={deductMdr}
-                    onCheckedChange={(checked) => setDeductMdr(checked === true)}
-                  />
-                  <Label htmlFor="deductMdr">Deduct MDR charges</Label>
-                </div>
-
-                {deductMdr && (
+          <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="flex items-center gap-2"
+                  onClick={() => setIsDialogOpen(true)}
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Settle Selected ({selectedSales.length})
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Settlement Configuration</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
                   <div>
-                    <Label htmlFor="mdrAmount">MDR Charges (₹)</Label>
-                    <Input
-                      id="mdrAmount"
-                      type="number"
-                      step="0.01"
-                      value={mdrAmount}
-                      onChange={(e) => setMdrAmount(e.target.value)}
-                      placeholder="0"
-                    />
+                    <Label htmlFor="bankAccount">Settlement Bank Account</Label>
+                    <Select value={selectedBankAccount} onValueChange={setSelectedBankAccount}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select bank account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.account_name} - {account.bank_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
 
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Gross Amount:</span>
-                    <span>₹{selectedSales.reduce((sum, saleId) => {
-                      const sale = pendingSales.find(s => s.id === saleId);
-                      return sum + (sale?.total_amount || 0);
-                    }, 0).toLocaleString()}</span>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="deductMdr" 
+                      checked={deductMdr}
+                      onCheckedChange={(checked) => setDeductMdr(checked === true)}
+                    />
+                    <Label htmlFor="deductMdr">Deduct MDR charges</Label>
                   </div>
+
                   {deductMdr && (
-                    <div className="flex justify-between text-sm text-red-600">
-                      <span>MDR Charges:</span>
-                      <span>-₹{getMdrAmount().toLocaleString()}</span>
+                    <div>
+                      <Label htmlFor="mdrAmount">MDR Charges (₹)</Label>
+                      <Input
+                        id="mdrAmount"
+                        type="number"
+                        step="0.01"
+                        value={mdrAmount}
+                        onChange={(e) => setMdrAmount(e.target.value)}
+                        placeholder="0"
+                      />
                     </div>
                   )}
-                  <div className="flex justify-between font-semibold border-t pt-2">
-                    <span>Net Settlement:</span>
-                    <span>₹{calculateSettlementAmount().toLocaleString()}</span>
-                  </div>
-                </div>
 
-                <Button 
-                  onClick={() => {
-                    console.log('Settle button clicked!', { selectedBankAccount, isSettling, selectedSalesCount: selectedSales.length });
-                    if (!isSettling && selectedBankAccount) {
-                      handleSettle();
-                    }
-                  }} 
-                  disabled={!selectedBankAccount || isSettling}
-                  className="w-full"
-                >
-                  {isSettling ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Processing Settlement...
-                    </>
-                  ) : (
-                    <>
-                      <ArrowRight className="h-4 w-4 mr-2" />
-                      Settle to Bank
-                    </>
-                  )}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+                  <div className="border-t pt-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Gross Amount:</span>
+                      <span>₹{selectedSales.reduce((sum, saleId) => {
+                        const sale = pendingSales.find(s => s.id === saleId);
+                        return sum + (sale?.total_amount || 0);
+                      }, 0).toLocaleString()}</span>
+                    </div>
+                    {deductMdr && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>MDR Charges:</span>
+                        <span>-₹{getMdrAmount().toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold border-t pt-2">
+                      <span>Net Settlement:</span>
+                      <span>₹{calculateSettlementAmount().toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={() => {
+                      console.log('Settle button clicked!', { selectedBankAccount, isSettling, selectedSalesCount: selectedSales.length });
+                      if (!isSettling && selectedBankAccount) {
+                        handleSettle();
+                      }
+                    }} 
+                    disabled={!selectedBankAccount || isSettling}
+                    className="w-full"
+                  >
+                    {isSettling ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Processing Settlement...
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight className="h-4 w-4 mr-2" />
+                        Settle to Bank
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </ViewOnlyWrapper>
         )}
       </div>
 
@@ -662,15 +667,17 @@ export function PendingSettlements() {
                       <p className="font-semibold">₹{bankGroup.totalAmount.toLocaleString()}</p>
                       <p className="text-sm text-gray-500">{bankGroup.sales.length} transactions</p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSelectBankGroup(bankGroup)}
-                      className="flex items-center gap-2"
-                    >
-                      <CreditCard className="h-4 w-4" />
-                      {bankGroup.sales.every(sale => selectedSales.includes(sale.id)) ? 'Deselect All' : 'Select All'}
-                    </Button>
+                    <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSelectBankGroup(bankGroup)}
+                        className="flex items-center gap-2"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        {bankGroup.sales.every(sale => selectedSales.includes(sale.id)) ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </ViewOnlyWrapper>
                   </div>
                 </div>
               </CardHeader>

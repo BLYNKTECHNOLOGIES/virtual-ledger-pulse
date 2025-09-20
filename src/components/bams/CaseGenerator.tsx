@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, Upload, X } from "lucide-react";
 import { format } from "date-fns";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 const CASE_TYPES = [
   { value: 'ACCOUNT_NOT_WORKING', label: 'Account Not Working', color: 'bg-destructive/10 text-destructive border-destructive/20' },
@@ -77,6 +79,7 @@ export function CaseGenerator() {
   const [selectedCase, setSelectedCase] = useState<any>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   const [formData, setFormData] = useState<CaseFormData>({
     case_type: '',
@@ -821,116 +824,118 @@ export function CaseGenerator() {
                 Generate and manage cases for bank account issues and disputes
               </p>
             </div>
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Generate New Case
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Generate New Case</DialogTitle>
-                </DialogHeader>
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="case_type">Case Type *</Label>
-                      <Select
-                        value={formData.case_type}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, case_type: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select case type" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg z-50">
-                          {CASE_TYPES.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+            <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
+                    Generate New Case
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Generate New Case</DialogTitle>
+                  </DialogHeader>
+                  
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="case_type">Case Type *</Label>
+                        <Select
+                          value={formData.case_type}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, case_type: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select case type" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            {CASE_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bank_account_id">Bank Account *</Label>
+                        <Select
+                          value={formData.bank_account_id}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bank account" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg z-50">
+                            {bankAccounts?.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.bank_name} - {account.account_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bank_account_id">Bank Account *</Label>
-                      <Select
-                        value={formData.bank_account_id}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bank account" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg z-50">
-                          {bankAccounts?.map((account) => (
-                            <SelectItem key={account.id} value={account.id}>
-                              {account.bank_name} - {account.account_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Case Title *</Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                      placeholder="Enter case title"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Describe the issue in detail"
-                      rows={3}
-                    />
-                  </div>
-
-                  {/* Case-specific fields */}
-                  {renderCaseSpecificFields()}
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="contact_person">Contact Person</Label>
+                      <Label htmlFor="title">Case Title *</Label>
                       <Input
-                        id="contact_person"
-                        value={formData.contact_person}
-                        onChange={(e) => setFormData(prev => ({ ...prev, contact_person: e.target.value }))}
-                        placeholder="Enter contact person"
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Enter case title"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="contact_details">Contact Details</Label>
-                      <Input
-                        id="contact_details"
-                        value={formData.contact_details}
-                        onChange={(e) => setFormData(prev => ({ ...prev, contact_details: e.target.value }))}
-                        placeholder="Phone number, email, etc."
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe the issue in detail"
+                        rows={3}
                       />
                     </div>
-                  </div>
 
-                  <div className="flex justify-end gap-3 pt-4">
-                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={createCaseMutation.isPending}>
-                      {createCaseMutation.isPending ? "Creating..." : "Generate Case"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    {/* Case-specific fields */}
+                    {renderCaseSpecificFields()}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="contact_person">Contact Person</Label>
+                        <Input
+                          id="contact_person"
+                          value={formData.contact_person}
+                          onChange={(e) => setFormData(prev => ({ ...prev, contact_person: e.target.value }))}
+                          placeholder="Enter contact person"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="contact_details">Contact Details</Label>
+                        <Input
+                          id="contact_details"
+                          value={formData.contact_details}
+                          onChange={(e) => setFormData(prev => ({ ...prev, contact_details: e.target.value }))}
+                          placeholder="Phone number, email, etc."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={createCaseMutation.isPending}>
+                        {createCaseMutation.isPending ? "Creating..." : "Generate Case"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
       </Card>

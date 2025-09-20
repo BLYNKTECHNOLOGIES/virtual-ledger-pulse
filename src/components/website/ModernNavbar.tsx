@@ -58,6 +58,7 @@ export function ModernNavbar() {
         title: "SECURITY & COMPLIANCE",
         items: [
           { name: 'KYC for Individuals', path: '/website/individual-kyc', description: 'Complete identity verification' },
+          { name: 'KYC Verification Support', path: '/website/kyc-support', description: 'Step-by-step KYC guidance' },
           { name: 'Safety Tips', path: '/website/safety-tips', description: 'Secure trading practices' },
         ]
       }

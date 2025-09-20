@@ -37,6 +37,7 @@ import { SellCryptoPage } from './components/website/pages/SellCryptoPage';
 import { SafetyTipsPage } from './components/website/pages/SafetyTipsPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
 import { OTCDeskPage } from './components/website/pages/OTCDeskPage';
+import { KYCVerificationSupportPage } from './components/website/pages/KYCVerificationSupportPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Purchase from './pages/Purchase';
@@ -231,6 +232,10 @@ const router = createBrowserRouter([
   {
     path: "/website/otc-desk",
     element: <WebsiteLayout><OTCDeskPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/kyc-support",
+    element: <WebsiteLayout><KYCVerificationSupportPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

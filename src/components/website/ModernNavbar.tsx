@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { ChevronDown, Menu, X, Shield, Flag, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LiveCryptoRates } from './LiveCryptoRates';
+import { FIUTrustBanner } from './FIUTrustBanner';
 
 export function ModernNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -135,9 +136,8 @@ export function ModernNavbar() {
                 <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight italic">
                   blynk
                 </span>
-                <div className="flex items-center gap-1">
-                  <Flag className="h-3 w-3 text-green-600" />
-                  <span className="text-xs text-gray-500 font-medium">VASP • India</span>
+                <div className="flex items-center gap-2">
+                  <FIUTrustBanner variant="compact" />
                 </div>
               </div>
             </Link>

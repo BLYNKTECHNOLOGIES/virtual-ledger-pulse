@@ -50,6 +50,21 @@ export function ModernFooter() {
               We provide secure, compliant, and efficient P2P crypto services with instant INR settlements.
             </p>
             
+            {/* FIU Registration Badge */}
+            <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800 max-w-md">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-semibold text-foreground">FIU-IND Registered</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                <strong>FIU Registration No: VA00293094</strong>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                This registration reflects our commitment to full compliance with PMLA, 2002 and FIU-IND guidelines, 
+                maintaining the highest standards of AML/KYC controls.
+              </p>
+            </div>
+            
             {/* Trust Badges */}
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded">
@@ -62,7 +77,7 @@ export function ModernFooter() {
               </div>
               <div className="flex items-center gap-1 text-xs bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 px-2 py-1 rounded">
                 <Flag className="h-3 w-3" />
-                Indian VASP Registered
+                PMLA Compliant
               </div>
             </div>
             
@@ -130,6 +145,14 @@ export function ModernFooter() {
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link 
+                  to="/website/aml-policy" 
+                  className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+                >
+                  AML Policy
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -188,7 +211,7 @@ export function ModernFooter() {
         {/* Bottom Bar */}
         <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-muted-foreground">
-            © {currentYear} <span className="italic">blynk</span>. All rights reserved. | Registered in India | VASP ID: VASP-IN-2024-001
+            © {currentYear} <span className="italic">blynk</span>. All rights reserved. | Registered in India | FIU Registration No: VA00293094
           </div>
           
           <div className="flex items-center gap-6 text-sm">
@@ -198,8 +221,8 @@ export function ModernFooter() {
             <Link to="/website/terms" className="text-muted-foreground hover:text-foreground transition-colors">
               Terms of Service
             </Link>
-            <Link to="/website/compliance" className="text-muted-foreground hover:text-foreground transition-colors">
-              AML & KYC Compliance
+            <Link to="/website/aml-policy" className="text-muted-foreground hover:text-foreground transition-colors">
+              AML Policy
             </Link>
           </div>
         </div>

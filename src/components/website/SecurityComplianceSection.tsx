@@ -15,13 +15,13 @@ export function SecurityComplianceSection() {
   const trustFeatures = [
     {
       icon: Building,
-      title: "VASP Registered in India",
-      description: "Fully compliant Virtual Asset Service Provider registered with Indian authorities"
+      title: "FIU-IND Registered (VA00293094)",
+      description: "Officially registered with Financial Intelligence Unit - India ensuring complete AML compliance"
     },
     {
       icon: CheckCircle,
-      title: "KYC/AML Compliant",
-      description: "Complete identity verification and anti-money laundering compliance for all users"
+      title: "PMLA 2002 Compliant",
+      description: "Full compliance with Prevention of Money Laundering Act and FIU-IND guidelines"
     },
     {
       icon: Shield,
@@ -46,8 +46,8 @@ export function SecurityComplianceSection() {
   ];
 
   const trustBadges = [
-    { label: "KYC Verified", variant: "default" as const },
-    { label: "Escrow Protected", variant: "secondary" as const },
+    { label: "FIU-IND Registered", variant: "default" as const },
+    { label: "PMLA Compliant", variant: "secondary" as const },
     { label: "Indian Regulation Aligned", variant: "outline" as const },
     { label: "VASP Registered", variant: "outline" as const }
   ];

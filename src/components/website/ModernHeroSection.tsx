@@ -15,11 +15,15 @@ export function ModernHeroSection() {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
           <div className="space-y-8">
-            {/* Trust Badge */}
-            <div className="inline-flex items-center gap-2 bg-blue-50 px-4 py-2 rounded-full text-sm text-gray-600 border">
-              <span className="text-blue-600 font-semibold">🛡️ Regulatory Compliance</span>
-              <span>KYC Verified</span>
-              <span>P2P Trading Platform</span>
+            {/* FIU Registration Trust Badge */}
+            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-50 to-green-50 px-6 py-3 rounded-full text-sm border border-blue-200">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-semibold">🔒 FIU-IND Registered</span>
+                <span className="text-gray-600">•</span>
+                <span className="text-green-600 font-medium">VA00293094</span>
+              </div>
+              <div className="h-4 w-px bg-gray-300"></div>
+              <span className="text-gray-600">Trade with Confidence</span>
             </div>
 
             {/* Main Headline */}
@@ -29,10 +33,12 @@ export function ModernHeroSection() {
                 <span className="text-blue-600">INR in India</span>
               </h1>
               <p className="text-lg text-gray-600 max-w-2xl leading-relaxed">
-                Trusted P2P Crypto Platform | Instant INR Settlements | KYC Compliant
+                <span className="font-semibold text-blue-600">✨ Trusted. Compliant. Secure.</span><br />
+                FIU-IND Registered P2P Crypto Platform | Instant INR Settlements | 100% KYC Compliant
               </p>
               <p className="text-base text-gray-500 max-w-2xl">
-                Trade Bitcoin, Ethereum, and USDT directly with verified users through our secure escrow system.
+                Trade Bitcoin, Ethereum, and USDT with verified users through our secure escrow system. 
+                With Blynk, you don't just trade crypto – you trade with confidence, love, and security. 💫
               </p>
             </div>
 
@@ -64,8 +70,8 @@ export function ModernHeroSection() {
                     <Shield className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">Escrow Protection</h3>
-                    <p className="text-sm text-gray-600">Every P2P trade secured with escrow system</p>
+                    <h3 className="font-semibold text-gray-900">FIU-IND Registered</h3>
+                    <p className="text-sm text-gray-600">Fully compliant with Indian regulations</p>
                   </div>
                 </div>
               </div>

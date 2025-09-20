@@ -136,8 +136,8 @@ export function ModernNavbar() {
                 <span className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight italic">
                   blynk
                 </span>
-                <div className="flex items-center gap-2">
-                  <FIUTrustBanner variant="compact" />
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500 font-medium">Virtual Asset Service Provider</span>
                 </div>
               </div>
             </Link>

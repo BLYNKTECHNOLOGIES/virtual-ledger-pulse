@@ -55,19 +55,19 @@ export function OTCDeskPage() {
       icon: TrendingUp,
       title: "Deep Liquidity",
       description: "Instant execution for large buy/sell orders at competitive prices.",
-      accent: "from-blue-500 to-cyan-500"
+      accent: "from-blue-600 to-blue-700"
     },
     {
       icon: Users,
       title: "Personalized Support", 
       description: "Dedicated relationship managers to assist at every step.",
-      accent: "from-green-500 to-emerald-500"
+      accent: "from-blue-600 to-blue-700"
     },
     {
       icon: Shield,
       title: "Secure & Compliant",
       description: "Fully FIU-IND Registered (VA00293094) ensuring AML/KYC compliance.",
-      accent: "from-yellow-500 to-orange-500"
+      accent: "from-blue-600 to-blue-700"
     }
   ];
 
@@ -105,10 +105,10 @@ export function OTCDeskPage() {
   ];
 
   const supportedAssets = [
-    { name: "USDT", symbol: "USDT", color: "bg-green-500" },
-    { name: "Bitcoin", symbol: "BTC", color: "bg-orange-500" },
+    { name: "USDT", symbol: "USDT", color: "bg-blue-600" },
+    { name: "Bitcoin", symbol: "BTC", color: "bg-blue-700" },
     { name: "Ethereum", symbol: "ETH", color: "bg-blue-500" },
-    { name: "Indian Rupee", symbol: "INR", color: "bg-purple-500" }
+    { name: "Indian Rupee", symbol: "INR", color: "bg-slate-600" }
   ];
 
   const benefits = [
@@ -219,7 +219,7 @@ export function OTCDeskPage() {
       </section>
 
       {/* Why Choose Blynk OTC Desk */}
-      <section className="py-24 bg-gradient-to-br from-slate-50 to-white">
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
@@ -232,8 +232,7 @@ export function OTCDeskPage() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="relative overflow-hidden border-0 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 bg-white/80 backdrop-blur-sm">
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.accent} opacity-5`} />
+              <Card key={index} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-white">
                 <CardContent className="relative p-8 text-center">
                   <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br ${feature.accent} mb-6 shadow-lg`}>
                     <feature.icon className="h-10 w-10 text-white" />
@@ -261,15 +260,14 @@ export function OTCDeskPage() {
 
           <div className="relative">
             {/* Connection Line */}
-            <div className="hidden md:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 via-green-500 to-yellow-500" />
+            <div className="hidden md:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600" />
             
             <div className="grid md:grid-cols-5 gap-8">
               {processSteps.map((step, index) => (
                 <div key={index} className="relative text-center">
                   {/* Step Number */}
-                  <div className="relative mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center text-2xl font-bold mb-6 shadow-lg shadow-blue-500/25">
+                  <div className="relative mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mb-6 shadow-lg">
                     {step.step}
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-green-500 rounded-full blur opacity-50" />
                   </div>
                   
                   {/* Icon */}
@@ -324,7 +322,7 @@ export function OTCDeskPage() {
       </section>
 
       {/* Key Benefits */}
-      <section className="py-24 bg-gradient-to-br from-blue-50 to-green-50">
+      <section className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
@@ -337,9 +335,9 @@ export function OTCDeskPage() {
 
           <div className="grid md:grid-cols-4 gap-8">
             {benefits.map((benefit, index) => (
-              <Card key={index} className="text-center border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white/70 backdrop-blur-sm">
+              <Card key={index} className="text-center border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white">
                 <CardContent className="p-8">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
                     <benefit.icon className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{benefit.title}</h3>
@@ -364,19 +362,19 @@ export function OTCDeskPage() {
             </p>
           </div>
 
-          <Card className="bg-gradient-to-br from-blue-900/50 to-green-900/50 border-blue-500/30 backdrop-blur-sm">
+          <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-12 text-center">
               <div className="flex items-center justify-center gap-4 mb-8">
                 <Shield className="h-12 w-12 text-blue-400" />
-                <Lock className="h-12 w-12 text-green-400" />
-                <CheckCircle className="h-12 w-12 text-yellow-400" />
+                <Lock className="h-12 w-12 text-slate-300" />
+                <CheckCircle className="h-12 w-12 text-blue-400" />
               </div>
               
               <h3 className="text-3xl font-bold mb-6 text-white">
                 🔒 Registered with Financial Intelligence Unit – India (FIU-IND)
               </h3>
               
-              <div className="bg-blue-500/20 rounded-xl p-6 mb-6 border border-blue-500/30">
+              <div className="bg-blue-600/20 rounded-xl p-6 mb-6 border border-blue-500/30">
                 <p className="text-2xl font-bold text-blue-300 mb-2">
                   FIU Registration Number: VA00293094
                 </p>
@@ -403,7 +401,7 @@ export function OTCDeskPage() {
             </p>
           </div>
 
-          <Card className="border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-green-50">
+          <Card className="border-0 shadow-2xl bg-white">
             <CardContent className="p-12">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
@@ -494,7 +492,7 @@ export function OTCDeskPage() {
                   <Button 
                     type="submit"
                     size="lg" 
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white h-14 text-lg font-semibold"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-14 text-lg font-semibold"
                   >
                     <FileText className="mr-3 h-5 w-5" />
                     Request OTC Quote
@@ -503,7 +501,7 @@ export function OTCDeskPage() {
                     type="button"
                     size="lg" 
                     variant="outline"
-                    className="flex-1 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white h-14 text-lg font-semibold"
+                    className="flex-1 border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white h-14 text-lg font-semibold"
                     onClick={() => navigate('/website/contact')}
                   >
                     <Phone className="mr-3 h-5 w-5" />
@@ -517,7 +515,7 @@ export function OTCDeskPage() {
       </section>
 
       {/* Footer CTA */}
-      <section className="py-16 bg-gradient-to-r from-blue-600 to-green-600 text-white">
+      <section className="py-16 bg-blue-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h3 className="text-3xl font-bold mb-4">
             Join the Elite Crypto Trading Experience

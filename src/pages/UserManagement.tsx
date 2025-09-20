@@ -63,14 +63,14 @@ export default function UserManagement() {
     try {
       setIsLoadingRoles(true);
       
-      // Fetch roles with their permissions
+      // Fetch roles with their permissions and user counts in one efficient query
       const { data: rolesData, error: rolesError } = await supabase
         .from('roles')
         .select(`
           id,
           name,
           description,
-          role_permissions!inner(permission)
+          role_permissions(permission)
         `);
 
       if (rolesError) {
@@ -78,30 +78,35 @@ export default function UserManagement() {
         return;
       }
 
-      // Get user count for each role and format permissions
-      const rolesWithCount = await Promise.all(
-        (rolesData || []).map(async (role) => {
-          const { data: userRoles, error: countError } = await supabase
-            .from('user_roles')
-            .select('user_id')
-            .eq('role_id', role.id);
+      // Get user counts for all roles in a single query
+      const { data: userCounts, error: countError } = await supabase
+        .from('user_roles')
+        .select('role_id, user_id');
 
-          if (countError) {
-            console.error('Error counting users for role:', role.name, countError);
-          }
+      if (countError) {
+        console.error('Error fetching user counts:', countError);
+      }
 
-          // Extract permissions from the nested structure
-          const permissions = role.role_permissions?.map((rp: any) => rp.permission) || [];
+      // Create a map of role_id to user count
+      const userCountMap = new Map<string, number>();
+      userCounts?.forEach(userRole => {
+        const currentCount = userCountMap.get(userRole.role_id) || 0;
+        userCountMap.set(userRole.role_id, currentCount + 1);
+      });
 
-          return {
-            id: role.id,
-            name: role.name,
-            description: role.description || '',
-            permissions,
-            user_count: userRoles?.length || 0
-          };
-        })
-      );
+      // Format roles with correct user counts and permissions
+      const rolesWithCount = (rolesData || []).map((role) => {
+        // Extract permissions from the nested structure
+        const permissions = role.role_permissions?.map((rp: any) => rp.permission) || [];
+
+        return {
+          id: role.id,
+          name: role.name,
+          description: role.description || '',
+          permissions,
+          user_count: userCountMap.get(role.id) || 0
+        };
+      });
 
       setRoles(rolesWithCount);
     } catch (error) {

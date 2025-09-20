@@ -80,9 +80,9 @@ export function ModernFeaturesSection() {
             <Button 
               size="lg" 
               className="bg-white hover:bg-gray-50 text-blue-600 px-8 py-3 rounded-lg font-medium border border-blue-200"
-              onClick={() => navigate('/website/compliance')}
+              onClick={() => navigate('/website/aml-policy')}
             >
-              View Compliance Documents
+              View AML Policy
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button 

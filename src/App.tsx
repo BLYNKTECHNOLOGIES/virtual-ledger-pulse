@@ -9,6 +9,7 @@ import { SEOServicesPage } from './components/website/pages/SEOServicesPage';
 import { AppDevelopmentPage } from './components/website/pages/AppDevelopmentPage';
 import { PrivacyPolicyPage } from './components/website/pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from './components/website/pages/TermsOfServicePage';
+import { AMLPolicyPage } from './components/website/pages/AMLPolicyPage';
 import { LoginPage } from './components/website/pages/LoginPage';
 import { WebsiteLayout } from './components/website/WebsiteLayout';
 import { ModernHomePage } from './components/website/pages/ModernHomePage';
@@ -105,6 +106,10 @@ const router = createBrowserRouter([
   {
     path: "/website/terms",
     element: <WebsiteLayout><TermsOfServicePage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/aml-policy",
+    element: <WebsiteLayout><AMLPolicyPage /></WebsiteLayout>,
   },
   {
     path: "/website/login",

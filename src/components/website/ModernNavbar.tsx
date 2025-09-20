@@ -67,8 +67,9 @@ export function ModernNavbar() {
   const businessDropdown = {
     sections: [
       {
-        title: "BULK TRADING",
+        title: "INSTITUTIONAL TRADING",
         items: [
+          { name: 'OTC Desk', path: '/website/otc-desk', description: 'High-value institutional trades' },
           { name: 'Bulk Buy/Sell USDT, BTC, ETH', path: '/website/bulk-trading', description: 'High-volume transactions' },
         ]
       },

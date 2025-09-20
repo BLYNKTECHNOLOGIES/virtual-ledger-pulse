@@ -36,6 +36,7 @@ import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
 import { SellCryptoPage } from './components/website/pages/SellCryptoPage';
 import { SafetyTipsPage } from './components/website/pages/SafetyTipsPage';
 import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
+import { OTCDeskPage } from './components/website/pages/OTCDeskPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Purchase from './pages/Purchase';
@@ -226,6 +227,10 @@ const router = createBrowserRouter([
   {
     path: "/website/safety-tips",
     element: <WebsiteLayout><SafetyTipsPage /></WebsiteLayout>,
+  },
+  {
+    path: "/website/otc-desk",
+    element: <WebsiteLayout><OTCDeskPage /></WebsiteLayout>,
   },
   // ERP System Routes - All protected with authentication
   {

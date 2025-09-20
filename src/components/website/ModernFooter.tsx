@@ -16,7 +16,7 @@ export function ModernFooter() {
   const businessServices = [
     { name: 'Bulk Crypto Orders', path: '/website/bulk-orders' },
     { name: 'INR Settlements for Institutions', path: '/website/institutional' },
-    { name: 'Dedicated OTC Desk', path: '/website/otc' },
+    { name: 'Dedicated OTC Desk', path: '/website/otc-desk' },
     { name: 'KYC Verification Support', path: '/website/kyc-support' }
   ];
 

@@ -46,6 +46,12 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
     documentType: '',
     documentNumber: '',
     
+    // Bank Details
+    accountHolderName: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    
     // Declarations
     detailsConfirmed: false,
     termsAccepted: false
@@ -55,7 +61,8 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
     { number: 1, title: 'Personal Info', icon: User, description: 'Basic details' },
     { number: 2, title: 'Address', icon: Building2, description: 'Your address' },
     { number: 3, title: 'Identity', icon: CreditCard, description: 'ID documents' },
-    { number: 4, title: 'Video KYC', icon: CheckCircle, description: 'Live verification' }
+    { number: 4, title: 'Bank Details', icon: Building2, description: 'Account info' },
+    { number: 5, title: 'Video KYC', icon: CheckCircle, description: 'Live verification' }
   ];
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -71,6 +78,8 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
       case 3:
         return formData.documentType && formData.documentNumber;
       case 4:
+        return formData.accountHolderName && formData.bankName && formData.accountNumber && formData.ifscCode;
+      case 5:
         return formData.detailsConfirmed && formData.termsAccepted;
       default:
         return true;
@@ -86,9 +95,9 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
       });
       return;
     }
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
-    } else if (currentStep === 4) {
+    } else if (currentStep === 5) {
       // Complete basic KYC
       setIsCompleted(true);
     }
@@ -325,8 +334,91 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                 </div>
               )}
 
-              {/* Step 4: Video KYC Verification */}
+              {/* Step 4: Bank Details */}
               {currentStep === 4 && (
+                <div className="space-y-4">
+                  <div className="text-center mb-4">
+                    <Building2 className="h-12 w-12 text-blue-600 mx-auto mb-2" />
+                    <h3 className="text-lg font-semibold">Bank Details</h3>
+                    <p className="text-sm text-muted-foreground">Add your bank account information</p>
+                  </div>
+                  
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">Important:</p>
+                        <p className="text-sm text-yellow-700">
+                          Account holder name must match your KYC name. Third-party payments are not allowed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="accountHolderName">Account Holder Name *</Label>
+                      <Input
+                        id="accountHolderName"
+                        value={formData.accountHolderName}
+                        onChange={(e) => handleInputChange('accountHolderName', e.target.value)}
+                        placeholder="Must match KYC name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="bankName">Bank Name *</Label>
+                      <Input
+                        id="bankName"
+                        value={formData.bankName}
+                        onChange={(e) => handleInputChange('bankName', e.target.value)}
+                        placeholder="Enter bank name"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="accountNumber">Account Number *</Label>
+                      <Input
+                        id="accountNumber"
+                        value={formData.accountNumber}
+                        onChange={(e) => handleInputChange('accountNumber', e.target.value)}
+                        placeholder="Enter account number"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="ifscCode">IFSC Code *</Label>
+                      <Input
+                        id="ifscCode"
+                        value={formData.ifscCode}
+                        onChange={(e) => handleInputChange('ifscCode', e.target.value)}
+                        placeholder="Enter IFSC code"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="bankStatement">Bank Statement (Past 30 Days) *</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Upload past 30 days bank statement to verify proof of funds
+                    </p>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+                      <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm font-medium text-gray-700 mb-1">Upload Bank Statement</p>
+                      <p className="text-xs text-gray-500 mb-3">PDF (Max 5MB)</p>
+                      <Button variant="outline" size="sm">
+                        Choose File
+                      </Button>
+                      <p className="text-xs text-red-600 mt-2">* Required document</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Video KYC Verification */}
+              {currentStep === 5 && (
                 <div className="space-y-6">
                   <div className="text-center mb-4">
                     <CheckCircle className="h-12 w-12 text-blue-600 mx-auto mb-2" />
@@ -408,7 +500,7 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
               Previous
             </Button>
             
-            {currentStep < 4 && (
+            {currentStep < 5 && (
               <Button 
                 onClick={nextStep} 
                 className="bg-blue-600 hover:bg-blue-700"

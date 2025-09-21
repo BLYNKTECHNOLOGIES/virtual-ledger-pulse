@@ -162,7 +162,7 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                   Thank You for Completing Basic KYC!
                 </h3>
                 <p className="text-green-700 mb-6">
-                  Our customer executive will contact you for advance KYC verification.
+                  Your KYC documents are being reviewed by our compliance team. This usually takes 45-60 minutes.
                 </p>
               </div>
               

@@ -791,6 +791,48 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          is_public: boolean | null
+          title: string
+          updated_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_path: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          is_public?: boolean | null
+          title: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          is_public?: boolean | null
+          title?: string
+          updated_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       email_verification_tokens: {
         Row: {
           created_at: string | null

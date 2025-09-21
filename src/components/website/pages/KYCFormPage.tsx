@@ -9,8 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
+import { format } from 'date-fns';
 import { 
   User, 
   Home, 
@@ -25,7 +28,9 @@ import {
   Phone,
   Mail,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Calendar as CalendarIcon,
+  Clock
 } from 'lucide-react';
 
 export function KYCFormPage() {
@@ -57,6 +62,8 @@ export function KYCFormPage() {
     
     // Video KYC
     videoKycCompleted: false,
+    vkycDate: null,
+    vkycTime: '',
     
     // Bank Details
     accountHolderName: '',
@@ -71,6 +78,49 @@ export function KYCFormPage() {
   });
 
   const [kycStatus, setKycStatus] = useState('draft'); // draft, pending, approved, rejected, query
+  const [showVKYCDialog, setShowVKYCDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>();
+  const [selectedTime, setSelectedTime] = useState('');
+
+  // Generate time slots for VKYC booking (15-minute intervals from 9 AM to 6 PM)
+  const generateTimeSlots = () => {
+    const slots = [];
+    for (let hour = 9; hour < 18; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(timeString);
+      }
+    }
+    return slots;
+  };
+
+  const timeSlots = generateTimeSlots();
+
+  const handleBookVKYC = () => {
+    if (!selectedDate || !selectedTime) {
+      toast({
+        title: "Missing Information",
+        description: "Please select both date and time for your VKYC appointment.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      videoKycCompleted: true,
+      vkycDate: selectedDate,
+      vkycTime: selectedTime
+    }));
+    
+    setShowVKYCDialog(false);
+    setCurrentStep(5);
+    
+    toast({
+      title: "VKYC Slot Booked",
+      description: `Your Video KYC is scheduled for ${format(selectedDate, 'PPP')} at ${selectedTime}`,
+    });
+  };
 
   const steps = [
     { number: 1, title: 'Personal Information', icon: User, description: 'Tell us about yourself' },
@@ -524,10 +574,7 @@ export function KYCFormPage() {
                         Fix Details
                       </Button>
                       <Button 
-                        onClick={() => {
-                          handleInputChange('videoKycCompleted', true);
-                          setCurrentStep(5);
-                        }}
+                        onClick={() => setShowVKYCDialog(true)}
                         className="flex-1 max-w-40"
                       >
                         Book VKYC Slot
@@ -619,7 +666,7 @@ export function KYCFormPage() {
                       <div>
                         <p><strong>Document:</strong> {formData.documentType}</p>
                         <p><strong>Bank:</strong> {formData.bankName}</p>
-                        <p><strong>Video KYC:</strong> {formData.videoKycCompleted ? 'Scheduled' : 'Skipped'}</p>
+                        <p><strong>Video KYC:</strong> {formData.videoKycCompleted ? `Scheduled for ${formData.vkycDate ? format(formData.vkycDate, 'MMM dd, yyyy') : ''} at ${formData.vkycTime || ''}` : 'Skipped'}</p>
                       </div>
                     </div>
                   </div>
@@ -688,6 +735,70 @@ export function KYCFormPage() {
           </Card>
         </div>
       </div>
+
+      {/* VKYC Slot Booking Dialog */}
+      <Dialog open={showVKYCDialog} onOpenChange={setShowVKYCDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarIcon className="h-5 w-5" />
+              Book Video KYC Slot
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            <div>
+              <Label className="text-sm font-medium mb-3 block">Select Date</Label>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                disabled={(date) => date < new Date() || date.getDay() === 0} // Disable past dates and Sundays
+                className="rounded-md border p-3 pointer-events-auto"
+              />
+            </div>
+            
+            {selectedDate && (
+              <div>
+                <Label className="text-sm font-medium mb-3 block flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Select Time Slot
+                </Label>
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                  {timeSlots.map((time) => (
+                    <Button
+                      key={time}
+                      variant={selectedTime === time ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedTime(time)}
+                      className="text-xs"
+                    >
+                      {time}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowVKYCDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBookVKYC}
+                disabled={!selectedDate || !selectedTime}
+                className="flex-1"
+              >
+                Book Slot
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

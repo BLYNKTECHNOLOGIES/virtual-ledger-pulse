@@ -261,7 +261,7 @@ export function KYCFormPage() {
               </h2>
               
               <p className="text-muted-foreground mb-6">
-                {kycStatus === 'pending' && 'Your KYC documents are being reviewed by our compliance team. This usually takes 24-48 hours.'}
+                {kycStatus === 'pending' && 'Your KYC documents are being reviewed by our compliance team. This usually takes 45-60 minutes.'}
                 {kycStatus === 'approved' && 'Congratulations! Your identity has been verified. You can now access all platform features.'}
                 {kycStatus === 'rejected' && 'Your KYC submission has been rejected. Please review the feedback and resubmit with correct documents.'}
               </p>

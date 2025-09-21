@@ -38,7 +38,7 @@ export function KYCServicesPage() {
     {
       icon: Zap,
       title: "Quick Processing",
-      description: "Most KYC applications processed within 24-48 hours"
+      description: "Most KYC applications processed within 45-60 minutes"
     },
     {
       icon: Shield,
@@ -190,7 +190,7 @@ export function KYCServicesPage() {
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
                   <Clock className="h-5 w-5 text-blue-600 mt-1" />
-                  <p className="text-gray-700">Processing time: 24-48 hours for most applications</p>
+                  <p className="text-gray-700">Processing time: 45-60 minutes for most applications</p>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
                   <CheckCircle className="h-5 w-5 text-green-600 mt-1" />

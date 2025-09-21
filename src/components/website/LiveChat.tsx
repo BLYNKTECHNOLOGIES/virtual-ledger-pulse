@@ -51,7 +51,7 @@ export function LiveChat({ isOpen, onClose }: LiveChatProps) {
       questions: [
         {
           question: 'How do I complete my KYC verification?',
-          answer: 'To complete KYC: 1) Go to Profile → KYC Section 2) Upload required documents (Aadhar, PAN, Bank proof) 3) Complete video verification if required 4) Wait for approval (usually 24-48 hours)'
+          answer: 'To complete KYC: 1) Go to Profile → KYC Section 2) Upload required documents (Aadhar, PAN, Bank proof) 3) Complete video verification if required 4) Wait for approval (usually 45-60 minutes)'
         },
         {
           question: 'Why was my KYC rejected?',
@@ -161,7 +161,7 @@ export function LiveChat({ isOpen, onClose }: LiveChatProps) {
     // KYC related
     if (lowerInput.includes('kyc') || lowerInput.includes('verification') || lowerInput.includes('documents')) {
       const kycResponses = [
-        'For KYC verification, please upload clear documents (Aadhar, PAN, Bank proof) in your profile. The process usually takes 24-48 hours. Need specific help with your KYC status?',
+        'For KYC verification, please upload clear documents (Aadhar, PAN, Bank proof) in your profile. The process usually takes 45-60 minutes. Need specific help with your KYC status?',
         'KYC verification is simple! Upload your Aadhar, PAN, and bank proof. Make sure documents are clear and not expired. Any specific KYC issues you\'re facing?',
         'Having trouble with KYC? Ensure your documents are clear, colored, and match your profile information. Feel free to share your specific concern!'
       ];

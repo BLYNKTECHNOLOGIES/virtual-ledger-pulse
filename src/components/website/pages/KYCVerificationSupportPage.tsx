@@ -79,7 +79,7 @@ export function KYCVerificationSupportPage() {
     {
       step: "05",
       title: "Review & Approval",
-      description: "Our compliance team verifies within 24-48 hours.",
+      description: "Our compliance team verifies within 45-60 minutes.",
       icon: CheckCircle
     }
   ];

@@ -55,7 +55,7 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
     { number: 1, title: 'Personal Info', icon: User, description: 'Basic details' },
     { number: 2, title: 'Address', icon: Building2, description: 'Your address' },
     { number: 3, title: 'Identity', icon: CreditCard, description: 'ID documents' },
-    { number: 4, title: 'Submit', icon: CheckCircle, description: 'Complete basic KYC' }
+    { number: 4, title: 'Video KYC', icon: CheckCircle, description: 'Live verification' }
   ];
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -325,65 +325,71 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                 </div>
               )}
 
-              {/* Step 4: Complete Basic KYC */}
+              {/* Step 4: Video KYC Verification */}
               {currentStep === 4 && (
                 <div className="space-y-6">
                   <div className="text-center mb-4">
                     <CheckCircle className="h-12 w-12 text-blue-600 mx-auto mb-2" />
-                    <h3 className="text-lg font-semibold">Complete Basic KYC</h3>
+                    <h3 className="text-lg font-semibold">Video KYC Verification</h3>
                     <p className="text-sm text-muted-foreground">
-                      Submit your basic information for initial verification
+                      Complete your verification with a live video call (optional but recommended)
                     </p>
                   </div>
                   
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
                     <Shield className="h-12 w-12 text-blue-600 mx-auto mb-4" />
                     <h4 className="text-lg font-semibold text-blue-900 mb-2">
-                      Ready to Submit Basic KYC
+                      Choose Your Verification Method
                     </h4>
                     <p className="text-blue-700 mb-4">
-                      By submitting, you agree that all provided information is accurate. 
-                      Our customer executive will contact you within 24 hours for advanced KYC verification.
+                      Complete your verification with a live video call. This step is optional but 
+                      recommended for faster approval.
                     </p>
                     
-                    <div className="space-y-2 text-left">
+                    <div className="space-y-2 text-left mb-6">
                       <div className="flex items-center gap-2 text-blue-700">
                         <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm">Personal information verified</span>
+                        <span className="text-sm">Hold your document in hand & look into camera</span>
                       </div>
                       <div className="flex items-center gap-2 text-blue-700">
                         <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm">Address details confirmed</span>
+                        <span className="text-sm">Read the random code/phrase shown on screen</span>
                       </div>
                       <div className="flex items-center gap-2 text-blue-700">
                         <CheckCircle className="h-4 w-4" />
-                        <span className="text-sm">Identity documents noted</span>
+                        <span className="text-sm">Ensure good lighting and clear audio</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-blue-700">
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="text-sm">Process takes about 5-10 minutes</span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-2">
-                      <Checkbox 
-                        id="detailsConfirmed" 
-                        checked={formData.detailsConfirmed}
-                        onCheckedChange={(checked) => handleInputChange('detailsConfirmed', checked as boolean)}
-                      />
-                      <label htmlFor="detailsConfirmed" className="text-sm text-gray-700">
-                        I confirm that all the details provided are accurate and up-to-date.
-                      </label>
+                    <div className="flex gap-3 justify-center">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          // Handle fix/go back functionality
+                          setCurrentStep(1);
+                        }}
+                        className="flex-1 max-w-40"
+                      >
+                        Fix Details
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          // Handle VKYC booking
+                          setIsCompleted(true);
+                        }}
+                        className="flex-1 max-w-40 bg-blue-600 hover:bg-blue-700"
+                      >
+                        Book VKYC Slot
+                      </Button>
                     </div>
                     
-                    <div className="flex items-start space-x-2">
-                      <Checkbox 
-                        id="termsAccepted" 
-                        checked={formData.termsAccepted}
-                        onCheckedChange={(checked) => handleInputChange('termsAccepted', checked as boolean)}
-                      />
-                      <label htmlFor="termsAccepted" className="text-sm text-gray-700">
-                        I agree to the <a href="/website/terms-of-service" className="text-blue-600 hover:underline">Terms of Service</a> and <a href="/website/privacy-policy" className="text-blue-600 hover:underline">Privacy Policy</a>.
-                      </label>
-                    </div>
+                    <p className="text-xs text-blue-600 mt-3">
+                      Skip this step if you prefer manual document verification
+                    </p>
                   </div>
                 </div>
               )}
@@ -402,14 +408,15 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
               Previous
             </Button>
             
-            <Button 
-              onClick={nextStep} 
-              disabled={currentStep === 4 && (!formData.detailsConfirmed || !formData.termsAccepted)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {currentStep === 4 ? 'Submit Basic KYC' : 'Next Step'}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            {currentStep < 4 && (
+              <Button 
+                onClick={nextStep} 
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Next Step
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
       </DialogContent>

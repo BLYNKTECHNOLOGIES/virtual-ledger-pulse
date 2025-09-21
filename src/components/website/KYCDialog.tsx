@@ -52,6 +52,9 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
     accountNumber: '',
     ifscCode: '',
     
+    // Video KYC Status
+    vkycScheduled: false,
+    
     // Declarations
     detailsConfirmed: false,
     termsAccepted: false
@@ -62,7 +65,8 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
     { number: 2, title: 'Address', icon: Building2, description: 'Your address' },
     { number: 3, title: 'Identity', icon: CreditCard, description: 'ID documents' },
     { number: 4, title: 'Bank Details', icon: Building2, description: 'Account info' },
-    { number: 5, title: 'Video KYC', icon: CheckCircle, description: 'Live verification' }
+    { number: 5, title: 'Video KYC', icon: CheckCircle, description: 'Live verification' },
+    { number: 6, title: 'Review & Submit', icon: CheckCircle, description: 'Final review' }
   ];
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -80,6 +84,8 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
       case 4:
         return formData.accountHolderName && formData.bankName && formData.accountNumber && formData.ifscCode;
       case 5:
+        return true; // Video KYC is optional
+      case 6:
         return formData.detailsConfirmed && formData.termsAccepted;
       default:
         return true;
@@ -95,9 +101,9 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
       });
       return;
     }
-    if (currentStep < 5) {
+    if (currentStep < 6) {
       setCurrentStep(currentStep + 1);
-    } else if (currentStep === 5) {
+    } else if (currentStep === 6) {
       // Complete basic KYC
       setIsCompleted(true);
     }
@@ -471,7 +477,8 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                       <Button 
                         onClick={() => {
                           // Handle VKYC booking
-                          setIsCompleted(true);
+                          setFormData(prev => ({ ...prev, vkycScheduled: true }));
+                          setCurrentStep(6);
                         }}
                         className="flex-1 max-w-40 bg-blue-600 hover:bg-blue-700"
                       >
@@ -486,7 +493,69 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                 </div>
               )}
             </>
-          )}
+              )}
+
+              {/* Step 6: Review & Submit */}
+              {currentStep === 6 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <CheckCircle className="h-12 w-12 text-blue-600 mx-auto mb-2" />
+                    <h3 className="text-lg font-semibold">Review & Submit</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Final review and submission
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="text-lg font-semibold mb-4">Review Your Information</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <p className="text-sm"><strong>Name:</strong> {formData.fullName}</p>
+                        <p className="text-sm"><strong>Email:</strong> {formData.email || 'Not provided'}</p>
+                        <p className="text-sm"><strong>Mobile:</strong> {formData.mobile}</p>
+                        <p className="text-sm"><strong>Document:</strong> {formData.documentType}</p>
+                        <p className="text-sm"><strong>Bank:</strong> {formData.bankName}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm"><strong>State:</strong> {formData.state}</p>
+                        <p className="text-sm"><strong>City:</strong> {formData.city}</p>
+                        <p className="text-sm"><strong>Account Holder:</strong> {formData.accountHolderName}</p>
+                        <p className="text-sm"><strong>IFSC:</strong> {formData.ifscCode}</p>
+                        <p className="text-sm"><strong>Video KYC:</strong> 
+                          <span className="text-green-600 font-medium">
+                            {formData.vkycScheduled ? ' Scheduled' : ' Skipped'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-2">
+                      <Checkbox 
+                        id="detailsConfirmed" 
+                        checked={formData.detailsConfirmed}
+                        onCheckedChange={(checked) => handleInputChange('detailsConfirmed', checked as boolean)}
+                      />
+                      <label htmlFor="detailsConfirmed" className="text-sm text-gray-700">
+                        I confirm that the above details are correct and belong to me.
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-start space-x-2">
+                      <Checkbox 
+                        id="termsAccepted" 
+                        checked={formData.termsAccepted}
+                        onCheckedChange={(checked) => handleInputChange('termsAccepted', checked as boolean)}
+                      />
+                      <label htmlFor="termsAccepted" className="text-sm text-gray-700">
+                        I agree to the <a href="/website/terms-of-service" className="text-blue-600 hover:underline">Terms & Privacy Policy</a>.
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
         </div>
 
         {/* Navigation Buttons */}
@@ -500,12 +569,23 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
               Previous
             </Button>
             
-            {currentStep < 5 && (
+            {currentStep < 6 && (
               <Button 
                 onClick={nextStep} 
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 Next Step
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+            
+            {currentStep === 6 && (
+              <Button 
+                onClick={nextStep} 
+                disabled={!formData.detailsConfirmed || !formData.termsAccepted}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Submit KYC for Review
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}

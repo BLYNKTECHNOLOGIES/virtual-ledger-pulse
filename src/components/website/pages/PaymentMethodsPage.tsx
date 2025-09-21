@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import { 
   CreditCard, 
   Smartphone, 
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 
 export function PaymentMethodsPage() {
+  const navigate = useNavigate();
   const paymentMethods = [
     {
       id: 1,
@@ -362,6 +364,7 @@ export function PaymentMethodsPage() {
               <Button 
                 size="lg" 
                 className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg"
+                onClick={() => navigate('/website/individual-kyc')}
               >
                 <TrendingUp className="h-5 w-5 mr-2" />
                 Start Trading Now

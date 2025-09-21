@@ -126,7 +126,7 @@ export function ModernHomePage() {
             <Button 
               size="lg" 
               className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 text-xl rounded-full"
-              onClick={() => navigate('/website/contact')}
+              onClick={() => navigate('/website/individual-kyc')}
             >
               Get Started
               <ArrowRight className="ml-2 h-6 w-6" />

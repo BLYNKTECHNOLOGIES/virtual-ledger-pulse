@@ -6,11 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { KYCDialog } from '../KYCDialog';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function ContactPage() {
-  const [showKYCDialog, setShowKYCDialog] = useState(false);
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -285,7 +285,7 @@ export function ContactPage() {
                 <Button 
                   size="lg" 
                   className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg"
-                  onClick={() => setShowKYCDialog(true)}
+                  onClick={() => navigate('/website/individual-kyc')}
                 >
                   <TrendingUp className="h-5 w-5 mr-2" />
                   Start Trading Now
@@ -311,9 +311,6 @@ export function ContactPage() {
           </Card>
         </div>
       </section>
-
-      {/* KYC Dialog */}
-      <KYCDialog open={showKYCDialog} onOpenChange={setShowKYCDialog} />
     </div>
   );
 }

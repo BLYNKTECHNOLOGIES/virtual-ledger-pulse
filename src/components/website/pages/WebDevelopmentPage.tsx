@@ -1,8 +1,10 @@
 
 import { Code, Palette, Smartphone as Mobile, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 export function WebDevelopmentPage() {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
@@ -101,7 +103,11 @@ export function WebDevelopmentPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-4">Ready to Start Your Project?</h2>
           <p className="text-xl text-blue-100 mb-8">Let's create something amazing together</p>
-          <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
+          <Button 
+            size="lg" 
+            className="bg-orange-600 hover:bg-orange-700"
+            onClick={() => navigate('/website/individual-kyc')}
+          >
             Get Started Today
           </Button>
         </div>

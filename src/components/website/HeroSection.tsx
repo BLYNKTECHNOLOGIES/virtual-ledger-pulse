@@ -1,8 +1,10 @@
 
 import { ArrowRight, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 export function HeroSection() {
+  const navigate = useNavigate();
   return (
     <section className="relative bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white overflow-hidden">
       <div className="absolute inset-0 bg-black/20"></div>
@@ -22,7 +24,11 @@ export function HeroSection() {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 text-lg">
+              <Button 
+                size="lg" 
+                className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 text-lg"
+                onClick={() => navigate('/website/individual-kyc')}
+              >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>

@@ -302,12 +302,6 @@ export function ModernNavbar() {
               >
                 Log In
               </Button>
-              <Button 
-                onClick={() => navigate('/dashboard')}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg"
-              >
-                Get Started
-              </Button>
             </div>
 
           {/* Mobile menu button */}
@@ -412,12 +406,6 @@ export function ModernNavbar() {
                     className="justify-start"
                   >
                     Log In
-                  </Button>
-                  <Button 
-                    onClick={() => navigate('/dashboard')}
-                    className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                  >
-                    Get Started
                   </Button>
                 </div>
               </div>

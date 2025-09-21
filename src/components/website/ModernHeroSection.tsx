@@ -1,9 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Bitcoin, Wallet, TrendingUp, DollarSign, Shield, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { KYCDialog } from './KYCDialog';
 
 export function ModernHeroSection() {
   const navigate = useNavigate();
+  const [showKYCDialog, setShowKYCDialog] = useState(false);
 
   return (
     <section className="relative pt-20 pb-16 overflow-hidden bg-gray-50">
@@ -47,7 +50,7 @@ export function ModernHeroSection() {
               <Button 
                 size="lg" 
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium"
-                onClick={() => navigate('/website/register')}
+                onClick={() => setShowKYCDialog(true)}
               >
                 Start Trading Now
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -208,6 +211,9 @@ export function ModernHeroSection() {
           </div>
         </div>
       </div>
+
+      {/* KYC Dialog */}
+      <KYCDialog open={showKYCDialog} onOpenChange={setShowKYCDialog} />
     </section>
   );
 }

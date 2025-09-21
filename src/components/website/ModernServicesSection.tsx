@@ -13,9 +13,12 @@ import {
   FileText
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { KYCDialog } from './KYCDialog';
 
 export function ModernServicesSection() {
   const navigate = useNavigate();
+  const [showKYCDialog, setShowKYCDialog] = useState(false);
 
   return (
     <section className="py-20 bg-gray-50">
@@ -37,7 +40,7 @@ export function ModernServicesSection() {
               <Button 
                 size="lg" 
                 className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium"
-                onClick={() => navigate('/website/p2p-trading')}
+                onClick={() => setShowKYCDialog(true)}
               >
                 Start Trading Now
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -115,6 +118,9 @@ export function ModernServicesSection() {
         </div>
 
       </div>
+
+      {/* KYC Dialog */}
+      <KYCDialog open={showKYCDialog} onOpenChange={setShowKYCDialog} />
     </section>
   );
 }

@@ -1,13 +1,16 @@
 
-import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Headphones, Globe } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, MessageSquare, Headphones, Globe, ArrowRightLeft, TrendingUp } from 'lucide-react';
 import InteractiveMap from '../InteractiveMap';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { KYCDialog } from '../KYCDialog';
+import { useState } from 'react';
 
 export function ContactPage() {
+  const [showKYCDialog, setShowKYCDialog] = useState(false);
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -266,6 +269,51 @@ export function ContactPage() {
           </div>
         </div>
       </section>
+
+      {/* Final CTA */}
+      <section className="py-16">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="shadow-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
+            <CardContent className="p-8 text-center">
+              <ArrowRightLeft className="h-16 w-16 mx-auto mb-6 text-primary-foreground" />
+              <h2 className="text-3xl font-bold mb-4">Ready to Start P2P Trading?</h2>
+              <p className="text-primary-foreground/90 mb-8 max-w-2xl mx-auto text-lg">
+                ⚡ Your trusted P2P partner. Backed by the world's top exchanges. Powered by Blynk.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button 
+                  size="lg" 
+                  className="bg-white text-primary hover:bg-white/90 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg"
+                  onClick={() => setShowKYCDialog(true)}
+                >
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Start Trading Now
+                  <ArrowRightLeft className="h-5 w-5 ml-2" />
+                </Button>
+              </div>
+              
+              <div className="mt-6 flex items-center justify-center gap-6 text-sm text-primary-foreground/80">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>100% Secure</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Instant Settlement</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  <span>Global Liquidity</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* KYC Dialog */}
+      <KYCDialog open={showKYCDialog} onOpenChange={setShowKYCDialog} />
     </div>
   );
 }

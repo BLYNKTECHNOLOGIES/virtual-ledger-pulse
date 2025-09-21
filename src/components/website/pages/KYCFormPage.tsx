@@ -583,13 +583,13 @@ export function KYCFormPage() {
                   </div>
 
                   <div>
-                    <Label>Bank Proof</Label>
+                    <Label>Bank Statement (Past 30 Days)</Label>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Upload cancelled cheque or bank statement
+                      Upload past 30 days bank statement to verify proof of funds
                     </p>
                     <FileUploadArea
                       field="bankProof"
-                      label="Upload Bank Document"
+                      label="Upload Bank Statement"
                     />
                   </div>
                 </div>

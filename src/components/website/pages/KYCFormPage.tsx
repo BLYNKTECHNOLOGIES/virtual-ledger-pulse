@@ -95,7 +95,7 @@ export function KYCFormPage() {
   const validateCurrentStep = () => {
     switch (currentStep) {
       case 1:
-        return formData.fullName && formData.dateOfBirth && formData.gender && formData.email && formData.mobile;
+        return formData.fullName && formData.dateOfBirth && formData.gender && formData.mobile;
       case 2:
         return formData.permanentAddress && formData.state && formData.city && formData.pincode && formData.addressProof;
       case 3:
@@ -344,7 +344,7 @@ export function KYCFormPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="email">Email ID</Label>
+                      <Label htmlFor="email">Email ID (Optional)</Label>
                       <Input
                         id="email"
                         type="email"
@@ -355,18 +355,12 @@ export function KYCFormPage() {
                     </div>
                     <div>
                       <Label htmlFor="mobile">Mobile Number</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="mobile"
-                          value={formData.mobile}
-                          onChange={(e) => handleInputChange('mobile', e.target.value)}
-                          placeholder="Enter mobile number"
-                        />
-                        <Button variant="outline" size="sm">
-                          <Phone className="h-4 w-4 mr-1" />
-                          OTP
-                        </Button>
-                      </div>
+                      <Input
+                        id="mobile"
+                        value={formData.mobile}
+                        onChange={(e) => handleInputChange('mobile', e.target.value)}
+                        placeholder="Enter mobile number"
+                      />
                     </div>
                   </div>
                 </div>

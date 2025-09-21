@@ -65,7 +65,7 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
   const validateCurrentStep = () => {
     switch (currentStep) {
       case 1:
-        return formData.fullName && formData.email && formData.mobile;
+        return formData.fullName && formData.mobile;
       case 2:
         return formData.permanentAddress && formData.state && formData.city && formData.pincode;
       case 3:
@@ -207,7 +207,7 @@ export function KYCDialog({ open, onOpenChange }: KYCDialogProps) {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="email">Email ID *</Label>
+                      <Label htmlFor="email">Email ID (Optional)</Label>
                       <Input
                         id="email"
                         type="email"

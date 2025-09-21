@@ -515,14 +515,24 @@ export function KYCFormPage() {
                       </ul>
                     </div>
 
-                    <Button 
-                      size="lg" 
-                      className="mb-4"
-                      onClick={() => handleInputChange('videoKycCompleted', true)}
-                    >
-                      <Video className="h-4 w-4 mr-2" />
-                      Start Video Verification
-                    </Button>
+                    <div className="flex gap-3 justify-center mb-4">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setCurrentStep(1)}
+                        className="flex-1 max-w-40"
+                      >
+                        Fix Details
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          handleInputChange('videoKycCompleted', true);
+                          setCurrentStep(5);
+                        }}
+                        className="flex-1 max-w-40"
+                      >
+                        Book VKYC Slot
+                      </Button>
+                    </div>
                     
                     <p className="text-xs text-muted-foreground">
                       Skip this step if you prefer manual document verification
@@ -609,7 +619,7 @@ export function KYCFormPage() {
                       <div>
                         <p><strong>Document:</strong> {formData.documentType}</p>
                         <p><strong>Bank:</strong> {formData.bankName}</p>
-                        <p><strong>Video KYC:</strong> {formData.videoKycCompleted ? 'Completed' : 'Skipped'}</p>
+                        <p><strong>Video KYC:</strong> {formData.videoKycCompleted ? 'Scheduled' : 'Skipped'}</p>
                       </div>
                     </div>
                   </div>

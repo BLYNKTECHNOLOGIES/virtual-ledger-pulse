@@ -7,7 +7,7 @@ import { ChevronDown } from 'lucide-react';
 export function BuyUSDTPage() {
   const [inrAmount, setInrAmount] = useState('1');
   const [usdtAmount, setUsdtAmount] = useState('');
-  const [currentRate] = useState(89.69);
+  const [currentRate] = useState(95.5);
 
   useEffect(() => {
     if (inrAmount) {
@@ -24,11 +24,8 @@ export function BuyUSDTPage() {
         {/* Navigation Tabs */}
         <div className="flex justify-center mb-8">
           <div className="flex bg-muted rounded-full p-1">
-            <button className="px-8 py-2 rounded-full bg-primary text-primary-foreground font-medium">
+            <button className="px-12 py-3 rounded-full bg-primary text-primary-foreground font-medium">
               Crypto To Fiat
-            </button>
-            <button className="px-8 py-2 rounded-full text-muted-foreground font-medium">
-              Crypto to Crypto
             </button>
           </div>
         </div>
@@ -86,7 +83,7 @@ export function BuyUSDTPage() {
 
               {/* Live Rate */}
               <div className="text-center mb-6">
-                <p className="text-sm text-muted-foreground mb-1">As of Aug 23, 2025 at 08:38 PM</p>
+                <p className="text-sm text-muted-foreground mb-1">Updated today - Sep 21, 2025 at 11:30 PM</p>
                 <p className="font-semibold text-foreground">1 Tether USDT = {currentRate.toFixed(2)} INR</p>
               </div>
 
@@ -103,7 +100,7 @@ export function BuyUSDTPage() {
           {/* Additional Info */}
           <div className="text-center mt-6">
             <p className="text-sm text-muted-foreground">
-              The current price of 1 USDT is ₹{currentRate.toFixed(2)} INR. Mudrex provides you the best USDT to INR conversion rates in real time.
+              The current price of 1 USDT is ₹{currentRate.toFixed(2)} INR. Blynk provides you the best USDT to INR conversion rates in real time.
             </p>
           </div>
 
@@ -111,7 +108,7 @@ export function BuyUSDTPage() {
           <div className="text-center mt-12">
             <h2 className="text-2xl font-bold text-foreground mb-4">What is 1 USDT to INR today?</h2>
             <p className="text-muted-foreground">
-              1 Tether USDT (USDT) is ₹{currentRate.toFixed(2)} Indian Rupee(INR) as of Aug 23, 2025 08:38 PM
+              1 Tether USDT (USDT) is ₹{currentRate.toFixed(2)} Indian Rupee(INR) as of Sep 21, 2025 11:30 PM
             </p>
           </div>
 

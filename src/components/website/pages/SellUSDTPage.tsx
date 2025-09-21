@@ -7,7 +7,7 @@ import { ChevronDown } from 'lucide-react';
 export function SellUSDTPage() {
   const [usdtAmount, setUsdtAmount] = useState('1');
   const [inrAmount, setInrAmount] = useState('');
-  const [currentRate] = useState(89.65); // Slightly lower rate for selling
+  const [currentRate] = useState(95.5); // Current selling rate
 
   useEffect(() => {
     if (usdtAmount) {
@@ -24,11 +24,8 @@ export function SellUSDTPage() {
         {/* Navigation Tabs */}
         <div className="flex justify-center mb-8">
           <div className="flex bg-muted rounded-full p-1">
-            <button className="px-8 py-2 rounded-full bg-primary text-primary-foreground font-medium">
+            <button className="px-12 py-3 rounded-full bg-primary text-primary-foreground font-medium">
               Crypto To Fiat
-            </button>
-            <button className="px-8 py-2 rounded-full text-muted-foreground font-medium">
-              Crypto to Crypto
             </button>
           </div>
         </div>
@@ -87,7 +84,7 @@ export function SellUSDTPage() {
 
               {/* Live Rate */}
               <div className="text-center mb-6">
-                <p className="text-sm text-muted-foreground mb-1">As of Aug 23, 2025 at 08:38 PM</p>
+                <p className="text-sm text-muted-foreground mb-1">Updated today - Sep 21, 2025 at 11:30 PM</p>
                 <p className="font-semibold text-foreground">1 Tether USDT = ₹{currentRate.toFixed(2)} INR</p>
               </div>
 
@@ -112,7 +109,7 @@ export function SellUSDTPage() {
           <div className="text-center mt-12">
             <h2 className="text-2xl font-bold text-foreground mb-4">Sell 1 USDT for INR today</h2>
             <p className="text-muted-foreground">
-              1 Tether USDT (USDT) can be sold for ₹{currentRate.toFixed(2)} Indian Rupee(INR) as of Aug 23, 2025 08:38 PM
+              1 Tether USDT (USDT) can be sold for ₹{currentRate.toFixed(2)} Indian Rupee(INR) as of Sep 21, 2025 11:30 PM
             </p>
           </div>
 

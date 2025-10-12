@@ -106,56 +106,83 @@ export default function ProfitLoss() {
   };
 
   const calculateFIFOMatches = (salesItems: any[], purchaseItems: any[]) => {
-    const sortedPurchases = [...purchaseItems].map(item => ({
-      ...item,
-      remaining_quantity: item.quantity
-    })).sort((a, b) => 
-      new Date(a.order_date).getTime() - new Date(b.order_date).getTime()
-    );
-
     const fifoMatches: FIFOMatch[] = [];
     let totalGrossProfit = 0;
     let totalQuantitySold = 0;
-    let purchaseQueue = [...sortedPurchases];
 
-    salesItems.forEach(saleItem => {
-      let remainingQtyToSell = saleItem.quantity;
-      
-      while (remainingQtyToSell > 0 && purchaseQueue.length > 0) {
-        const earliestPurchase = purchaseQueue[0];
-        
-        if (earliestPurchase.remaining_quantity <= 0) {
-          purchaseQueue.shift();
-          continue;
-        }
-
-        const qtyToUse = Math.min(remainingQtyToSell, earliestPurchase.remaining_quantity);
-        const npm = saleItem.unit_price - earliestPurchase.unit_price;
-        const profit = npm * qtyToUse;
-        
-        fifoMatches.push({
-          saleId: saleItem.sales_order_id,
-          buyId: earliestPurchase.purchase_order_id,
-          saleDate: saleItem.sales_order_date || new Date().toISOString(),
-          buyDate: earliestPurchase.order_date,
-          quantity: qtyToUse,
-          buyRate: earliestPurchase.unit_price,
-          sellRate: saleItem.unit_price,
-          npm: npm,
-          profit: profit,
-          asset: 'USDT'
-        });
-
-        totalGrossProfit += profit;
-        totalQuantitySold += qtyToUse;
-        
-        remainingQtyToSell -= qtyToUse;
-        earliestPurchase.remaining_quantity -= qtyToUse;
-        
-        if (earliestPurchase.remaining_quantity <= 0) {
-          purchaseQueue.shift();
-        }
+    // Group purchases by company (bank_account_holder_name)
+    const purchasesByCompany = new Map<string, any[]>();
+    purchaseItems.forEach(item => {
+      const company = item.bank_account_holder_name || 'UNKNOWN';
+      if (!purchasesByCompany.has(company)) {
+        purchasesByCompany.set(company, []);
       }
+      purchasesByCompany.get(company)!.push({
+        ...item,
+        remaining_quantity: item.quantity
+      });
+    });
+
+    // Sort purchases by date within each company
+    purchasesByCompany.forEach((purchases, company) => {
+      purchases.sort((a, b) => 
+        new Date(a.order_date).getTime() - new Date(b.order_date).getTime()
+      );
+    });
+
+    // Group sales by company
+    const salesByCompany = new Map<string, any[]>();
+    salesItems.forEach(item => {
+      const company = item.bank_account_holder_name || 'UNKNOWN';
+      if (!salesByCompany.has(company)) {
+        salesByCompany.set(company, []);
+      }
+      salesByCompany.get(company)!.push(item);
+    });
+
+    // Process FIFO for each company independently
+    salesByCompany.forEach((sales, company) => {
+      const purchaseQueue = purchasesByCompany.get(company) || [];
+      
+      sales.forEach(saleItem => {
+        let remainingQtyToSell = saleItem.quantity;
+        
+        while (remainingQtyToSell > 0 && purchaseQueue.length > 0) {
+          const earliestPurchase = purchaseQueue[0];
+          
+          if (earliestPurchase.remaining_quantity <= 0) {
+            purchaseQueue.shift();
+            continue;
+          }
+
+          const qtyToUse = Math.min(remainingQtyToSell, earliestPurchase.remaining_quantity);
+          const npm = saleItem.unit_price - earliestPurchase.unit_price;
+          const profit = npm * qtyToUse;
+          
+          fifoMatches.push({
+            saleId: saleItem.sales_order_id,
+            buyId: earliestPurchase.purchase_order_id,
+            saleDate: saleItem.sales_order_date || new Date().toISOString(),
+            buyDate: earliestPurchase.order_date,
+            quantity: qtyToUse,
+            buyRate: earliestPurchase.unit_price,
+            sellRate: saleItem.unit_price,
+            npm: npm,
+            profit: profit,
+            asset: 'USDT'
+          });
+
+          totalGrossProfit += profit;
+          totalQuantitySold += qtyToUse;
+          
+          remainingQtyToSell -= qtyToUse;
+          earliestPurchase.remaining_quantity -= qtyToUse;
+          
+          if (earliestPurchase.remaining_quantity <= 0) {
+            purchaseQueue.shift();
+          }
+        }
+      });
     });
 
     return { fifoMatches, totalGrossProfit, totalQuantitySold };
@@ -169,10 +196,19 @@ export default function ProfitLoss() {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch sales orders
+      // Fetch sales orders with bank account info through payment method
       const { data: salesOrders } = await supabase
         .from('sales_orders')
-        .select('id, total_amount, order_date')
+        .select(`
+          id, 
+          total_amount, 
+          order_date,
+          sales_payment_method_id,
+          sales_payment_methods:sales_payment_method_id(
+            bank_account_id,
+            bank_accounts:bank_account_id(bank_account_holder_name)
+          )
+        `)
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
@@ -181,7 +217,7 @@ export default function ProfitLoss() {
         .from('sales_order_items')
         .select('sales_order_id, product_id, quantity, unit_price');
 
-      // Fetch purchase order items with order data
+      // Fetch purchase order items with order data and bank account info
       const { data: purchaseItems } = await supabase
         .from('purchase_order_items')
         .select(`
@@ -189,7 +225,13 @@ export default function ProfitLoss() {
           quantity, 
           unit_price, 
           purchase_order_id,
-          purchase_orders!inner(id, order_date, supplier_name)
+          purchase_orders!inner(
+            id, 
+            order_date, 
+            supplier_name,
+            bank_account_id,
+            bank_accounts:bank_account_id(bank_account_holder_name)
+          )
         `)
         .order('id', { ascending: true });
 
@@ -212,15 +254,28 @@ export default function ProfitLoss() {
 
       // Process data
       const periodSalesOrderIds = salesOrders?.map(order => order.id) || [];
+      
+      // Map sales order to bank account holder name
+      const salesOrderToCompany = new Map<string, string>();
+      salesOrders?.forEach(order => {
+        const holderName = order.sales_payment_methods?.bank_accounts?.bank_account_holder_name || 'UNKNOWN';
+        salesOrderToCompany.set(order.id, holderName);
+      });
+      
       const periodSalesItems = salesItems?.filter(item => 
         periodSalesOrderIds.includes(item.sales_order_id)
-      ) || [];
+      ).map(item => ({
+        ...item,
+        bank_account_holder_name: salesOrderToCompany.get(item.sales_order_id) || 'UNKNOWN',
+        sales_order_date: salesOrders?.find(o => o.id === item.sales_order_id)?.order_date
+      })) || [];
 
-      // Prepare purchase items with dates
+      // Prepare purchase items with dates and company info
       const purchaseItemsWithDates = purchaseItems?.map(item => ({
         ...item,
         order_date: item.purchase_orders.order_date,
-        supplier_name: item.purchase_orders.supplier_name
+        supplier_name: item.purchase_orders.supplier_name,
+        bank_account_holder_name: item.purchase_orders.bank_accounts?.bank_account_holder_name || 'UNKNOWN'
       })) || [];
 
       // Calculate FIFO matches and get total quantities

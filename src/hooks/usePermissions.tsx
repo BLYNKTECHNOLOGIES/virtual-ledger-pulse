@@ -12,17 +12,11 @@ export function usePermissions() {
     try {
       setIsLoading(true);
       
-      console.log('usePermissions - fetchPermissions called');
-      console.log('usePermissions - user:', user);
-      console.log('usePermissions - authLoading:', authLoading);
-      
       if (authLoading) {
-        console.log('usePermissions - still loading auth, waiting...');
         return;
       }
       
       if (!user) {
-        console.log('usePermissions - no user found');
         setPermissions([]);
         return;
       }
@@ -46,14 +40,12 @@ export function usePermissions() {
           'kyc_approvals_view', 'kyc_approvals_manage',
           'statistics_view', 'statistics_manage'
         ];
-        console.log('usePermissions - setting demo admin permissions:', adminPermissions);
         setPermissions(adminPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         return;
       }
 
       // For database users, fetch permissions from role_permissions table
-      console.log('usePermissions - fetching permissions from database for user:', user.id);
       
       const { data: userPermissions, error } = await supabase
         .rpc('get_user_permissions', { user_uuid: user.id });
@@ -94,11 +86,9 @@ export function usePermissions() {
 
       if (userPermissions && Array.isArray(userPermissions)) {
         const permissionStrings = userPermissions.map(p => p.permission);
-        console.log('usePermissions - fetched permissions from database:', permissionStrings);
         setPermissions(permissionStrings);
         localStorage.setItem('userPermissions', JSON.stringify(permissionStrings));
       } else {
-        console.log('usePermissions - no permissions found, setting basic permissions');
         const basicPermissions = ['dashboard_view'];
         setPermissions(basicPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
@@ -117,30 +107,20 @@ export function usePermissions() {
   };
 
   const hasPermission = (permission: string): boolean => {
-    const result = permissions.includes(permission);
-    console.log(`hasPermission(${permission}):`, result);
-    return result;
+    return permissions.includes(permission);
   };
 
   const hasAnyPermission = (permissionList: string[]): boolean => {
-    const result = permissionList.some(permission => permissions.includes(permission));
-    console.log(`hasAnyPermission([${permissionList.join(', ')}]):`, result);
-    return result;
+    return permissionList.some(permission => permissions.includes(permission));
   };
 
   const hasAllPermissions = (permissionList: string[]): boolean => {
-    const result = permissionList.every(permission => permissions.includes(permission));
-    console.log(`hasAllPermissions([${permissionList.join(', ')}]):`, result);
-    return result;
+    return permissionList.every(permission => permissions.includes(permission));
   };
 
   useEffect(() => {
-    console.log('usePermissions - useEffect triggered, user changed:', user);
     fetchPermissions();
   }, [user, authLoading]);
-
-  console.log('usePermissions - current permissions:', permissions);
-  console.log('usePermissions - isLoading:', isLoading);
 
   return {
     permissions,

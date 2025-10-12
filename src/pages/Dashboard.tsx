@@ -89,15 +89,8 @@ export default function Dashboard() {
   const { data: metrics, refetch: refetchMetrics } = useQuery({
     queryKey: ['dashboard_metrics', selectedPeriod],
     queryFn: async () => {
-      console.log('🔄 Dashboard Metrics: Syncing USDT stock first...');
-      
       // Sync USDT stock first to ensure accurate stock values
-      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
-      if (usdtSyncError) {
-        console.error('❌ Dashboard Metrics: Error syncing USDT stock:', usdtSyncError);
-      } else {
-        console.log('✅ Dashboard Metrics: USDT stock synced successfully');
-      }
+      await supabase.rpc('sync_usdt_stock');
       
       // Get sales orders within date range
       const { data: salesData } = await supabase
@@ -131,12 +124,9 @@ export default function Dashboard() {
         .eq('status', 'ACTIVE');
 
       // Get stock inventory data using cost_price for total value calculation
-      console.log('🔄 Dashboard Metrics: Fetching stock data...');
       const { data: stockData } = await supabase
         .from('products')
         .select('id, cost_price, current_stock_quantity');
-      
-      console.log('📊 Dashboard Metrics: Stock data:', stockData);
 
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
@@ -171,45 +161,18 @@ export default function Dashboard() {
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
     queryKey: ['dashboard_asset_inventory', Date.now()], // Always fresh
     queryFn: async () => {
-      console.log('🔄 Dashboard: Syncing USDT stock first...');
-      
       // Sync USDT stock first
-      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
-      if (usdtSyncError) {
-        console.error('❌ Dashboard: Error syncing USDT stock:', usdtSyncError);
-      } else {
-        console.log('✅ Dashboard: USDT stock synced successfully');
-      }
+      await supabase.rpc('sync_usdt_stock');
       
-      // Sync general stock data 
-      console.log('🔄 Dashboard: Syncing product warehouse stock...');
-      const { error: stockSyncError } = await supabase.rpc('sync_usdt_stock');
-      if (stockSyncError) {
-        console.error('❌ Dashboard: Error syncing warehouse stock:', stockSyncError);
-      }
-      
-      console.log('🔄 Dashboard: Fetching wallets for asset inventory...');
       const { data: wallets } = await supabase
         .from('wallets')
         .select('*')
         .eq('is_active', true)
         .order('wallet_name');
 
-      console.log('🔄 Dashboard: Fetching products...');
       const { data: products } = await supabase
         .from('products')
         .select('*');
-
-      console.log('💰 Dashboard: Products fetched:', products?.length);
-      
-      // Log USDT product specifically
-      const usdtProduct = products?.find(p => p.code === 'USDT');
-      if (usdtProduct) {
-        console.log('💰 Dashboard: USDT Product:', {
-          current_stock_quantity: usdtProduct.current_stock_quantity,
-          name: usdtProduct.name
-        });
-      }
 
       // Create asset inventory showing wallet distribution (like Stock Management)
       const assetMap = new Map();
@@ -259,9 +222,7 @@ export default function Dashboard() {
         }
       });
 
-      const result = Array.from(assetMap.values()).filter(asset => asset.total_stock > 0);
-      console.log('✅ Dashboard: Final asset inventory data:', result);
-      return result;
+      return Array.from(assetMap.values()).filter(asset => asset.total_stock > 0);
     },
     refetchInterval: 10000, // Refresh every 10 seconds
     staleTime: 0, // Always consider data stale

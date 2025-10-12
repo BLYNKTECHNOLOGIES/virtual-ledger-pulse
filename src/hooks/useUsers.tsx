@@ -20,20 +20,12 @@ export function useUsers() {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      console.log('=== FETCHING USERS DEBUG ===');
-      console.log('Current auth user:', user);
-      console.log('Is admin:', isAdmin);
-      console.log('Has admin role:', hasRole('admin'));
       
       // Check if user is authenticated
       if (!user) {
-        console.log('No authenticated user found');
         setUsers([]);
         return;
       }
-
-      // For demo purposes, if no users exist in database, show demo data
-      console.log('Fetching all users from database...');
       
       const { data: allUsers, error: usersError } = await supabase
         .from('users')
@@ -63,9 +55,6 @@ export function useUsers() {
           )
         `)
         .order('created_at', { ascending: false });
-
-      console.log('Users query result:', allUsers);
-      console.log('Users query error:', usersError);
 
       if (usersError) {
         console.error('Error fetching users:', usersError);
@@ -97,13 +86,11 @@ export function useUsers() {
           }
         ];
         
-        console.log('Using demo users data:', demoUsers);
         setUsers(demoUsers);
         return;
       }
 
       if (!allUsers || allUsers.length === 0) {
-        console.log('No users found in database, creating demo data');
         
         // Create demo admin user data
         const demoUsers: DatabaseUser[] = [
@@ -135,8 +122,6 @@ export function useUsers() {
         setUsers(demoUsers);
         return;
       }
-
-      console.log(`Successfully fetched ${allUsers.length} users`);
       
       // Validate and format the users data
       const validatedUsers = allUsers.map((user) => ({
@@ -199,8 +184,6 @@ export function useUsers() {
     role_id?: string;
   }) => {
     try {
-      console.log('Creating user with data:', userData);
-
       // Check if user is authenticated
       if (!user) {
         throw new Error('You must be logged in to create users');
@@ -222,11 +205,8 @@ export function useUsers() {
       });
 
       if (error) {
-        console.error('Create user RPC error:', error);
         throw error;
       }
-
-      console.log('User created successfully with ID:', data);
 
       // If a role_id was specified, assign the role
       if (userData.role_id && data) {
@@ -271,8 +251,6 @@ export function useUsers() {
     role_id?: string;
   }) => {
     try {
-      console.log('Updating user:', userId, userData);
-
       // Check if user is authenticated
       if (!user) {
         throw new Error('You must be logged in to update users');
@@ -327,8 +305,6 @@ export function useUsers() {
         }
       }
 
-      console.log('User updated successfully');
-
       toast({
         title: "Success",
         description: "User updated successfully",
@@ -349,13 +325,6 @@ export function useUsers() {
 
   const deleteUser = async (userId: string) => {
     try {
-      console.log('=== DELETE USER PROCESS STARTED ===');
-      console.log('Starting deletion process for user:', userId);
-      console.log('Current authenticated user:', user);
-      console.log('Is admin:', isAdmin);
-      console.log('Has admin role:', hasRole('admin'));
-      console.log('Has user_management role:', hasRole('user_management'));
-
       // Check if user is authenticated
       if (!user) {
         throw new Error('You must be logged in to delete users');
@@ -375,8 +344,6 @@ export function useUsers() {
         });
         return { success: false, error: "Cannot delete system administrator account" };
       }
-
-      console.log('Calling delete function for user:', userId);
       
       // Use the new database function to handle deletion with proper permissions
       const { data, error } = await supabase.rpc('delete_user_with_cleanup', {
@@ -391,8 +358,6 @@ export function useUsers() {
       if (!data) {
         throw new Error('User deletion failed - no result returned');
       }
-
-      console.log('User deleted successfully:', data);
 
       toast({
         title: "Success",
@@ -413,12 +378,9 @@ export function useUsers() {
   };
 
   useEffect(() => {
-    console.log('useUsers hook initialized, user state:', user);
     if (user) {
-      console.log('User found, fetching users...');
       fetchUsers();
     } else {
-      console.log('No user found, setting empty users array');
       setUsers([]);
       setIsLoading(false);
     }

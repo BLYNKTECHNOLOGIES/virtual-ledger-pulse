@@ -24,9 +24,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const authenticateUser = async (email: string, password: string): Promise<User | null> => {
     try {
-      console.log('=== AUTHENTICATION DEBUG START ===');
-      console.log('Authenticating user with email:', email);
-
       // For demo admin user, use hardcoded credentials
       if (email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
         const demoUser: User = {
@@ -38,7 +35,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           roles: ['admin', 'Admin']
         };
         
-        console.log('Demo admin user authenticated:', demoUser);
         return demoUser;
       }
 
@@ -50,14 +46,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
 
       if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
-        console.log('Invalid credentials or user not found');
         return null;
       }
 
       const validationData = validationResult[0] as ValidationUser;
       
       if (!validationData?.is_valid) {
-        console.log('Credentials are invalid');
         return null;
       }
 
@@ -77,7 +71,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // If no roles found, try to get from users table role_id
       if (roles.length === 0) {
-        console.log('No roles found via user_roles, checking users.role_id...');
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select(`
@@ -105,8 +98,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         roles
       };
 
-      console.log('User authenticated successfully:', authenticatedUser);
-      console.log('User roles:', roles);
       return authenticatedUser;
     } catch (error) {
       console.error('Authentication error:', error);
@@ -116,8 +107,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const restoreSessionFromStorage = async () => {
     try {
-      console.log('Attempting to restore session from storage...');
-      
       // Check both localStorage methods
       const savedSession = localStorage.getItem('userSession');
       const isLoggedIn = localStorage.getItem('isLoggedIn');
@@ -128,7 +117,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const now = Date.now();
         
         if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
-          console.log('Restoring user session from localStorage:', sessionData.user);
           setUser(sessionData.user);
           setIsLoading(false);
           return;
@@ -147,7 +135,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             roles: ['admin', 'Admin']
           };
           
-          console.log('Restoring demo admin from old localStorage format:', demoUser);
           setUser(demoUser);
           
           // Update to new format
@@ -161,8 +148,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
       }
-      
-      console.log('No valid session found in storage');
     } catch (error) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');
@@ -180,7 +165,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const authenticatedUser = await authenticateUser(credentials.email, credentials.password);
       
       if (authenticatedUser) {
-        console.log('Setting user in state:', authenticatedUser);
         setUser(authenticatedUser);
         
         // Store in new format
@@ -196,8 +180,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('userEmail', authenticatedUser.email);
         localStorage.setItem('userRole', authenticatedUser.roles?.includes('admin') ? 'admin' : 'user');
         
-        console.log('Session stored successfully');
-        
         toast({
           title: "Success",
           description: `Logged in successfully as ${authenticatedUser.roles?.join(', ') || 'User'}`,
@@ -210,7 +192,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         return true;
       } else {
-        console.log('Authentication failed');
         toast({
           title: "Error",
           description: "Invalid email/username or password. Please check your credentials and try again.",
@@ -232,7 +213,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
-    console.log('Logging out user');
     setUser(null);
     localStorage.removeItem('userSession');
     localStorage.removeItem('isLoggedIn');
@@ -248,18 +228,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const hasRole = (role: string): boolean => {
     if (!user?.roles) {
-      console.log('No user or roles found for hasRole check');
       return false;
     }
     
-    const hasRoleResult = user.roles.some(userRole => 
+    return user.roles.some(userRole => 
       userRole.toLowerCase() === role.toLowerCase()
     );
-    
-    console.log(`Checking if user has role '${role}':`, hasRoleResult);
-    console.log('User roles:', user.roles);
-    
-    return hasRoleResult;
   };
 
   const isAdmin = hasRole('admin');
@@ -276,7 +250,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         expiresIn: 7 * 24 * 60 * 60 * 1000
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
-      console.log('Updated session in localStorage');
     }
   }, [user]);
 

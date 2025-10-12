@@ -15,13 +15,9 @@ export function AuthCheck({ children }: AuthCheckProps) {
       const isLoggedIn = localStorage.getItem('isLoggedIn');
       const userEmail = localStorage.getItem('userEmail');
       
-      console.log('AuthCheck - isLoggedIn:', isLoggedIn);
-      console.log('AuthCheck - userEmail:', userEmail);
-      
       if (isLoggedIn === 'true' && userEmail) {
         // Check if user is admin (demo credentials)
         const isAdmin = userEmail === 'blynkvirtualtechnologiespvtld@gmail.com';
-        console.log('AuthCheck - isAdmin:', isAdmin);
         
         // Store admin status for permission system
         if (isAdmin) {
@@ -47,7 +43,6 @@ export function AuthCheck({ children }: AuthCheckProps) {
         
         setIsAuthenticated(true);
       } else {
-        console.log('AuthCheck - redirecting to login');
         navigate('/website/login');
       }
     };

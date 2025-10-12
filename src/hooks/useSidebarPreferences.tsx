@@ -32,15 +32,11 @@ export function useSidebarPreferences() {
     queryKey: ['sidebar_preferences', userId],
     queryFn: async () => {
       if (!userId) {
-        console.log('useSidebarPreferences: No user ID available');
         return [];
       }
       
-      console.log('useSidebarPreferences: Fetching preferences for user', userId);
-      
       // If user ID is not a valid UUID, use localStorage instead
       if (!isValidUUID(userId)) {
-        console.log('useSidebarPreferences: Using localStorage for non-UUID user', userId);
         const stored = localStorage.getItem(`sidebar_order_${userId}`);
         return stored ? JSON.parse(stored) : [];
       }
@@ -53,15 +49,12 @@ export function useSidebarPreferences() {
           .maybeSingle();
         
         if (error && error.code !== 'PGRST116') {
-          console.error('useSidebarPreferences: Error fetching preferences, falling back to localStorage', error);
           const stored = localStorage.getItem(`sidebar_order_${userId}`);
           return stored ? JSON.parse(stored) : [];
         }
         
-        console.log('useSidebarPreferences: Fetched preferences', data?.sidebar_order);
         return data?.sidebar_order || [];
       } catch (error) {
-        console.error('useSidebarPreferences: Exception during fetch, falling back to localStorage', error);
         const stored = localStorage.getItem(`sidebar_order_${userId}`);
         return stored ? JSON.parse(stored) : [];
       }
@@ -73,15 +66,11 @@ export function useSidebarPreferences() {
   const savePreferencesMutation = useMutation({
     mutationFn: async (sidebarOrder: string[]) => {
       if (!userId) {
-        console.error('useSidebarPreferences: Cannot save - no user ID');
         throw new Error('User not authenticated');
       }
 
-      console.log('useSidebarPreferences: Saving order for user', userId, sidebarOrder);
-
       // If user ID is not a valid UUID, use localStorage
       if (!isValidUUID(userId)) {
-        console.log('useSidebarPreferences: Saving to localStorage for non-UUID user', userId);
         localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(sidebarOrder));
         setLocalOrder(sidebarOrder);
         return sidebarOrder;
@@ -96,27 +85,23 @@ export function useSidebarPreferences() {
           .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') {
-          console.error('useSidebarPreferences: Error checking existing preferences, saving to localStorage', selectError);
           localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(sidebarOrder));
           setLocalOrder(sidebarOrder);
           return sidebarOrder;
         }
 
         if (existing) {
-          console.log('useSidebarPreferences: Updating existing preferences');
           const { error } = await supabase
             .from('user_sidebar_preferences')
             .update({ sidebar_order: sidebarOrder })
             .eq('user_id', userId);
           
           if (error) {
-            console.error('useSidebarPreferences: Error updating preferences, saving to localStorage', error);
             localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(sidebarOrder));
             setLocalOrder(sidebarOrder);
             return sidebarOrder;
           }
         } else {
-          console.log('useSidebarPreferences: Creating new preferences');
           const { error } = await supabase
             .from('user_sidebar_preferences')
             .insert({
@@ -125,43 +110,28 @@ export function useSidebarPreferences() {
             });
           
           if (error) {
-            console.error('useSidebarPreferences: Error creating preferences, saving to localStorage', error);
             localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(sidebarOrder));
             setLocalOrder(sidebarOrder);
             return sidebarOrder;
           }
         }
         
-        console.log('useSidebarPreferences: Successfully saved preferences to database');
         return sidebarOrder;
       } catch (error) {
-        console.error('useSidebarPreferences: Save operation failed, falling back to localStorage', error);
         localStorage.setItem(`sidebar_order_${userId}`, JSON.stringify(sidebarOrder));
         setLocalOrder(sidebarOrder);
         return sidebarOrder;
       }
     },
-    onSuccess: (savedOrder) => {
-      console.log('useSidebarPreferences: Save successful, invalidating queries', savedOrder);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sidebar_preferences', userId] });
-    },
-    onError: (error) => {
-      console.error('useSidebarPreferences: Save mutation failed', error);
     },
   });
 
   const applySidebarOrder = (items: SidebarItem[]): SidebarItem[] => {
     const currentPreferences = preferences || localOrder;
     
-    console.log('useSidebarPreferences: Applying order to items', { 
-      currentPreferences, 
-      itemsCount: items.length,
-      preferencesType: typeof currentPreferences,
-      isArray: Array.isArray(currentPreferences)
-    });
-    
     if (!currentPreferences || !Array.isArray(currentPreferences) || currentPreferences.length === 0) {
-      console.log('useSidebarPreferences: No preferences found, using default order');
       return items;
     }
 
@@ -188,18 +158,11 @@ export function useSidebarPreferences() {
       }
     });
 
-    console.log('useSidebarPreferences: Applied order result', { 
-      original: items.length, 
-      ordered: orderedItems.length,
-      originalTitles: items.map(i => i.title),
-      orderedTitles: orderedItems.map(i => i.title)
-    });
     return orderedItems;
   };
 
   const saveSidebarOrder = (orderedItems: SidebarItem[]) => {
     const order = orderedItems.map(item => item.title);
-    console.log('useSidebarPreferences: Saving sidebar order', order);
     savePreferencesMutation.mutate(order);
   };
 

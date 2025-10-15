@@ -16,6 +16,7 @@ import { ReviewNeededOrders } from "@/components/purchase/ReviewNeededOrders";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
 import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
 import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export default function Purchase() {
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
@@ -85,11 +86,13 @@ export default function Purchase() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-              <Button onClick={() => setShowPurchaseOrderDialog(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                New Purchase Stock
-              </Button>
+              <PermissionGate permissions={["MANAGE_PURCHASE"]} showFallback={false}>
+                <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
+                <Button onClick={() => setShowPurchaseOrderDialog(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Purchase Stock
+                </Button>
+              </PermissionGate>
             </div>
           </div>
         </div>

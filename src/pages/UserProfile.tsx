@@ -83,6 +83,12 @@ export default function UserProfile() {
     reason: '',
     justification: ''
   });
+  const [settingsData, setSettingsData] = useState({
+    newUsername: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
 
   // Fetch employee data
   const { data: employeeData, isLoading: employeeLoading } = useQuery({
@@ -189,6 +195,77 @@ export default function UserProfile() {
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  });
+
+  // Update username mutation
+  const updateUsernameMutation = useMutation({
+    mutationFn: async (newUsername: string) => {
+      if (!user?.id) throw new Error('User not found');
+      
+      const { error } = await supabase
+        .from('users')
+        .update({ username: newUsername })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Username updated successfully" });
+      setSettingsData(prev => ({ ...prev, newUsername: '' }));
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update username", 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Update password mutation
+  const updatePasswordMutation = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      if (!user?.username) throw new Error('User not found');
+      
+      // First verify current password
+      const { data: validationData, error: validationError } = await supabase
+        .rpc('validate_user_credentials', {
+          input_username: user.username,
+          input_password: data.currentPassword
+        });
+      
+      if (validationError) throw validationError;
+      
+      const validation = validationData?.[0];
+      if (!validation?.is_valid) {
+        throw new Error('Current password is incorrect');
+      }
+      
+      // Update password using SQL function
+      const { error } = await supabase.rpc('update_user_password', {
+        user_id: user.id,
+        new_password: data.newPassword
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Password updated successfully" });
+      setSettingsData(prev => ({ 
+        ...prev, 
+        currentPassword: '', 
+        newPassword: '', 
+        confirmPassword: '' 
+      }));
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to update password", 
+        variant: "destructive" 
+      });
     }
   });
 
@@ -331,13 +408,14 @@ export default function UserProfile() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="salary">Salary & PF</TabsTrigger>
           <TabsTrigger value="banking">Banking</TabsTrigger>
           <TabsTrigger value="leaves">Leaves</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
@@ -782,6 +860,166 @@ export default function UserProfile() {
                     </Button>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Change Username Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Change Username
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Current Username</Label>
+                  <Input value={user?.username || ''} disabled />
+                </div>
+                <div>
+                  <Label htmlFor="newUsername">New Username</Label>
+                  <Input
+                    id="newUsername"
+                    value={settingsData.newUsername}
+                    onChange={(e) => setSettingsData(prev => ({ ...prev, newUsername: e.target.value }))}
+                    placeholder="Enter new username"
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!settingsData.newUsername.trim()) {
+                      toast({ 
+                        title: "Error", 
+                        description: "Please enter a new username", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    if (settingsData.newUsername === user?.username) {
+                      toast({ 
+                        title: "Error", 
+                        description: "New username must be different from current username", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    updateUsernameMutation.mutate(settingsData.newUsername);
+                  }}
+                  disabled={updateUsernameMutation.isPending}
+                  className="w-full"
+                >
+                  {updateUsernameMutation.isPending ? 'Updating...' : 'Update Username'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Change Password Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Change Password
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={settingsData.currentPassword}
+                    onChange={(e) => setSettingsData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    placeholder="Enter current password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={settingsData.newPassword}
+                    onChange={(e) => setSettingsData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={settingsData.confirmPassword}
+                    onChange={(e) => setSettingsData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                <Button
+                  onClick={() => {
+                    if (!settingsData.currentPassword || !settingsData.newPassword || !settingsData.confirmPassword) {
+                      toast({ 
+                        title: "Error", 
+                        description: "Please fill in all password fields", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    if (settingsData.newPassword !== settingsData.confirmPassword) {
+                      toast({ 
+                        title: "Error", 
+                        description: "New passwords do not match", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    if (settingsData.newPassword.length < 6) {
+                      toast({ 
+                        title: "Error", 
+                        description: "Password must be at least 6 characters long", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    updatePasswordMutation.mutate({
+                      currentPassword: settingsData.currentPassword,
+                      newPassword: settingsData.newPassword
+                    });
+                  }}
+                  disabled={updatePasswordMutation.isPending}
+                  className="w-full"
+                >
+                  {updatePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Security Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Security Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                  <h4 className="font-medium mb-2">Account Security</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Your account is secured with encrypted password storage.
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                  <h4 className="font-medium mb-2">Password Requirements</h4>
+                  <ul className="text-sm text-gray-600 dark:text-gray-400 list-disc list-inside">
+                    <li>Minimum 6 characters</li>
+                    <li>Use strong, unique passwords</li>
+                  </ul>
+                </div>
               </div>
             </CardContent>
           </Card>

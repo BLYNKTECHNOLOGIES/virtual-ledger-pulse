@@ -88,7 +88,16 @@ export function UserMenu() {
           <User className="mr-2 h-4 w-4" />
           <span>User Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
+        <DropdownMenuItem 
+          onClick={() => {
+            navigate('/profile');
+            // Small delay to ensure navigation completes before changing tab
+            setTimeout(() => {
+              const settingsTab = document.querySelector('[value="settings"]') as HTMLButtonElement;
+              settingsTab?.click();
+            }, 100);
+          }}
+        >
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>

@@ -10,8 +10,11 @@ import { ClearedClientsTab } from "@/components/risk-management/ClearedClientsTa
 import { BlacklistedClientsTab } from "@/components/risk-management/BlacklistedClientsTab";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useNavigate } from "react-router-dom";
 
 export default function RiskManagement() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("flagged");
 
   // Fetch risk summary statistics
@@ -61,6 +64,29 @@ export default function RiskManagement() {
   };
 
   return (
+    <PermissionGate
+      permissions={["VIEW_RISK_MANAGEMENT"]}
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Shield className="h-12 w-12 text-muted-foreground" />
+                <div>
+                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <p className="text-muted-foreground mt-2">
+                    You don't have permission to access Risk Management.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="flex-1 space-y-6 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <div>
@@ -180,5 +206,6 @@ export default function RiskManagement() {
         </TabsContent>
       </Tabs>
     </div>
+    </PermissionGate>
   );
 }

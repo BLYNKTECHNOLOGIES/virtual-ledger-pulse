@@ -21,14 +21,18 @@ import {
   Plus,
   Building,
   Calendar,
-  Target
+  Target,
+  Shield
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useNavigate } from "react-router-dom";
 
 export default function Financials() {
+  const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("current_month");
 
   // Calculate date range
@@ -457,5 +461,6 @@ export default function Financials() {
         </TabsContent>
       </Tabs>
     </div>
+    </PermissionGate>
   );
 }

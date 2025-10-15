@@ -1,9 +1,38 @@
 
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Shield } from "lucide-react";
 import { StatisticsTab } from "@/components/hrms/StatisticsTab";
+import { PermissionGate } from "@/components/PermissionGate";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function Statistics() {
+  const navigate = useNavigate();
+  
   return (
+    <PermissionGate
+      permissions={["VIEW_STATISTICS"]}
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Shield className="h-12 w-12 text-muted-foreground" />
+                <div>
+                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <p className="text-muted-foreground mt-2">
+                    You don't have permission to access Statistics & Analytics.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
@@ -32,5 +61,6 @@ export default function Statistics() {
       <StatisticsTab />
       </div>
     </div>
+    </PermissionGate>
   );
 }

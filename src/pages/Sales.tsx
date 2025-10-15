@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,8 +24,10 @@ import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
 import { PermissionGate } from "@/components/PermissionGate";
 
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function Sales() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
@@ -375,6 +377,29 @@ export default function Sales() {
   );
 
   return (
+    <PermissionGate
+      permissions={["VIEW_SALES"]}
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Shield className="h-12 w-12 text-muted-foreground" />
+                <div>
+                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <p className="text-muted-foreground mt-2">
+                    You don't have permission to access Sales Management.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
@@ -655,5 +680,6 @@ export default function Sales() {
         />
       </PermissionGate>
     </div>
+    </PermissionGate>
   );
 }

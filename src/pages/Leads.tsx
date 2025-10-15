@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Trash2, Phone, Mail, UserPlus, TrendingUp, CheckCircle } from "lucide-react";
+import { Search, Edit, Trash2, Phone, Mail, UserPlus, TrendingUp, CheckCircle, Shield } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption } from "@/components/ui/table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,8 +16,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AddLeadDialog } from "@/components/leads/AddLeadDialog";
 import { useNavigate } from "react-router-dom";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export default function Leads() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
   const [pendingOnly, setPendingOnly] = useState(false);
@@ -41,7 +43,6 @@ export default function Leads() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const { data: leads, refetch } = useQuery({
     queryKey: ['leads', timeFilter],
@@ -233,6 +234,29 @@ export default function Leads() {
   };
 
   return (
+    <PermissionGate
+      permissions={["VIEW_LEADS"]}
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Shield className="h-12 w-12 text-muted-foreground" />
+                <div>
+                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <p className="text-muted-foreground mt-2">
+                    You don't have permission to access Leads Management.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
@@ -626,5 +650,6 @@ export default function Leads() {
       </Dialog>
       </div>
     </div>
+    </PermissionGate>
   );
 }

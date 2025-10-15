@@ -88,6 +88,7 @@ export type Database = {
           created_at: string
           id: string
           IFSC: string | null
+          lien_amount: number
           status: string
           updated_at: string
         }
@@ -104,6 +105,7 @@ export type Database = {
           created_at?: string
           id?: string
           IFSC?: string | null
+          lien_amount?: number
           status?: string
           updated_at?: string
         }
@@ -120,6 +122,7 @@ export type Database = {
           created_at?: string
           id?: string
           IFSC?: string | null
+          lien_amount?: number
           status?: string
           updated_at?: string
         }

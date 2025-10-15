@@ -117,10 +117,10 @@ export default function Dashboard() {
         .from('clients')
         .select('id');
 
-      // Get active bank accounts and their balances
+      // Get active bank accounts and their available balances (total balance - lien amount)
       const { data: bankData } = await supabase
         .from('bank_accounts')
-        .select('balance')
+        .select('balance, lien_amount')
         .eq('status', 'ACTIVE');
 
       // Get stock inventory data using cost_price for total value calculation
@@ -135,8 +135,12 @@ export default function Dashboard() {
       const verifiedClients = clientsData?.length || 0;
       const totalClients = totalClientsData?.length || 0;
       
-      // Calculate total cash (sum of active bank balances + stock value using cost_price)
-      const bankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
+      // Calculate total cash (sum of available bank balances + stock value using cost_price)
+      // Available Balance = Total Balance - Lien Amount
+      const bankBalance = bankData?.reduce((sum, account) => {
+        const availableBalance = Number(account.balance) - Number(account.lien_amount || 0);
+        return sum + availableBalance;
+      }, 0) || 0;
       const stockValue = stockData?.reduce((sum, product) => {
         return sum + (Number(product.cost_price || 0) * Number(product.current_stock_quantity));
       }, 0) || 0;

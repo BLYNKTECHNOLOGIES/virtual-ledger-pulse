@@ -25,6 +25,7 @@ interface BankAccount {
   IFSC: string;
   branch?: string;
   balance: number;
+  lien_amount: number;
   status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
@@ -66,6 +67,7 @@ export function BankAccountManagement() {
     ifsc_code: "",
     branch: "",
     balance: "",
+    lien_amount: "",
     status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
     bank_account_holder_name: "",
     account_type: "SAVINGS" as "SAVINGS" | "CURRENT"
@@ -164,6 +166,7 @@ export function BankAccountManagement() {
         IFSC: accountData.ifsc_code,
         branch: accountData.branch || null,
         balance: parseFloat(accountData.balance),
+        lien_amount: parseFloat(accountData.lien_amount) || 0,
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
         account_type: accountData.account_type
@@ -198,6 +201,7 @@ export function BankAccountManagement() {
         IFSC: accountData.ifsc_code,
         branch: accountData.branch || null,
         balance: parseFloat(accountData.balance),
+        lien_amount: parseFloat(accountData.lien_amount) || 0,
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
         account_type: accountData.account_type,
@@ -250,6 +254,7 @@ export function BankAccountManagement() {
       ifsc_code: account.IFSC || "",
       branch: account.branch || "",
       balance: account.balance.toString(),
+      lien_amount: (account.lien_amount || 0).toString(),
       status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
       bank_account_holder_name: account.bank_account_holder_name || "",
       account_type: account.account_type || "SAVINGS"
@@ -275,6 +280,7 @@ export function BankAccountManagement() {
       ifsc_code: "",
       branch: "",
       balance: "",
+      lien_amount: "",
       status: "ACTIVE",
       bank_account_holder_name: "",
       account_type: "SAVINGS"
@@ -396,7 +402,7 @@ export function BankAccountManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="balance">Initial Balance (₹) *</Label>
+                  <Label htmlFor="balance">Total Balance (₹) *</Label>
                   <Input 
                     id="balance" 
                     type="number" 
@@ -404,15 +410,25 @@ export function BankAccountManagement() {
                     step="0.01" 
                     value={formData.balance} 
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))} 
-                    disabled={!!editingAccount}
-                    className={editingAccount ? "bg-gray-100 cursor-not-allowed" : ""}
                     required 
                   />
-                  {editingAccount && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      🔒 Initial balance cannot be changed once set. Use Bank Journal Entries to modify the current balance.
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Total Balance = Lien Amount + Available Balance
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="lien_amount">Lien Amount (₹)</Label>
+                  <Input 
+                    id="lien_amount" 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    value={formData.lien_amount} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, lien_amount: e.target.value }))} 
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Amount under lien/hold. Available Balance = Total Balance - Lien Amount
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="status">Account Status *</Label>
@@ -502,20 +518,22 @@ export function BankAccountManagement() {
                 <div className="text-center py-8">Loading bank accounts...</div>
               ) : (
                   <Table>
-                   <TableHeader>
-                     <TableRow>
-                       <TableHead>Account Name</TableHead>
-                       <TableHead>Account Holder</TableHead>
-                       <TableHead>Bank Name</TableHead>
-                       <TableHead>Account Type</TableHead>
-                       <TableHead>Account Number</TableHead>
-                       <TableHead>IFSC Code</TableHead>
-                       <TableHead>Branch</TableHead>
-                       <TableHead>Balance</TableHead>
-                       <TableHead>Status</TableHead>
-                       <TableHead>Actions</TableHead>
-                     </TableRow>
-                   </TableHeader>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Account Name</TableHead>
+                        <TableHead>Account Holder</TableHead>
+                        <TableHead>Bank Name</TableHead>
+                        <TableHead>Account Type</TableHead>
+                        <TableHead>Account Number</TableHead>
+                        <TableHead>IFSC Code</TableHead>
+                        <TableHead>Branch</TableHead>
+                        <TableHead>Total Balance</TableHead>
+                        <TableHead>Lien Amount</TableHead>
+                        <TableHead>Available Balance</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
                     <TableBody>
                       {filteredAndSortedAccounts?.map((account) => (
                         <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-gray-50" : ""}>
@@ -530,9 +548,15 @@ export function BankAccountManagement() {
                           <TableCell>{account.account_number}</TableCell>
                           <TableCell>{account.IFSC}</TableCell>
                           <TableCell>{account.branch || "-"}</TableCell>
-                           <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
-                             ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
-                           </TableCell>
+                          <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
+                            ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-orange-600 font-medium">
+                            ₹{((account.lien_amount || 0) as number).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-green-600 font-bold">
+                            ₹{((((account as any).computed_balance ?? account.balance) as number) - ((account.lien_amount || 0) as number)).toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
                               {account.status === "ACTIVE" ? (

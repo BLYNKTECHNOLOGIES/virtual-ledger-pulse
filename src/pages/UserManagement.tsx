@@ -335,12 +335,11 @@ export default function UserManagement() {
                 </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
+    </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
-        <Tabs defaultValue="users" className="space-y-6">
+      <Tabs defaultValue="users" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -650,7 +649,6 @@ export default function UserManagement() {
             </PermissionGate>
           </TabsContent>
         </Tabs>
-      </div>
 
       {/* Dialogs */}
       {editingUser && (

@@ -100,7 +100,6 @@ export default function Purchase() {
 
       {/* Action Buttons */}
 
-      <div className="container mx-auto max-w-7xl">
         <Card>
           <CardContent className="p-4">
             <div className="flex gap-4">
@@ -207,7 +206,6 @@ export default function Purchase() {
         open={showPurchaseOrderDialog} 
         onOpenChange={setShowPurchaseOrderDialog}
       />
-      </div>
     </div>
   );
 }

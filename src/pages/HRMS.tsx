@@ -34,10 +34,9 @@ export default function HRMS() {
               </div>
             </div>
           </div>
-        </div>
       </div>
+    </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
       <Tabs defaultValue="recruitment" className="space-y-6">
         <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="recruitment" className="flex items-center gap-2">
@@ -98,7 +97,6 @@ export default function HRMS() {
           <LeavesTab />
         </TabsContent>
       </Tabs>
-      </div>
     </div>
   );
 }

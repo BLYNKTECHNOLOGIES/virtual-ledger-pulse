@@ -4312,6 +4312,10 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: undefined
       }
+      update_user_password: {
+        Args: { new_password: string; user_id: string }
+        Returns: undefined
+      }
       user_has_permission: {
         Args:
           | {

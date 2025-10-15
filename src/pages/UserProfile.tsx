@@ -243,8 +243,8 @@ export default function UserProfile() {
         throw new Error('Current password is incorrect');
       }
       
-      // Update password using SQL function
-      const { error } = await supabase.rpc('update_user_password', {
+      // Update password using RPC (with type assertion as workaround until types regenerate)
+      const { error } = await (supabase.rpc as any)('update_user_password', {
         user_id: user.id,
         new_password: data.newPassword
       });

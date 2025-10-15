@@ -57,7 +57,6 @@ import Statistics from './pages/Statistics';
 import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
 import EMS from './pages/EMS';
-import Management from './pages/Management';
 import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
@@ -330,20 +329,6 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Leads />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/management",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <Management />
             </Layout>
           </AuthCheck>
         </AuthProvider>

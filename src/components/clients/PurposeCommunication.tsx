@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { PermissionGate } from "@/components/PermissionGate";
 
 interface PurposeCommunicationProps {
   clientId?: string;
@@ -190,11 +191,13 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         <div>
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-600">Operator Notes</label>
-            {!isEditingNotes && (
-              <Button size="sm" variant="ghost" onClick={handleNotesEdit}>
-                <Edit className="h-3 w-3" />
-              </Button>
-            )}
+            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+              {!isEditingNotes && (
+                <Button size="sm" variant="ghost" onClick={handleNotesEdit}>
+                  <Edit className="h-3 w-3" />
+                </Button>
+              )}
+            </PermissionGate>
           </div>
           {isEditingNotes ? (
             <div className="space-y-2 mt-1">
@@ -227,11 +230,13 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         <div>
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-gray-600">Next Follow-up</label>
-            {!isEditingFollowup && (
-              <Button size="sm" variant="ghost" onClick={handleFollowupEdit}>
-                <Edit className="h-3 w-3" />
-              </Button>
-            )}
+            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+              {!isEditingFollowup && (
+                <Button size="sm" variant="ghost" onClick={handleFollowupEdit}>
+                  <Edit className="h-3 w-3" />
+                </Button>
+              )}
+            </PermissionGate>
           </div>
           {isEditingFollowup ? (
             <div className="space-y-2 mt-1">
@@ -269,10 +274,12 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button size="sm" variant="outline" onClick={handleNotesEdit}>
-            <MessageCircle className="h-4 w-4 mr-1" />
-            Add Note
-          </Button>
+          <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+            <Button size="sm" variant="outline" onClick={handleNotesEdit}>
+              <MessageCircle className="h-4 w-4 mr-1" />
+              Add Note
+            </Button>
+          </PermissionGate>
           <Button size="sm" variant="outline">
             Communication Log
           </Button>

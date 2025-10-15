@@ -12,6 +12,7 @@ import { ViewFullProfileDialog } from "./ViewFullProfileDialog";
 import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
 import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
 import { KYCDocumentsDialog } from "./KYCDocumentsDialog";
+import { PermissionGate } from "@/components/PermissionGate";
 
 interface ClientOverviewPanelProps {
   clientId?: string;
@@ -261,15 +262,17 @@ export function ClientOverviewPanel({ clientId, isSeller }: ClientOverviewPanelP
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">
           <div className="grid grid-cols-2 gap-2">
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="w-full"
-              onClick={() => setShowEditDialog(true)}
-            >
-              <Tag className="h-4 w-4 mr-1" />
-              Edit Details
-            </Button>
+            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setShowEditDialog(true)}
+              >
+                <Tag className="h-4 w-4 mr-1" />
+                Edit Details
+              </Button>
+            </PermissionGate>
             <Button 
               size="sm" 
               variant="outline" 
@@ -283,26 +286,28 @@ export function ClientOverviewPanel({ clientId, isSeller }: ClientOverviewPanelP
           
           {/* Only show limit and cosmos buttons for buyers */}
           {!isSeller && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setShowLimitDialog(true)}
-              >
-                <IndianRupee className="h-4 w-4 mr-1" />
-                Request Limit Increase
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setShowCosmosDialog(true)}
-              >
-                <Settings className="h-4 w-4 mr-1" />
-                Cosmos Settings
-              </Button>
-            </div>
+            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowLimitDialog(true)}
+                >
+                  <IndianRupee className="h-4 w-4 mr-1" />
+                  Request Limit Increase
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setShowCosmosDialog(true)}
+                >
+                  <Settings className="h-4 w-4 mr-1" />
+                  Cosmos Settings
+                </Button>
+              </div>
+            </PermissionGate>
           )}
 
           <div className="grid grid-cols-1 gap-2">

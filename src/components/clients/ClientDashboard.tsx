@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
 import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -111,12 +112,14 @@ export function ClientDashboard() {
                       <Users className="h-5 w-5" />
                       Buyers Directory
                     </CardTitle>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add New Buyer
-                      </Button>
-                    </div>
+                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add New Buyer
+                        </Button>
+                      </div>
+                    </PermissionGate>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -207,12 +210,14 @@ export function ClientDashboard() {
                       <Users className="h-5 w-5" />
                       Sellers Directory
                     </CardTitle>
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add New Seller
-                      </Button>
-                    </div>
+                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add New Seller
+                        </Button>
+                      </div>
+                    </PermissionGate>
                   </div>
                 </CardHeader>
                 <CardContent>

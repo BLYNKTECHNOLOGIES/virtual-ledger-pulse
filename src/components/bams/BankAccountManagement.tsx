@@ -166,7 +166,7 @@ export function BankAccountManagement() {
         IFSC: accountData.ifsc_code,
         branch: accountData.branch || null,
         balance: parseFloat(accountData.balance),
-        lien_amount: parseFloat(accountData.lien_amount) || 0,
+        lien_amount: accountData.lien_amount ? parseFloat(accountData.lien_amount) : 0,
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
         account_type: accountData.account_type
@@ -201,7 +201,7 @@ export function BankAccountManagement() {
         IFSC: accountData.ifsc_code,
         branch: accountData.branch || null,
         balance: parseFloat(accountData.balance),
-        lien_amount: parseFloat(accountData.lien_amount) || 0,
+        lien_amount: accountData.lien_amount ? parseFloat(accountData.lien_amount) : 0,
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
         account_type: accountData.account_type,
@@ -424,7 +424,8 @@ export function BankAccountManagement() {
                     min="0" 
                     step="0.01" 
                     value={formData.lien_amount} 
-                    onChange={(e) => setFormData(prev => ({ ...prev, lien_amount: e.target.value }))} 
+                    onChange={(e) => setFormData(prev => ({ ...prev, lien_amount: e.target.value }))}
+                    placeholder="0.00"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Amount under lien/hold. Available Balance = Total Balance - Lien Amount

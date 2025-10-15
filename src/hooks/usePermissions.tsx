@@ -24,24 +24,21 @@ export function usePermissions() {
       // Check if user is demo admin (hardcoded permissions)
       if (user.id === 'demo-admin-id' || user.email === 'blynkvirtualtechnologiespvtld@gmail.com') {
         const adminPermissions = [
-          'VIEW_DASHBOARD',
-          'VIEW_SALES', 'MANAGE_SALES',
-          'VIEW_PURCHASE', 'MANAGE_PURCHASE',
-          'VIEW_BAMS', 'MANAGE_BAMS',
-          'VIEW_CLIENTS', 'MANAGE_CLIENTS',
-          'VIEW_LEADS', 'MANAGE_LEADS',
-          'VIEW_USER_MANAGEMENT', 'MANAGE_USER_MANAGEMENT',
-          'VIEW_HRMS', 'MANAGE_HRMS',
-          'VIEW_PAYROLL', 'MANAGE_PAYROLL',
-          'VIEW_COMPLIANCE', 'MANAGE_COMPLIANCE',
-          'VIEW_STOCK', 'MANAGE_STOCK',
-          'VIEW_ACCOUNTING', 'MANAGE_ACCOUNTING',
-          'VIEW_VIDEO_KYC', 'MANAGE_VIDEO_KYC',
-          'VIEW_KYC_APPROVALS', 'MANAGE_KYC_APPROVALS',
-          'VIEW_STATISTICS', 'MANAGE_STATISTICS',
-          'VIEW_FINANCIALS', 'MANAGE_FINANCIALS',
-          'VIEW_RISK_MANAGEMENT', 'MANAGE_RISK_MANAGEMENT',
-          'VIEW_EMS', 'MANAGE_EMS'
+          'dashboard_view',
+          'sales_view', 'sales_manage',
+          'purchase_view', 'purchase_manage',
+          'bams_view', 'bams_manage',
+          'clients_view', 'clients_manage',
+          'leads_view', 'leads_manage',
+          'user_management_view', 'user_management_manage',
+          'hrms_view', 'hrms_manage',
+          'payroll_view', 'payroll_manage',
+          'compliance_view', 'compliance_manage',
+          'stock_view', 'stock_manage',
+          'accounting_view', 'accounting_manage',
+          'video_kyc_view', 'video_kyc_manage',
+          'kyc_approvals_view', 'kyc_approvals_manage',
+          'statistics_view', 'statistics_manage'
         ];
         setPermissions(adminPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
@@ -60,30 +57,27 @@ export function usePermissions() {
         const isAdmin = user.roles?.some(role => role.toLowerCase() === 'admin');
         if (isAdmin) {
           const adminPermissions = [
-            'VIEW_DASHBOARD',
-            'VIEW_SALES', 'MANAGE_SALES',
-            'VIEW_PURCHASE', 'MANAGE_PURCHASE',
-            'VIEW_BAMS', 'MANAGE_BAMS',
-            'VIEW_CLIENTS', 'MANAGE_CLIENTS',
-            'VIEW_LEADS', 'MANAGE_LEADS',
-            'VIEW_USER_MANAGEMENT', 'MANAGE_USER_MANAGEMENT',
-            'VIEW_HRMS', 'MANAGE_HRMS',
-            'VIEW_PAYROLL', 'MANAGE_PAYROLL',
-            'VIEW_COMPLIANCE', 'MANAGE_COMPLIANCE',
-            'VIEW_STOCK', 'MANAGE_STOCK',
-            'VIEW_ACCOUNTING', 'MANAGE_ACCOUNTING',
-            'VIEW_VIDEO_KYC', 'MANAGE_VIDEO_KYC',
-            'VIEW_KYC_APPROVALS', 'MANAGE_KYC_APPROVALS',
-            'VIEW_STATISTICS', 'MANAGE_STATISTICS',
-            'VIEW_FINANCIALS', 'MANAGE_FINANCIALS',
-            'VIEW_RISK_MANAGEMENT', 'MANAGE_RISK_MANAGEMENT',
-            'VIEW_EMS', 'MANAGE_EMS'
+            'dashboard_view',
+            'sales_view', 'sales_manage',
+            'purchase_view', 'purchase_manage',
+            'bams_view', 'bams_manage',
+            'clients_view', 'clients_manage',
+            'leads_view', 'leads_manage',
+            'user_management_view', 'user_management_manage',
+            'hrms_view', 'hrms_manage',
+            'payroll_view', 'payroll_manage',
+            'compliance_view', 'compliance_manage',
+            'stock_view', 'stock_manage',
+            'accounting_view', 'accounting_manage',
+            'video_kyc_view', 'video_kyc_manage',
+            'kyc_approvals_view', 'kyc_approvals_manage',
+            'statistics_view', 'statistics_manage'
           ];
           setPermissions(adminPermissions);
           localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         } else {
           // Default permissions for regular users
-          const basicPermissions = ['VIEW_DASHBOARD'];
+          const basicPermissions = ['dashboard_view'];
           setPermissions(basicPermissions);
           localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
         }
@@ -95,7 +89,7 @@ export function usePermissions() {
         setPermissions(permissionStrings);
         localStorage.setItem('userPermissions', JSON.stringify(permissionStrings));
       } else {
-        const basicPermissions = ['VIEW_DASHBOARD'];
+        const basicPermissions = ['dashboard_view'];
         setPermissions(basicPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
       }
@@ -104,7 +98,7 @@ export function usePermissions() {
       console.error('Error fetching permissions:', error);
       
       // Fallback to basic permissions
-      const basicPermissions = ['VIEW_DASHBOARD'];
+      const basicPermissions = ['dashboard_view'];
       setPermissions(basicPermissions);
       localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
     } finally {

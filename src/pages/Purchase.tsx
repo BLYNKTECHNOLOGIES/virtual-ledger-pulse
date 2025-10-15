@@ -17,8 +17,11 @@ import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchase
 import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
 import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
 import { PermissionGate } from "@/components/PermissionGate";
+import { Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Purchase() {
+  const navigate = useNavigate();
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -61,6 +64,29 @@ export default function Purchase() {
   };
 
   return (
+    <PermissionGate
+      permissions={["purchase_view"]}
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <Shield className="h-12 w-12 text-muted-foreground" />
+                <div>
+                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <p className="text-muted-foreground mt-2">
+                    You don't have permission to access Purchase Management.
+                  </p>
+                </div>
+                <Button onClick={() => navigate("/dashboard")}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
@@ -86,7 +112,7 @@ export default function Purchase() {
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
-              <PermissionGate permissions={["MANAGE_PURCHASE"]} showFallback={false}>
+              <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
                 <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
                 <Button onClick={() => setShowPurchaseOrderDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -207,5 +233,6 @@ export default function Purchase() {
         onOpenChange={setShowPurchaseOrderDialog}
       />
     </div>
+    </PermissionGate>
   );
 }

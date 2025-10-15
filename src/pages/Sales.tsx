@@ -311,9 +311,9 @@ export default function Sales() {
               <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                    <td className="py-3 px-4">
                      <div className="flex gap-1">
-                       {order.payment_status === 'USER_PAYING' ? (
-                         // Special action for User Paying orders
-                         <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                        {order.payment_status === 'USER_PAYING' ? (
+                          // Special action for User Paying orders
+                          <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                            <Button 
                              variant="outline"
                              size="sm"
@@ -337,8 +337,8 @@ export default function Sales() {
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View
-                            </Button>
-                            <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                             </Button>
+                             <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                               <Button 
                                 variant="ghost"
                                 size="sm"
@@ -378,7 +378,7 @@ export default function Sales() {
 
   return (
     <PermissionGate
-      permissions={["VIEW_SALES"]}
+      permissions={["sales_view"]}
       fallback={
         <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

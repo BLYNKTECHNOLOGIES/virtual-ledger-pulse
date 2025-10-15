@@ -11,7 +11,7 @@ export default function VideoKYC() {
   
   return (
     <PermissionGate
-      permissions={["VIEW_VIDEO_KYC"]}
+      permissions={["video_kyc_view"]}
       fallback={
         <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

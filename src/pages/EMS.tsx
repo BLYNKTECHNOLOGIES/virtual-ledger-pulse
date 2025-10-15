@@ -115,7 +115,7 @@ export default function EMS() {
 
   return (
     <PermissionGate
-      permissions={["VIEW_EMS"]}
+      permissions={["hrms_view"]}
       fallback={
         <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

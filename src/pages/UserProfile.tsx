@@ -292,129 +292,140 @@ export default function UserProfile() {
     }
   };
 
-  if (employeeLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
-  if (!employeeData) {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardContent className="text-center py-12">
-            <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Employee Profile Found</h3>
-            <p className="text-gray-600">Please contact HR to set up your employee profile.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  // Calculate employee stats only if employee data exists
   const currentYear = new Date().getFullYear();
-  const joiningDate = new Date(employeeData.date_of_joining);
-  const totalWorkingDays = Math.floor((Date.now() - joiningDate.getTime()) / (1000 * 60 * 60 * 24));
+  const joiningDate = employeeData ? new Date(employeeData.date_of_joining) : new Date();
+  const totalWorkingDays = employeeData ? Math.floor((Date.now() - joiningDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
   const workingYears = Math.floor(totalWorkingDays / 365);
+
+  // Component to show when employee profile is not found
+  const NoEmployeeProfile = () => (
+    <Card>
+      <CardContent className="text-center py-12">
+        <User className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Employee Profile Found</h3>
+        <p className="text-gray-600">Please contact HR to set up your employee profile.</p>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-        <div className="flex items-center gap-6">
-          <Avatar className="h-24 w-24 border-4 border-white/20">
-            <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
-              {getInitials(employeeData.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">{employeeData.name}</h1>
-            <p className="text-lg opacity-90 mb-2">{employeeData.designation}</p>
-            <div className="flex items-center gap-4 text-sm opacity-80">
-              <div className="flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                <span>{employeeData.departments?.name || employeeData.department}</span>
+      {/* Header Section - Only show if employee data exists */}
+      {employeeData ? (
+        <>
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+            <div className="flex items-center gap-6">
+              <Avatar className="h-24 w-24 border-4 border-white/20">
+                <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
+                  {getInitials(employeeData.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold mb-2">{employeeData.name}</h1>
+                <p className="text-lg opacity-90 mb-2">{employeeData.designation}</p>
+                <div className="flex items-center gap-4 text-sm opacity-80">
+                  <div className="flex items-center gap-1">
+                    <Building2 className="h-4 w-4" />
+                    <span>{employeeData.departments?.name || employeeData.department}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>Joined {joiningDate.toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Timer className="h-4 w-4" />
+                    <span>{workingYears} years experience</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>Joined {joiningDate.toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Timer className="h-4 w-4" />
-                <span>{workingYears} years experience</span>
+              <div className="text-right">
+                <Badge className={`${getStatusColor(employeeData.status)} mb-2`}>
+                  {employeeData.status}
+                </Badge>
+                <p className="text-2xl font-bold">₹{employeeData.salary?.toLocaleString()}</p>
+                <p className="text-sm opacity-80">Current Salary</p>
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <Badge className={`${getStatusColor(employeeData.status)} mb-2`}>
-              {employeeData.status}
-            </Badge>
-            <p className="text-2xl font-bold">₹{employeeData.salary?.toLocaleString()}</p>
-            <p className="text-sm opacity-80">Current Salary</p>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <CalendarDays className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{totalWorkingDays}</p>
+                    <p className="text-sm text-gray-600">Total Working Days</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Target className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-sm text-gray-600">Leave Balance</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <PiggyBank className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">₹{(employeeData.salary * 0.12).toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">PF Contribution</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Wallet className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{bankAccounts.length}</p>
+                    <p className="text-sm text-gray-600">Bank Accounts</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      ) : (
+        <div className="bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl p-6 text-white">
+          <div className="flex items-center gap-6">
+            <Avatar className="h-24 w-24 border-4 border-white/20">
+              <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
+                {user?.firstName && user?.lastName 
+                  ? getInitials(`${user.firstName} ${user.lastName}`)
+                  : user?.email?.slice(0, 2).toUpperCase() || 'U'
+                }
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold mb-2">{user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username}</h1>
+              <p className="text-lg opacity-90">{user?.email}</p>
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalWorkingDays}</p>
-                <p className="text-sm text-gray-600">Total Working Days</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Target className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">0</p>
-                <p className="text-sm text-gray-600">Leave Balance</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <PiggyBank className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">₹{(employeeData.salary * 0.12).toLocaleString()}</p>
-                <p className="text-sm text-gray-600">PF Contribution</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Wallet className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{bankAccounts.length}</p>
-                <p className="text-sm text-gray-600">Bank Accounts</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      )}
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -430,56 +441,64 @@ export default function UserProfile() {
 
         {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Personal Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Employee ID</Label>
-                  <Input value={employeeData.employee_id} disabled />
+          {employeeData ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Employee ID</Label>
+                    <Input value={employeeData.employee_id} disabled />
+                  </div>
+                  <div>
+                    <Label>Full Name</Label>
+                    <Input value={employeeData.name} disabled />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input value={employeeData.email} disabled />
+                  </div>
+                  <div>
+                    <Label>Phone</Label>
+                    <Input value={employeeData.phone || 'Not provided'} disabled />
+                  </div>
+                  <div>
+                    <Label>Department</Label>
+                    <Input value={employeeData.departments?.name || employeeData.department} disabled />
+                  </div>
+                  <div>
+                    <Label>Position</Label>
+                    <Input value={employeeData.positions?.title || employeeData.designation} disabled />
+                  </div>
+                  <div>
+                    <Label>Date of Joining</Label>
+                    <Input value={new Date(employeeData.date_of_joining).toLocaleDateString()} disabled />
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Badge className={getStatusColor(employeeData.status)}>
+                      {employeeData.status}
+                    </Badge>
+                  </div>
                 </div>
-                <div>
-                  <Label>Full Name</Label>
-                  <Input value={employeeData.name} disabled />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input value={employeeData.email} disabled />
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <Input value={employeeData.phone || 'Not provided'} disabled />
-                </div>
-                <div>
-                  <Label>Department</Label>
-                  <Input value={employeeData.departments?.name || employeeData.department} disabled />
-                </div>
-                <div>
-                  <Label>Position</Label>
-                  <Input value={employeeData.positions?.title || employeeData.designation} disabled />
-                </div>
-                <div>
-                  <Label>Date of Joining</Label>
-                  <Input value={new Date(employeeData.date_of_joining).toLocaleDateString()} disabled />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <Badge className={getStatusColor(employeeData.status)}>
-                    {employeeData.status}
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <NoEmployeeProfile />
+          )}
         </TabsContent>
 
         {/* Salary & PF Tab */}
         <TabsContent value="salary" className="space-y-6">
+          {!employeeData ? (
+            <NoEmployeeProfile />
+          ) : (
+            <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -537,10 +556,16 @@ export default function UserProfile() {
               </CardContent>
             </Card>
           </div>
+          </>
+          )}
         </TabsContent>
 
         {/* Banking Tab */}
         <TabsContent value="banking" className="space-y-6">
+          {!employeeData ? (
+            <NoEmployeeProfile />
+          ) : (
+            <>
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Bank Accounts</h3>
             <Button 
@@ -648,10 +673,16 @@ export default function UserProfile() {
               </CardContent>
             </Card>
           )}
+          </>
+          )}
         </TabsContent>
 
         {/* Leaves Tab */}
         <TabsContent value="leaves" className="space-y-6">
+          {!employeeData ? (
+            <NoEmployeeProfile />
+          ) : (
+            <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -773,10 +804,16 @@ export default function UserProfile() {
               )}
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         {/* Requests Tab */}
         <TabsContent value="requests" className="space-y-6">
+          {!employeeData ? (
+            <NoEmployeeProfile />
+          ) : (
+            <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -838,10 +875,16 @@ export default function UserProfile() {
               </Button>
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         {/* Documents Tab */}
         <TabsContent value="documents" className="space-y-6">
+          {!employeeData ? (
+            <NoEmployeeProfile />
+          ) : (
+            <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -873,9 +916,11 @@ export default function UserProfile() {
               </div>
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
-        {/* Settings Tab */}
+        {/* Settings Tab - Always Accessible */}
         <TabsContent value="settings" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Change Username Card */}

@@ -19,7 +19,7 @@ export default function BAMS() {
   
   return (
     <PermissionGate 
-      permissions={["MANAGE_BANKING"]} 
+      permissions={["bams_view"]} 
       fallback={
         <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
           <Card className="max-w-md border-red-200 bg-red-50">

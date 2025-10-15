@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export function ExpensesIncomesTab() {
   // Fetch bank accounts from Supabase
@@ -101,7 +102,9 @@ export function ExpensesIncomesTab() {
 
   return (
     <div className="space-y-6">
-      <TransactionForm bankAccounts={bankAccounts || []} />
+      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+        <TransactionForm bankAccounts={bankAccounts || []} />
+      </PermissionGate>
       <TransactionSummary transactions={transactions || []} />
       
       {/* Recent Bank Transactions Only */}

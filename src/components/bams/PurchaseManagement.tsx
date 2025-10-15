@@ -14,6 +14,8 @@ import { Plus, Edit, Smartphone, Building, TrendingDown, AlertTriangle, Trash2, 
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PermissionGate } from "@/components/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface PurchaseMethod {
   id: string;
@@ -43,6 +45,7 @@ interface BankAccount {
 export function PurchaseManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const [purchaseMethods, setPurchaseMethods] = useState<PurchaseMethod[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -376,19 +379,22 @@ export function PurchaseManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Purchase Management</h2>
           <p className="text-gray-600">Manage payment methods for company purchases</p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            onClick={() => resetLimitsMutation.mutate()}
-            disabled={resetLimitsMutation.isPending}
-            className="flex items-center gap-2"
-          >
-            {resetLimitsMutation.isPending ? "Resetting..." : "Reset Limits"}
-          </Button>
-        </div>
+        <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => resetLimitsMutation.mutate()}
+              disabled={resetLimitsMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              {resetLimitsMutation.isPending ? "Resetting..." : "Reset Limits"}
+            </Button>
+          </div>
+        </PermissionGate>
       </div>
       
-      <div>
-        <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+        <div>
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
             resetForm();
@@ -700,6 +706,7 @@ export function PurchaseManagement() {
           </DialogContent>
         </Dialog>
       </div>
+      </PermissionGate>
 
       {/* Available Limits Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -836,23 +843,25 @@ export function PurchaseManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(method)}
-                        >
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(method.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(method)}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(method.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 );

@@ -15,6 +15,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/PermissionGate";
 
 interface SalesPaymentMethod {
   id: string;
@@ -820,7 +821,7 @@ export function PaymentMethodManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <ViewOnlyWrapper isViewOnly={isViewOnly}>
+                      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                         <Button
                           variant="outline"
                           size="sm"
@@ -830,7 +831,7 @@ export function PaymentMethodManagement() {
                           <Edit className="h-3 w-3" />
                           Edit
                         </Button>
-                      </ViewOnlyWrapper>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 ))}

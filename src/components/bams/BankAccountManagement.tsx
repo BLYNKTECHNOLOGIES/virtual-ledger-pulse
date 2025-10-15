@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CloseAccountDialog } from "./CloseAccountDialog";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/PermissionGate";
 
 interface BankAccount {
   id: string;
@@ -568,7 +569,7 @@ export function BankAccountManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <ViewOnlyWrapper isViewOnly={isViewOnly}>
+                            <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                               <div className="flex gap-2">
                                 <Button 
                                   variant="outline" 
@@ -589,7 +590,7 @@ export function BankAccountManagement() {
                                   Close
                                 </Button>
                               </div>
-                            </ViewOnlyWrapper>
+                            </PermissionGate>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -712,16 +713,18 @@ export function BankAccountManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="default" 
-                            size="sm" 
-                            onClick={() => approveAccountMutation.mutate(account.id)}
-                            disabled={approveAccountMutation.isPending}
-                            className="flex items-center gap-1"
-                          >
-                            <Eye className="h-3 w-3" />
-                            {approveAccountMutation.isPending ? "Approving..." : "Approve Account"}
-                          </Button>
+                          <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              onClick={() => approveAccountMutation.mutate(account.id)}
+                              disabled={approveAccountMutation.isPending}
+                              className="flex items-center gap-1"
+                            >
+                              <Eye className="h-3 w-3" />
+                              {approveAccountMutation.isPending ? "Approving..." : "Approve Account"}
+                            </Button>
+                          </PermissionGate>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TransferForm } from "./components/TransferForm";
 import { TransferHistory } from "./components/TransferHistory";
+import { PermissionGate } from "@/components/PermissionGate";
 
 export function ContraEntriesTab() {
   // Fetch bank accounts from Supabase
@@ -41,7 +42,9 @@ export function ContraEntriesTab() {
 
   return (
     <div className="space-y-6">
-      <TransferForm bankAccounts={bankAccounts || []} />
+      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+        <TransferForm bankAccounts={bankAccounts || []} />
+      </PermissionGate>
       <TransferHistory transfers={transfers || []} />
     </div>
   );

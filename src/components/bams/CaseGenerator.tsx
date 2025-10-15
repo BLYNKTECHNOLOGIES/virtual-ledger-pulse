@@ -80,6 +80,7 @@ export function CaseGenerator() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+  const hasManagePermission = hasPermission('bams_manage');
 
   const [formData, setFormData] = useState<CaseFormData>({
     case_type: '',
@@ -824,7 +825,7 @@ export function CaseGenerator() {
                 Generate and manage cases for bank account issues and disputes
               </p>
             </div>
-            <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
+            <ViewOnlyWrapper isViewOnly={!hasManagePermission}>
               <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="flex items-center gap-2">

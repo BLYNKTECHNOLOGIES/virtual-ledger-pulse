@@ -70,14 +70,6 @@ const items = [{
   bgColor: "bg-teal-100",
   permissions: ["leads_view", "leads_manage"]
 }, {
-  id: "management",
-  title: "Management",
-  url: "/management",
-  icon: Network,
-  color: "text-slate-600",
-  bgColor: "bg-slate-100",
-  permissions: ["hrms_view", "hrms_manage", "user_management_view"]
-}, {
   id: "user-management",
   title: "User Management",
   url: "/user-management",

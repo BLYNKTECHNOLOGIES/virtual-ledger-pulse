@@ -41,34 +41,19 @@ export default function Accounting() {
       }
     >
     <div className="min-h-screen bg-gray-50 p-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
-        <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-emerald-50 rounded-xl shadow-sm">
-                  <Calculator className="h-8 w-8 text-emerald-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                    Accounting Management
-                  </h1>
-                  <p className="text-slate-600 text-lg">
-                    Comprehensive accounting and financial records
-                  </p>
-                </div>
-              </div>
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-emerald-50 rounded-xl shadow-sm">
+              <Calculator className="h-8 w-8 text-emerald-600" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Accounting Management</h1>
+              <p className="text-gray-600 mt-1">Complete financial management and reporting</p>
             </div>
           </div>
         </div>
-      </div>
-
-      <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Accounting Management System</h1>
-        <p className="text-gray-600 mt-2">Complete financial management and reporting</p>
-      </div>
 
       <Tabs defaultValue="ledger" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">

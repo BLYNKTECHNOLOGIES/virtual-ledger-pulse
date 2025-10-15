@@ -79,7 +79,7 @@ export function LoginPage() {
       const { data: existingUser, error: userCheckError } = await supabase
         .from('users')
         .select('id, username, email, status, password_hash')
-        .eq('email', email.trim().toLowerCase())
+        .or(`email.eq.${email.trim().toLowerCase()},username.eq.${email.trim().toLowerCase()}`)
         .single();
 
       if (userCheckError || !existingUser) {
@@ -207,13 +207,13 @@ export function LoginPage() {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email or Username</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="Enter your email"
+                  type="text"
+                  placeholder="Enter your email or username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"

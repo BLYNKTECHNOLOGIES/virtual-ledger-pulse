@@ -89,12 +89,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         roles = ['user']; // Default role
       }
 
+      // Fetch user data including avatar_url
+      const { data: userData } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', validationData.user_id)
+        .single();
+
       const authenticatedUser: User = {
         id: validationData.user_id,
         username: validationData.username || email,
         email: validationData.email || email,
         firstName: validationData.first_name || undefined,
         lastName: validationData.last_name || undefined,
+        avatar_url: userData?.avatar_url || undefined,
         roles
       };
 

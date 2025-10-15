@@ -28,6 +28,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   roles?: string[];
+  avatar_url?: string;
 }
 
 // Add the correct database User type

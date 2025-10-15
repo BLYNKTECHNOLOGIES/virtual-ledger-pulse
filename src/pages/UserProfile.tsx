@@ -37,7 +37,8 @@ import {
   Timer,
   Wallet,
   CalendarDays,
-  Target
+  Target,
+  Upload
 } from 'lucide-react';
 
 interface BankAccount {
@@ -99,6 +100,8 @@ export default function UserProfile() {
     newPassword: '',
     confirmPassword: ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   // Fetch employee data
   const { data: employeeData, isLoading: employeeLoading } = useQuery({
@@ -279,6 +282,96 @@ export default function UserProfile() {
     }
   });
 
+  // Upload avatar mutation
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error('User not found');
+      
+      // Delete old avatar if exists
+      if (user.avatar_url) {
+        const oldPath = user.avatar_url.split('/').pop();
+        if (oldPath) {
+          await supabase.storage
+            .from('avatars')
+            .remove([`${user.id}/${oldPath}`]);
+        }
+      }
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+      
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+      
+      // Update user's avatar_url
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+      
+      if (updateError) throw updateError;
+      
+      return publicUrl;
+    },
+    onSuccess: (avatarUrl) => {
+      toast({ title: "Success", description: "Profile image updated successfully" });
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to upload image", 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Handle avatar file selection
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (5MB max)
+      if (file.size > 5242880) {
+        toast({
+          title: "Error",
+          description: "Image must be less than 5MB",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Validate file type
+      if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast({
+          title: "Error",
+          description: "Only JPG, PNG, and WebP images are allowed",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setAvatarFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
@@ -317,9 +410,13 @@ export default function UserProfile() {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
             <div className="flex items-center gap-6">
               <Avatar className="h-24 w-24 border-4 border-white/20">
-                <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
-                  {getInitials(employeeData.name)}
-                </AvatarFallback>
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+                ) : (
+                  <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
+                    {getInitials(employeeData.name)}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold mb-2">{employeeData.name}</h1>
@@ -412,12 +509,16 @@ export default function UserProfile() {
         <div className="bg-gradient-to-r from-gray-600 to-gray-700 rounded-xl p-6 text-white">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24 border-4 border-white/20">
-              <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
-                {user?.firstName && user?.lastName 
-                  ? getInitials(`${user.firstName} ${user.lastName}`)
-                  : user?.email?.slice(0, 2).toUpperCase() || 'U'
-                }
-              </AvatarFallback>
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+              ) : (
+                <AvatarFallback className="text-2xl font-bold bg-white/20 text-white">
+                  {user?.firstName && user?.lastName 
+                    ? getInitials(`${user.firstName} ${user.lastName}`)
+                    : user?.email?.slice(0, 2).toUpperCase() || 'U'
+                  }
+                </AvatarFallback>
+              )}
             </Avatar>
             <div className="flex-1">
               <h1 className="text-3xl font-bold mb-2">{user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.username}</h1>
@@ -923,6 +1024,70 @@ export default function UserProfile() {
         {/* Settings Tab - Always Accessible */}
         <TabsContent value="settings" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Profile Image Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col items-center gap-4">
+                  <Avatar className="h-32 w-32 border-4 border-border">
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Preview" className="object-cover w-full h-full" />
+                    ) : user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+                    ) : (
+                      <AvatarFallback className="text-3xl font-bold">
+                        {user?.firstName && user?.lastName 
+                          ? getInitials(`${user.firstName} ${user.lastName}`)
+                          : user?.email?.slice(0, 2).toUpperCase() || 'U'
+                        }
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  
+                  <div className="w-full space-y-2">
+                    <Label htmlFor="avatar">Upload New Image</Label>
+                    <Input
+                      id="avatar"
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleAvatarChange}
+                      disabled={uploadAvatarMutation.isPending}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      JPG, PNG or WebP. Max size 5MB.
+                    </p>
+                  </div>
+                  
+                  {avatarFile && (
+                    <div className="flex gap-2 w-full">
+                      <Button
+                        onClick={() => uploadAvatarMutation.mutate(avatarFile)}
+                        disabled={uploadAvatarMutation.isPending}
+                        className="flex-1"
+                      >
+                        {uploadAvatarMutation.isPending ? 'Uploading...' : 'Upload Image'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setAvatarFile(null);
+                          setAvatarPreview(null);
+                        }}
+                        disabled={uploadAvatarMutation.isPending}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Change Username Card */}
             <Card>
               <CardHeader>

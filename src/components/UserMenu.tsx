@@ -40,9 +40,13 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarFallback className={`text-white ${isAdmin ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
-              {getInitials(user.firstName, user.lastName, user.email)}
-            </AvatarFallback>
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+            ) : (
+              <AvatarFallback className={`text-white ${isAdmin ? 'bg-gradient-to-r from-red-600 to-red-700' : 'bg-gradient-to-r from-blue-600 to-purple-600'}`}>
+                {getInitials(user.firstName, user.lastName, user.email)}
+              </AvatarFallback>
+            )}
           </Avatar>
           {isAdmin && (
             <div className="absolute -top-1 -right-1">

@@ -13,8 +13,6 @@ export function useAverageCost() {
   return useQuery({
     queryKey: ['average_cost_calculation'],
     queryFn: async () => {
-      console.log('🔄 Calculating average costs...');
-      
       // Get all completed purchase orders with their items
       const { data: purchaseOrders, error: poError } = await supabase
         .from('purchase_orders')
@@ -33,11 +31,8 @@ export function useAverageCost() {
         .eq('status', 'COMPLETED');
 
       if (poError) {
-        console.error('Error fetching purchase orders:', poError);
         throw poError;
       }
-
-      console.log('Purchase orders for cost calculation:', purchaseOrders);
 
       // Calculate average cost per product
       const costCalculations = new Map<string, { totalQuantity: number; totalCost: number; }>();
@@ -64,7 +59,6 @@ export function useAverageCost() {
         average_cost: data.totalQuantity > 0 ? data.totalCost / data.totalQuantity : 0
       }));
 
-      console.log('Calculated average costs:', result);
       return result;
     },
     refetchInterval: 30000, // Refetch every 30 seconds

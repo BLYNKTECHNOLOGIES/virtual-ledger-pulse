@@ -33,7 +33,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
     if (url) {
       window.open(url, '_blank');
     } else {
-      console.log(`No ${docType} document found`);
+      
     }
   };
 

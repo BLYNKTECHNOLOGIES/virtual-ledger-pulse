@@ -58,7 +58,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
         status: 'PENDING'
       };
 
-      console.log("Limit increase request:", requestData);
+      
 
       toast({
         title: "Request Submitted",

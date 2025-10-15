@@ -113,7 +113,7 @@ export function WalletManagementTab() {
         description: "Failed to add wallet", 
         variant: "destructive" 
       });
-      console.error('Error adding wallet:', error);
+      
     }
   });
 
@@ -137,7 +137,7 @@ export function WalletManagementTab() {
         description: "Failed to delete wallet", 
         variant: "destructive" 
       });
-      console.error('Error deleting wallet:', error);
+      
     }
   });
 
@@ -192,7 +192,7 @@ export function WalletManagementTab() {
         description: "Failed to add transaction", 
         variant: "destructive" 
       });
-      console.error('Error adding transaction:', error);
+      
     }
   });
 
@@ -237,7 +237,7 @@ export function WalletManagementTab() {
         description: "Failed to sync USDT stock", 
         variant: "destructive" 
       });
-      console.error('Error syncing stock:', error);
+      
     }
   });
 

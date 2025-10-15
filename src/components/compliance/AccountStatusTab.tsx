@@ -71,13 +71,6 @@ export function AccountStatusTab() {
   const handleSubmitInvestigation = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('=== INVESTIGATION SUBMISSION DEBUG ===');
-    console.log('Form data:', investigationData);
-    console.log('Selected account:', selectedAccount);
-    
-    // Validate required fields
-    if (!investigationData.type || !investigationData.reason.trim()) {
-      console.log('Validation failed - missing required fields');
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields (Investigation Type and Reason).",
@@ -86,7 +79,7 @@ export function AccountStatusTab() {
       return;
     }
     
-    console.log('Validation passed, attempting database insert...');
+    
     
     try {
       const insertData = {
@@ -99,14 +92,14 @@ export function AccountStatusTab() {
         status: 'ACTIVE'
       };
       
-      console.log('Insert data:', insertData);
+      
       
       const { data, error } = await supabase
         .from('account_investigations')
         .insert(insertData)
         .select();
 
-      console.log('Database response:', { data, error });
+      
 
       if (error) {
         console.error('Database error details:', error);
@@ -117,7 +110,7 @@ export function AccountStatusTab() {
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
 
-      console.log('Investigation created successfully, closing dialog...');
+      
 
       toast({
         title: "Investigation Started",
@@ -129,7 +122,6 @@ export function AccountStatusTab() {
       setShowInvestigationDialog(false);
       setSelectedAccount(null);
       
-      console.log('Dialog should be closed now');
     } catch (error: any) {
       console.error('=== INVESTIGATION ERROR ===');
       console.error('Error object:', error);
@@ -468,13 +460,9 @@ export function AccountStatusTab() {
                 type="button" 
                 onClick={async (e) => {
                   e.preventDefault();
-                  console.log('=== START INVESTIGATION BUTTON CLICKED ===');
-                  console.log('Current investigation data:', investigationData);
-                  console.log('Selected account:', selectedAccount);
                   
                   // Validate required fields
                   if (!investigationData.type || !investigationData.reason.trim()) {
-                    console.log('Validation failed - missing fields');
                     toast({
                       title: "Validation Error", 
                       description: "Please fill in all required fields (Investigation Type and Reason).",
@@ -483,10 +471,7 @@ export function AccountStatusTab() {
                     return; // Don't close dialog on validation failure
                   }
                   
-                  console.log('Validation passed, proceeding with investigation creation...');
-                  
                   try {
-                    console.log('Inserting investigation data...');
                     const { error } = await supabase
                       .from('account_investigations')
                       .insert({
@@ -500,7 +485,6 @@ export function AccountStatusTab() {
                       });
 
                     if (error) {
-                      console.error('Database error:', error);
                       toast({
                         title: "Error",
                         description: error.message || "Failed to start investigation. Please try again.",
@@ -508,8 +492,6 @@ export function AccountStatusTab() {
                       });
                       return; // Don't close dialog on error
                     }
-
-                    console.log('Investigation created successfully');
                     
                     toast({
                       title: "Investigation Started",
@@ -530,7 +512,6 @@ export function AccountStatusTab() {
                      });
                      
                    } catch (error: any) {
-                     console.error('Unexpected error:', error);
                      toast({
                        title: "Error",
                        description: error.message || "Failed to start investigation. Please try again.",
@@ -540,11 +521,9 @@ export function AccountStatusTab() {
                    }
                    
                    // Only close dialog if we reach here (success case)
-                   console.log('Closing dialog and resetting state...');
                    setShowInvestigationDialog(false);
                    setInvestigationData({ type: "", reason: "", priority: "MEDIUM", notes: "" });
                    setSelectedAccount(null);
-                   console.log('Dialog should be closed now');
                    
                    // Refresh data
                    queryClient.invalidateQueries({ queryKey: ['active_investigations'] });

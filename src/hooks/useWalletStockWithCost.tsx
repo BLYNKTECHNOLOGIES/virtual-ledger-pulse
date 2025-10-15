@@ -35,8 +35,6 @@ export function useWalletStockWithCost() {
   return useQuery({
     queryKey: ['wallet_stock_with_cost', averageCosts],
     queryFn: async () => {
-      console.log('🔄 Fetching wallet stock with cost data...');
-      
       const { data: wallets, error } = await supabase
         .from('wallets')
         .select('*')
@@ -44,12 +42,8 @@ export function useWalletStockWithCost() {
         .order('wallet_name');
 
       if (error) {
-        console.error('Error fetching wallets:', error);
         throw error;
       }
-
-      console.log('Raw wallet data:', wallets);
-      console.log('Average costs:', averageCosts);
 
       // Convert wallets to stock format with cost information
       const result: WalletStockWithCost[] = wallets?.map(wallet => {
@@ -65,8 +59,6 @@ export function useWalletStockWithCost() {
           total_value: (wallet.current_balance || 0) * averageCost
         };
       }) || [];
-      
-      console.log('Processed wallet stock with costs:', result);
       
       return result;
     },
@@ -114,8 +106,6 @@ export function useProductStockWithCost() {
 
     return acc;
   }, {} as Record<string, ProductStockWithCost>);
-
-  console.log('Product summaries with costs:', productSummaries);
 
   return {
     data: productSummaries ? Object.values(productSummaries) : undefined,

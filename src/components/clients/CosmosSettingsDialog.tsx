@@ -64,7 +64,7 @@ export function CosmosSettingsDialog({ open, onOpenChange, client }: CosmosSetti
     setIsSubmitting(true);
     try {
       // Here you would typically save these settings to the backend
-      console.log("Cosmos settings for client", client.id, ":", settings);
+      
 
       toast({
         title: "Settings Updated",

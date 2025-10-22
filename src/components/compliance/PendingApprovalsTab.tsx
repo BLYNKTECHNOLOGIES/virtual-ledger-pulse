@@ -25,7 +25,7 @@ export function PendingApprovalsTab() {
         .from('investigation_approvals')
         .select(`
           *,
-          bank_cases!inner(
+          bank_cases(
             id,
             bank_account_id,
             case_type,
@@ -43,7 +43,7 @@ export function PendingApprovalsTab() {
         .order('submitted_at', { ascending: false });
 
       if (error) throw error;
-      return data;
+      return data as any[];
     },
   });
 

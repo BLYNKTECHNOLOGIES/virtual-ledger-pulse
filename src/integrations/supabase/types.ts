@@ -1270,6 +1270,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_investigation_approvals_bank_cases"
+            columns: ["investigation_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "investigation_approvals_investigation_id_fkey"
             columns: ["investigation_id"]
             isOneToOne: false

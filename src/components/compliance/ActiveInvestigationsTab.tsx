@@ -255,24 +255,27 @@ export function ActiveInvestigationsTab() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="border-red-100 text-red-500 hover:bg-red-50"
-                        onClick={() => handleViewDetails(investigation)}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Update Status
-                      </Button>
+                      {investigation.status === 'PENDING_APPROVAL' ? (
+                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                          <CheckCircle2 className="h-4 w-4 mr-2 inline" />
+                          Submitted for Approval
+                        </Badge>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-red-100 text-red-500 hover:bg-red-50"
+                          onClick={() => handleViewDetails(investigation)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Update Status
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
                         className="border-blue-100 text-blue-500 hover:bg-blue-50"
-                        onClick={() => completeInvestigationMutation.mutate({ 
-                          caseId: investigation.id, 
-                          resolutionNotes: "Investigation completed through active investigations tab" 
-                        })}
-                        disabled={completeInvestigationMutation.isPending}
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />
                         View Timeline
@@ -331,24 +334,27 @@ export function ActiveInvestigationsTab() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="border-emerald-100 text-emerald-500 hover:bg-emerald-50"
-                        onClick={() => handleViewDetails(investigation)}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Update Status
-                      </Button>
+                      {investigation.status === 'PENDING_APPROVAL' ? (
+                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                          <CheckCircle2 className="h-4 w-4 mr-2 inline" />
+                          Submitted for Approval
+                        </Badge>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-emerald-100 text-emerald-500 hover:bg-emerald-50"
+                          onClick={() => handleViewDetails(investigation)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Update Status
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
                         className="border-blue-100 text-blue-500 hover:bg-blue-50"
-                        onClick={() => completeInvestigationMutation.mutate({ 
-                          caseId: investigation.id, 
-                          resolutionNotes: "Investigation completed through active investigations tab" 
-                        })}
-                        disabled={completeInvestigationMutation.isPending}
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />
                         View Timeline
@@ -407,24 +413,27 @@ export function ActiveInvestigationsTab() {
                       </div>
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="border-orange-100 text-orange-500 hover:bg-orange-50"
-                        onClick={() => handleViewDetails(investigation)}
-                      >
-                        <RotateCcw className="h-4 w-4 mr-2" />
-                        Update Status
-                      </Button>
+                      {investigation.status === 'PENDING_APPROVAL' ? (
+                        <Badge className="bg-orange-50 text-orange-600 border border-orange-200 px-4 py-2">
+                          <CheckCircle2 className="h-4 w-4 mr-2 inline" />
+                          Submitted for Approval
+                        </Badge>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="border-orange-100 text-orange-500 hover:bg-orange-50"
+                          onClick={() => handleViewDetails(investigation)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Update Status
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
                         className="border-blue-100 text-blue-500 hover:bg-blue-50"
-                        onClick={() => completeInvestigationMutation.mutate({ 
-                          caseId: investigation.id, 
-                          resolutionNotes: "Investigation completed through active investigations tab" 
-                        })}
-                        disabled={completeInvestigationMutation.isPending}
+                        onClick={() => handleViewDetails(investigation)}
                       >
                         <History className="h-4 w-4 mr-2" />
                         View Timeline

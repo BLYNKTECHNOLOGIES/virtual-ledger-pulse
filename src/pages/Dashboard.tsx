@@ -13,10 +13,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { usePermissions } from "@/hooks/usePermissions";
-import { AdminDashboard } from "@/components/dashboard/AdminDashboard";
-import { SalesDashboard } from "@/components/dashboard/SalesDashboard";
-import { HRDashboard } from "@/components/dashboard/HRDashboard";
 
 interface Widget {
   id: string;
@@ -32,7 +28,6 @@ export default function Dashboard() {
   const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const { toast } = useToast();
-  const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
 
   // Default widgets with better selection
   const defaultWidgets = [
@@ -343,33 +338,6 @@ export default function Dashboard() {
     }
   };
 
-  // Show loading state while checking permissions
-  if (permissionsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Render role-specific dashboards based on permissions
-  const isAdmin = hasPermission('user_management_manage');
-  const isSalesManager = hasAnyPermission(['sales_manage', 'sales_view']) && !isAdmin;
-  const isHRManager = hasAnyPermission(['hrms_manage', 'payroll_manage']) && !isAdmin;
-
-  if (isAdmin) {
-    return <AdminDashboard />;
-  }
-
-  if (isSalesManager) {
-    return <SalesDashboard />;
-  }
-
-  if (isHRManager) {
-    return <HRDashboard />;
-  }
-
-  // Default dashboard for users with basic permissions
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Clean White Header */}

@@ -70,7 +70,7 @@ export function BankAccountManagement() {
     branch: "",
     balance: "",
     lien_amount: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
+    status: "PENDING_APPROVAL" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
     bank_account_holder_name: "",
     account_type: "SAVINGS" as "SAVINGS" | "CURRENT",
     subsidiary_id: ""
@@ -194,9 +194,10 @@ export function BankAccountManagement() {
     onSuccess: () => {
       toast({
         title: "Bank Account Created",
-        description: "New bank account has been successfully added."
+        description: "New bank account has been submitted for approval."
       });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
       resetForm();
       setIsAddDialogOpen(false);
     },
@@ -234,6 +235,7 @@ export function BankAccountManagement() {
         description: "Bank account has been successfully updated."
       });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
       resetForm();
       setIsAddDialogOpen(false);
       setEditingAccount(null);
@@ -312,7 +314,7 @@ export function BankAccountManagement() {
       branch: "",
       balance: "",
       lien_amount: "",
-      status: "ACTIVE",
+      status: "PENDING_APPROVAL",
       bank_account_holder_name: "",
       account_type: "SAVINGS",
       subsidiary_id: ""

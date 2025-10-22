@@ -41,7 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // For other users, try database authentication
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
-          input_username: email.trim().toLowerCase(),
+          input_username: email.trim(),
           input_password: password
         });
 

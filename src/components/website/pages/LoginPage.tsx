@@ -79,7 +79,7 @@ export function LoginPage() {
       const { data: existingUser, error: userCheckError } = await supabase
         .from('users')
         .select('id, username, email, status, password_hash')
-        .or(`email.eq.${email.trim().toLowerCase()},username.eq.${email.trim().toLowerCase()}`)
+        .or(`email.ilike.${email.trim()},username.ilike.${email.trim()}`)
         .single();
 
       if (userCheckError || !existingUser) {
@@ -90,7 +90,7 @@ export function LoginPage() {
 
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
-          input_username: email.trim().toLowerCase(),
+          input_username: email.trim(),
           input_password: password
         });
 

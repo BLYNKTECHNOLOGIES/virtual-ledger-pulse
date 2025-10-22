@@ -54,7 +54,8 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
             max_limit,
             payment_limit,
             current_usage
-          )
+          ),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('status', 'PENDING')
         .order('created_at', { ascending: false });

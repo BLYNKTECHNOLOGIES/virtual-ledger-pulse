@@ -31,7 +31,10 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('*')
+        .select(`
+          *,
+          created_by_user:users!created_by(username, first_name, last_name)
+        `)
         .eq('status', 'REVIEW_NEEDED')
         .order('created_at', { ascending: false });
       

@@ -35,7 +35,8 @@ export function ExpensesIncomesTab() {
         .from('bank_transactions')
         .select(`
           *,
-          bank_accounts!bank_account_id(account_name, bank_name)
+          bank_accounts!bank_account_id(account_name, bank_name),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
         .order('created_at', { ascending: false });
@@ -155,6 +156,11 @@ export function ExpensesIncomesTab() {
                       {transaction.reference_number && (
                         <div className="text-xs text-gray-400">
                           Ref: {transaction.reference_number}
+                        </div>
+                      )}
+                      {transaction.created_by_user && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          By: {transaction.created_by_user.first_name || transaction.created_by_user.username}
                         </div>
                       )}
                     </div>

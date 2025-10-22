@@ -51,7 +51,10 @@ export default function Sales() {
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
-        .select('*')
+        .select(`
+          *,
+          created_by_user:users!created_by(username, first_name, last_name)
+        `)
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
@@ -285,6 +288,7 @@ export default function Sales() {
             <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
             <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
             <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
             <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
             <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
           </tr>
@@ -308,6 +312,17 @@ export default function Sales() {
               <td className="py-3 px-4">{order.quantity || 1}</td>
               <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
               <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
+              <td className="py-3 px-4">
+                <div className="text-sm">
+                  {order.created_by_user ? (
+                    <span className="font-medium text-gray-700">
+                      {order.created_by_user.first_name || order.created_by_user.username}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">N/A</span>
+                  )}
+                </div>
+              </td>
               <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
                    <td className="py-3 px-4">
                      <div className="flex gap-1">

@@ -338,6 +338,7 @@ export type Database = {
           bank_account_id: string
           category: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           reference_number: string | null
@@ -352,6 +353,7 @@ export type Database = {
           bank_account_id: string
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           reference_number?: string | null
@@ -366,6 +368,7 @@ export type Database = {
           bank_account_id?: string
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           reference_number?: string | null
@@ -388,6 +391,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -1452,6 +1462,7 @@ export type Database = {
       journal_entries: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           entry_date: string
           id: string
@@ -1461,6 +1472,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           entry_date: string
           id?: string
@@ -1470,6 +1482,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           entry_date?: string
           id?: string
@@ -1477,7 +1490,15 @@ export type Database = {
           status?: string
           total_amount?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_entry_lines: {
         Row: {
@@ -3490,6 +3511,7 @@ export type Database = {
       stock_transactions: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           product_id: string
           quantity: number
@@ -3503,6 +3525,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           product_id: string
           quantity: number
@@ -3516,6 +3539,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           product_id?: string
           quantity?: number
@@ -3528,6 +3552,13 @@ export type Database = {
           unit_price?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_transactions_product_id_fkey"
             columns: ["product_id"]

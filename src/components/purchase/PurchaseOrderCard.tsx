@@ -25,6 +25,11 @@ interface PurchaseOrder {
   bank_account_name?: string;
   payment_method_type?: string;
   purchase_payment_method?: any;
+  created_by_user?: {
+    username: string;
+    first_name?: string;
+    last_name?: string;
+  };
   purchase_order_items?: Array<{
     id: string;
     product_id: string;
@@ -120,6 +125,14 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
             <span className="text-gray-500">Price per Unit:</span>
             <p className="font-medium">₹{Number(averagePricePerUnit).toLocaleString()}</p>
           </div>
+          {order.created_by_user && (
+            <div>
+              <span className="text-gray-500">Created By:</span>
+              <p className="font-medium text-blue-600">
+                {order.created_by_user.first_name || order.created_by_user.username}
+              </p>
+            </div>
+          )}
         </div>
 
         {order.product_name && (

@@ -39,7 +39,8 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
           bank_account:bank_account_id(
             account_name,
             bank_name
-          )
+          ),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('status', 'COMPLETED')
         .order('created_at', { ascending: false });

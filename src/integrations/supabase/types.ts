@@ -3623,7 +3623,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           metadata: Json | null
           user_agent: string | null
           user_id: string | null
@@ -3633,7 +3633,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           user_agent?: string | null
           user_id?: string | null
@@ -3643,7 +3643,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           metadata?: Json | null
           user_agent?: string | null
           user_id?: string | null
@@ -3946,6 +3946,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_reset_user_password: {
+        Args: { new_password: string; user_email: string }
+        Returns: boolean
+      }
       approve_registration: {
         Args: { registration_id: string }
         Returns: boolean
@@ -4155,7 +4159,7 @@ export type Database = {
         Returns: string
       }
       get_active_users: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           email: string
           first_name: string
@@ -4166,16 +4170,20 @@ export type Database = {
           username: string
         }[]
       }
-      get_default_risk_level: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_user_permissions: {
-        Args: { user_uuid: string } | { username: string }
-        Returns: {
-          permission: Database["public"]["Enums"]["app_permission"]
-        }[]
-      }
+      get_default_risk_level: { Args: never; Returns: string }
+      get_user_permissions:
+        | {
+            Args: { user_uuid: string }
+            Returns: {
+              permission: Database["public"]["Enums"]["app_permission"]
+            }[]
+          }
+        | {
+            Args: { username: string }
+            Returns: {
+              permission: Database["public"]["Enums"]["app_permission"]
+            }[]
+          }
       get_user_with_roles: {
         Args: { user_uuid: string }
         Returns: {
@@ -4203,13 +4211,10 @@ export type Database = {
         Returns: boolean
       }
       sync_existing_payment_methods_with_bank_status: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: undefined
       }
-      sync_usdt_stock: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      sync_usdt_stock: { Args: never; Returns: undefined }
       update_risk_flag_status: {
         Args: {
           admin_id?: string
@@ -4308,10 +4313,7 @@ export type Database = {
           updated_id: string
         }[]
       }
-      update_user_activity: {
-        Args: { user_uuid: string }
-        Returns: undefined
-      }
+      update_user_activity: { Args: { user_uuid: string }; Returns: undefined }
       update_user_password: {
         Args: { new_password: string; user_id: string }
         Returns: undefined
@@ -4326,18 +4328,21 @@ export type Database = {
         }
         Returns: Json
       }
-      user_has_permission: {
-        Args:
-          | {
+      user_has_permission:
+        | {
+            Args: {
               check_permission: Database["public"]["Enums"]["app_permission"]
               user_uuid: string
             }
-          | {
+            Returns: boolean
+          }
+        | {
+            Args: {
               check_permission: Database["public"]["Enums"]["app_permission"]
               username: string
             }
-        Returns: boolean
-      }
+            Returns: boolean
+          }
       validate_user_credentials: {
         Args: { input_password: string; input_username: string }
         Returns: {

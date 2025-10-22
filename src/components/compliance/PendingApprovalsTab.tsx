@@ -25,12 +25,13 @@ export function PendingApprovalsTab() {
         .from('investigation_approvals')
         .select(`
           *,
-          account_investigations!inner(
+          bank_cases!inner(
             id,
             bank_account_id,
-            reason,
+            case_type,
             priority,
-            investigation_type,
+            title,
+            description,
             bank_accounts(
               bank_name,
               account_name,
@@ -64,25 +65,30 @@ export function PendingApprovalsTab() {
 
       if (approvalError) throw approvalError;
 
-      // Update investigation status to RESOLVED
-      const { error: investigationError } = await supabase
-        .from('account_investigations')
+      // Update bank case status to RESOLVED and investigation_status to COMPLETED
+      const { error: caseError } = await supabase
+        .from('bank_cases')
         .update({
           status: 'RESOLVED',
+          investigation_status: 'COMPLETED',
           resolved_at: new Date().toISOString(),
+          resolved_by: 'Banking Officer',
           resolution_notes: approval.final_resolution
         })
         .eq('id', approval.investigation_id);
 
-      if (investigationError) throw investigationError;
+      if (caseError) throw caseError;
 
       return approvalId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+      queryClient.invalidateQueries({ queryKey: ['past_investigations'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
       toast({
         title: "Investigation Approved",
-        description: "Investigation has been approved and resolved successfully.",
+        description: "Case has been resolved and moved to past cases.",
       });
       setShowApprovalDialog(false);
       setSelectedApproval(null);
@@ -115,23 +121,26 @@ export function PendingApprovalsTab() {
 
       if (approvalError) throw approvalError;
 
-      // Update investigation status back to ACTIVE
-      const { error: investigationError } = await supabase
-        .from('account_investigations')
+      // Update bank case status back to UNDER_INVESTIGATION (not PENDING_APPROVAL)
+      const { error: caseError } = await supabase
+        .from('bank_cases')
         .update({
-          status: 'ACTIVE'
+          status: 'UNDER_INVESTIGATION',
+          investigation_status: 'UNDER_INVESTIGATION'
         })
         .eq('id', approval.investigation_id);
 
-      if (investigationError) throw investigationError;
+      if (caseError) throw caseError;
 
       return approvalId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
       toast({
         title: "Investigation Rejected",
-        description: "Investigation has been rejected and sent back for revision.",
+        description: "Case has been sent back for further investigation.",
       });
       setShowRejectionDialog(false);
       setSelectedApproval(null);
@@ -233,8 +242,8 @@ export function PendingApprovalsTab() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <Badge variant={getPriorityColor(approval.account_investigations.priority)}>
-                          {approval.account_investigations.priority}
+                        <Badge variant={getPriorityColor(approval.bank_cases.priority)}>
+                          {approval.bank_cases.priority}
                         </Badge>
                         <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                           PENDING APPROVAL
@@ -246,13 +255,16 @@ export function PendingApprovalsTab() {
                       
                       <div className="mb-3">
                         <h4 className="font-medium text-gray-900 mb-1">
-                          {approval.account_investigations.bank_accounts?.bank_name || 'Unknown Bank'}
+                          {approval.bank_cases.bank_accounts?.bank_name || 'Unknown Bank'}
                         </h4>
                         <p className="text-sm text-gray-600 mb-1">
-                          Account: {approval.account_investigations.bank_accounts?.account_name || 'N/A'}
+                          Account: {approval.bank_cases.bank_accounts?.account_name || 'N/A'}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Reason: {approval.account_investigations.reason}
+                          Title: {approval.bank_cases.title}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Type: {approval.bank_cases.case_type?.replace(/_/g, ' ')}
                         </p>
                       </div>
 
@@ -267,8 +279,6 @@ export function PendingApprovalsTab() {
 
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span>Submitted by: {approval.submitted_by}</span>
-                        <span>•</span>
-                        <span>Type: {approval.account_investigations.investigation_type}</span>
                         {approval.supporting_documents_urls && approval.supporting_documents_urls.length > 0 && (
                           <>
                             <span>•</span>

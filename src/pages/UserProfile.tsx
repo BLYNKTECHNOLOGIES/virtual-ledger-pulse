@@ -219,10 +219,10 @@ export default function UserProfile() {
       console.log('Updating username for user:', user.id, 'to:', newUsername);
       
       const { data, error } = await supabase
-        .from('users')
-        .update({ username: newUsername })
-        .eq('id', user.id)
-        .select();
+        .rpc('update_user_profile', {
+          p_user_id: user.id,
+          p_username: newUsername
+        });
       
       console.log('Username update result:', { data, error });
       
@@ -342,12 +342,12 @@ export default function UserProfile() {
       
       console.log('Public URL generated:', publicUrl);
       
-      // Update user's avatar_url
+      // Update user's avatar_url using RPC to bypass RLS
       const { data: updateData, error: updateError } = await supabase
-        .from('users')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id)
-        .select();
+        .rpc('update_user_profile', {
+          p_user_id: user.id,
+          p_avatar_url: publicUrl
+        });
       
       console.log('Avatar URL update result:', { updateData, updateError });
       

@@ -4316,6 +4316,16 @@ export type Database = {
         Args: { new_password: string; user_id: string }
         Returns: undefined
       }
+      update_user_profile: {
+        Args: {
+          p_avatar_url?: string
+          p_first_name?: string
+          p_last_name?: string
+          p_user_id: string
+          p_username?: string
+        }
+        Returns: Json
+      }
       user_has_permission: {
         Args:
           | {

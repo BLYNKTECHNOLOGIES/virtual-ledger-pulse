@@ -12,6 +12,8 @@ import { MessageSquare, Plus, Calendar, Search, Upload, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 export function LegalCommunicationsTab() {
   const [showNewCommDialog, setShowNewCommDialog] = useState(false);
@@ -32,6 +34,7 @@ export function LegalCommunicationsTab() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   // Fetch legal communications
   const { data: communications, isLoading } = useQuery({
@@ -183,13 +186,14 @@ export function LegalCommunicationsTab() {
               <MessageSquare className="h-5 w-5" />
               Legal Communications
             </CardTitle>
-            <Dialog open={showNewCommDialog} onOpenChange={setShowNewCommDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Log Communication
-                </Button>
-              </DialogTrigger>
+            <ViewOnlyWrapper isViewOnly={!hasPermission('compliance_manage')}>
+              <Dialog open={showNewCommDialog} onOpenChange={setShowNewCommDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Log Communication
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Log New Communication</DialogTitle>
@@ -357,6 +361,7 @@ export function LegalCommunicationsTab() {
                 </form>
               </DialogContent>
             </Dialog>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
         <CardContent>

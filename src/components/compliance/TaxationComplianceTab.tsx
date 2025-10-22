@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 export function TaxationComplianceTab() {
   const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
@@ -19,6 +21,7 @@ export function TaxationComplianceTab() {
   const [showFileDialog, setShowFileDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   // Fetch TDS records for taxation compliance
   const { data: tdsRecords } = useQuery({
@@ -146,14 +149,16 @@ export function TaxationComplianceTab() {
                   <Receipt className="h-5 w-5" />
                   Pending Tax Records
                 </CardTitle>
-                <Button 
-                  onClick={handleFileTds}
-                  disabled={selectedRecords.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <FileCheck className="h-4 w-4" />
-                  File TDS ({selectedRecords.length})
-                </Button>
+                <ViewOnlyWrapper isViewOnly={!hasPermission('compliance_manage')}>
+                  <Button 
+                    onClick={handleFileTds}
+                    disabled={selectedRecords.length === 0}
+                    className="flex items-center gap-2"
+                  >
+                    <FileCheck className="h-4 w-4" />
+                    File TDS ({selectedRecords.length})
+                  </Button>
+                </ViewOnlyWrapper>
               </div>
             </CardHeader>
             <CardContent>

@@ -12,6 +12,8 @@ import { Scale, Plus, Calendar, DollarSign, Search, Edit, Eye, FileText } from "
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 export function LegalActionsTab() {
   const [showNewActionDialog, setShowNewActionDialog] = useState(false);
@@ -40,6 +42,7 @@ export function LegalActionsTab() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   // Fetch legal actions
   const { data: legalActions, isLoading } = useQuery({
@@ -216,13 +219,14 @@ export function LegalActionsTab() {
               <Scale className="h-5 w-5" />
               Legal Actions
             </CardTitle>
-            <Dialog open={showNewActionDialog} onOpenChange={setShowNewActionDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Legal Action
-                </Button>
-              </DialogTrigger>
+            <ViewOnlyWrapper isViewOnly={!hasPermission('compliance_manage')}>
+              <Dialog open={showNewActionDialog} onOpenChange={setShowNewActionDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Legal Action
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Legal Action</DialogTitle>
@@ -378,6 +382,7 @@ export function LegalActionsTab() {
                 </form>
               </DialogContent>
             </Dialog>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
         <CardContent>

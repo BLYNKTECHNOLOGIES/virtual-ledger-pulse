@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 export function ProductCardListingTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [, setSearchParams] = useSearchParams();
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
 
@@ -174,7 +176,7 @@ export function ProductCardListingTab() {
                     variant="outline" 
                     size="sm" 
                     className="flex-1"
-                    onClick={() => window.location.href = '/stock-management?tab=wallets'}
+                    onClick={() => setSearchParams({ tab: 'warehouse' })}
                   >
                     <TrendingUp className="h-3 w-3 mr-1" />
                     View Details

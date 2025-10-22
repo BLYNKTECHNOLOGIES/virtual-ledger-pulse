@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid, Shield } from "lucide-react";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
@@ -14,6 +15,15 @@ import { useNavigate } from "react-router-dom";
 
 export default function StockManagement() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'quickview');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
   
   return (
     <PermissionGate
@@ -69,7 +79,7 @@ export default function StockManagement() {
         <p className="text-gray-600 mt-2">Comprehensive inventory and stock control</p>
       </div>
 
-      <Tabs defaultValue="quickview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="quickview" className="flex items-center gap-2">
             <Grid className="h-4 w-4" />

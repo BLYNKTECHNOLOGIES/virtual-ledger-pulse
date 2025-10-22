@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Scale, Receipt, Shield } from "lucide-react";
+import { Building2, Scale, Receipt, Shield, Building } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
 import { TaxationComplianceTab } from "@/components/compliance/TaxationComplianceTab";
+import { CompanyComplianceTab } from "@/components/compliance/CompanyComplianceTab";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
@@ -55,7 +56,7 @@ export default function Compliance() {
 
       <ErrorBoundary>
         <Tabs defaultValue="banking" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="banking" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Banking Compliance
@@ -67,6 +68,10 @@ export default function Compliance() {
             <TabsTrigger value="taxation" className="flex items-center gap-2">
               <Receipt className="h-4 w-4" />
               Taxation Compliance
+            </TabsTrigger>
+            <TabsTrigger value="company" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Company Compliance
             </TabsTrigger>
           </TabsList>
 
@@ -85,6 +90,12 @@ export default function Compliance() {
           <TabsContent value="taxation">
             <ErrorBoundary>
               <TaxationComplianceTab />
+            </ErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="company">
+            <ErrorBoundary>
+              <CompanyComplianceTab />
             </ErrorBoundary>
           </TabsContent>
         </Tabs>

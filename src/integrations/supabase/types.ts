@@ -3582,6 +3582,72 @@ export type Database = {
           },
         ]
       }
+      subsidiaries: {
+        Row: {
+          city: string | null
+          compliance_notes: string | null
+          contact_email: string | null
+          contact_person: string | null
+          contact_phone: string | null
+          created_at: string
+          date_of_incorporation: string | null
+          documents: Json | null
+          firm_composition: string
+          firm_name: string
+          gst_number: string | null
+          id: string
+          pan_number: string | null
+          pincode: string | null
+          registered_address: string | null
+          registration_number: string | null
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          compliance_notes?: string | null
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          date_of_incorporation?: string | null
+          documents?: Json | null
+          firm_composition: string
+          firm_name: string
+          gst_number?: string | null
+          id?: string
+          pan_number?: string | null
+          pincode?: string | null
+          registered_address?: string | null
+          registration_number?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          compliance_notes?: string | null
+          contact_email?: string | null
+          contact_person?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          date_of_incorporation?: string | null
+          documents?: Json | null
+          firm_composition?: string
+          firm_name?: string
+          gst_number?: string | null
+          id?: string
+          pan_number?: string | null
+          pincode?: string | null
+          registered_address?: string | null
+          registration_number?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string

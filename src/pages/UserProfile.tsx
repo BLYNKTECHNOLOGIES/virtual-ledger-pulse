@@ -61,7 +61,7 @@ interface LeaveRequest {
 }
 
 export default function UserProfile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -223,14 +223,18 @@ export default function UserProfile() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Username updated successfully" });
+    onSuccess: async () => {
+      toast({ 
+        title: "✅ Success!", 
+        description: "Username updated successfully" 
+      });
       setSettingsData(prev => ({ ...prev, newUsername: '' }));
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      // Refresh user data in auth context
+      await refreshUser();
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
+        title: "❌ Error", 
         description: error.message || "Failed to update username", 
         variant: "destructive" 
       });
@@ -265,7 +269,10 @@ export default function UserProfile() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Password updated successfully" });
+      toast({ 
+        title: "✅ Success!", 
+        description: "Password updated successfully" 
+      });
       setSettingsData(prev => ({ 
         ...prev, 
         currentPassword: '', 
@@ -275,7 +282,7 @@ export default function UserProfile() {
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
+        title: "❌ Error", 
         description: error.message || "Failed to update password", 
         variant: "destructive" 
       });
@@ -322,15 +329,19 @@ export default function UserProfile() {
       
       return publicUrl;
     },
-    onSuccess: (avatarUrl) => {
-      toast({ title: "Success", description: "Profile image updated successfully" });
+    onSuccess: async (avatarUrl) => {
+      toast({ 
+        title: "✅ Success!", 
+        description: "Profile image uploaded successfully" 
+      });
       setAvatarFile(null);
       setAvatarPreview(null);
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      // Refresh user data in auth context
+      await refreshUser();
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
+        title: "❌ Error", 
         description: error.message || "Failed to upload image", 
         variant: "destructive" 
       });

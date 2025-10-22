@@ -63,4 +63,5 @@ export interface AuthContextType {
   isLoading: boolean;
   hasRole: (role: string) => boolean;
   isAdmin: boolean;
+  refreshUser: () => Promise<void>;
 }

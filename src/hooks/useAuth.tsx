@@ -246,6 +246,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const isAdmin = hasRole('admin');
 
+  const refreshUser = async () => {
+    try {
+      if (!user?.id) return;
+
+      // Skip refresh for demo admin
+      if (user.id === 'demo-admin-id') return;
+
+      // Fetch updated user data including avatar_url
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('id, username, email, first_name, last_name, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (error) throw error;
+
+      // Get user roles
+      const { data: userWithRoles } = await supabase
+        .rpc('get_user_with_roles', {
+          user_uuid: user.id
+        });
+
+      let roles: string[] = user.roles || [];
+      if (userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+        const userRoleData = userWithRoles[0] as UserWithRoles;
+        if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
+          roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+        }
+      }
+
+      // Update user state with fresh data
+      const updatedUser: User = {
+        id: userData.id,
+        username: userData.username,
+        email: userData.email,
+        firstName: userData.first_name || undefined,
+        lastName: userData.last_name || undefined,
+        avatar_url: userData.avatar_url || undefined,
+        roles
+      };
+
+      setUser(updatedUser);
+
+      // Update localStorage
+      const sessionData = {
+        user: updatedUser,
+        timestamp: Date.now(),
+        expiresIn: 7 * 24 * 60 * 60 * 1000
+      };
+      localStorage.setItem('userSession', JSON.stringify(sessionData));
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+    }
+  };
+
   useEffect(() => {
     restoreSessionFromStorage();
   }, []);
@@ -268,7 +323,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       logout, 
       isLoading, 
       hasRole, 
-      isAdmin 
+      isAdmin,
+      refreshUser
     }}>
       {children}
     </AuthContext.Provider>

@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
 import { Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 const caseTypeLabels = {
   'ACCOUNT_NOT_WORKING': 'Account Not Working',
@@ -27,6 +29,8 @@ export function CaseTrackingTab() {
   const [selectedCaseTypeFilter, setSelectedCaseTypeFilter] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("compliance_manage");
 
   // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
@@ -230,13 +234,15 @@ export function CaseTrackingTab() {
               )}
             </div>
 
-            <Button 
-              className="bg-red-600 hover:bg-red-700"
-              onClick={() => setShowNewCaseDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Report New Case
-            </Button>
+            <ViewOnlyWrapper isViewOnly={!canManage}>
+              <Button 
+                className="bg-red-600 hover:bg-red-700"
+                onClick={() => setShowNewCaseDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Report New Case
+              </Button>
+            </ViewOnlyWrapper>
           </div>
         </div>
       </CardHeader>

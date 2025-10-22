@@ -108,7 +108,7 @@ const items = [{
   icon: Shield,
   color: "text-yellow-600",
   bgColor: "bg-yellow-100",
-  permissions: ["compliance_view", "compliance_manage"]
+  permissions: ["risk_management_view", "risk_management_manage"]
 }, {
   id: "accounting",
   title: "Accounting",

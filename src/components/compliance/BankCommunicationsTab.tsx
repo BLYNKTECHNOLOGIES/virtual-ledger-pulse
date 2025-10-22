@@ -11,6 +11,8 @@ import { Plus, Phone, Mail, FileText } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 const communicationModes = ["Email", "Call", "Letter", "Meeting"];
 
@@ -24,6 +26,8 @@ export function BankCommunicationsTab() {
     communication_date: new Date().toISOString().split('T')[0]
   });
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("compliance_manage");
 
   // Fetch bank communications
   const { data: bankComms, refetch: refetchComms } = useQuery({
@@ -76,13 +80,14 @@ export function BankCommunicationsTab() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Bank Communications</CardTitle>
-          <Dialog open={showBankCommDialog} onOpenChange={setShowBankCommDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Log New Communication
-              </Button>
-            </DialogTrigger>
+          <ViewOnlyWrapper isViewOnly={!canManage}>
+            <Dialog open={showBankCommDialog} onOpenChange={setShowBankCommDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Log New Communication
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Log Bank Communication</DialogTitle>
@@ -156,6 +161,7 @@ export function BankCommunicationsTab() {
               </form>
             </DialogContent>
           </Dialog>
+          </ViewOnlyWrapper>
         </div>
       </CardHeader>
       <CardContent>

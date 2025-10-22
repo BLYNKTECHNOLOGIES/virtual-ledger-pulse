@@ -10,6 +10,8 @@ import { FileText, Upload, Download, Eye, Plus, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 export function DocumentManagementTab() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -24,6 +26,8 @@ export function DocumentManagementTab() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("compliance_manage");
 
   // Fetch compliance documents
   const { data: documents, isLoading } = useQuery({
@@ -137,13 +141,14 @@ export function DocumentManagementTab() {
               <FileText className="h-5 w-5" />
               Document Management
             </CardTitle>
-            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
-              </DialogTrigger>
+            <ViewOnlyWrapper isViewOnly={!canManage}>
+              <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Document
+                  </Button>
+                </DialogTrigger>
               <DialogContent className="sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>Upload New Document</DialogTitle>
@@ -209,6 +214,7 @@ export function DocumentManagementTab() {
                 </form>
               </DialogContent>
             </Dialog>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
         <CardContent>

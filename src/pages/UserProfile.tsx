@@ -216,27 +216,45 @@ export default function UserProfile() {
     mutationFn: async (newUsername: string) => {
       if (!user?.id) throw new Error('User not found');
       
-      const { error } = await supabase
+      console.log('Updating username for user:', user.id, 'to:', newUsername);
+      
+      const { data, error } = await supabase
         .from('users')
         .update({ username: newUsername })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Username update error:', error);
+        throw error;
+      }
+      
+      console.log('Username updated successfully:', data);
+      return data;
     },
     onSuccess: async () => {
+      console.log('Username update complete, refreshing user data');
       toast({ 
         title: "✅ Success!", 
-        description: "Username updated successfully" 
+        description: "Username updated successfully. Refreshing your profile...",
+        duration: 5000
       });
       setSettingsData(prev => ({ ...prev, newUsername: '' }));
       // Refresh user data in auth context
       await refreshUser();
+      console.log('User data refreshed after username update');
+      // Force a small delay to ensure data is updated
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['employee_profile'] });
+      }, 500);
     },
     onError: (error: any) => {
+      console.error('Username update failed:', error);
       toast({ 
         title: "❌ Error", 
-        description: error.message || "Failed to update username", 
-        variant: "destructive" 
+        description: `Failed to update username: ${error.message}`, 
+        variant: "destructive",
+        duration: 7000
       });
     }
   });
@@ -294,10 +312,13 @@ export default function UserProfile() {
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error('User not found');
       
+      console.log('Starting avatar upload for user:', user.id);
+      
       // Delete old avatar if exists
       if (user.avatar_url) {
         const oldPath = user.avatar_url.split('/').pop();
         if (oldPath) {
+          console.log('Removing old avatar:', oldPath);
           await supabase.storage
             .from('avatars')
             .remove([`${user.id}/${oldPath}`]);
@@ -307,43 +328,67 @@ export default function UserProfile() {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/avatar-${Date.now()}.${fileExt}`;
       
+      console.log('Uploading new avatar to:', fileName);
+      
       // Upload new avatar
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, { upsert: true });
       
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+      
+      console.log('Upload successful:', uploadData);
       
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
       
+      console.log('Public URL:', publicUrl);
+      
       // Update user's avatar_url
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('users')
         .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select();
       
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
+      
+      console.log('User updated successfully:', updateData);
       
       return publicUrl;
     },
     onSuccess: async (avatarUrl) => {
+      console.log('Avatar upload complete, refreshing user data');
       toast({ 
         title: "✅ Success!", 
-        description: "Profile image uploaded successfully" 
+        description: "Profile image uploaded successfully. Refreshing your profile...",
+        duration: 5000
       });
       setAvatarFile(null);
       setAvatarPreview(null);
       // Refresh user data in auth context
       await refreshUser();
+      console.log('User data refreshed');
+      // Force a small delay to ensure data is updated
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['employee_profile'] });
+      }, 500);
     },
     onError: (error: any) => {
+      console.error('Avatar upload failed:', error);
       toast({ 
         title: "❌ Error", 
-        description: error.message || "Failed to upload image", 
-        variant: "destructive" 
+        description: `Failed to upload image: ${error.message}`, 
+        variant: "destructive",
+        duration: 7000
       });
     }
   });

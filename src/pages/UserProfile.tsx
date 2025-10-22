@@ -1111,7 +1111,19 @@ export default function UserProfile() {
                   {avatarFile && (
                     <div className="flex gap-2 w-full">
                       <Button
-                        onClick={() => uploadAvatarMutation.mutate(avatarFile)}
+                        onClick={() => {
+                          console.log('=== AVATAR UPLOAD BUTTON CLICKED ===');
+                          console.log('Current user:', user);
+                          console.log('Avatar file:', avatarFile);
+                          
+                          toast({
+                            title: "Processing...",
+                            description: "Uploading profile image, please wait...",
+                            duration: 3000
+                          });
+                          
+                          uploadAvatarMutation.mutate(avatarFile);
+                        }}
                         disabled={uploadAvatarMutation.isPending}
                         className="flex-1"
                       >
@@ -1157,11 +1169,16 @@ export default function UserProfile() {
                 </div>
                 <Button
                   onClick={() => {
+                    console.log('=== USERNAME UPDATE BUTTON CLICKED ===');
+                    console.log('Current user:', user);
+                    console.log('New username:', settingsData.newUsername);
+                    
                     if (!settingsData.newUsername.trim()) {
                       toast({ 
                         title: "Error", 
                         description: "Please enter a new username", 
-                        variant: "destructive" 
+                        variant: "destructive",
+                        duration: 5000
                       });
                       return;
                     }
@@ -1169,10 +1186,18 @@ export default function UserProfile() {
                       toast({ 
                         title: "Error", 
                         description: "New username must be different from current username", 
-                        variant: "destructive" 
+                        variant: "destructive",
+                        duration: 5000
                       });
                       return;
                     }
+                    
+                    toast({
+                      title: "Processing...",
+                      description: "Updating username, please wait...",
+                      duration: 3000
+                    });
+                    
                     updateUsernameMutation.mutate(settingsData.newUsername);
                   }}
                   disabled={updateUsernameMutation.isPending}

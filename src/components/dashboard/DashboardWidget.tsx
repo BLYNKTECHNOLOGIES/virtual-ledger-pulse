@@ -131,7 +131,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.totalClients || 1247}</div>
+            <div className="text-3xl font-bold text-gray-900">{metrics?.totalClients || 0}</div>
             <p className="text-sm text-gray-600 mt-1">Active Clients</p>
             <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">+3.2% this month</Badge>
           </div>

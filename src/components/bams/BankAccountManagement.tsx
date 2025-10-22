@@ -31,6 +31,7 @@ interface BankAccount {
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
   account_type: "SAVINGS" | "CURRENT";
+  subsidiary_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -71,7 +72,8 @@ export function BankAccountManagement() {
     lien_amount: "",
     status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
     bank_account_holder_name: "",
-    account_type: "SAVINGS" as "SAVINGS" | "CURRENT"
+    account_type: "SAVINGS" as "SAVINGS" | "CURRENT",
+    subsidiary_id: ""
   });
 
   // Fetch active bank accounts (only show accounts with account_status = 'ACTIVE')
@@ -112,6 +114,20 @@ export function BankAccountManagement() {
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return data as BankAccount[];
+    }
+  });
+
+  // Fetch subsidiaries/companies
+  const { data: subsidiaries } = useQuery({
+    queryKey: ['subsidiaries'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subsidiaries')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('firm_name', { ascending: true });
+      if (error) throw error;
+      return data;
     }
   });
 
@@ -170,7 +186,8 @@ export function BankAccountManagement() {
         lien_amount: accountData.lien_amount ? parseFloat(accountData.lien_amount) : 0,
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
-        account_type: accountData.account_type
+        account_type: accountData.account_type,
+        subsidiary_id: accountData.subsidiary_id || null
       });
       if (error) throw error;
     },
@@ -206,6 +223,7 @@ export function BankAccountManagement() {
         status: accountData.status,
         bank_account_holder_name: accountData.bank_account_holder_name || null,
         account_type: accountData.account_type,
+        subsidiary_id: accountData.subsidiary_id || null,
         updated_at: new Date().toISOString()
       }).eq('id', accountData.id);
       if (error) throw error;
@@ -239,6 +257,17 @@ export function BankAccountManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate that a company is selected
+    if (!formData.subsidiary_id) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a company for this bank account",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (editingAccount) {
       updateAccountMutation.mutate({ ...formData, id: editingAccount.id });
     } else {
@@ -258,7 +287,8 @@ export function BankAccountManagement() {
       lien_amount: (account.lien_amount || 0).toString(),
       status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
       bank_account_holder_name: account.bank_account_holder_name || "",
-      account_type: account.account_type || "SAVINGS"
+      account_type: account.account_type || "SAVINGS",
+      subsidiary_id: account.subsidiary_id || ""
     });
     setIsAddDialogOpen(true);
   };
@@ -284,7 +314,8 @@ export function BankAccountManagement() {
       lien_amount: "",
       status: "ACTIVE",
       bank_account_holder_name: "",
-      account_type: "SAVINGS"
+      account_type: "SAVINGS",
+      subsidiary_id: ""
     });
     setEditingAccount(null);
   };
@@ -462,6 +493,28 @@ export function BankAccountManagement() {
                       <SelectItem value="CURRENT">Current</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label htmlFor="subsidiary_id">Company *</Label>
+                  <Select 
+                    value={formData.subsidiary_id} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, subsidiary_id: value }))}
+                    required
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Select Company" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {subsidiaries?.map((subsidiary) => (
+                        <SelectItem key={subsidiary.id} value={subsidiary.id}>
+                          {subsidiary.firm_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select which company this bank account belongs to
+                  </p>
                 </div>
               </div>
 

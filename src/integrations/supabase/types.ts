@@ -90,6 +90,7 @@ export type Database = {
           IFSC: string | null
           lien_amount: number
           status: string
+          subsidiary_id: string | null
           updated_at: string
         }
         Insert: {
@@ -107,6 +108,7 @@ export type Database = {
           IFSC?: string | null
           lien_amount?: number
           status?: string
+          subsidiary_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -124,9 +126,18 @@ export type Database = {
           IFSC?: string | null
           lien_amount?: number
           status?: string
+          subsidiary_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bank_cases: {
         Row: {

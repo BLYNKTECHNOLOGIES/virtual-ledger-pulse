@@ -13,7 +13,7 @@ import { CalendarIcon, Upload, User, Building, CreditCard, FileText, Shield } fr
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface ComprehensiveAddEmployeeDialogProps {
@@ -98,9 +98,19 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const departments = [
-    "Operations", "Finance", "Compliance", "Administrative", "Support Staff"
-  ];
+  // Fetch departments from database
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('hierarchy_level', { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const genders = ["Male", "Female", "Other"];
   const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -635,7 +645,9 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                     </SelectTrigger>
                     <SelectContent>
                       {departments.map(dept => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        <SelectItem key={dept.id} value={dept.name}>
+                          {dept.icon} {dept.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

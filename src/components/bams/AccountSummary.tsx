@@ -80,12 +80,12 @@ export function AccountSummary() {
   const [activeReportTab, setActiveReportTab] = useState("overview");
   const printRef = useRef<HTMLDivElement>(null);
 
-  // Fetch account summary data
+  // Fetch account summary data directly from bank_accounts table (not computed view)
   const { data: accountsData, isLoading: accountsLoading } = useQuery({
     queryKey: ['accounts-summary'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('bank_accounts_with_balance')
+        .from('bank_accounts')
         .select('*')
         .order('created_at');
       
@@ -118,7 +118,7 @@ export function AccountSummary() {
             branch: account.branch,
             status: account.status,
             stored_balance: account.balance,
-            computed_balance: account.computed_balance || account.balance,
+            computed_balance: account.balance, // Use direct balance from bank_accounts table
             total_transactions: transactions.length,
             total_income,
             total_expense,
@@ -130,6 +130,9 @@ export function AccountSummary() {
       
       return accountsWithTransactions as AccountSummaryData[];
     },
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000, // Refresh every 15 seconds
   });
 
   // Fetch system totals

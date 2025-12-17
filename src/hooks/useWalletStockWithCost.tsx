@@ -79,7 +79,7 @@ export function useProductStockWithCost() {
           product_id: 'USDT',
           product_name: 'USDT',
           product_code: 'USDT',
-          unit_of_measurement: 'Pieces',
+          unit_of_measurement: 'Units',
           total_stock: 0,
           average_cost: 0,
           total_value: 0,

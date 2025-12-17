@@ -276,7 +276,7 @@ export function StockTransactionsTab() {
         name: usdtProduct.name,
         code: usdtProduct.code,
         unit_of_measurement: usdtProduct.unit_of_measurement
-      } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Pieces' }
+      } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' }
     }))
   ];
 

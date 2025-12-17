@@ -21,6 +21,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
+    order_number: '',
     supplier_name: '',
     order_date: new Date().toISOString().split('T')[0],
     description: '',
@@ -170,7 +171,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         return;
       }
 
-      const orderNumber = generateOrderNumber();
+      const orderNumber = formData.order_number || generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
 
       console.log('📝 ManualPurchase: Creating purchase order with params:', {
@@ -224,6 +225,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       // Reset form
       setFormData({
+        order_number: '',
         supplier_name: '',
         order_date: new Date().toISOString().split('T')[0],
         description: '',
@@ -276,10 +278,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <SupplierAutocomplete
-                value={formData.supplier_name}
-                onChange={(value) => handleInputChange('supplier_name', value)}
-                onContactChange={(contact) => handleInputChange('contact_number', contact)}
+              <Label htmlFor="order_number">Order Number</Label>
+              <Input
+                id="order_number"
+                value={formData.order_number}
+                onChange={(e) => handleInputChange('order_number', e.target.value)}
+                placeholder="Enter order number (optional)"
               />
             </div>
 
@@ -292,6 +296,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 onChange={(e) => handleInputChange('order_date', e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <SupplierAutocomplete
+              value={formData.supplier_name}
+              onChange={(value) => handleInputChange('supplier_name', value)}
+              onContactChange={(contact) => handleInputChange('contact_number', contact)}
+            />
           </div>
 
           <div className="space-y-2">

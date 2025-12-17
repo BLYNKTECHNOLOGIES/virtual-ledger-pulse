@@ -40,9 +40,9 @@ export function SupplierAutocomplete({ value, onChange, onContactChange }: Suppl
 
   return (
     <div className="relative">
-      <Label htmlFor="supplierName">Supplier Name *</Label>
+      <Label htmlFor="sellerName">Seller Name *</Label>
       <Input
-        id="supplierName"
+        id="sellerName"
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -50,7 +50,7 @@ export function SupplierAutocomplete({ value, onChange, onContactChange }: Suppl
         }}
         onFocus={() => setShowSuggestions(true)}
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-        placeholder="Enter supplier name"
+        placeholder="Enter seller name"
         required
       />
       

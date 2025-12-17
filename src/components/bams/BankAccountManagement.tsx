@@ -76,18 +76,23 @@ export function BankAccountManagement() {
     subsidiary_id: ""
   });
 
-  // Fetch active bank accounts (only show accounts with account_status = 'ACTIVE')
+  // Fetch active bank accounts from the table (source of truth for balances)
   const { data: bankAccounts, isLoading } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('bank_accounts_with_balance')
+      const { data, error } = await supabase
+        .from('bank_accounts')
         .select('*')
         .eq('account_status', 'ACTIVE')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as (BankAccount & { computed_balance?: number })[];
-    }
+      return data as BankAccount[];
+    },
+    // Always prefer fresh balances
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    refetchInterval: 15000,
   });
 
   // Fetch closed bank accounts
@@ -277,17 +282,15 @@ export function BankAccountManagement() {
     }
   };
 
-  const handleEdit = (account: BankAccount & { computed_balance?: number }) => {
+  const handleEdit = (account: BankAccount) => {
     setEditingAccount(account);
-    // Use computed_balance (from transactions) if available, otherwise fall back to balance
-    const displayBalance = (account as any).computed_balance ?? account.balance;
     setFormData({
       account_name: account.account_name,
       bank_name: account.bank_name,
       account_number: account.account_number,
       ifsc_code: account.IFSC || "",
       branch: account.branch || "",
-      balance: displayBalance.toString(),
+      balance: account.balance.toString(),
       lien_amount: (account.lien_amount || 0).toString(),
       status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
       bank_account_holder_name: account.bank_account_holder_name || "",
@@ -607,14 +610,14 @@ export function BankAccountManagement() {
                           <TableCell>{account.account_number}</TableCell>
                           <TableCell>{account.IFSC}</TableCell>
                           <TableCell>{account.branch || "-"}</TableCell>
-                          <TableCell className={(((account as any).computed_balance ?? account.balance) as number) < 0 ? "text-red-600 font-bold" : ""}>
-                            ₹{((((account as any).computed_balance ?? account.balance) as number) || 0).toLocaleString()}
+                          <TableCell className={(account.balance as number) < 0 ? "text-red-600 font-bold" : ""}>
+                            ₹{((account.balance as number) || 0).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-orange-600 font-medium">
                             ₹{((account.lien_amount || 0) as number).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-green-600 font-bold">
-                            ₹{((((account as any).computed_balance ?? account.balance) as number) - ((account.lien_amount || 0) as number)).toLocaleString()}
+                            ₹{(((account.balance as number) || 0) - ((account.lien_amount || 0) as number)).toLocaleString()}
                           </TableCell>
                           <TableCell>
                             <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>

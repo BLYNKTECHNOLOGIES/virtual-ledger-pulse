@@ -206,7 +206,7 @@ export function StockReportsTab() {
         products: {
           name: usdtProduct?.name || 'USDT',
           code: usdtProduct?.code || 'USDT',
-          unit_of_measurement: usdtProduct?.unit_of_measurement || 'Pieces',
+          unit_of_measurement: usdtProduct?.unit_of_measurement || 'Units',
         },
         transaction_type: isDebit ? 'DEBIT' : 'CREDIT',
         quantity: w.amount,

@@ -71,7 +71,7 @@ export function useProductStockSummary() {
           product_id: 'USDT',
           product_name: 'USDT',
           product_code: 'USDT',
-          unit_of_measurement: 'Pieces',
+          unit_of_measurement: 'Units',
           total_stock: 0,
           wallet_stocks: []
         };

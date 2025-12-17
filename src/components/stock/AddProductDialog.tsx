@@ -43,7 +43,7 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
       setFormData({
         name: "",
         code: "",
-        unit_of_measurement: "",
+        unit_of_measurement: "Units",
         cost_price: "",
         selling_price: "",
         current_stock_quantity: "0"
@@ -133,7 +133,7 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
                 <SelectValue placeholder="Select unit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Pieces">Pieces</SelectItem>
+                <SelectItem value="Units">Units</SelectItem>
                 <SelectItem value="Kilograms">Kilograms</SelectItem>
                 <SelectItem value="Liters">Liters</SelectItem>
                 <SelectItem value="Meters">Meters</SelectItem>

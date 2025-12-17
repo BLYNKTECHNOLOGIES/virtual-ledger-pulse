@@ -277,15 +277,17 @@ export function BankAccountManagement() {
     }
   };
 
-  const handleEdit = (account: BankAccount) => {
+  const handleEdit = (account: BankAccount & { computed_balance?: number }) => {
     setEditingAccount(account);
+    // Use computed_balance (from transactions) if available, otherwise fall back to balance
+    const displayBalance = (account as any).computed_balance ?? account.balance;
     setFormData({
       account_name: account.account_name,
       bank_name: account.bank_name,
       account_number: account.account_number,
       ifsc_code: account.IFSC || "",
       branch: account.branch || "",
-      balance: account.balance.toString(),
+      balance: displayBalance.toString(),
       lien_amount: (account.lien_amount || 0).toString(),
       status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
       bank_account_holder_name: account.bank_account_holder_name || "",

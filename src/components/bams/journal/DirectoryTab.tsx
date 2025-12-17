@@ -34,11 +34,12 @@ export function DirectoryTab() {
       return data;
     },
   });
-  // Fetch all transactions (bank, sales, purchases)
+  // Fetch all transactions (bank, sales, purchases) - avoiding duplicates
   const { data: allTransactions, isLoading } = useQuery({
     queryKey: ['all_transactions'],
     queryFn: async () => {
-      // Bank transactions - include all bank transactions
+      // Bank transactions - EXCLUDE purchase-related transactions to avoid duplicates
+      // Purchase orders already show in the purchase_orders query
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
@@ -53,6 +54,7 @@ export function DirectoryTab() {
           created_at,
           bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
         `)
+        .not('category', 'eq', 'Purchase') // Exclude purchase-related bank transactions
         .order('transaction_date', { ascending: false });
 
       if (bankError) throw bankError;
@@ -198,8 +200,9 @@ export function DirectoryTab() {
       case 'SALES_ORDER':
         return <TrendingUp className="h-4 w-4 text-green-600" />;
       case 'EXPENSE':
-      case 'PURCHASE_ORDER':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
+      case 'PURCHASE_ORDER':
+        return <TrendingDown className="h-4 w-4 text-blue-600" />; // Purchase is blue, not red
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return <ArrowRightLeft className="h-4 w-4 text-blue-600" />;
@@ -214,8 +217,9 @@ export function DirectoryTab() {
       case 'SALES_ORDER':
         return 'text-green-700';
       case 'EXPENSE':
-      case 'PURCHASE_ORDER':
         return 'text-red-700';
+      case 'PURCHASE_ORDER':
+        return 'text-red-700'; // Purchase still shows as debit (red amount)
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'text-blue-700';
@@ -224,14 +228,15 @@ export function DirectoryTab() {
     }
   };
 
-  const getBadgeVariant = (type: string) => {
+  const getBadgeVariant = (type: string): "default" | "secondary" | "destructive" | "outline" => {
     switch (type) {
       case 'INCOME':
       case 'SALES_ORDER':
         return 'default';
       case 'EXPENSE':
-      case 'PURCHASE_ORDER':
         return 'destructive';
+      case 'PURCHASE_ORDER':
+        return 'secondary'; // Purchase is secondary (blue/gray), not destructive (red)
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'secondary';

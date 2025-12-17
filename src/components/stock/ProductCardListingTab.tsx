@@ -121,7 +121,7 @@ export function ProductCardListingTab() {
                       In Stock
                     </span>
                     <p className="font-semibold text-lg text-green-600">
-                      {product.total_stock} {product.unit_of_measurement}
+                      {product.total_stock.toFixed(2)} {product.unit_of_measurement}
                     </p>
                   </div>
                   <div>
@@ -162,7 +162,7 @@ export function ProductCardListingTab() {
                             <span className="text-gray-600">{wallet.wallet_name}</span>
                           </div>
                           <div className="text-right">
-                            <span className="font-medium">{wallet.balance}</span>
+                            <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                             <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
                           </div>
                         </div>

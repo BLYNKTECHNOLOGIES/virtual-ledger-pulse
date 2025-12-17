@@ -24,13 +24,13 @@ export function ExpensesIncomesTab() {
     },
   });
 
-  // Fetch only bank transactions (no purchase orders)
+  // Fetch only bank transactions (no purchase orders) - exclude purchase-related transactions
   const { data: transactions } = useQuery({
     queryKey: ['bank_transactions_only'],
     queryFn: async () => {
       console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
       
-      // Fetch only bank transactions
+      // Fetch only bank transactions - exclude purchase-related ones
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select(`
@@ -39,6 +39,7 @@ export function ExpensesIncomesTab() {
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
+        .not('category', 'eq', 'Purchase') // Exclude purchase-related transactions
         .order('created_at', { ascending: false });
       
       if (bankError) {

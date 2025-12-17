@@ -33,8 +33,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     status: 'COMPLETED',
     deduction_bank_account_id: '',
     credit_wallet_id: '',
-    platform_fees: '',
-    platform_fees_wallet_id: ''
+    platform_fees: ''
   });
 
   // Fetch purchase payment methods
@@ -145,15 +144,19 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         return;
       }
 
-      // Validate platform fees wallet selection if fees are specified
-      if (formData.platform_fees && parseFloat(formData.platform_fees) > 0 && !formData.platform_fees_wallet_id) {
-        toast({
-          title: "Error",
-          description: "Please select a USDT wallet for platform fees deduction",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
+      // Validate that fees don't exceed quantity
+      if (formData.platform_fees && parseFloat(formData.platform_fees) > 0) {
+        const fees = parseFloat(formData.platform_fees);
+        const quantity = parseFloat(formData.quantity) || 0;
+        if (fees >= quantity) {
+          toast({
+            title: "Error",
+            description: "Platform fees cannot be equal to or greater than quantity",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
       }
 
       // Validate wallet selection for USDT products
@@ -205,7 +208,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_contact_number: formData.contact_number || null,
           p_credit_wallet_id: formData.credit_wallet_id || null,
           p_platform_fees: formData.platform_fees ? parseFloat(formData.platform_fees) : null,
-          p_platform_fees_wallet_id: formData.platform_fees_wallet_id || null
+          p_platform_fees_wallet_id: null
         }
       );
 
@@ -237,8 +240,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         status: 'COMPLETED',
         deduction_bank_account_id: '',
         credit_wallet_id: '',
-        platform_fees: '',
-        platform_fees_wallet_id: ''
+        platform_fees: ''
       });
 
       setOpen(false);
@@ -426,8 +428,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           )}
 
-          {/* Platform Fees Section */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Platform Fees Section - Only show for USDT products */}
+          {products?.find(p => p.id === formData.product_id)?.code === 'USDT' && (
             <div className="space-y-2">
               <Label htmlFor="platform_fees">Platform Fees (USDT)</Label>
               <Input
@@ -440,31 +442,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 min="0"
               />
               <div className="text-xs text-muted-foreground mt-1">
-                Fees will be deducted from wallet in addition to the purchase amount
+                Fees will be deducted from the credit quantity (Credited = Quantity - Fees)
               </div>
             </div>
-
-            {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="platform_fees_wallet_id">Select Wallet for Platform Fees *</Label>
-                <Select 
-                  value={formData.platform_fees_wallet_id} 
-                  onValueChange={(value) => handleInputChange('platform_fees_wallet_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select USDT wallet" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white z-50">
-                    {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
-                      <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name} - {wallet.wallet_type} (₹{wallet.current_balance})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="contact_number">Contact Number</Label>

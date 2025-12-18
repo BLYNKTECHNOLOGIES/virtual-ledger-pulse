@@ -262,22 +262,28 @@ export function StockTransactionsTab() {
       products: p.products
     })),
     // Wallet transactions (convert to stock transaction format)
-    ...(walletTransactions || []).map(w => ({
-      ...w,
-      type: 'wallet',
-      date: w.created_at,
-      supplier_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
-      reference_number: `WT-${w.id.slice(-8)}b`, // Use last 8 chars + 'b' to match the pattern in UI
-      quantity: w.amount,
-      unit_price: w.transaction_type?.includes('TRANSFER') ? null : 1, // Nil for transfers, ₹1 for manual adjustments
-      total_amount: w.amount,
-      transaction_type: w.transaction_type, // Use the actual transaction type from wallet
-      products: usdtProduct ? {
-        name: usdtProduct.name,
-        code: usdtProduct.code,
-        unit_of_measurement: usdtProduct.unit_of_measurement
-      } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' }
-    }))
+    ...(walletTransactions || []).map(w => {
+      // Manual credit/debit have no actual fund transfer, so unit_price and total_amount should be 0
+      const isManualAdjustment = w.transaction_type === 'CREDIT' || w.transaction_type === 'DEBIT';
+      const isTransfer = w.transaction_type?.includes('TRANSFER');
+      
+      return {
+        ...w,
+        type: 'wallet',
+        date: w.created_at,
+        supplier_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
+        reference_number: `WT-${w.id.slice(-8)}b`,
+        quantity: w.amount,
+        unit_price: isTransfer || isManualAdjustment ? 0 : 1,
+        total_amount: isManualAdjustment ? 0 : w.amount,
+        transaction_type: w.transaction_type,
+        products: usdtProduct ? {
+          name: usdtProduct.name,
+          code: usdtProduct.code,
+          unit_of_measurement: usdtProduct.unit_of_measurement
+        } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' }
+      };
+    })
   ];
 
   // Apply filters to combined entries
@@ -387,8 +393,8 @@ export function StockTransactionsTab() {
                           maximumFractionDigits: 3
                         })} {entry.products?.unit_of_measurement}
                       </td>
-                      <td className="py-3 px-4">{entry.unit_price ? `₹${entry.unit_price}` : 'Nil'}</td>
-                      <td className="py-3 px-4">₹{entry.total_amount || 0}</td>
+                      <td className="py-3 px-4">{entry.unit_price ? `₹${Number(entry.unit_price).toFixed(2)}` : '₹0'}</td>
+                      <td className="py-3 px-4">₹{Number(entry.total_amount || 0).toFixed(2)}</td>
                       <td className="py-3 px-4">{entry.supplier_name || '-'}</td>
                       <td className="py-3 px-4">{entry.reference_number || '-'}</td>
                     </tr>

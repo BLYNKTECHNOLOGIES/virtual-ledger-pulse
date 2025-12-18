@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { ClickableUser } from "@/components/ui/clickable-user";
 
 export function StockTransactionsTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -37,7 +38,8 @@ export function StockTransactionsTab() {
         .from('stock_transactions')
         .select(`
           *,
-          products(name, code, unit_of_measurement)
+          products(name, code, unit_of_measurement),
+          created_by_user:users!created_by(id, username, first_name, last_name, email, phone, role, avatar_url)
         `)
         .order('created_at', { ascending: false });
 
@@ -65,7 +67,13 @@ export function StockTransactionsTab() {
         .from('purchase_order_items')
         .select(`
           *,
-          purchase_orders(order_number, supplier_name, order_date),
+          purchase_orders(
+            order_number, 
+            supplier_name, 
+            order_date, 
+            created_by,
+            created_by_user:users!created_by(id, username, first_name, last_name, email, phone, role, avatar_url)
+          ),
           products(name, code, unit_of_measurement)
         `)
         .order('created_at', { ascending: false });
@@ -248,7 +256,9 @@ export function StockTransactionsTab() {
       date: t.created_at, // Use created_at for accurate timestamp instead of transaction_date
       supplier_name: t.supplier_customer_name,
       transaction_type: t.transaction_type,
-      products: t.products
+      products: t.products,
+      wallet_name: null, // Stock transactions don't have wallet info
+      created_by_user: (t as any).created_by_user
     })),
     // Purchase entries
     ...(purchaseEntries || []).map(p => ({
@@ -259,7 +269,9 @@ export function StockTransactionsTab() {
       supplier_name: p.purchase_orders?.supplier_name,
       reference_number: p.purchase_orders?.order_number,
       total_amount: p.total_price,
-      products: p.products
+      products: p.products,
+      wallet_name: 'BINANCE BLYNK', // Default wallet for purchases
+      created_by_user: (p.purchase_orders as any)?.created_by_user
     })),
     // Wallet transactions (convert to stock transaction format)
     ...(walletTransactions || []).map(w => {
@@ -281,7 +293,9 @@ export function StockTransactionsTab() {
           name: usdtProduct.name,
           code: usdtProduct.code,
           unit_of_measurement: usdtProduct.unit_of_measurement
-        } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' }
+        } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
+        wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
+        created_by_user: null // Wallet transactions don't track created_by currently
       };
     })
   ];
@@ -370,8 +384,10 @@ export function StockTransactionsTab() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Total Amount</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Wallet</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier/Customer</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -395,8 +411,29 @@ export function StockTransactionsTab() {
                       </td>
                       <td className="py-3 px-4">{entry.unit_price ? `₹${Number(entry.unit_price).toFixed(2)}` : '₹0'}</td>
                       <td className="py-3 px-4">₹{Number(entry.total_amount || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        {entry.wallet_name ? (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {entry.wallet_name}
+                          </Badge>
+                        ) : '-'}
+                      </td>
                       <td className="py-3 px-4">{entry.supplier_name || '-'}</td>
                       <td className="py-3 px-4">{entry.reference_number || '-'}</td>
+                      <td className="py-3 px-4">
+                        {entry.created_by_user ? (
+                          <ClickableUser
+                            userId={entry.created_by_user.id}
+                            username={entry.created_by_user.username}
+                            firstName={entry.created_by_user.first_name}
+                            lastName={entry.created_by_user.last_name}
+                            email={entry.created_by_user.email}
+                            phone={entry.created_by_user.phone}
+                            role={entry.created_by_user.role}
+                            avatarUrl={entry.created_by_user.avatar_url}
+                          />
+                        ) : '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

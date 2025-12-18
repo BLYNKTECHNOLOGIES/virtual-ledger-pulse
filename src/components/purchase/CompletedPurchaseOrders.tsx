@@ -11,6 +11,7 @@ import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
+import { ClickableUser } from "@/components/ui/clickable-user";
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
   // Fetch completed purchase orders
@@ -155,8 +156,9 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                   <TableHead>Qty</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Product</TableHead>
+                  <TableHead>Wallet</TableHead>
                   <TableHead>Payment Method Used</TableHead>
-                  <TableHead>Assigned To</TableHead>
+                  <TableHead>Created By</TableHead>
                   <TableHead>Order Date</TableHead>
                   <TableHead>Completed Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -192,6 +194,11 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                       )}
                     </TableCell>
                     <TableCell>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        BINANCE BLYNK
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="default">
                         {(() => {
                           const rel = (order as any).purchase_payment_method;
@@ -220,7 +227,20 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                         })()}
                       </Badge>
                     </TableCell>
-                    <TableCell>{order.assigned_to || '-'}</TableCell>
+                    <TableCell>
+                      {(order as any).created_by_user ? (
+                        <ClickableUser
+                          userId={(order as any).created_by_user.id}
+                          username={(order as any).created_by_user.username}
+                          firstName={(order as any).created_by_user.first_name}
+                          lastName={(order as any).created_by_user.last_name}
+                          email={(order as any).created_by_user.email}
+                          phone={(order as any).created_by_user.phone}
+                          role={(order as any).created_by_user.role}
+                          avatarUrl={(order as any).created_by_user.avatar_url}
+                        />
+                      ) : '-'}
+                    </TableCell>
                     <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>{format(new Date(order.updated_at), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>

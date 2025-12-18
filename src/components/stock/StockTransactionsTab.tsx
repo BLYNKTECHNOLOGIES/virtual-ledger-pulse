@@ -53,7 +53,31 @@ export function StockTransactionsTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // stock_transactions does not store wallet_id; infer wallet name via sales_orders.order_number (= reference_number)
+      const refs = Array.from(
+        new Set((data || []).map((t: any) => t.reference_number).filter(Boolean))
+      ) as string[];
+
+      if (refs.length === 0) return data;
+
+      const { data: salesOrders, error: soError } = await supabase
+        .from('sales_orders')
+        .select(`order_number, wallets(wallet_name)`)
+        .in('order_number', refs);
+
+      if (soError) return data; // best-effort enrichment for display only
+
+      const walletNameByOrder = new Map<string, string>();
+      (salesOrders || []).forEach((so: any) => {
+        const walletName = so.wallets?.wallet_name;
+        if (so.order_number && walletName) walletNameByOrder.set(so.order_number, walletName);
+      });
+
+      return (data || []).map((t: any) => ({
+        ...t,
+        wallet_name: walletNameByOrder.get(t.reference_number) || null,
+      }));
     },
     staleTime: 10000, // Refresh every 10 seconds
     gcTime: 30000, // Cache for 30 seconds
@@ -257,7 +281,7 @@ export function StockTransactionsTab() {
       supplier_name: t.supplier_customer_name,
       transaction_type: t.transaction_type,
       products: t.products,
-      wallet_name: null, // Stock transactions don't have wallet info
+      wallet_name: (t as any).wallet_name || null,
       created_by_user: (t as any).created_by_user
     })),
     // Purchase entries

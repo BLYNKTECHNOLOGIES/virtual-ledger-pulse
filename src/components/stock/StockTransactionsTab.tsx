@@ -39,7 +39,7 @@ export function StockTransactionsTab() {
         .select(`
           *,
           products(name, code, unit_of_measurement),
-          created_by_user:users!created_by(id, username, first_name, last_name, email, phone, role, avatar_url)
+          created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
         `)
         .order('created_at', { ascending: false });
 
@@ -86,7 +86,7 @@ export function StockTransactionsTab() {
         creatorIds.length
           ? supabase
               .from('users')
-              .select('id, username, first_name, last_name, email, phone, role, avatar_url')
+              .select('id, username, first_name, last_name, email, phone, avatar_url')
               .in('id', creatorIds)
           : Promise.resolve({ data: [], error: null } as any),
       ]);
@@ -143,7 +143,7 @@ export function StockTransactionsTab() {
             supplier_name, 
             order_date, 
             created_by,
-            created_by_user:users!created_by(id, username, first_name, last_name, email, phone, role, avatar_url)
+            created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
           ),
           products(name, code, unit_of_measurement)
         `)
@@ -165,16 +165,134 @@ export function StockTransactionsTab() {
           *,
           wallets(wallet_name, wallet_type)
         `)
-        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
+        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER'])
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('❌ Wallet transactions error:', error);
         throw error;
       }
-      console.log('✅ Wallet transactions loaded:', data?.length || 0, 'transactions');
-      console.log('📊 Recent wallet transactions:', data?.slice(0, 3));
-      return data;
+
+      const tx = data || [];
+
+      const salesOrderIds = Array.from(
+        new Set(tx.filter((t: any) => t.reference_type === 'SALES_ORDER' && t.reference_id).map((t: any) => t.reference_id))
+      ) as string[];
+
+      const purchaseOrderIds = Array.from(
+        new Set(tx.filter((t: any) => t.reference_type === 'PURCHASE_ORDER' && t.reference_id).map((t: any) => t.reference_id))
+      ) as string[];
+
+      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }] = await Promise.all([
+        salesOrderIds.length
+          ? supabase
+              .from('sales_orders')
+              .select('id, order_number, client_name, price_per_unit, created_by')
+              .in('id', salesOrderIds)
+          : Promise.resolve({ data: [] } as any),
+        purchaseOrderIds.length
+          ? supabase
+              .from('purchase_orders')
+              .select('id, order_number, supplier_name, created_by')
+              .in('id', purchaseOrderIds)
+          : Promise.resolve({ data: [] } as any),
+        purchaseOrderIds.length
+          ? supabase
+              .from('purchase_order_items')
+              .select('purchase_order_id, quantity, unit_price, total_price')
+              .in('purchase_order_id', purchaseOrderIds)
+          : Promise.resolve({ data: [] } as any),
+      ]);
+
+      const soById = new Map<string, any>();
+      (salesOrders || []).forEach((so: any) => so?.id && soById.set(so.id, so));
+
+      const poById = new Map<string, any>();
+      (purchaseOrders || []).forEach((po: any) => po?.id && poById.set(po.id, po));
+
+      const avgPurchasePriceByPo = new Map<string, number>();
+      (purchaseItems || []).forEach((pi: any) => {
+        const poId = pi?.purchase_order_id;
+        if (!poId) return;
+        const qty = parseFloat(String(pi.quantity)) || 0;
+        const total = parseFloat(String(pi.total_price)) || 0;
+        const current = avgPurchasePriceByPo.get(poId) || 0;
+        // temporarily store total in map (we'll compute avg using a second map)
+        avgPurchasePriceByPo.set(poId, current + (qty > 0 ? total : 0));
+      });
+
+      // compute total qty per PO
+      const qtyByPo = new Map<string, number>();
+      (purchaseItems || []).forEach((pi: any) => {
+        const poId = pi?.purchase_order_id;
+        if (!poId) return;
+        const qty = parseFloat(String(pi.quantity)) || 0;
+        qtyByPo.set(poId, (qtyByPo.get(poId) || 0) + qty);
+      });
+
+      const creatorIds = Array.from(
+        new Set([
+          ...(salesOrders || []).map((so: any) => so.created_by).filter(Boolean),
+          ...(purchaseOrders || []).map((po: any) => po.created_by).filter(Boolean),
+        ])
+      ) as string[];
+
+      const { data: usersData } = creatorIds.length
+        ? await supabase
+            .from('users')
+            .select('id, username, first_name, last_name, email, phone, avatar_url')
+            .in('id', creatorIds)
+        : ({ data: [] } as any);
+
+      const userById = new Map<string, any>();
+      (usersData || []).forEach((u: any) => u?.id && userById.set(u.id, u));
+
+      const enriched = tx.map((t: any) => {
+        if (t.reference_type === 'SALES_ORDER' && t.reference_id) {
+          const so = soById.get(t.reference_id);
+          const unitPrice = so?.price_per_unit || 0;
+          const qty = parseFloat(String(t.amount)) || 0;
+          return {
+            ...t,
+            _unit_price: unitPrice,
+            _total_amount: qty * unitPrice,
+            _supplier_customer_name: so?.client_name || null,
+            _reference_number: so?.order_number || null,
+            _created_by_user: so?.created_by ? userById.get(so.created_by) : null,
+          };
+        }
+
+        if (t.reference_type === 'PURCHASE_ORDER' && t.reference_id) {
+          const po = poById.get(t.reference_id);
+          const total = avgPurchasePriceByPo.get(t.reference_id) || 0;
+          const qtyTotal = qtyByPo.get(t.reference_id) || 0;
+          const unitPrice = qtyTotal > 0 ? total / qtyTotal : 0;
+          const qty = parseFloat(String(t.amount)) || 0;
+          return {
+            ...t,
+            _unit_price: unitPrice,
+            _total_amount: qty * unitPrice,
+            _supplier_customer_name: po?.supplier_name || null,
+            _reference_number: po?.order_number || null,
+            _created_by_user: po?.created_by ? userById.get(po.created_by) : null,
+          };
+        }
+
+        // Manual transfer / manual adjustment
+        const qty = parseFloat(String(t.amount)) || 0;
+        const unitPrice = 1;
+        return {
+          ...t,
+          _unit_price: unitPrice,
+          _total_amount: qty * unitPrice,
+          _supplier_customer_name: null,
+          _reference_number: null,
+          _created_by_user: null,
+        };
+      });
+
+      console.log('✅ Wallet transactions loaded:', enriched.length, 'transactions');
+      return enriched;
     },
     staleTime: 0, // Always fetch fresh data
     gcTime: 0, // Don't cache data
@@ -352,27 +470,33 @@ export function StockTransactionsTab() {
     }),
     // Wallet transactions (convert to stock transaction format)
     ...(walletTransactions || []).map(w => {
-      // Manual credit/debit have no actual fund transfer, so unit_price and total_amount should be 0
-      const isManualAdjustment = w.transaction_type === 'CREDIT' || w.transaction_type === 'DEBIT';
-      const isTransfer = w.transaction_type?.includes('TRANSFER');
-      
+      const qty = parseFloat(String(w.amount)) || 0;
+      const unitPrice = (w as any)._unit_price ?? 0;
+      const totalAmount = (w as any)._total_amount ?? qty * unitPrice;
+
+      const referenceFromOrder = (w as any)._reference_number;
+      const supplierFromOrder = (w as any)._supplier_customer_name;
+      const createdByUser = (w as any)._created_by_user;
+
       return {
         ...w,
         type: 'wallet',
         date: w.created_at,
-        supplier_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
-        reference_number: `WT-${w.id.slice(-8)}b`,
-        quantity: w.amount,
-        unit_price: isTransfer || isManualAdjustment ? 0 : 1,
-        total_amount: isManualAdjustment ? 0 : w.amount,
+        supplier_name: supplierFromOrder || w.wallets?.wallet_name || 'BINANCE BLYNK',
+        reference_number: referenceFromOrder || `WT-${w.id.slice(-8)}b`,
+        quantity: qty,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
         transaction_type: w.transaction_type,
-        products: usdtProduct ? {
-          name: usdtProduct.name,
-          code: usdtProduct.code,
-          unit_of_measurement: usdtProduct.unit_of_measurement
-        } : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
+        products: usdtProduct
+          ? {
+              name: usdtProduct.name,
+              code: usdtProduct.code,
+              unit_of_measurement: usdtProduct.unit_of_measurement,
+            }
+          : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
         wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
-        created_by_user: null // Wallet transactions don't track created_by currently
+        created_by_user: createdByUser || null,
       };
     })
   ];

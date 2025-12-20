@@ -64,7 +64,7 @@ export function StockTransactionsTab() {
 
       const { data: salesOrders, error: soError } = await supabase
         .from('sales_orders')
-        .select(`order_number, wallet_id, created_by`)
+        .select(`order_number, wallet_id, created_by, price_per_unit, quantity`)
         .in('order_number', refs);
 
       if (soError) {
@@ -113,10 +113,16 @@ export function StockTransactionsTab() {
         const so = soByOrder.get(t.reference_number);
         const walletName = so?.wallet_id ? walletNameById.get(so.wallet_id) : null;
         const createdByUser = so?.created_by ? userById.get(so.created_by) : null;
+        // Get unit_price from sales_order.price_per_unit, calculate total_amount = qty * unit_price
+        const unitPrice = so?.price_per_unit || t.unit_price || 0;
+        const qty = parseFloat(t.quantity) || 0;
+        const totalAmount = qty * unitPrice;
         return {
           ...t,
           wallet_name: walletName || null,
           created_by_user: createdByUser || (t as any).created_by_user || null,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
         };
       });
     },
@@ -326,18 +332,24 @@ export function StockTransactionsTab() {
       created_by_user: (t as any).created_by_user
     })),
     // Purchase entries
-    ...(purchaseEntries || []).map(p => ({
-      ...p,
-      type: 'purchase',
-      transaction_type: 'PURCHASE',
-      date: p.created_at || p.purchase_orders?.order_date, // Use created_at for actual entry time
-      supplier_name: p.purchase_orders?.supplier_name,
-      reference_number: p.purchase_orders?.order_number,
-      total_amount: p.total_price,
-      products: p.products,
-      wallet_name: 'BINANCE BLYNK', // Default wallet for purchases
-      created_by_user: (p.purchase_orders as any)?.created_by_user
-    })),
+    ...(purchaseEntries || []).map(p => {
+      const unitPrice = parseFloat(String(p.unit_price)) || 0;
+      const qty = parseFloat(String(p.quantity)) || 0;
+      const totalAmount = qty * unitPrice;
+      return {
+        ...p,
+        type: 'purchase',
+        transaction_type: 'PURCHASE',
+        date: p.created_at || p.purchase_orders?.order_date, // Use created_at for actual entry time
+        supplier_name: p.purchase_orders?.supplier_name,
+        reference_number: p.purchase_orders?.order_number,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
+        products: p.products,
+        wallet_name: 'BINANCE BLYNK', // Default wallet for purchases
+        created_by_user: (p.purchase_orders as any)?.created_by_user
+      };
+    }),
     // Wallet transactions (convert to stock transaction format)
     ...(walletTransactions || []).map(w => {
       // Manual credit/debit have no actual fund transfer, so unit_price and total_amount should be 0

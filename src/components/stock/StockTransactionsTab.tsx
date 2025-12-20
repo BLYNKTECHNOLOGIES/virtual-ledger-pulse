@@ -54,7 +54,8 @@ export function StockTransactionsTab() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // stock_transactions does not store wallet_id; infer wallet name via sales_orders.order_number (= reference_number)
+
+      // stock_transactions doesn't store wallet_id/created_by reliably; infer via sales_orders.order_number (= reference_number)
       const refs = Array.from(
         new Set((data || []).map((t: any) => t.reference_number).filter(Boolean))
       ) as string[];
@@ -63,21 +64,61 @@ export function StockTransactionsTab() {
 
       const { data: salesOrders, error: soError } = await supabase
         .from('sales_orders')
-        .select(`order_number, wallets(wallet_name)`)
+        .select(`order_number, wallet_id, created_by`)
         .in('order_number', refs);
 
-      if (soError) return data; // best-effort enrichment for display only
+      if (soError) {
+        console.warn('⚠️ StockTransactions: failed to load sales_orders for wallet/creator enrichment', soError);
+        return data;
+      }
 
-      const walletNameByOrder = new Map<string, string>();
-      (salesOrders || []).forEach((so: any) => {
-        const walletName = so.wallets?.wallet_name;
-        if (so.order_number && walletName) walletNameByOrder.set(so.order_number, walletName);
+      const walletIds = Array.from(
+        new Set((salesOrders || []).map((so: any) => so.wallet_id).filter(Boolean))
+      ) as string[];
+      const creatorIds = Array.from(
+        new Set((salesOrders || []).map((so: any) => so.created_by).filter(Boolean))
+      ) as string[];
+
+      const [{ data: walletsData, error: wError }, { data: usersData, error: uError }] = await Promise.all([
+        walletIds.length
+          ? supabase.from('wallets').select('id, wallet_name').in('id', walletIds)
+          : Promise.resolve({ data: [], error: null } as any),
+        creatorIds.length
+          ? supabase
+              .from('users')
+              .select('id, username, first_name, last_name, email, phone, role, avatar_url')
+              .in('id', creatorIds)
+          : Promise.resolve({ data: [], error: null } as any),
+      ]);
+
+      if (wError) console.warn('⚠️ StockTransactions: failed to load wallets', wError);
+      if (uError) console.warn('⚠️ StockTransactions: failed to load users', uError);
+
+      const walletNameById = new Map<string, string>();
+      (walletsData || []).forEach((w: any) => {
+        if (w?.id) walletNameById.set(w.id, w.wallet_name);
       });
 
-      return (data || []).map((t: any) => ({
-        ...t,
-        wallet_name: walletNameByOrder.get(t.reference_number) || null,
-      }));
+      const userById = new Map<string, any>();
+      (usersData || []).forEach((u: any) => {
+        if (u?.id) userById.set(u.id, u);
+      });
+
+      const soByOrder = new Map<string, any>();
+      (salesOrders || []).forEach((so: any) => {
+        if (so?.order_number) soByOrder.set(so.order_number, so);
+      });
+
+      return (data || []).map((t: any) => {
+        const so = soByOrder.get(t.reference_number);
+        const walletName = so?.wallet_id ? walletNameById.get(so.wallet_id) : null;
+        const createdByUser = so?.created_by ? userById.get(so.created_by) : null;
+        return {
+          ...t,
+          wallet_name: walletName || null,
+          created_by_user: createdByUser || (t as any).created_by_user || null,
+        };
+      });
     },
     staleTime: 10000, // Refresh every 10 seconds
     gcTime: 30000, // Cache for 30 seconds

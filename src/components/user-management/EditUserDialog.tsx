@@ -23,6 +23,9 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
+  // Get the role_id from either user.role_id or from user.role.id (from user_roles junction table)
+  const initialRoleId = user.role_id || user.role?.id || "no_role";
+  
   const [formData, setFormData] = useState({
     username: user.username,
     email: user.email,
@@ -30,7 +33,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     last_name: user.last_name || "",
     phone: user.phone || "",
     status: user.status,
-    role_id: user.role_id || "no_role"
+    role_id: initialRoleId
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);

@@ -39,10 +39,10 @@ export function AboutPage() {
   ];
 
   const contactInfo = [
-    { title: "Business Enquiries", email: "contact@blynkcrypto.in" },
-    { title: "Security Concerns", email: "security@blynkcrypto.in" },
-    { title: "Law Enforcement Support", email: "compliance@blynkcrypto.in" },
-    { title: "Careers", email: "hr@blynkcrypto.in" }
+    { title: "Business Enquiries", email: "contact@blynkex.com" },
+    { title: "Security Concerns", email: "support@blynkex.com" },
+    { title: "Law Enforcement Support", email: "compliance@blynkex.com" },
+    { title: "Careers", email: "hrdept@blynkex.com" }
   ];
 
   return (
@@ -219,7 +219,7 @@ export function AboutPage() {
 
           <Button className="bg-blue-600 hover:bg-blue-700">
             <Mail className="mr-2 h-4 w-4" />
-            hr@blynkcrypto.in
+            hrdept@blynkex.com
           </Button>
         </div>
       </section>
@@ -246,7 +246,7 @@ export function AboutPage() {
           <div className="text-center mt-12">
             <div className="flex items-center justify-center gap-2 text-gray-600">
               <Globe className="h-5 w-5" />
-              <span className="text-lg">www.blynkcrypto.in</span>
+              <span className="text-lg">www.blynkex.com</span>
             </div>
           </div>
         </div>

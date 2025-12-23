@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield, CheckCircle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -277,7 +277,7 @@ export default function Sales() {
     }
   };
 
-  const renderOrdersTable = (orders: any[]) => (
+  const renderOrdersTable = (orders: any[], isCompleted: boolean = false) => (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
@@ -306,7 +306,7 @@ export default function Sales() {
                   </div>
                 )}
               </TableCell>
-              <TableCell>{order.platform}</TableCell>
+              <TableCell>{order.platform || 'Off Market'}</TableCell>
               <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
               <TableCell>{order.quantity || 1}</TableCell>
               <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
@@ -579,11 +579,17 @@ export default function Sales() {
               </TabsList>
               
               <TabsContent value="pending" className="mt-6">
-                {renderOrdersTable(pendingOrders)}
+                {renderOrdersTable(pendingOrders, false)}
               </TabsContent>
               
               <TabsContent value="completed" className="mt-6">
-                {renderOrdersTable(completedOrders)}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-green-600 font-medium">
+                    <CheckCircle className="h-5 w-5" />
+                    Completed Sales Orders
+                  </div>
+                  {renderOrdersTable(completedOrders, true)}
+                </div>
               </TabsContent>
             </Tabs>
           )}

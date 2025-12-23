@@ -164,7 +164,7 @@ export function ModernFooter() {
                 <Mail className="h-4 w-4 text-primary" />
                 <div>
                   <strong className="text-foreground">Email:</strong><br />
-                  contact@vaspcorp.in
+                  support@blynkex.com
                 </div>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

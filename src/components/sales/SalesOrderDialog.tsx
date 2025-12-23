@@ -212,33 +212,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             .eq('id', orderData.sales_payment_method_id);
         }
 
-        // Create bank INCOME transaction if payment is completed and NOT a payment gateway
-        if (orderData.payment_status === 'COMPLETED') {
-          const { data: paymentMethodWithBank } = await supabase
-            .from('sales_payment_methods')
-            .select('bank_account_id, payment_gateway')
-            .eq('id', orderData.sales_payment_method_id)
-            .single();
-
-          if (paymentMethodWithBank?.bank_account_id && !paymentMethodWithBank?.payment_gateway) {
-            const { error: txError } = await supabase
-              .from('bank_transactions')
-              .insert({
-                bank_account_id: paymentMethodWithBank.bank_account_id,
-                transaction_type: 'INCOME',
-                amount: orderData.amount,
-                transaction_date: orderData.order_date,
-                category: 'Sales',
-                description: `Sales Order - ${orderData.client_name || 'Customer'} - Order #${data.order_number}`,
-                reference_number: data.order_number,
-                related_account_name: orderData.client_name || null,
-              });
-
-            if (txError) {
-              console.error('Failed to create bank transaction for sales order', txError);
-            }
-          }
-        }
+        // Bank transaction is handled automatically by database trigger: create_sales_bank_transaction
+        // No manual bank transaction creation needed here
       }
 
       return data;

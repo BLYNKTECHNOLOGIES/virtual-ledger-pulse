@@ -265,10 +265,19 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.wallet_id && formData.product_id) {
+    if (!formData.order_number.trim()) {
       toast({
         title: "Error",
-        description: "Please select a wallet for the product",
+        description: "Please enter an order number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.wallet_id) {
+      toast({
+        title: "Error",
+        description: "Please select a wallet - it is required for all sales orders",
         variant: "destructive",
       });
       return;
@@ -390,16 +399,14 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   </Select>
                 </div>
 
-                {formData.product_id && (
-                  <div>
-                    <WalletSelector
-                      value={formData.wallet_id}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, wallet_id: value }))}
-                      showBalanceInfo={true}
-                      label="Select Wallet *"
-                    />
-                  </div>
-                )}
+                <div>
+                  <Label>Wallet *</Label>
+                  <WalletSelector
+                    value={formData.wallet_id}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, wallet_id: value }))}
+                    showBalanceInfo={true}
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="amount">Total Amount *</Label>

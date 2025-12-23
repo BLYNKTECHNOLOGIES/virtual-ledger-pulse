@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ModernNavbar } from './ModernNavbar';
 import { ModernFooter } from './ModernFooter';
@@ -40,23 +40,19 @@ function scrollToTop() {
   // Debug (visible in console): helps confirm which element actually had scroll
   const top = (document.scrollingElement as HTMLElement | null)?.scrollTop ?? 0;
   // eslint-disable-next-line no-console
-  console.debug('[scrollToTop] applied', { top, pathname: window.location.pathname });
+  console.log('[scrollToTop] applied', { top, pathname: window.location.pathname });
 }
 
 export function WebsiteLayout({ children }: WebsiteLayoutProps) {
   const { pathname } = useLocation();
 
-  useEffect(() => {
-    // Ensure it runs after route transition + layout paint
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
-        scrollToTop();
-      });
-      // cleanup inner RAF
-      return () => cancelAnimationFrame(raf2);
-    });
+  useLayoutEffect(() => {
+    // Run before paint so navigation never shows the previous scroll position.
+    scrollToTop();
 
-    return () => cancelAnimationFrame(raf1);
+    // And again right after paint (covers content that mounts and changes scroll containers)
+    const raf = requestAnimationFrame(() => scrollToTop());
+    return () => cancelAnimationFrame(raf);
   }, [pathname]);
 
   return (

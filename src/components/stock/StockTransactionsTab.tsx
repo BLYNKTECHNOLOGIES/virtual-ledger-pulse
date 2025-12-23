@@ -468,37 +468,39 @@ export function StockTransactionsTab() {
         created_by_user: (p.purchase_orders as any)?.created_by_user
       };
     }),
-    // Wallet transactions (convert to stock transaction format)
-    ...(walletTransactions || []).map(w => {
-      const qty = parseFloat(String(w.amount)) || 0;
-      const unitPrice = (w as any)._unit_price ?? 0;
-      const totalAmount = (w as any)._total_amount ?? qty * unitPrice;
+    // Wallet transactions (manual transfers/adjustments only; orders are already represented above)
+    ...(walletTransactions || [])
+      .filter((w: any) => !['SALES_ORDER', 'PURCHASE_ORDER'].includes(w.reference_type))
+      .map(w => {
+        const qty = parseFloat(String(w.amount)) || 0;
+        const unitPrice = (w as any)._unit_price ?? 0;
+        const totalAmount = (w as any)._total_amount ?? qty * unitPrice;
 
-      const referenceFromOrder = (w as any)._reference_number;
-      const supplierFromOrder = (w as any)._supplier_customer_name;
-      const createdByUser = (w as any)._created_by_user;
+        const referenceFromOrder = (w as any)._reference_number;
+        const supplierFromOrder = (w as any)._supplier_customer_name;
+        const createdByUser = (w as any)._created_by_user;
 
-      return {
-        ...w,
-        type: 'wallet',
-        date: w.created_at,
-        supplier_name: supplierFromOrder || w.wallets?.wallet_name || 'BINANCE BLYNK',
-        reference_number: referenceFromOrder || `WT-${w.id.slice(-8)}b`,
-        quantity: qty,
-        unit_price: unitPrice,
-        total_amount: totalAmount,
-        transaction_type: w.transaction_type,
-        products: usdtProduct
-          ? {
-              name: usdtProduct.name,
-              code: usdtProduct.code,
-              unit_of_measurement: usdtProduct.unit_of_measurement,
-            }
-          : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
-        wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
-        created_by_user: createdByUser || null,
-      };
-    })
+        return {
+          ...w,
+          type: 'wallet',
+          date: w.created_at,
+          supplier_name: supplierFromOrder || w.wallets?.wallet_name || 'BINANCE BLYNK',
+          reference_number: referenceFromOrder || `WT-${w.id.slice(-8)}b`,
+          quantity: qty,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          transaction_type: w.transaction_type,
+          products: usdtProduct
+            ? {
+                name: usdtProduct.name,
+                code: usdtProduct.code,
+                unit_of_measurement: usdtProduct.unit_of_measurement,
+              }
+            : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
+          wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
+          created_by_user: createdByUser || null,
+        };
+      })
   ];
 
   // Apply filters to combined entries

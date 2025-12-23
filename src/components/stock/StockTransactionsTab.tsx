@@ -565,11 +565,10 @@ export function StockTransactionsTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Transactions</SelectItem>
-                <SelectItem value="IN">Stock In</SelectItem>
-                <SelectItem value="OUT">Stock Out</SelectItem>
-                <SelectItem value="PURCHASE">Purchase Orders</SelectItem>
+                <SelectItem value="PURCHASE">Purchase</SelectItem>
                 <SelectItem value="Sales">Sales</SelectItem>
-                <SelectItem value="SALES_ORDER">Sales Orders</SelectItem>
+                <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
+                <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -585,8 +584,6 @@ export function StockTransactionsTab() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Total Amount</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Wallet</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier/Customer</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
@@ -612,8 +609,6 @@ export function StockTransactionsTab() {
                           maximumFractionDigits: 3
                         })} {entry.products?.unit_of_measurement}
                       </td>
-                      <td className="py-3 px-4">{entry.unit_price ? `₹${Number(entry.unit_price).toFixed(2)}` : '₹0'}</td>
-                      <td className="py-3 px-4">₹{Number(entry.total_amount || 0).toFixed(2)}</td>
                       <td className="py-3 px-4">
                         {entry.wallet_name ? (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">

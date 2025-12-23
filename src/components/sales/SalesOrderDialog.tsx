@@ -212,7 +212,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             .eq('id', orderData.sales_payment_method_id);
         }
 
-        // Update bank account balance if payment is completed and NOT a payment gateway
+        // Create bank INCOME transaction if payment is completed and NOT a payment gateway
         if (orderData.payment_status === 'COMPLETED') {
           const { data: paymentMethodWithBank } = await supabase
             .from('sales_payment_methods')
@@ -221,19 +221,21 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             .single();
 
           if (paymentMethodWithBank?.bank_account_id && !paymentMethodWithBank?.payment_gateway) {
-            const { data: bankAccount } = await supabase
-              .from('bank_accounts')
-              .select('balance')
-              .eq('id', paymentMethodWithBank.bank_account_id)
-              .single();
-              
-            if (bankAccount) {
-              await supabase
-                .from('bank_accounts')
-                .update({ 
-                  balance: bankAccount.balance + orderData.amount 
-                })
-                .eq('id', paymentMethodWithBank.bank_account_id);
+            const { error: txError } = await supabase
+              .from('bank_transactions')
+              .insert({
+                bank_account_id: paymentMethodWithBank.bank_account_id,
+                transaction_type: 'INCOME',
+                amount: orderData.amount,
+                transaction_date: orderData.order_date,
+                category: 'Sales',
+                description: `Sales Order - ${orderData.client_name || 'Customer'} - Order #${data.order_number}`,
+                reference_number: data.order_number,
+                related_account_name: orderData.client_name || null,
+              });
+
+            if (txError) {
+              console.error('Failed to create bank transaction for sales order', txError);
             }
           }
         }

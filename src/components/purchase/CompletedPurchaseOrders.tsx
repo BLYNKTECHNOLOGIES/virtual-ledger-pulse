@@ -11,7 +11,7 @@ import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
-import { ClickableUser } from "@/components/ui/clickable-user";
+
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
   // Fetch completed purchase orders
@@ -151,17 +151,13 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Supplier</TableHead>
-                  <TableHead>Contact</TableHead>
+                  <TableHead>Platform</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Price</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Wallet</TableHead>
-                  <TableHead>Payment Method Used</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Order Date</TableHead>
-                  <TableHead>Completed Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Created By</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -177,94 +173,44 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{order.contact_number || '-'}</TableCell>
+                    <TableCell>{(order as any).platform || 'Off Market'}</TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
-                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 0}
+                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0}
                     </TableCell>
                     <TableCell>
-                      ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.total_amount).toLocaleString()}
+                      ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.price_per_unit || order.total_amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        {order.purchase_order_items?.[0]?.products?.name || order.product_name || 'N/A'}
-                      </div>
-                      {order.purchase_order_items?.[0]?.products?.code && (
-                        <div className="text-xs text-gray-500">Code: {order.purchase_order_items[0].products.code}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        BINANCE BLYNK
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="default">
-                        {(() => {
-                          const rel = (order as any).purchase_payment_method;
-                          if (rel) {
-                            if (rel.type === 'BANK_TRANSFER') {
-                              const acc = (rel as any).bank_accounts?.account_name || rel.bank_account_name;
-                              return `Bank: ${acc || '-'}`;
-                            }
-                            if (rel.type === 'UPI') return `UPI: ${rel.upi_id || '-'}`;
-                            return rel.type;
-                          }
-                          const bankAcc = (order as any).bank_account;
-                          if (bankAcc?.account_name) {
-                            return `Bank: ${bankAcc.account_name}`;
-                          }
-                          const methodId = order.purchase_payment_method_id || order.payment_method_used;
-                          const method = (purchaseMethods || []).find((m: any) => m.id === methodId);
-                          if (method) {
-                            if (method.type === 'BANK_TRANSFER') return `Bank: ${method.bank_account_name || '-'}`;
-                            if (method.type === 'UPI') return `UPI: ${method.upi_id || '-'}`;
-                            return method.type;
-                          }
-                          if (order.payment_method_type === 'BANK_TRANSFER') return `Bank: ${order.bank_account_name || order.bank_account_number || '-'}`;
-                          if (order.payment_method_type === 'UPI') return `UPI: ${order.upi_id || '-'}`;
-                          return '-';
-                        })()}
-                      </Badge>
+                      <Badge className="bg-green-100 text-green-800">Completed</Badge>
                     </TableCell>
                     <TableCell>
                       {(order as any).created_by_user ? (
-                        <ClickableUser
-                          userId={(order as any).created_by_user.id}
-                          username={(order as any).created_by_user.username}
-                          firstName={(order as any).created_by_user.first_name}
-                          lastName={(order as any).created_by_user.last_name}
-                          email={(order as any).created_by_user.email}
-                          phone={(order as any).created_by_user.phone}
-                          role={(order as any).created_by_user.role}
-                          avatarUrl={(order as any).created_by_user.avatar_url}
-                        />
-                      ) : '-'}
+                        <span className="font-medium text-gray-700">
+                          {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
+                        </span>
+                      ) : <span className="text-gray-400">N/A</span>}
                     </TableCell>
                     <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>{format(new Date(order.updated_at), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Completed
-                      </Badge>
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Button 
                           variant="ghost" 
-                          size="sm" 
+                          size="sm"
                           onClick={() => setSelectedOrderForDetails(order)}
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                         >
-                          <Eye className="h-3 w-3 mr-1" />
-                          View Details
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
                         </Button>
                         <Button 
                           variant="ghost" 
-                          size="sm" 
+                          size="sm"
                           onClick={() => setSelectedOrderForEdit(order)}
+                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
                         >
-                          <Edit className="h-3 w-3" />
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
                         </Button>
                         <Button
                           variant="ghost"
@@ -282,7 +228,6 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

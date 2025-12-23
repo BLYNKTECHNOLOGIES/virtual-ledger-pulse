@@ -155,12 +155,12 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Supplier</TableHead>
+                  <TableHead>Platform</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Price</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Failed Payment Method</TableHead>
-                  <TableHead>Failure Reason</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created By</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -169,29 +169,35 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                    <TableCell>{order.supplier_name}</TableCell>
-                    <TableCell>₹{order.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{order.supplier_name}</div>
+                      {order.failure_reason && (
+                        <div className="text-sm text-red-500 max-w-[200px] truncate">
+                          {order.failure_reason}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>{(order as any).platform || 'Off Market'}</TableCell>
+                    <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>{order.quantity || 1}</TableCell>
                     <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
                     <TableCell>
-                      <div className="text-sm">{order.product_name || 'N/A'}</div>
-                      {order.product_category && (
-                        <div className="text-xs text-gray-500">{order.product_category}</div>
-                      )}
+                      <Badge className="bg-orange-100 text-orange-800">Review Needed</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="destructive">
-                        {order.payment_method_type === 'UPI' ? `UPI: ${order.upi_id || '-'}` : 
-                         order.payment_method_type === 'BANK_TRANSFER' ? `Bank: ${order.bank_account_number || '-'}` : '-'}
-                      </Badge>
+                      {(order as any).created_by_user ? (
+                        <span className="font-medium text-gray-700">
+                          {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
+                        </span>
+                      ) : <span className="text-gray-400">N/A</span>}
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">{order.failure_reason || '-'}</TableCell>
                     <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setSelectedOrder(order)}
+                        className="bg-orange-50 hover:bg-orange-100 text-orange-700"
                       >
                         Review
                       </Button>

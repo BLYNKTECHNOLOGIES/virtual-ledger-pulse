@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -278,111 +279,99 @@ export default function Sales() {
 
   const renderOrdersTable = (orders: any[]) => (
     <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b">
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Order #</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Customer</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Platform</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Amount</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Qty</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Price</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Order #</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Platform</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Qty</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created By</TableHead>
+            <TableHead>Date</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {orders.map((order) => (
-            <tr key={order.id} className="border-b hover:bg-gray-50">
-              <td className="py-3 px-4 font-mono text-sm">{order.order_number}</td>
-              <td className="py-3 px-4">
-                <div>
-                  <div className="font-medium">{order.client_name}</div>
-                  {order.description && (
-                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                      {order.description}
-                    </div>
-                  )}
-                </div>
-              </td>
-              <td className="py-3 px-4">{order.platform}</td>
-              <td className="py-3 px-4 font-medium">₹{Number(order.total_amount).toLocaleString()}</td>
-              <td className="py-3 px-4">{order.quantity || 1}</td>
-              <td className="py-3 px-4">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</td>
-              <td className="py-3 px-4">{getStatusBadge(order.payment_status)}</td>
-              <td className="py-3 px-4">
-                <div className="text-sm">
-                  {order.created_by_user ? (
-                    <span className="font-medium text-gray-700">
-                      {order.created_by_user.first_name || order.created_by_user.username}
-                    </span>
+            <TableRow key={order.id}>
+              <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
+              <TableCell>
+                <div className="font-medium">{order.client_name}</div>
+                {order.description && (
+                  <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                    {order.description}
+                  </div>
+                )}
+              </TableCell>
+              <TableCell>{order.platform}</TableCell>
+              <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
+              <TableCell>{order.quantity || 1}</TableCell>
+              <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+              <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
+              <TableCell>
+                {order.created_by_user ? (
+                  <span className="font-medium text-gray-700">
+                    {order.created_by_user.first_name || order.created_by_user.username}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">N/A</span>
+                )}
+              </TableCell>
+              <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  {order.payment_status === 'USER_PAYING' ? (
+                    <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedOrderForUserPaying(order)}
+                        className="bg-blue-50 hover:bg-blue-100 text-blue-700"
+                      >
+                        Take Action
+                      </Button>
+                    </PermissionGate>
                   ) : (
-                    <span className="text-gray-400">N/A</span>
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setSelectedOrderForDetails(order)}
+                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View
+                      </Button>
+                      <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                        <Button 
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedOrderForEdit(order)}
+                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteOrder(order.id)}
+                          disabled={deleteSalesOrderMutation.isPending}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </PermissionGate>
+                    </>
                   )}
                 </div>
-              </td>
-              <td className="py-3 px-4">{format(new Date(order.order_date), 'MMM dd, yyyy')}</td>
-                   <td className="py-3 px-4">
-                     <div className="flex gap-1">
-                        {order.payment_status === 'USER_PAYING' ? (
-                          // Special action for User Paying orders
-                          <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                           <Button 
-                             variant="outline"
-                             size="sm"
-                             onClick={() => setSelectedOrderForUserPaying(order)}
-                             className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                           >
-                             Take Action
-                           </Button>
-                         </PermissionGate>
-                       ) : (
-                         // Default actions for other orders
-                         <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => {
-                                console.log('View Details clicked for order:', order);
-                                setSelectedOrderForDetails(order);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                             </Button>
-                             <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                              <Button 
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  console.log('Edit clicked for order:', order);
-                                  setSelectedOrderForEdit(order);
-                                }}
-                                className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleDeleteOrder(order.id)}
-                                disabled={deleteSalesOrderMutation.isPending}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </PermissionGate>
-                         </>
-                       )}
-                     </div>
-                   </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
       {orders.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No orders found for this category.

@@ -9,16 +9,38 @@ interface WebsiteLayoutProps {
 }
 
 function scrollToTop() {
-  // React Router + data routers can preserve scroll; also some layouts scroll a container.
-  const scrollingEl = document.scrollingElement as HTMLElement | null;
-  if (scrollingEl) {
-    scrollingEl.scrollTo({ top: 0, left: 0 });
+  // Some environments (and certain layouts) scroll a container instead of the window.
+  const candidates: Array<HTMLElement | null> = [
+    document.scrollingElement as HTMLElement | null,
+    document.documentElement,
+    document.body,
+    document.getElementById('root'),
+    document.querySelector('main'),
+  ];
+
+  // Also target any common "overflow" containers inside the app.
+  const overflowNodes = Array.from(
+    document.querySelectorAll<HTMLElement>('.overflow-y-auto, .overflow-auto')
+  );
+
+  const unique = Array.from(new Set([...candidates, ...overflowNodes].filter(Boolean))) as HTMLElement[];
+
+  for (const el of unique) {
+    try {
+      el.scrollTop = 0;
+      el.scrollLeft = 0;
+    } catch {
+      // ignore
+    }
   }
 
-  // Fallbacks (older browsers / edge cases)
-  document.documentElement.scrollTop = 0;
-  document.body.scrollTop = 0;
+  // Final window fallback
   window.scrollTo({ top: 0, left: 0 });
+
+  // Debug (visible in console): helps confirm which element actually had scroll
+  const top = (document.scrollingElement as HTMLElement | null)?.scrollTop ?? 0;
+  // eslint-disable-next-line no-console
+  console.debug('[scrollToTop] applied', { top, pathname: window.location.pathname });
 }
 
 export function WebsiteLayout({ children }: WebsiteLayoutProps) {

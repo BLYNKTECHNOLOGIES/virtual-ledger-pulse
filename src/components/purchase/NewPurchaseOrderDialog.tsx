@@ -267,6 +267,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     e.preventDefault();
     
     // Validation
+    if (!formData.order_number.trim()) {
+      toast({
+        title: "Error",
+        description: "Order number is mandatory.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!formData.contact_number.trim()) {
       toast({
         title: "Error",
@@ -280,6 +289,17 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       toast({
         title: "Error",
         description: "Please add a product item.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate all product items have wallet selected
+    const missingWallet = productItems.find(item => !item.warehouse_id);
+    if (missingWallet) {
+      toast({
+        title: "Error",
+        description: "Please select a wallet for all product items - it is required for all purchase orders.",
         variant: "destructive",
       });
       return;

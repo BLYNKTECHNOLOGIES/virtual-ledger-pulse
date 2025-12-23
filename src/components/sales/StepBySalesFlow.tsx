@@ -46,7 +46,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const [paymentMethodDialogOpen, setPaymentMethodDialogOpen] = useState(false);
   const [userPayingDialogOpen, setUserPayingDialogOpen] = useState(false);
   const [pendingSalesOrder, setPendingSalesOrder] = useState<any>(null);
-  // Generate unique order number
+  // Generate unique order number - only used as fallback if user doesn't provide one
   const generateOrderNumber = () => {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
@@ -54,7 +54,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   };
 
   const [finalOrderData, setFinalOrderData] = useState({
-    order_number: generateOrderNumber(), 
+    order_number: "", // Empty - user must enter order number
     platform: '', 
     quantity: 1, 
     platform_fees: 0,

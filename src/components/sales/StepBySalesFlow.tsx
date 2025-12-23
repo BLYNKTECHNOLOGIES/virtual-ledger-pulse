@@ -320,26 +320,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         }
       }
 
-      // Create bank INCOME transaction for direct (non-gateway) payment methods
+      // Bank transaction is handled automatically by database trigger: create_sales_bank_transaction
+      // Only update payment method usage here for direct payment methods
       if (selectedPaymentMethod?.bank_account_id && !selectedPaymentMethod?.payment_gateway) {
-        const { error: txError } = await supabase
-          .from('bank_transactions')
-          .insert({
-            bank_account_id: selectedPaymentMethod.bank_account_id,
-            transaction_type: 'INCOME',
-            amount: parseFloat(orderAmount) || 0,
-            transaction_date: salesOrderData.order_date,
-            category: 'Sales',
-            description: `Sales Order - ${salesOrderData.client_name} - Order #${salesOrderData.order_number}`,
-            reference_number: salesOrderData.order_number,
-            related_account_name: salesOrderData.client_name,
-          });
-
-        if (txError) {
-          console.error('Failed to create bank transaction for sales order', txError);
-        }
-
-        // Update payment method usage
         const { error: usageError } = await supabase
           .from('sales_payment_methods')
           .update({

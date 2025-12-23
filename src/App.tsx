@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
@@ -557,6 +557,13 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
+  useEffect(() => {
+    // Prevent the browser from restoring previous scroll positions on SPA navigation
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   return (
     <React.StrictMode>
       <RouterProvider router={router} />

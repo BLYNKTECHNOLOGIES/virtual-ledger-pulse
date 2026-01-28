@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard } from "lucide-react";
+import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
@@ -34,14 +34,22 @@ interface PendingSale {
   sales_payment_method?: {
     id: string;
     type: string;
+    upi_id?: string;
     settlement_cycle: string | null;
     settlement_days: number | null;
+    payment_gateway: boolean;
     bank_account?: {
       id: string;
       account_name: string;
       bank_name: string;
       account_number: string;
     };
+  };
+  bank_account?: {
+    id: string;
+    account_name: string;
+    bank_name: string;
+    account_number: string;
   };
 }
 
@@ -52,17 +60,18 @@ interface BankAccount {
   account_number: string;
 }
 
-interface BankGroup {
-  bankAccountId: string;
-  bankName: string;
-  accountName: string;
+interface GatewayGroup {
+  paymentMethodId: string;
+  gatewayType: string;
+  gatewayName: string;
+  settlementBankAccount: BankAccount | null;
   sales: PendingSale[];
   totalAmount: number;
 }
 
 export function PendingSettlements() {
   const [pendingSales, setPendingSales] = useState<PendingSale[]>([]);
-  const [bankGroups, setBankGroups] = useState<BankGroup[]>([]);
+  const [gatewayGroups, setGatewayGroups] = useState<GatewayGroup[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
@@ -71,6 +80,7 @@ export function PendingSettlements() {
   const [deductMdr, setDeductMdr] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [settlingIndividualId, setSettlingIndividualId] = useState<string | null>(null);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -88,6 +98,7 @@ export function PendingSettlements() {
           sales_payment_methods!payment_method_id (
             id,
             type,
+            upi_id,
             settlement_cycle,
             settlement_days,
             payment_gateway,
@@ -111,11 +122,11 @@ export function PendingSettlements() {
       
       if (!data) {
         setPendingSales([]);
-        setBankGroups([]);
+        setGatewayGroups([]);
         return;
       }
 
-      // Transform data and group by bank
+      // Transform data
       const transformedData = data.map((settlement: any) => ({
         ...settlement,
         sales_payment_method: settlement.sales_payment_methods || {
@@ -123,33 +134,42 @@ export function PendingSettlements() {
           type: 'Gateway',
           settlement_cycle: settlement.settlement_cycle,
           settlement_days: settlement.settlement_days,
+          payment_gateway: true,
           bank_account: settlement.bank_accounts
-        }
+        },
+        bank_account: settlement.bank_accounts
       }));
 
-      // Group sales by bank account
-      const groups: { [key: string]: BankGroup } = {};
+      // Group sales by payment gateway (payment_method_id)
+      const groups: { [key: string]: GatewayGroup } = {};
       
       transformedData.forEach((settlement: any) => {
-        const bankAccount = settlement.bank_accounts || settlement.sales_payment_method?.bank_account;
-        if (bankAccount) {
-          const key = bankAccount.id;
-          if (!groups[key]) {
-            groups[key] = {
-              bankAccountId: bankAccount.id,
-              bankName: bankAccount.bank_name,
-              accountName: bankAccount.account_name,
-              sales: [],
-              totalAmount: 0
-            };
+        const paymentMethodId = settlement.payment_method_id || 'unknown';
+        const paymentMethod = settlement.sales_payment_method;
+        const bankAccount = settlement.bank_accounts || paymentMethod?.bank_account;
+        
+        if (!groups[paymentMethodId]) {
+          // Build gateway name (e.g., "UPI - merchant@upi" or just "UPI")
+          let gatewayName = paymentMethod?.type || 'Unknown Gateway';
+          if (paymentMethod?.type === 'UPI' && paymentMethod?.upi_id) {
+            gatewayName = `UPI - ${paymentMethod.upi_id}`;
           }
-          groups[key].sales.push(settlement);
-          groups[key].totalAmount += settlement.settlement_amount || settlement.total_amount;
+          
+          groups[paymentMethodId] = {
+            paymentMethodId,
+            gatewayType: paymentMethod?.type || 'Gateway',
+            gatewayName,
+            settlementBankAccount: bankAccount || null,
+            sales: [],
+            totalAmount: 0
+          };
         }
+        groups[paymentMethodId].sales.push(settlement);
+        groups[paymentMethodId].totalAmount += settlement.settlement_amount || settlement.total_amount;
       });
 
       setPendingSales(transformedData);
-      setBankGroups(Object.values(groups));
+      setGatewayGroups(Object.values(groups));
     } catch (error) {
       console.error('Error fetching pending settlements:', error);
       toast({
@@ -178,12 +198,10 @@ export function PendingSettlements() {
 
   const handleSelectSale = (saleId: string) => {
     const sale = pendingSales.find(s => s.id === saleId);
-    const isAdding = !selectedSales.includes(saleId);
     
     setSelectedSales(prev => {
       if (prev.includes(saleId)) {
         const newSelected = prev.filter(id => id !== saleId);
-        // If no sales selected, clear bank account
         if (newSelected.length === 0) {
           setSelectedBankAccount("");
         }
@@ -202,30 +220,29 @@ export function PendingSettlements() {
     });
   };
 
-  const handleSelectAll = () => {
-    if (selectedSales.length === pendingSales.length) {
-      setSelectedSales([]);
-    } else {
-      setSelectedSales(pendingSales.map(sale => sale.id));
-    }
-  };
-
-  const handleSelectBankGroup = (bankGroup: BankGroup) => {
-    const groupSaleIds = bankGroup.sales.map(sale => sale.id);
+  const handleSelectGatewayGroup = (gatewayGroup: GatewayGroup) => {
+    const groupSaleIds = gatewayGroup.sales.map(sale => sale.id);
     const allSelected = groupSaleIds.every(id => selectedSales.includes(id));
     
     if (allSelected) {
       setSelectedSales(prev => prev.filter(id => !groupSaleIds.includes(id)));
-      setSelectedBankAccount("");
+      // Check if we need to clear bank account
+      const remainingSelected = selectedSales.filter(id => !groupSaleIds.includes(id));
+      if (remainingSelected.length === 0) {
+        setSelectedBankAccount("");
+      }
     } else {
       setSelectedSales(prev => [...new Set([...prev, ...groupSaleIds])]);
       // Auto-select the bank account linked to the payment gateway
-      setSelectedBankAccount(bankGroup.bankAccountId);
+      if (gatewayGroup.settlementBankAccount) {
+        setSelectedBankAccount(gatewayGroup.settlementBankAccount.id);
+      }
     }
   };
 
-  const calculateSettlementAmount = () => {
-    const totalAmount = selectedSales.reduce((sum, saleId) => {
+  const calculateSettlementAmount = (saleIds?: string[]) => {
+    const idsToUse = saleIds || selectedSales;
+    const totalAmount = idsToUse.reduce((sum, saleId) => {
       const sale = pendingSales.find(s => s.id === saleId);
       return sum + (sale?.total_amount || 0);
     }, 0);
@@ -241,23 +258,173 @@ export function PendingSettlements() {
     return parseFloat(mdrAmount);
   };
 
-  // Removed unused autoSettleInstantSales function that was creating duplicate transactions
+  const settleTransactions = async (saleIds: string[], bankAccountId: string, mdrDeduction: number = 0) => {
+    const totalAmount = saleIds.reduce((sum, saleId) => {
+      const sale = pendingSales.find(s => s.id === saleId);
+      return sum + (sale?.total_amount || 0);
+    }, 0);
+    const settlementAmount = totalAmount - mdrDeduction;
+    const selectedBankAcc = bankAccounts.find(acc => acc.id === bankAccountId);
+    const settlementBatchId = `PGS-${Date.now()}`;
 
-  const handleSettle = async () => {
-    console.log('=== SETTLE FUNCTION CALLED ===');
-    console.log('Selected Sales:', selectedSales);
-    console.log('Selected Bank Account:', selectedBankAccount);
-    console.log('Pending Sales Length:', pendingSales.length);
-    console.log('Is Settling:', isSettling);
+    // Create settlement record
+    const { data: settlement, error: settlementError } = await supabase
+      .from('payment_gateway_settlements')
+      .insert({
+        settlement_batch_id: settlementBatchId,
+        bank_account_id: bankAccountId,
+        total_amount: totalAmount,
+        mdr_amount: mdrDeduction,
+        net_amount: settlementAmount,
+        mdr_rate: totalAmount > 0 ? (mdrDeduction / totalAmount) * 100 : 0,
+        settlement_date: new Date().toISOString().split('T')[0]
+      })
+      .select()
+      .single();
+
+    if (settlementError) throw settlementError;
+
+    // Create settlement items
+    const settlementItems = saleIds.map(settlementId => {
+      const pendingSettlement = pendingSales.find(s => s.id === settlementId);
+      return {
+        settlement_id: settlement.id,
+        sales_order_id: pendingSettlement?.sales_order_id,
+        amount: pendingSettlement?.total_amount || 0
+      };
+    });
+
+    const { error: itemsError } = await supabase
+      .from('payment_gateway_settlement_items')
+      .insert(settlementItems);
+
+    if (itemsError) throw itemsError;
+
+    // Create bank transaction for settlement (credit to bank account)
+    const { error: transactionError } = await supabase
+      .from('bank_transactions')
+      .insert({
+        bank_account_id: bankAccountId,
+        transaction_type: 'INCOME',
+        amount: settlementAmount,
+        description: `Payment Gateway Settlement - ${saleIds.length} sale(s)${mdrDeduction > 0 ? ` (MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
+        transaction_date: new Date().toISOString().split('T')[0],
+        category: 'Payment Gateway Settlement',
+        reference_number: settlementBatchId
+      });
+
+    if (transactionError) throw transactionError;
+
+    // Update pending settlements status
+    const successfullySettledIds: string[] = [];
+    for (const settlementId of saleIds) {
+      const { data: updatedSettlement, error: updateError } = await supabase
+        .from('pending_settlements')
+        .update({
+          status: 'SETTLED',
+          settlement_batch_id: settlementBatchId,
+          settled_at: new Date().toISOString(),
+          actual_settlement_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', settlementId)
+        .select('id');
+
+      if (!updateError && updatedSettlement && updatedSettlement.length > 0) {
+        successfullySettledIds.push(settlementId);
+      }
+    }
+
+    // Reset payment method usage
+    const paymentMethodIds = [...new Set(successfullySettledIds.map(saleId => {
+      const sale = pendingSales.find(s => s.id === saleId);
+      return sale?.sales_payment_method?.id;
+    }).filter(Boolean))];
+
+    for (const methodId of paymentMethodIds) {
+      const settledAmount = successfullySettledIds.reduce((sum, saleId) => {
+        const sale = pendingSales.find(s => s.id === saleId);
+        return sale?.sales_payment_method?.id === methodId ? sum + (sale?.total_amount || 0) : sum;
+      }, 0);
+
+      const { data: currentMethod } = await supabase
+        .from('sales_payment_methods')
+        .select('current_usage')
+        .eq('id', methodId)
+        .single();
+
+      if (currentMethod) {
+        const newUsage = Math.max(0, (currentMethod.current_usage || 0) - settledAmount);
+        await supabase
+          .from('sales_payment_methods')
+          .update({ current_usage: newUsage })
+          .eq('id', methodId);
+      }
+    }
+
+    // Delete settled records
+    if (successfullySettledIds.length > 0) {
+      await supabase
+        .from('pending_settlements')
+        .delete()
+        .in('id', successfullySettledIds);
+    }
+
+    return { settlementAmount, successfullySettledIds, selectedBankAcc };
+  };
+
+  const handleSettleIndividual = async (sale: PendingSale) => {
+    const bankAccountId = sale.bank_account_id || sale.sales_payment_method?.bank_account?.id;
     
-    // Prevent multiple simultaneous settlements
-    if (isSettling) {
-      console.log('❌ Settlement already in progress, ignoring duplicate call');
+    if (!bankAccountId) {
+      toast({
+        title: "Error",
+        description: "No settlement bank account configured for this gateway",
+        variant: "destructive",
+      });
       return;
     }
+
+    setSettlingIndividualId(sale.id);
+    
+    try {
+      const { settlementAmount, successfullySettledIds, selectedBankAcc } = await settleTransactions(
+        [sale.id],
+        bankAccountId,
+        0
+      );
+
+      // Update local state
+      setPendingSales(prev => prev.filter(s => !successfullySettledIds.includes(s.id)));
+      setGatewayGroups(prev => prev.map(group => ({
+        ...group,
+        sales: group.sales.filter(s => !successfullySettledIds.includes(s.id)),
+        totalAmount: group.sales
+          .filter(s => !successfullySettledIds.includes(s.id))
+          .reduce((sum, s) => sum + (s.settlement_amount || s.total_amount), 0)
+      })).filter(group => group.sales.length > 0));
+
+      toast({
+        title: "Success",
+        description: `Settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}`,
+      });
+
+      fetchPendingSettlements();
+    } catch (error) {
+      console.error('Error settling payment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to settle payment",
+        variant: "destructive",
+      });
+    } finally {
+      setSettlingIndividualId(null);
+    }
+  };
+
+  const handleSettle = async () => {
+    if (isSettling) return;
     
     if (selectedSales.length === 0) {
-      console.log('❌ No sales selected');
       toast({
         title: "Error",
         description: "Please select at least one transaction to settle",
@@ -267,7 +434,6 @@ export function PendingSettlements() {
     }
     
     if (!selectedBankAccount) {
-      console.log('❌ No bank account selected');
       toast({
         title: "Error",
         description: "Please select a bank account for settlement",
@@ -276,220 +442,19 @@ export function PendingSettlements() {
       return;
     }
 
-    console.log('💰 Starting settlement process...');
     setIsSettling(true);
     
     try {
-      const settlementAmount = calculateSettlementAmount();
       const mdrDeduction = deductMdr ? getMdrAmount() : 0;
-      const totalAmount = selectedSales.reduce((sum, saleId) => {
-        const sale = pendingSales.find(s => s.id === saleId);
-        return sum + (sale?.total_amount || 0);
-      }, 0);
-      const selectedBankAcc = bankAccounts.find(acc => acc.id === selectedBankAccount);
-      const settlementBatchId = `PGS-${Date.now()}`;
-
-      console.log('Settlement details:', {
-        settlementAmount,
-        totalAmount,
-        mdrDeduction,
+      const { settlementAmount, successfullySettledIds, selectedBankAcc } = await settleTransactions(
+        selectedSales,
         selectedBankAccount,
-        selectedSalesCount: selectedSales.length
-      });
+        mdrDeduction
+      );
 
-      // Create settlement record
-      console.log('📝 Creating settlement record...');
-      const { data: settlement, error: settlementError } = await supabase
-        .from('payment_gateway_settlements')
-        .insert({
-          settlement_batch_id: settlementBatchId,
-          bank_account_id: selectedBankAccount,
-          total_amount: totalAmount,
-          mdr_amount: mdrDeduction,
-          net_amount: settlementAmount,
-          mdr_rate: totalAmount > 0 ? (mdrDeduction / totalAmount) * 100 : 0,
-          settlement_date: new Date().toISOString().split('T')[0]
-        })
-        .select()
-        .single();
-
-      if (settlementError) {
-        console.error('❌ Settlement creation failed:', settlementError);
-        throw settlementError;
-      }
-      
-      console.log('✅ Settlement record created:', settlement.id);
-
-      // Create settlement items
-      console.log('📋 Creating settlement items...');
-      const settlementItems = selectedSales.map(settlementId => {
-        const pendingSettlement = pendingSales.find(s => s.id === settlementId);
-        return {
-          settlement_id: settlement.id, // Use the settlement record ID from payment_gateway_settlements
-          sales_order_id: pendingSettlement?.sales_order_id, // Use the actual sales order ID
-          amount: pendingSettlement?.total_amount || 0
-        };
-      });
-
-      const { error: itemsError } = await supabase
-        .from('payment_gateway_settlement_items')
-        .insert(settlementItems);
-
-      if (itemsError) {
-        console.error('❌ Settlement items creation failed:', itemsError);
-        throw itemsError;
-      }
-      
-      console.log('✅ Settlement items created');
-
-      // Create bank transaction for settlement
-      console.log('🏦 Creating bank transaction...');
-      const { error: transactionError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: selectedBankAccount,
-          transaction_type: 'INCOME',
-          amount: settlementAmount,
-          description: `Payment Gateway Settlement - ${selectedSales.length} sales${deductMdr ? ` (MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
-          transaction_date: new Date().toISOString().split('T')[0],
-          category: 'Payment Gateway Settlement',
-          reference_number: settlementBatchId
-        });
-
-      if (transactionError) {
-        console.error('❌ Bank transaction creation failed:', transactionError);
-        throw transactionError;
-      }
-      
-      console.log('✅ Bank transaction created');
-
-      // Instead of updating sales_orders (which has permission issues), 
-      // let's update the pending_settlements status to mark them as settled
-      console.log('📊 Starting settlement process for:', selectedSales);
-      
-      let updateSuccessCount = 0;
-      let updateFailCount = 0;
-      const successfullySettledIds: string[] = [];
-      
-      // Process each selected settlement by updating pending_settlements status
-      for (const settlementId of selectedSales) {
-        const settlement = pendingSales.find(s => s.id === settlementId);
-        
-        if (!settlement) {
-          console.error(`❌ Settlement ${settlementId} not found in pending sales`);
-          updateFailCount++;
-          continue;
-        }
-        
-        console.log(`🔄 Processing settlement ${settlementId} for client ${settlement.client_name}`);
-        
-        try {
-          // Update the pending_settlement status to SETTLED (we'll delete it later)
-          const { data: updatedSettlement, error: updateError } = await supabase
-            .from('pending_settlements')
-            .update({
-              status: 'SETTLED',
-              settlement_batch_id: settlementBatchId,
-              settled_at: new Date().toISOString(),
-              actual_settlement_date: new Date().toISOString().split('T')[0]
-            })
-            .eq('id', settlementId)
-            .select('id');
-
-          if (updateError) {
-            console.error(`❌ Failed to update settlement ${settlementId}:`, updateError);
-            updateFailCount++;
-          } else if (updatedSettlement && updatedSettlement.length > 0) {
-            console.log(`✅ Successfully updated settlement ${settlementId} to SETTLED`);
-            updateSuccessCount++;
-            successfullySettledIds.push(settlementId);
-          } else {
-            console.warn(`⚠️ No rows updated for settlement ${settlementId}`);
-            updateFailCount++;
-          }
-        } catch (error) {
-          console.error(`❌ Exception updating settlement ${settlementId}:`, error);
-          updateFailCount++;
-        }
-      }
-      
-      console.log(`✅ Sales orders updated: ${updateSuccessCount} success, ${updateFailCount} failed`);
-      console.log('🎯 Successfully settled IDs:', successfullySettledIds);
-      
-      if (updateFailCount > 0) {
-        toast({
-          title: "Warning", 
-          description: `Settlement created but ${updateFailCount} sales orders couldn't be updated. Please refresh to see current status.`,
-          variant: "destructive"
-        });
-        // Force refresh even if some updates failed
-        fetchPendingSettlements();
-      }
-
-      // Reset payment method usage for successfully settled sales only
-      console.log('♻️ Resetting payment method usage...');
-      const paymentMethodIds = [...new Set(successfullySettledIds.map(saleId => {
-        const sale = pendingSales.find(s => s.id === saleId);
-        return sale?.sales_payment_method.id;
-      }).filter(Boolean))];
-
-      for (const methodId of paymentMethodIds) {
-        const settledAmount = successfullySettledIds.reduce((sum, saleId) => {
-          const sale = pendingSales.find(s => s.id === saleId);
-          return sale?.sales_payment_method.id === methodId ? sum + (sale?.total_amount || 0) : sum;
-        }, 0);
-
-        // Reduce the current usage by the settled amount
-        const { data: currentMethod } = await supabase
-          .from('sales_payment_methods')
-          .select('current_usage')
-          .eq('id', methodId)
-          .single();
-
-        if (currentMethod) {
-          const newUsage = Math.max(0, (currentMethod.current_usage || 0) - settledAmount);
-          await supabase
-            .from('sales_payment_methods')
-            .update({ current_usage: newUsage })
-            .eq('id', methodId);
-        }
-      }
-      
-      console.log('✅ Payment method usage reset');
-
-      // Delete successfully settled records from pending_settlements table
-      if (successfullySettledIds.length > 0) {
-        console.log('🗑️ Deleting settled records from pending_settlements...');
-        console.log('🗑️ IDs to delete:', successfullySettledIds);
-        
-        const { data: deleteData, error: deleteError } = await supabase
-          .from('pending_settlements')
-          .delete()
-          .in('id', successfullySettledIds)
-          .select(); // Add select to see what was actually deleted
-
-        if (deleteError) {
-          console.error('❌ Failed to delete settled records:', deleteError);
-          toast({
-            title: "Warning",
-            description: `Failed to clean up settled records: ${deleteError.message}`,
-            variant: "destructive",
-          });
-        } else {
-          console.log(`✅ Successfully deleted ${deleteData?.length || 0} settled records from pending_settlements table`);
-          console.log('🗑️ Deleted records:', deleteData);
-          
-          if (deleteData?.length !== successfullySettledIds.length) {
-            console.warn(`⚠️ Expected to delete ${successfullySettledIds.length} but deleted ${deleteData?.length || 0}`);
-          }
-        }
-      }
-
-      // Remove successfully settled orders from local state
+      // Update local state
       setPendingSales(prev => prev.filter(sale => !successfullySettledIds.includes(sale.id)));
-      
-      // Update bank groups by removing settled sales
-      setBankGroups(prev => prev.map(group => ({
+      setGatewayGroups(prev => prev.map(group => ({
         ...group,
         sales: group.sales.filter(sale => !successfullySettledIds.includes(sale.id)),
         totalAmount: group.sales
@@ -509,9 +474,7 @@ export function PendingSettlements() {
       setMdrAmount("0");
       setIsDialogOpen(false);
       
-      // Refresh pending settlements data from database
       fetchPendingSettlements();
-      
     } catch (error) {
       console.error('Error settling payments:', error);
       toast({
@@ -537,7 +500,7 @@ export function PendingSettlements() {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Pending Settlements</h3>
         {selectedSales.length > 0 && (
-          <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
+          <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
@@ -601,9 +564,9 @@ export function PendingSettlements() {
                       }, 0).toLocaleString()}</span>
                     </div>
                     {deductMdr && (
-                      <div className="flex justify-between text-sm text-red-600">
-                        <span>MDR Charges:</span>
-                        <span>-₹{getMdrAmount().toLocaleString()}</span>
+                                <div className="flex justify-between text-sm text-destructive">
+                                        <span>MDR Charges:</span>
+                                        <span>-₹{getMdrAmount().toLocaleString()}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold border-t pt-2">
@@ -613,12 +576,7 @@ export function PendingSettlements() {
                   </div>
 
                   <Button 
-                    onClick={() => {
-                      console.log('Settle button clicked!', { selectedBankAccount, isSettling, selectedSalesCount: selectedSales.length });
-                      if (!isSettling && selectedBankAccount) {
-                        handleSettle();
-                      }
-                    }} 
+                    onClick={handleSettle} 
                     disabled={!selectedBankAccount || isSettling}
                     className="w-full"
                   >
@@ -643,77 +601,132 @@ export function PendingSettlements() {
 
       {pendingSales.length === 0 ? (
         <div className="text-center py-12">
-          <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">No pending settlements</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No pending settlements</p>
+          <p className="text-sm text-muted-foreground/70 mt-2">
             Instant settlements are processed automatically
           </p>
         </div>
       ) : (
         <div className="space-y-6">
-          {bankGroups.map((bankGroup) => (
-            <Card key={bankGroup.bankAccountId}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Building className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <CardTitle className="text-lg">{bankGroup.bankName}</CardTitle>
-                      <p className="text-sm text-gray-500">{bankGroup.accountName}</p>
+          {gatewayGroups.map((gatewayGroup) => {
+            const groupSaleIds = gatewayGroup.sales.map(s => s.id);
+            const allSelected = groupSaleIds.length > 0 && groupSaleIds.every(id => selectedSales.includes(id));
+            const someSelected = groupSaleIds.some(id => selectedSales.includes(id));
+            
+            return (
+              <Card key={gatewayGroup.paymentMethodId}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-primary" />
+                      <div>
+                        <CardTitle className="text-lg">{gatewayGroup.gatewayName}</CardTitle>
+                        {gatewayGroup.settlementBankAccount && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                            <Building className="h-3 w-3" />
+                            <span>Settles to: {gatewayGroup.settlementBankAccount.account_name} ({gatewayGroup.settlementBankAccount.bank_name})</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold">₹{gatewayGroup.totalAmount.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">{gatewayGroup.sales.length} transactions</p>
+                      </div>
+                      <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
+                        <Button
+                          variant={allSelected ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSelectGatewayGroup(gatewayGroup)}
+                          className="flex items-center gap-2"
+                        >
+                          {allSelected ? (
+                            <>
+                              <CheckCircle className="h-4 w-4" />
+                              Deselect All
+                            </>
+                          ) : (
+                            <>
+                              <Checkbox 
+                                checked={someSelected ? "indeterminate" : false}
+                                className="pointer-events-none"
+                              />
+                              Select All
+                            </>
+                          )}
+                        </Button>
+                      </ViewOnlyWrapper>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-semibold">₹{bankGroup.totalAmount.toLocaleString()}</p>
-                      <p className="text-sm text-gray-500">{bankGroup.sales.length} transactions</p>
-                    </div>
-                    <ViewOnlyWrapper isViewOnly={!hasPermission('manage_bams')}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSelectBankGroup(bankGroup)}
-                        className="flex items-center gap-2"
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        {bankGroup.sales.every(sale => selectedSales.includes(sale.id)) ? 'Deselect All' : 'Select All'}
-                      </Button>
-                    </ViewOnlyWrapper>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Client</TableHead>
-                      <TableHead>Gateway</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bankGroup.sales.map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedSales.includes(sale.id)}
-                            onCheckedChange={() => handleSelectSale(sale.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{sale.order_number}</TableCell>
-                        <TableCell>{sale.client_name}</TableCell>
-                        <TableCell>{sale.sales_payment_method.type}</TableCell>
-                        <TableCell>₹{sale.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>{new Date(sale.order_date).toLocaleDateString()}</TableCell>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Order</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Settlement Bank</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ))}
+                    </TableHeader>
+                    <TableBody>
+                      {gatewayGroup.sales.map((sale) => {
+                        const settlementBank = sale.bank_account || sale.sales_payment_method?.bank_account;
+                        
+                        return (
+                          <TableRow key={sale.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedSales.includes(sale.id)}
+                                onCheckedChange={() => handleSelectSale(sale.id)}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{sale.order_number}</TableCell>
+                            <TableCell>{sale.client_name}</TableCell>
+                            <TableCell>₹{sale.total_amount.toLocaleString()}</TableCell>
+                            <TableCell>
+                              {settlementBank ? (
+                                <div className="flex items-center gap-1">
+                                  <Building className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-sm">{settlementBank.account_name}</span>
+                                </div>
+                              ) : (
+                              <Badge variant="secondary">Not configured</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{new Date(sale.order_date).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleSettleIndividual(sale)}
+                                  disabled={settlingIndividualId === sale.id || !settlementBank}
+                                  className="flex items-center gap-1"
+                                >
+                                  {settlingIndividualId === sale.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-3 w-3" />
+                                  )}
+                                  Settle Now
+                                </Button>
+                              </ViewOnlyWrapper>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

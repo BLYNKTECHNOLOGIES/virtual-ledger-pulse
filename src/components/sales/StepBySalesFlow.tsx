@@ -1087,21 +1087,25 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                </div>
 
               <div>
-                <Label>Order Number</Label>
+                <Label>Order Number *</Label>
                 <Input 
                   value={finalOrderData.order_number}
                   onChange={(e) => setFinalOrderData(prev => ({ ...prev, order_number: e.target.value }))}
                   placeholder="Enter order number"
+                  className={!finalOrderData.order_number ? "border-destructive" : ""}
                 />
+                {!finalOrderData.order_number && (
+                  <p className="text-sm text-destructive mt-1">Order number is required</p>
+                )}
               </div>
 
               <div>
-                <Label>Stock Name</Label>
+                <Label>Stock Name *</Label>
                 <Select 
                   value={finalOrderData.stockName} 
                   onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, stockName: value }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={!finalOrderData.stockName ? "border-destructive" : ""}>
                     <SelectValue placeholder="Select stock" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1112,16 +1116,19 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                     ))}
                   </SelectContent>
                 </Select>
+                {!finalOrderData.stockName && (
+                  <p className="text-sm text-destructive mt-1">Stock selection is required</p>
+                )}
               </div>
 
               <div>
-                <Label>Select Warehouse</Label>
+                <Label>Select Wallet *</Label>
                 <Select 
                   value={finalOrderData.warehouseId} 
                   onValueChange={(value) => setFinalOrderData(prev => ({ ...prev, warehouseId: value }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select warehouse" />
+                  <SelectTrigger className={!finalOrderData.warehouseId ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Select wallet" />
                   </SelectTrigger>
                   <SelectContent>
                   {wallets?.filter(w => w.is_active).map((wallet) => (
@@ -1131,6 +1138,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   ))}
                   </SelectContent>
                 </Select>
+                {!finalOrderData.warehouseId && (
+                  <p className="text-sm text-destructive mt-1">Wallet selection is required</p>
+                )}
               </div>
 
               <div>
@@ -1144,14 +1154,18 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               </div>
 
                <div>
-                 <Label>Price</Label>
+                 <Label>Price *</Label>
                  <Input 
                    type="number"
                    step="0.01"
                    value={finalOrderData.price}
                    onChange={(e) => setFinalOrderData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
                    placeholder="Enter price"
+                   className={!finalOrderData.price || finalOrderData.price <= 0 ? "border-destructive" : ""}
                  />
+                 {(!finalOrderData.price || finalOrderData.price <= 0) && (
+                   <p className="text-sm text-destructive mt-1">Valid price is required</p>
+                 )}
                </div>
 
                <div>

@@ -242,10 +242,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         description: ''
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
       console.log('🚫 onError callback triggered - dialog will NOT close automatically');
-      toast({ title: "Error", description: "Failed to create sales order", variant: "destructive" });
+      toast({ 
+        title: "Error Creating Sales Order", 
+        description: error?.message || "Failed to create sales order. Please check your inputs and try again.", 
+        variant: "destructive" 
+      });
     }
   });
 
@@ -253,35 +257,40 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     e.preventDefault();
     console.log('📝 Starting sales order creation mutation with data:', formData);
     
-    // Manual validation for required fields
+    // Collect all validation errors
+    const errors: string[] = [];
+    
     if (!formData.order_number.trim()) {
-      console.log('❌ Validation failed: Order number is required');
-      toast({ title: "Validation Error", description: "Order number is required", variant: "destructive" });
-      return;
+      errors.push("Order number is required");
     }
     
     if (!formData.client_name.trim()) {
-      console.log('❌ Validation failed: Customer name is required');
-      toast({ title: "Validation Error", description: "Customer name is required", variant: "destructive" });
-      return;
+      errors.push("Customer name is required");
+    }
+    
+    if (!formData.wallet_id) {
+      errors.push("Wallet selection is required");
     }
     
     if (!formData.quantity || parseFloat(formData.quantity) <= 0) {
-      console.log('❌ Validation failed: Valid quantity is required');
-      toast({ title: "Validation Error", description: "Valid quantity is required", variant: "destructive" });
-      return;
+      errors.push("Valid quantity is required");
     }
     
     if (!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) {
-      console.log('❌ Validation failed: Valid price per unit is required');
-      toast({ title: "Validation Error", description: "Valid price per unit is required", variant: "destructive" });
-      return;
+      errors.push("Valid price per unit is required");
     }
     
-    // Validation for stock quantity
     if (stockValidationError) {
-      console.log('❌ Validation failed: Stock quantity error');
-      toast({ title: "Stock Error", description: stockValidationError, variant: "destructive" });
+      errors.push(stockValidationError);
+    }
+    
+    if (errors.length > 0) {
+      console.log('❌ Validation failed:', errors);
+      toast({ 
+        title: "Validation Error", 
+        description: errors.join(". "), 
+        variant: "destructive" 
+      });
       return;
     }
     
@@ -357,13 +366,22 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
                 required
+                className={!formData.order_number.trim() ? "border-destructive" : ""}
               />
+              {!formData.order_number.trim() && (
+                <p className="text-sm text-destructive mt-1">Order number is required</p>
+              )}
             </div>
 
-            <CustomerAutocomplete
-              value={formData.client_name}
-              onChange={(value) => handleInputChange('client_name', value)}
-            />
+            <div>
+              <CustomerAutocomplete
+                value={formData.client_name}
+                onChange={(value) => handleInputChange('client_name', value)}
+              />
+              {!formData.client_name.trim() && (
+                <p className="text-sm text-destructive mt-1">Customer name is required</p>
+              )}
+            </div>
 
             <div>
               <Label>Customer Phone</Label>
@@ -395,15 +413,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
 
             <div>
-              <Label>Wallet</Label>
+              <Label>Wallet *</Label>
               <Select
                 value={formData.wallet_id}
                 onValueChange={(value) => handleInputChange('wallet_id', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className={!formData.wallet_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name} ({wallet.wallet_type}) - Balance: {wallet.current_balance}
@@ -411,6 +429,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   ))}
                 </SelectContent>
               </Select>
+              {!formData.wallet_id && (
+                <p className="text-sm text-destructive mt-1">Wallet selection is required</p>
+              )}
             </div>
 
             <div>
@@ -423,12 +444,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 min="0"
                 step="0.01"
                 placeholder="Enter quantity"
-                className={stockValidationError ? "border-red-500" : ""}
+                className={stockValidationError ? "border-destructive" : (!formData.quantity || parseFloat(formData.quantity) <= 0) ? "border-destructive" : ""}
               />
+              {(!formData.quantity || parseFloat(formData.quantity) <= 0) && !stockValidationError && (
+                <p className="text-sm text-destructive mt-1">Valid quantity is required</p>
+              )}
               {stockValidationError && (
-                <Alert className="mt-2 border-red-500 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  <AlertDescription className="text-red-700">
+                <Alert className="mt-2 border-destructive bg-destructive/10">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-destructive">
                     {stockValidationError}
                   </AlertDescription>
                 </Alert>
@@ -445,7 +469,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 min="0"
                 step="0.01"
                 placeholder="Enter price per unit"
+                className={!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0 ? "border-destructive" : ""}
               />
+              {(!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) && (
+                <p className="text-sm text-destructive mt-1">Valid price per unit is required</p>
+              )}
             </div>
 
             {/* Show wallet balance when wallet is selected */}

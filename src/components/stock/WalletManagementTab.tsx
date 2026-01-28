@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Settings } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ImportWalletsDialog } from "./ImportWalletsDialog";
+import { ManualWalletAdjustmentDialog } from "./ManualWalletAdjustmentDialog";
 
 interface Wallet {
   id: string;
@@ -47,6 +49,8 @@ export function WalletManagementTab() {
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
 
   // Fetch wallets with real-time updates
   const { data: wallets, isLoading: walletsLoading, refetch: refetchWallets } = useQuery({
@@ -452,6 +456,14 @@ export function WalletManagementTab() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Sync USDT Stock
           </Button>
+          <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline">
+            <Settings className="h-4 w-4 mr-2" />
+            Adjust Balance
+          </Button>
+          <Button onClick={() => setShowImportDialog(true)} variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
           <Button onClick={() => setShowTransactionDialog(true)} variant="outline">
             <TrendingUp className="h-4 w-4 mr-2" />
             Add Transaction
@@ -620,6 +632,18 @@ export function WalletManagementTab() {
 
       <AddWalletDialog />
       <AddTransactionDialog />
+
+      {/* Import Dialog */}
+      <ImportWalletsDialog 
+        open={showImportDialog} 
+        onOpenChange={setShowImportDialog} 
+      />
+
+      {/* Manual Balance Adjustment Dialog */}
+      <ManualWalletAdjustmentDialog 
+        open={showAdjustmentDialog} 
+        onOpenChange={setShowAdjustmentDialog} 
+      />
     </div>
   );
 }

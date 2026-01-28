@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Eye, EyeOff, X, Search } from "lucide-react";
+import { Plus, Edit, Eye, EyeOff, X, Search, Upload, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,8 @@ import { CloseAccountDialog } from "./CloseAccountDialog";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
+import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
+import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
 
 interface BankAccount {
   id: string;
@@ -62,6 +64,8 @@ export function BankAccountManagement() {
   const [accountToClose, setAccountToClose] = useState<BankAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [formData, setFormData] = useState({
     account_name: "",
     bank_name: "",
@@ -369,17 +373,30 @@ export function BankAccountManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Bank Account Management</h2>
           <p className="text-gray-600">Manage centralized bank accounts for receiving sales and purchase payments</p>
         </div>
-        <ViewOnlyWrapper isViewOnly={isViewOnly}>
-          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
-            setIsAddDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Add Bank Account
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <ViewOnlyWrapper isViewOnly={isViewOnly}>
+            <Button variant="outline" onClick={() => setShowAdjustmentDialog(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Adjust Balance
+            </Button>
+          </ViewOnlyWrapper>
+          <ViewOnlyWrapper isViewOnly={isViewOnly}>
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </Button>
+          </ViewOnlyWrapper>
+          <ViewOnlyWrapper isViewOnly={isViewOnly}>
+            <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+              setIsAddDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Bank Account
+                </Button>
+              </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>
@@ -538,6 +555,7 @@ export function BankAccountManagement() {
           </DialogContent>
         </Dialog>
       </ViewOnlyWrapper>
+        </div>
       </div>
 
       <Tabs defaultValue="working" className="w-full">
@@ -811,6 +829,18 @@ export function BankAccountManagement() {
         }}
         account={accountToClose}
         onAccountClosed={handleAccountClosed}
+      />
+
+      {/* Import Dialog */}
+      <ImportBankAccountsDialog 
+        open={showImportDialog} 
+        onOpenChange={setShowImportDialog} 
+      />
+
+      {/* Manual Balance Adjustment Dialog */}
+      <ManualBalanceAdjustmentDialog 
+        open={showAdjustmentDialog} 
+        onOpenChange={setShowAdjustmentDialog} 
       />
     </div>
   );

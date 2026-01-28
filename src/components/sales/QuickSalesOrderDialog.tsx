@@ -150,14 +150,38 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.order_number || !formData.client_name || !formData.bank_account_id) {
+    
+    // Detailed validation with specific error messages
+    const errors: string[] = [];
+    
+    if (!formData.order_number.trim()) {
+      errors.push("Order number is required");
+    }
+    if (!formData.client_name.trim()) {
+      errors.push("Customer name is required");
+    }
+    if (!formData.bank_account_id) {
+      errors.push("Bank account must be selected");
+    }
+    if (formData.quantity <= 0) {
+      errors.push("Quantity must be greater than 0");
+    }
+    if (formData.price_per_unit <= 0) {
+      errors.push("Price per unit must be greater than 0");
+    }
+    if (formData.total_amount <= 0) {
+      errors.push("Total amount must be greater than 0");
+    }
+    
+    if (errors.length > 0) {
       toast({
-        title: "Missing Required Fields",
-        description: "Please fill in order number, client name, and bank account",
+        title: "Validation Error",
+        description: errors.join(". "),
         variant: "destructive",
       });
       return;
     }
+    
     createSalesOrderMutation.mutate(formData);
   };
 
@@ -189,7 +213,11 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
                 placeholder="e.g., 788787"
                 required
+                className={!formData.order_number.trim() ? "border-destructive" : ""}
               />
+              {!formData.order_number.trim() && (
+                <p className="text-sm text-destructive mt-1">Order number is required</p>
+              )}
             </div>
             <div>
               <Label htmlFor="client_name">Customer Name *</Label>
@@ -197,9 +225,13 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 id="client_name"
                 value={formData.client_name}
                 onChange={(e) => setFormData(prev => ({ ...prev, client_name: e.target.value }))}
-                placeholder="e.g., ghghgh"
+                placeholder="e.g., Customer Name"
                 required
+                className={!formData.client_name.trim() ? "border-destructive" : ""}
               />
+              {!formData.client_name.trim() && (
+                <p className="text-sm text-destructive mt-1">Customer name is required</p>
+              )}
             </div>
           </div>
 
@@ -269,7 +301,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
             <div>
               <Label htmlFor="bank_account_id">Bank Account *</Label>
               <Select value={formData.bank_account_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
-                <SelectTrigger>
+                <SelectTrigger className={!formData.bank_account_id ? "border-destructive" : ""}>
                   <SelectValue placeholder="Select bank account" />
                 </SelectTrigger>
                 <SelectContent>
@@ -280,6 +312,9 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                   ))}
                 </SelectContent>
               </Select>
+              {!formData.bank_account_id && (
+                <p className="text-sm text-destructive mt-1">Bank account is required</p>
+              )}
             </div>
             <div>
               <Label htmlFor="product_id">Product (Optional)</Label>

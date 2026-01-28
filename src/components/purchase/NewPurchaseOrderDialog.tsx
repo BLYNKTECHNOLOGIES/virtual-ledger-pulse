@@ -10,6 +10,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductSelectionSection } from "./ProductSelectionSection";
+import { SupplierAutocomplete } from "./SupplierAutocomplete";
+import { createSellerClient } from "@/utils/clientIdGenerator";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -27,6 +29,8 @@ interface ProductItem {
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [isNewClient, setIsNewClient] = useState(false);
   
   const [formData, setFormData] = useState({
     order_number: "",
@@ -83,6 +87,17 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   const createPurchaseOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      // Auto-create seller client if new
+      if (isNewClient && orderData.supplier_name.trim()) {
+        const newClient = await createSellerClient(
+          orderData.supplier_name.trim(),
+          orderData.contact_number || undefined
+        );
+        if (newClient) {
+          console.log('✅ New seller client created:', newClient);
+        }
+      }
       
       // Create purchase order
       const { data: purchaseOrder, error: orderError } = await supabase
@@ -218,6 +233,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
       resetForm();
       onOpenChange(false);
     },
@@ -248,19 +265,23 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       pan_number: "",
     });
     setProductItems([]);
+    setSelectedClientId('');
+    setIsNewClient(false);
+  };
+
+  // Handle supplier selection from autocomplete
+  const handleSupplierSelect = (clientId: string, clientName: string) => {
+    setSelectedClientId(clientId);
+    setFormData(prev => ({ ...prev, supplier_name: clientName }));
   };
 
   // Auto-fill contact number when supplier is selected from clients
   const handleSupplierChange = (supplierName: string) => {
     setFormData(prev => ({ ...prev, supplier_name: supplierName }));
-    
-    const selectedClient = clients?.find(client => client.name === supplierName);
-    if (selectedClient) {
-      setFormData(prev => ({ 
-        ...prev, 
-        contact_number: selectedClient.phone || "" 
-      }));
-    }
+  };
+
+  const handleContactChange = (contact: string) => {
+    setFormData(prev => ({ ...prev, contact_number: contact }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -348,24 +369,13 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
 
             <div>
-              <Label htmlFor="supplier_name">Supplier Name *</Label>
-              <Select onValueChange={handleSupplierChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select or type supplier name" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((client) => (
-                    <SelectItem key={client.id} value={client.name}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                className="mt-2"
-                placeholder="Or enter new supplier name"
+              <SupplierAutocomplete
                 value={formData.supplier_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, supplier_name: e.target.value }))}
+                onChange={handleSupplierChange}
+                onContactChange={handleContactChange}
+                onClientSelect={handleSupplierSelect}
+                onNewClient={(isNew) => setIsNewClient(isNew)}
+                selectedClientId={selectedClientId}
               />
             </div>
 

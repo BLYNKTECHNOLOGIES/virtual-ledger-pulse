@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ShoppingCart, Plus } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
+import { createSellerClient } from "@/utils/clientIdGenerator";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -18,7 +19,10 @@ interface ManualPurchaseEntryDialogProps {
 export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps> = ({ onSuccess }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
+  const [isNewClient, setIsNewClient] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     order_number: '',
@@ -177,6 +181,20 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const orderNumber = formData.order_number || generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
 
+      // Auto-create seller client if new
+      if (isNewClient && formData.supplier_name.trim()) {
+        const newClient = await createSellerClient(
+          formData.supplier_name.trim(),
+          formData.contact_number || undefined
+        );
+        if (newClient) {
+          console.log('✅ New seller client created:', newClient);
+          // Invalidate clients query to refresh the list
+          queryClient.invalidateQueries({ queryKey: ['clients'] });
+          queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
+        }
+      }
+
       console.log('📝 ManualPurchase: Creating purchase order with params:', {
         orderNumber,
         supplier_name: formData.supplier_name,
@@ -242,6 +260,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         credit_wallet_id: '',
         platform_fees: ''
       });
+      setSelectedClientId('');
+      setIsNewClient(false);
 
       setOpen(false);
       onSuccess?.();
@@ -305,6 +325,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               value={formData.supplier_name}
               onChange={(value) => handleInputChange('supplier_name', value)}
               onContactChange={(contact) => handleInputChange('contact_number', contact)}
+              onClientSelect={(clientId, clientName) => {
+                setSelectedClientId(clientId);
+                handleInputChange('supplier_name', clientName);
+              }}
+              onNewClient={(isNew) => setIsNewClient(isNew)}
+              selectedClientId={selectedClientId}
             />
           </div>
 

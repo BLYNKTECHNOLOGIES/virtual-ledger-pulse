@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, AlertTriangle, CheckCircle, Users, UserCheck } from "lucide-react";
+import { Plus, Search, AlertTriangle, CheckCircle, Users, UserCheck, ShoppingCart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
 import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
+import { SellerOnboardingApprovals } from "./SellerOnboardingApprovals";
 import { PermissionGate } from "@/components/PermissionGate";
 
 export function ClientDashboard() {
@@ -87,11 +88,15 @@ export function ClientDashboard() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="directory" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
-            New Client Approvals
+            Buyer Approvals
+          </TabsTrigger>
+          <TabsTrigger value="seller-approvals" className="flex items-center gap-2">
+            <ShoppingCart className="h-4 w-4" />
+            Seller Approvals
           </TabsTrigger>
         </TabsList>
 
@@ -304,6 +309,10 @@ export function ClientDashboard() {
 
         <TabsContent value="approvals">
           <ClientOnboardingApprovals />
+        </TabsContent>
+
+        <TabsContent value="seller-approvals">
+          <SellerOnboardingApprovals />
         </TabsContent>
       </Tabs>
 

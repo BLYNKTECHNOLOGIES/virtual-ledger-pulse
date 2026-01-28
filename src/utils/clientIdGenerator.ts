@@ -1,0 +1,106 @@
+import { supabase } from "@/integrations/supabase/client";
+
+/**
+ * Generate a unique 6-character alphanumeric client ID
+ * Format: 6 random characters (e.g., "7X9K2M")
+ */
+export const generateUniqueClientId = async (): Promise<string> => {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let clientId = '';
+  let isUnique = false;
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  while (!isUnique && attempts < maxAttempts) {
+    clientId = Array.from({ length: 6 }, () => 
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join('');
+    
+    // Check uniqueness in database
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('client_id', clientId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error checking client ID uniqueness:', error);
+      attempts++;
+      continue;
+    }
+    
+    isUnique = !data;
+    attempts++;
+  }
+  
+  if (!isUnique) {
+    // Fallback: append timestamp to ensure uniqueness
+    clientId = clientId.slice(0, 4) + Date.now().toString(36).slice(-2).toUpperCase();
+  }
+  
+  return clientId;
+};
+
+/**
+ * Check if a client with the given name already exists
+ * @param name - The client name to check
+ * @returns The existing client if found, null otherwise
+ */
+export const findClientByName = async (name: string) => {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .ilike('name', name.trim())
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error finding client by name:', error);
+    return null;
+  }
+  
+  return data;
+};
+
+/**
+ * Create a new seller client from purchase order
+ */
+export const createSellerClient = async (
+  supplierName: string,
+  contactNumber?: string
+): Promise<{ id: string; client_id: string } | null> => {
+  try {
+    // Check if client already exists
+    const existingClient = await findClientByName(supplierName);
+    if (existingClient) {
+      return { id: existingClient.id, client_id: existingClient.client_id };
+    }
+    
+    // Generate unique client ID
+    const clientId = await generateUniqueClientId();
+    
+    // Create new client
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        name: supplierName.trim(),
+        client_id: clientId,
+        client_type: 'SELLER',
+        kyc_status: 'PENDING',
+        date_of_onboarding: new Date().toISOString().split('T')[0],
+        phone: contactNumber || null,
+        risk_appetite: 'MEDIUM',
+      })
+      .select('id, client_id')
+      .single();
+    
+    if (error) {
+      console.error('Error creating seller client:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in createSellerClient:', error);
+    return null;
+  }
+};

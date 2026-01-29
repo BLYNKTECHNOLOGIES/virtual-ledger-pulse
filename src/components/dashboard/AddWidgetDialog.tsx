@@ -19,7 +19,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'revenue-chart',
     name: 'Revenue Chart',
-    description: 'Monthly revenue trends and analytics',
+    description: 'Revenue trends and analytics',
     icon: BarChart3,
     category: 'Analytics',
     size: 'large'
@@ -35,7 +35,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'earnings-rate',
     name: 'Earnings Rate',
-    description: 'Daily and weekly earnings rate',
+    description: 'Earnings overview',
     icon: TrendingUp,
     category: 'Analytics',
     size: 'medium'
@@ -43,7 +43,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'performance-overview',
     name: 'Performance Overview',
-    description: 'Overall business performance metrics',
+    description: 'Business performance metrics',
     icon: PieChart,
     category: 'Analytics',
     size: 'large'
@@ -53,7 +53,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'total-clients',
     name: 'Total Clients',
-    description: 'Quick view of total client count',
+    description: 'Client overview',
     icon: Users,
     category: 'Metrics',
     size: 'small'
@@ -61,7 +61,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'total-revenue',
     name: 'Total Revenue',
-    description: 'Current month revenue',
+    description: 'Revenue overview',
     icon: DollarSign,
     category: 'Metrics',
     size: 'small'
@@ -69,7 +69,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'profit-margin',
     name: 'Profit Margin',
-    description: 'Current profit margins',
+    description: 'Profit margins',
     icon: TrendingUp,
     category: 'Metrics',
     size: 'small'
@@ -85,7 +85,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'growth-rate',
     name: 'Growth Rate',
-    description: 'Monthly growth percentage',
+    description: 'Growth overview',
     icon: TrendingUp,
     category: 'Metrics',
     size: 'small'
@@ -95,7 +95,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'inventory-status',
     name: 'Inventory Status',
-    description: 'Current stock levels and alerts',
+    description: 'Stock levels and alerts',
     icon: Package,
     category: 'Operations',
     size: 'medium'
@@ -103,7 +103,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'recent-orders',
     name: 'Recent Orders',
-    description: 'Latest customer orders',
+    description: 'Latest orders',
     icon: FileText,
     category: 'Operations',
     size: 'large'
@@ -111,7 +111,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'order-status',
     name: 'Order Status',
-    description: 'Order processing status breakdown',
+    description: 'Order processing status',
     icon: ShoppingCart,
     category: 'Operations',
     size: 'medium'
@@ -119,7 +119,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'expense-details',
     name: 'Expense Breakdown',
-    description: 'Detailed expense categories',
+    description: 'Expense categories',
     icon: CreditCard,
     category: 'Operations',
     size: 'large'
@@ -129,7 +129,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'daily-activity',
     name: 'Daily Activity',
-    description: 'Today\'s business activities',
+    description: 'Business activities',
     icon: Activity,
     category: 'Activity',
     size: 'medium'
@@ -137,7 +137,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'live-notifications',
     name: 'Live Notifications',
-    description: 'Real-time system notifications',
+    description: 'System notifications',
     icon: Bell,
     category: 'Activity',
     size: 'medium'
@@ -153,7 +153,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'real-time-data',
     name: 'Real-time Data',
-    description: 'Live business data feed',
+    description: 'Live data feed',
     icon: Globe,
     category: 'Activity',
     size: 'large'
@@ -163,7 +163,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'upcoming-tasks',
     name: 'Upcoming Tasks',
-    description: 'Scheduled tasks and reminders',
+    description: 'Tasks and reminders',
     icon: Calendar,
     category: 'Productivity',
     size: 'medium'
@@ -171,7 +171,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'time-tracker',
     name: 'Time Tracker',
-    description: 'Track time spent on activities',
+    description: 'Time tracking',
     icon: Timer,
     category: 'Productivity',
     size: 'medium'
@@ -179,7 +179,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'team-status',
     name: 'Team Status',
-    description: 'Current team availability',
+    description: 'Team availability',
     icon: UserCheck,
     category: 'Productivity',
     size: 'medium'
@@ -187,7 +187,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'schedule-overview',
     name: 'Schedule Overview',
-    description: 'Today\'s schedule and appointments',
+    description: 'Schedule and appointments',
     icon: Clock,
     category: 'Productivity',
     size: 'large'
@@ -197,7 +197,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'wallet-balance',
     name: 'Wallet Balance',
-    description: 'Current account balances',
+    description: 'Account balances',
     icon: Wallet,
     category: 'Financial',
     size: 'small'
@@ -205,7 +205,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'payment-methods',
     name: 'Payment Methods',
-    description: 'Available payment options',
+    description: 'Payment options',
     icon: CreditCard,
     category: 'Financial',
     size: 'medium'
@@ -213,7 +213,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'cash-flow',
     name: 'Cash Flow',
-    description: 'Income vs expenses flow',
+    description: 'Income vs expenses',
     icon: ArrowUpRight,
     category: 'Financial',
     size: 'large'
@@ -221,7 +221,7 @@ const availableWidgets: WidgetType[] = [
   {
     id: 'expense-trends',
     name: 'Expense Trends',
-    description: 'Monthly expense patterns',
+    description: 'Expense patterns',
     icon: TrendingDown,
     category: 'Financial',
     size: 'medium'

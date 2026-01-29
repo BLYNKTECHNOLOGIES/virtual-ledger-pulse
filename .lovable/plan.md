@@ -143,11 +143,11 @@ User creates sale for ₹10,000 with "Off Market" selected
 
 ## Implementation Order
 
-1. **Database Migration** - Add fee_percentage to wallets, create wallet_fee_deductions table
-2. **Wallet Management** - Update create dialog, add edit dialog with fee settings
-3. **WalletSelector** - Show fee info in dropdown
-4. **Sales Forms** - Add Off Market toggle and fee calculation display
-5. **Purchase Forms** - Add Off Market toggle and fee calculation display
-6. **Update RPC Functions** - Modify order creation to handle fee deductions
-7. **Financials Page** - Add Platform Fees Summary section
-8. **Testing** - End-to-end testing of fee flow
+1. **Database Migration** - ✅ DONE - Added fee_percentage and is_fee_enabled to wallets, created wallet_fee_deductions table
+2. **Wallet Management** - ✅ DONE - Updated create dialog with fee fields, created EditWalletDialog with fee settings
+3. **WalletSelector** - ✅ DONE - Shows fee % in dropdown with visual indicator
+4. **Sales Forms** - 🔄 PENDING - Add Off Market toggle and fee calculation display
+5. **Purchase Forms** - 🔄 PENDING - Add Off Market toggle and fee calculation display
+6. **Update RPC Functions** - 🔄 PENDING - Modify order creation to handle fee deductions
+7. **Financials Page** - ✅ DONE - Created PlatformFeesSummary component
+8. **Testing** - 🔄 PENDING - End-to-end testing of fee flow

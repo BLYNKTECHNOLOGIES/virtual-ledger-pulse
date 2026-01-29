@@ -79,6 +79,16 @@ export function ClientOnboardingApprovals() {
     }
   });
 
+  // Generate 6-digit alphanumeric client ID
+  const generateClientId = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
   // Approve client mutation
   const approveClientMutation = useMutation({
     mutationFn: async (approvalData: {
@@ -87,27 +97,34 @@ export function ClientOnboardingApprovals() {
     }) => {
       const { id, clientData } = approvalData;
       
-      // Update approval record
-      const { error: updateError } = await supabase
-        .from('client_onboarding_approvals')
-        .update({
-          approval_status: 'APPROVED',
-          reviewed_by: 'Current User', // Replace with actual user
-          reviewed_at: new Date().toISOString(),
-          aadhar_number: clientData.aadhar_number,
-          address: clientData.address,
-          purpose_of_buying: clientData.purpose_of_buying,
-          proposed_monthly_limit: parseFloat(clientData.proposed_monthly_limit),
-          risk_assessment: clientData.risk_assessment,
-          compliance_notes: clientData.compliance_notes
-        })
-        .eq('id', id);
-
-      if (updateError) throw updateError;
-
-      // Create client record
       const approval = approvals?.find(a => a.id === id);
-      if (approval) {
+      if (!approval) throw new Error('Approval record not found');
+
+      // Check if client already exists (by phone or email)
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
+        .maybeSingle();
+
+      if (existingClient) {
+        // Update existing client to add buyer role
+        const { error: updateClientError } = await supabase
+          .from('clients')
+          .update({
+            is_buyer: true,
+            buyer_approval_status: 'APPROVED',
+            buyer_approved_at: new Date().toISOString(),
+            kyc_status: 'VERIFIED',
+            monthly_limit: parseFloat(clientData.proposed_monthly_limit),
+            buying_purpose: clientData.purpose_of_buying,
+            risk_appetite: clientData.risk_assessment
+          })
+          .eq('id', existingClient.id);
+
+        if (updateClientError) throw updateClientError;
+      } else {
+        // Create new client record with buyer role
         const { error: clientError } = await supabase
           .from('clients')
           .insert({
@@ -123,22 +140,49 @@ export function ClientOnboardingApprovals() {
             risk_appetite: clientData.risk_assessment,
             assigned_operator: 'Compliance Team',
             date_of_onboarding: new Date().toISOString().split('T')[0],
-            client_id: `CL${Date.now()}`
+            client_id: generateClientId(),
+            is_buyer: true,
+            is_seller: false,
+            buyer_approval_status: 'APPROVED',
+            seller_approval_status: 'NOT_APPLICABLE',
+            buyer_approved_at: new Date().toISOString(),
+            aadhar_front_url: approval.aadhar_front_url,
+            aadhar_back_url: approval.aadhar_back_url
           });
 
         if (clientError) throw clientError;
       }
+
+      // Update approval record AFTER client is created/updated
+      const { error: updateError } = await supabase
+        .from('client_onboarding_approvals')
+        .update({
+          approval_status: 'APPROVED',
+          reviewed_by: 'Current User',
+          reviewed_at: new Date().toISOString(),
+          aadhar_number: clientData.aadhar_number,
+          address: clientData.address,
+          purpose_of_buying: clientData.purpose_of_buying,
+          proposed_monthly_limit: parseFloat(clientData.proposed_monthly_limit),
+          risk_assessment: clientData.risk_assessment,
+          compliance_notes: clientData.compliance_notes
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
     },
     onSuccess: () => {
       toast({
         title: "Client Approved",
-        description: "Client has been successfully onboarded"
+        description: "Client has been successfully onboarded and added to the directory"
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       setDialogOpen(false);
       resetForm();
     },
     onError: (error: any) => {
+      console.error('Approval error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to approve client",

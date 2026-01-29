@@ -42,10 +42,10 @@ export function StatisticsTab() {
       const prevStartStr = format(prevStartDate, 'yyyy-MM-dd');
       const prevEndStr = format(prevEndDate, 'yyyy-MM-dd');
 
-      // Fetch sales orders (current period)
+      // Fetch sales orders (current period) with quantity and price details
       const { data: salesOrders } = await supabase
         .from('sales_orders')
-        .select('id, total_amount, order_date, status, payment_status')
+        .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit')
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
@@ -56,12 +56,17 @@ export function StatisticsTab() {
         .gte('order_date', prevStartStr)
         .lte('order_date', prevEndStr);
 
-      // Fetch purchase orders (current period)
+      // Fetch purchase orders (current period) with quantity and price details
       const { data: purchaseOrders } = await supabase
         .from('purchase_orders')
         .select('id, total_amount, order_date, status')
         .gte('order_date', startStr)
         .lte('order_date', endStr);
+
+      // Fetch purchase order items to get quantities and unit prices
+      const { data: purchaseOrderItems } = await supabase
+        .from('purchase_order_items')
+        .select('purchase_order_id, quantity, unit_price');
 
       // Fetch clients
       const { data: clients } = await supabase
@@ -103,10 +108,35 @@ export function StatisticsTab() {
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount || 0), 0) || 0;
       const totalIncome = income?.reduce((sum, i) => sum + Number(i.amount || 0), 0) || 0;
 
-      // Calculate purchase costs for profit
-      const purchaseCosts = purchaseOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
-      const grossProfit = currentRevenue - purchaseCosts;
-      const netProfit = grossProfit - totalExpenses + totalIncome;
+      // Get purchase order IDs in the current period
+      const purchaseOrderIds = purchaseOrders?.map(po => po.id) || [];
+      
+      // Calculate average purchase price (cost per unit) from purchase order items
+      const relevantPurchaseItems = purchaseOrderItems?.filter(item => 
+        purchaseOrderIds.includes(item.purchase_order_id)
+      ) || [];
+      
+      const totalPurchasedQuantity = relevantPurchaseItems.reduce((sum, item) => 
+        sum + Number(item.quantity || 0), 0);
+      const totalPurchaseCost = relevantPurchaseItems.reduce((sum, item) => 
+        sum + (Number(item.quantity || 0) * Number(item.unit_price || 0)), 0);
+      
+      // Calculate average purchase cost per unit
+      const avgPurchaseCostPerUnit = totalPurchasedQuantity > 0 
+        ? totalPurchaseCost / totalPurchasedQuantity 
+        : 0;
+
+      // Calculate sold quantity and average sales price
+      const totalSoldQuantity = salesOrders?.reduce((sum, o) => sum + Number(o.quantity || 0), 0) || 0;
+      const avgSalesPricePerUnit = totalSoldQuantity > 0 
+        ? currentRevenue / totalSoldQuantity 
+        : 0;
+
+      // Net Profit Margin per unit = Sales Price per unit - Purchase Cost per unit
+      const netProfitMarginPerUnit = avgSalesPricePerUnit - avgPurchaseCostPerUnit;
+
+      // Net Profit = Net Profit Margin × Sold Quantity
+      const netProfit = netProfitMarginPerUnit * totalSoldQuantity;
 
       // Monthly data for charts (last 6 months)
       const monthlyData = [];

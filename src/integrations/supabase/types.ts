@@ -586,6 +586,8 @@ export type Database = {
           aadhar_back_url: string | null
           aadhar_front_url: string | null
           assigned_operator: string | null
+          buyer_approval_status: string | null
+          buyer_approved_at: string | null
           buying_purpose: string | null
           client_id: string
           client_type: string
@@ -597,6 +599,8 @@ export type Database = {
           email: string | null
           first_order_value: number | null
           id: string
+          is_buyer: boolean | null
+          is_seller: boolean | null
           kyc_status: string
           linked_bank_accounts: Json | null
           monthly_limit: number | null
@@ -607,12 +611,16 @@ export type Database = {
           pan_card_url: string | null
           phone: string | null
           risk_appetite: string
+          seller_approval_status: string | null
+          seller_approved_at: string | null
           updated_at: string
         }
         Insert: {
           aadhar_back_url?: string | null
           aadhar_front_url?: string | null
           assigned_operator?: string | null
+          buyer_approval_status?: string | null
+          buyer_approved_at?: string | null
           buying_purpose?: string | null
           client_id: string
           client_type: string
@@ -624,6 +632,8 @@ export type Database = {
           email?: string | null
           first_order_value?: number | null
           id?: string
+          is_buyer?: boolean | null
+          is_seller?: boolean | null
           kyc_status?: string
           linked_bank_accounts?: Json | null
           monthly_limit?: number | null
@@ -634,12 +644,16 @@ export type Database = {
           pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string
+          seller_approval_status?: string | null
+          seller_approved_at?: string | null
           updated_at?: string
         }
         Update: {
           aadhar_back_url?: string | null
           aadhar_front_url?: string | null
           assigned_operator?: string | null
+          buyer_approval_status?: string | null
+          buyer_approved_at?: string | null
           buying_purpose?: string | null
           client_id?: string
           client_type?: string
@@ -651,6 +665,8 @@ export type Database = {
           email?: string | null
           first_order_value?: number | null
           id?: string
+          is_buyer?: boolean | null
+          is_seller?: boolean | null
           kyc_status?: string
           linked_bank_accounts?: Json | null
           monthly_limit?: number | null
@@ -661,6 +677,8 @@ export type Database = {
           pan_card_url?: string | null
           phone?: string | null
           risk_appetite?: string
+          seller_approval_status?: string | null
+          seller_approved_at?: string | null
           updated_at?: string
         }
         Relationships: []

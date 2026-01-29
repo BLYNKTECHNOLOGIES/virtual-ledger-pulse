@@ -17,9 +17,10 @@ import { PermissionGate } from "@/components/PermissionGate";
 interface ClientOverviewPanelProps {
   clientId?: string;
   isSeller?: boolean;
+  isComposite?: boolean;
 }
 
-export function ClientOverviewPanel({ clientId, isSeller }: ClientOverviewPanelProps) {
+export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientOverviewPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
 
@@ -220,10 +221,17 @@ export function ClientOverviewPanel({ clientId, isSeller }: ClientOverviewPanelP
             </Badge>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">Client Type</label>
-            <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
-              {client.client_type}
-            </Badge>
+            <label className="text-sm font-medium text-muted-foreground">Client Type</label>
+            <div className="flex gap-2">
+              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
+                {client.client_type}
+              </Badge>
+              {isComposite && (
+                <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
+                  COMPOSITE
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 

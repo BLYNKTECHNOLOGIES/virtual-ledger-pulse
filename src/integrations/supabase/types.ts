@@ -4297,6 +4297,10 @@ export type Database = {
         Args: { order_id: string }
         Returns: Json
       }
+      delete_sales_order_with_reversal: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       delete_user_with_cleanup: {
         Args: { target_user_id: string }
         Returns: boolean

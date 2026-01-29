@@ -90,70 +90,11 @@ export default function Sales() {
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      const order = salesOrders?.find(o => o.id === orderId);
-      if (!order) throw new Error('Order not found');
+      const { error } = await supabase.rpc('delete_sales_order_with_reversal', {
+        p_order_id: orderId
+      });
 
-      // Start a transaction to revert all changes
-      const { error: deleteError } = await supabase
-        .from('sales_orders')
-        .delete()
-        .eq('id', orderId);
-
-      if (deleteError) throw deleteError;
-
-      // Revert bank transaction if exists
-      if (order.sales_payment_method_id) {
-        const { data: paymentMethod } = await supabase
-          .from('sales_payment_methods')
-          .select('bank_account_id')
-          .eq('id', order.sales_payment_method_id)
-          .single();
-
-        if (paymentMethod?.bank_account_id) {
-          // Remove the bank transaction
-          await supabase
-            .from('bank_transactions')
-            .delete()
-            .eq('reference_number', order.order_number)
-            .eq('bank_account_id', paymentMethod.bank_account_id);
-
-          // Update payment method usage
-          await supabase
-            .from('sales_payment_methods')
-            .update({
-              current_usage: Math.max(0, (await supabase.from('sales_payment_methods').select('current_usage').eq('id', order.sales_payment_method_id).single()).data?.current_usage - order.total_amount),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', order.sales_payment_method_id);
-        }
-      }
-
-      // Revert product stock if product is linked
-      if (order.product_id) {
-        const { data: product } = await supabase
-          .from('products')
-          .select('current_stock_quantity, total_sales')
-          .eq('id', order.product_id)
-          .single();
-
-        if (product) {
-          await supabase
-            .from('products')
-            .update({
-              current_stock_quantity: product.current_stock_quantity + order.quantity,
-              total_sales: Math.max(0, (product.total_sales || 0) - order.quantity)
-            })
-            .eq('id', order.product_id);
-        }
-
-        // Remove stock transaction
-        await supabase
-          .from('stock_transactions')
-          .delete()
-          .eq('reference_number', order.order_number)
-          .eq('product_id', order.product_id);
-      }
-
+      if (error) throw error;
       return orderId;
     },
     onSuccess: () => {
@@ -163,6 +104,8 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['crypto_wallets'] });
     },
     onError: (error) => {
       console.error('Error deleting sales order:', error);

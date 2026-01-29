@@ -37,7 +37,7 @@ export default function Dashboard() {
     {
       id: 'total-revenue',
       name: 'Total Revenue',
-      description: 'Current period revenue',
+      description: 'Revenue overview',
       icon: DollarSign,
       category: 'Metrics',
       size: 'small' as const
@@ -45,7 +45,7 @@ export default function Dashboard() {
     {
       id: 'total-clients',
       name: 'Total Clients',
-      description: 'Quick view of total client count',
+      description: 'Client overview',
       icon: Users,
       category: 'Metrics',
       size: 'small' as const

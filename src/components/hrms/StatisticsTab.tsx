@@ -1,7 +1,6 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from "recharts";
@@ -11,6 +10,8 @@ import {
   Download, BarChart3, PieChart as PieChartIcon, Calendar,
   Activity, ArrowUp, ArrowDown, MapPin, Star, Briefcase
 } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 
 // Mock data for comprehensive analytics
 const kpiData = {
@@ -105,7 +106,8 @@ const topTraders = [
 ];
 
 export function StatisticsTab() {
-  const [dateRange, setDateRange] = useState("30d");
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("last30days");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last30days"));
   const [selectedMetric, setSelectedMetric] = useState("revenue");
 
   const exportReport = (format: string) => {
@@ -133,18 +135,13 @@ export function StatisticsTab() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select time range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1d">Today</SelectItem>
-              <SelectItem value="7d">This Week</SelectItem>
-              <SelectItem value="30d">This Month</SelectItem>
-              <SelectItem value="90d">Last 3 Months</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            preset={datePreset}
+            onPresetChange={setDatePreset}
+            className="min-w-[200px]"
+          />
           <Button onClick={() => exportReport("pdf")} variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export PDF

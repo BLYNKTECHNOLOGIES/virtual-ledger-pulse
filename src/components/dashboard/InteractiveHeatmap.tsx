@@ -6,7 +6,7 @@ import { BarChart3, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, startOfDay, endOfDay, eachDayOfInterval } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, eachDayOfInterval, subMonths, startOfMonth, endOfMonth, startOfYear, endOfYear, subYears } from "date-fns";
 
 interface SalesData {
   date: string;
@@ -22,10 +22,13 @@ interface InteractiveHeatmapProps {
 export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) {
   const [selectedMetric, setSelectedMetric] = useState("sales");
 
-  // Calculate date range based on selected period
+  // Calculate date range based on selected period (supporting both old and new formats)
   const getDateRange = () => {
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
     switch (selectedPeriod) {
+      // Legacy formats
       case "24h":
         return { start: subDays(now, 1), end: now };
       case "7d":
@@ -34,6 +37,29 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
         return { start: subDays(now, 30), end: now };
       case "90d":
         return { start: subDays(now, 90), end: now };
+      // New preset formats
+      case "today":
+        return { start: today, end: today };
+      case "yesterday":
+        return { start: subDays(today, 1), end: subDays(today, 1) };
+      case "last7days":
+        return { start: subDays(today, 6), end: today };
+      case "last30days":
+        return { start: subDays(today, 29), end: today };
+      case "thisMonth":
+        return { start: startOfMonth(today), end: endOfMonth(today) };
+      case "lastMonth":
+        const lastMonth = subMonths(today, 1);
+        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+      case "last3months":
+        return { start: subMonths(today, 3), end: today };
+      case "last6months":
+        return { start: subMonths(today, 6), end: today };
+      case "thisYear":
+        return { start: startOfYear(today), end: endOfYear(today) };
+      case "lastYear":
+        const lastYear = subYears(today, 1);
+        return { start: startOfYear(lastYear), end: endOfYear(lastYear) };
       default:
         return { start: subDays(now, 7), end: now };
     }

@@ -22,6 +22,8 @@ import {
   Activity
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
 
 interface ProfitLossData {
   totalRevenue: number;
@@ -69,40 +71,18 @@ interface ExpenseIncomeEntry {
 }
 
 export default function ProfitLoss() {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('current-month');
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('thisMonth');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset('thisMonth'));
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('INR');
 
   const getDateRange = () => {
-    const now = new Date();
-    let startDate: Date;
-    let endDate: Date;
-
-    switch (selectedPeriod) {
-      case 'current-month':
-        startDate = startOfMonth(now);
-        endDate = endOfMonth(now);
-        break;
-      case 'last-month':
-        const lastMonth = subMonths(now, 1);
-        startDate = startOfMonth(lastMonth);
-        endDate = endOfMonth(lastMonth);
-        break;
-      case 'current-year':
-        startDate = startOfYear(now);
-        endDate = endOfYear(now);
-        break;
-      case 'last-year':
-        const lastYear = new Date(now.getFullYear() - 1, 0, 1);
-        startDate = startOfYear(lastYear);
-        endDate = endOfYear(lastYear);
-        break;
-      default:
-        startDate = startOfMonth(now);
-        endDate = endOfMonth(now);
+    if (dateRange?.from && dateRange?.to) {
+      return { startDate: dateRange.from, endDate: dateRange.to };
     }
-
-    return { startDate, endDate };
+    // Fallback to current month
+    const now = new Date();
+    return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
   };
 
   const calculateFIFOMatches = (salesItems: any[], purchaseItems: any[]) => {
@@ -190,7 +170,7 @@ export default function ProfitLoss() {
 
   // Fetch comprehensive P&L data
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['vaspcorp_pl_dashboard', selectedPeriod, selectedAsset],
+    queryKey: ['vaspcorp_pl_dashboard', dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
       const startStr = format(startDate, 'yyyy-MM-dd');
@@ -386,13 +366,13 @@ export default function ProfitLoss() {
   };
 
   const getPeriodLabel = () => {
-    switch (selectedPeriod) {
-      case 'current-month': return 'Current Month';
-      case 'last-month': return 'Last Month';
-      case 'current-year': return 'Current Year';
-      case 'last-year': return 'Last Year';
-      default: return 'Current Month';
+    if (dateRange?.from && dateRange?.to) {
+      if (format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd')) {
+        return format(dateRange.from, 'MMM dd, yyyy');
+      }
+      return `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd, yyyy')}`;
     }
+    return 'All Time';
   };
 
   if (isLoading) {
@@ -434,18 +414,13 @@ export default function ProfitLoss() {
             </div>
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-48">
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current-month">Current Month</SelectItem>
-                  <SelectItem value="last-month">Last Month</SelectItem>
-                  <SelectItem value="current-year">Current Year</SelectItem>
-                  <SelectItem value="last-year">Last Year</SelectItem>
-                </SelectContent>
-              </Select>
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                preset={datePreset}
+                onPresetChange={setDatePreset}
+                className="w-52"
+              />
 
               <Select value={selectedAsset} onValueChange={setSelectedAsset}>
                 <SelectTrigger className="w-32">

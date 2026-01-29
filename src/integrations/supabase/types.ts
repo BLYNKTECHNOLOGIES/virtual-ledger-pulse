@@ -4006,39 +4006,51 @@ export type Database = {
       }
       wallet_fee_deductions: {
         Row: {
+          average_buying_price: number | null
           created_at: string
           fee_amount: number
+          fee_inr_value_at_buying_price: number | null
           fee_percentage: number
+          fee_usdt_amount: number | null
           gross_amount: number
           id: string
           net_amount: number
           order_id: string
           order_number: string
           order_type: string
+          usdt_rate_used: number | null
           wallet_id: string | null
         }
         Insert: {
+          average_buying_price?: number | null
           created_at?: string
           fee_amount?: number
+          fee_inr_value_at_buying_price?: number | null
           fee_percentage?: number
+          fee_usdt_amount?: number | null
           gross_amount: number
           id?: string
           net_amount: number
           order_id: string
           order_number: string
           order_type: string
+          usdt_rate_used?: number | null
           wallet_id?: string | null
         }
         Update: {
+          average_buying_price?: number | null
           created_at?: string
           fee_amount?: number
+          fee_inr_value_at_buying_price?: number | null
           fee_percentage?: number
+          fee_usdt_amount?: number | null
           gross_amount?: number
           id?: string
           net_amount?: number
           order_id?: string
           order_number?: string
           order_type?: string
+          usdt_rate_used?: number | null
           wallet_id?: string | null
         }
         Relationships: [

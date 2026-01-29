@@ -100,7 +100,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
           payment_status: 'COMPLETED',
           status: 'COMPLETED',
           settlement_status: 'DIRECT',
-          bank_account_id: orderData.bank_account_id, // Add bank account for trigger
+          bank_account_id: orderData.bank_account_id,
           description: `Sales Order - ${orderData.order_number}`
         })
         .select()
@@ -109,18 +109,48 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // Note: Bank and stock transactions will be automatically handled by database triggers
-      console.log('✅ Sales order created - all transactions will be handled by triggers');
+      // Check if client already exists in the clients table
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .or(`name.ilike.${orderData.client_name},phone.eq.${orderData.client_phone}`)
+        .limit(1)
+        .maybeSingle();
+
+      // If client doesn't exist, create an onboarding approval request
+      if (!existingClient) {
+        console.log('📝 New client detected, creating onboarding approval request...');
+        const { error: approvalError } = await supabase
+          .from('client_onboarding_approvals')
+          .insert({
+            sales_order_id: salesOrder.id,
+            client_name: orderData.client_name,
+            client_phone: orderData.client_phone,
+            order_amount: orderData.total_amount,
+            order_date: new Date().toISOString().split('T')[0],
+            approval_status: 'PENDING'
+          });
+
+        if (approvalError) {
+          console.error('⚠️ Failed to create approval request:', approvalError);
+          // Don't throw - the order was created, approval is secondary
+        } else {
+          console.log('✅ Onboarding approval request created');
+        }
+      } else {
+        console.log('✅ Existing client found:', existingClient.name);
+      }
 
       return salesOrder;
     },
     onSuccess: (salesOrder) => {
       toast({
         title: "Sales Order Created Successfully",
-        description: `Order ${salesOrder.order_number} created and balance credited to account`,
+        description: `Order ${salesOrder.order_number} created. New clients will appear in approvals queue.`,
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       resetForm();
       onOpenChange(false);
     },

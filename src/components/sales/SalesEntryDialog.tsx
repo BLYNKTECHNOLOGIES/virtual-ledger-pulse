@@ -177,7 +177,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             .eq('id', data.sales_payment_method_id);
         }
 
-        // Note: Bank transaction will be automatically created by database triggers for non-payment gateway orders
         console.log('Sales order created - bank transaction will be handled by triggers if applicable');
       }
 
@@ -187,7 +186,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         const platformFees = parseFloat(data.platform_fees) || 0;
         const totalDeduction = quantity + platformFees;
         
-        // Use the function to process wallet deduction which will also sync USDT stock
         const { error: walletError } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: result.id,
           wallet_id: data.wallet_id,
@@ -200,14 +198,43 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       }
 
+      // Check if client already exists in the clients table
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id, name')
+        .or(`name.ilike.${data.client_name},phone.eq.${data.client_phone || ''}`)
+        .limit(1)
+        .maybeSingle();
+
+      // If client doesn't exist, create an onboarding approval request
+      if (!existingClient) {
+        console.log('📝 New client detected, creating onboarding approval request...');
+        const { error: approvalError } = await supabase
+          .from('client_onboarding_approvals')
+          .insert({
+            sales_order_id: result.id,
+            client_name: data.client_name,
+            client_phone: data.client_phone || null,
+            order_amount: data.total_amount,
+            order_date: data.order_date,
+            approval_status: 'PENDING'
+          });
+
+        if (approvalError) {
+          console.error('⚠️ Failed to create approval request:', approvalError);
+        } else {
+          console.log('✅ Onboarding approval request created');
+        }
+      } else {
+        console.log('✅ Existing client found:', existingClient.name);
+      }
+
       return result;
     },
     onSuccess: () => {
-      console.log('🎉 Sales order created successfully - onSuccess callback triggered');
-      console.log('🔄 Calling onOpenChange(false) to close dialog');
-      toast({ title: "Success", description: "Sales order created successfully. Bank balance updated automatically." });
-      onOpenChange(false); // Close the dialog immediately
-      console.log('✅ Dialog should be closed now');
+      console.log('🎉 Sales order created successfully');
+      toast({ title: "Success", description: "Sales order created successfully. New clients will appear in approvals queue." });
+      onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
@@ -215,10 +242,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-      // Force a full page refresh to ensure all components show updated data
-      setTimeout(() => window.location.reload(), 1000);
+      queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       setFormData({
-        order_number: '', // Reset to empty - user must enter manually
+        order_number: '',
         client_name: '',
         client_phone: '',
         product_id: '',
@@ -238,7 +264,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
-      console.log('🚫 onError callback triggered - dialog will NOT close automatically');
       toast({ 
         title: "Error Creating Sales Order", 
         description: error?.message || "Failed to create sales order. Please check your inputs and try again.", 
@@ -383,16 +408,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 onChange={(e) => handleInputChange('client_phone', e.target.value)}
               />
             </div>
-
-            <div>
-              <Label>Customer Phone</Label>
-              <Input
-                value={formData.client_phone}
-                onChange={(e) => handleInputChange('client_phone', e.target.value)}
-              />
-            </div>
-
-
             <div>
               <Label>Product</Label>
               <Select

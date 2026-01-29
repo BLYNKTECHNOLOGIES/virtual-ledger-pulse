@@ -178,74 +178,48 @@ export default function Dashboard() {
         console.error('Error fetching wallets:', walletsError);
       }
 
-      const { data: products, error: productsError } = await supabase
-        .from('products')
-        .select('*');
-
-      if (productsError) {
-        console.error('Error fetching products:', productsError);
-      }
-
-      // Create asset inventory showing wallet distribution (like Stock Management)
+      // Build asset inventory directly from wallets
       const assetMap = new Map();
       
-      products?.forEach(product => {
-        if (product.code === 'USDT') {
-          // For USDT, calculate total from all wallets
-          let totalWalletStock = 0;
-          const walletDistribution: any[] = [];
-          
-          wallets?.forEach(wallet => {
-            const balance = Number(wallet.current_balance) || 0;
-            totalWalletStock += balance;
-            
-            if (balance > 0) {
-              walletDistribution.push({
-                name: wallet.wallet_name,
-                quantity: balance,
-                percentage: 0 // Will be calculated later
-              });
-            }
-          });
-          
-          // Calculate percentages
-          walletDistribution.forEach(dist => {
-            dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
-          });
-          
-          const productStock = Number(product.current_stock_quantity) || 0;
-          
-          assetMap.set(product.id, {
-            id: product.id,
-            name: product.name,
-            code: product.code,
-            total_stock: Math.max(productStock, totalWalletStock),
-            wallet_distribution: walletDistribution,
-            unit: product.unit_of_measurement
-          });
-        } else {
-          // For other products, use current stock
-          const productStock = Number(product.current_stock_quantity) || 0;
-          if (productStock > 0) {
-            assetMap.set(product.id, {
-              id: product.id,
-              name: product.name,
-              code: product.code,
-              total_stock: productStock,
-              wallet_distribution: [],
-              unit: product.unit_of_measurement
-            });
-          }
-        }
+      // Always calculate USDT from wallets
+      let totalWalletStock = 0;
+      const walletDistribution: any[] = [];
+      
+      wallets?.forEach(wallet => {
+        const balance = Number(wallet.current_balance) || 0;
+        totalWalletStock += balance;
+        
+        walletDistribution.push({
+          name: wallet.wallet_name,
+          quantity: balance,
+          percentage: 0
+        });
       });
+      
+      // Calculate percentages
+      walletDistribution.forEach(dist => {
+        dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
+      });
+      
+      // Add USDT asset from wallets
+      if (wallets && wallets.length > 0) {
+        assetMap.set('USDT', {
+          id: 'USDT',
+          name: 'USDT',
+          code: 'USDT',
+          total_stock: totalWalletStock,
+          wallet_distribution: walletDistribution.filter(d => d.quantity > 0),
+          unit: 'Units'
+        });
+      }
 
       // Return all assets from the map
       const assets = Array.from(assetMap.values());
       return assets;
     },
-    refetchInterval: 10000, // Refresh every 10 seconds
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache
+    refetchInterval: 10000,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   // Fetch recent transactions for activity feed with period filtering
@@ -560,7 +534,7 @@ export default function Dashboard() {
                 Recent Activity
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-4 max-h-96 overflow-y-auto">
+            <CardContent className="p-6 space-y-4 overflow-y-auto">
               {recentActivity?.slice(0, 8).map((activity) => (
                 <div key={activity.id} className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200">
                   <div className="flex items-center gap-3">

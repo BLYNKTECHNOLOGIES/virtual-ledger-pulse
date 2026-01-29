@@ -223,12 +223,17 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Type</label>
             <div className="flex gap-2">
-              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
-                {client.client_type}
-              </Badge>
-              {isComposite && (
+              {isComposite ? (
                 <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
-                  COMPOSITE
+                  Composite
+                </Badge>
+              ) : isSeller ? (
+                <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                  Seller
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50">
+                  Buyer
                 </Badge>
               )}
             </div>

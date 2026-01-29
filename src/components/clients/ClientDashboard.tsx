@@ -13,6 +13,7 @@ import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
 import { SellerOnboardingApprovals } from "./SellerOnboardingApprovals";
 import { PermissionGate } from "@/components/PermissionGate";
+import { useClientTypeFromOrders } from "@/hooks/useClientTypeFromOrders";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,19 +35,30 @@ export function ClientDashboard() {
     },
   });
 
-  // Filter clients by type and search term  
-  // Buyers: is_buyer = true OR have KYC documents (pan_card_url, aadhar_front_url)
-  // Sellers: is_seller = true OR don't have KYC documents
-  // Composite clients (both buyer and seller) appear in BOTH directories
+  // Get client types based on actual orders
+  const { data: clientOrderCounts } = useClientTypeFromOrders(clients);
+
+  // Filter clients by type based on actual order history
+  // Buyer: has sales orders (they buy from us)
+  // Seller: has purchase orders (they sell to us)
+  // Composite: has both - appears in both directories
   const filteredBuyers = clients?.filter(client => {
-    const isBuyer = client.is_buyer || client.pan_card_url || client.aadhar_front_url;
+    const orderInfo = clientOrderCounts?.get(client.id);
+    // Show as buyer if they have sales orders (isBuyer) or are composite
+    // Also show clients with no orders yet that were added as buyers (is_buyer flag)
+    const isBuyer = orderInfo?.isBuyer || orderInfo?.isComposite || 
+                    ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_buyer);
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
     return isBuyer && matchesSearch;
   });
 
   const filteredSellers = clients?.filter(client => {
-    const isSeller = client.is_seller || (!client.pan_card_url && !client.aadhar_front_url);
+    const orderInfo = clientOrderCounts?.get(client.id);
+    // Show as seller if they have purchase orders (isSeller) or are composite
+    // Also show clients with no orders yet that were added as sellers (is_seller flag)
+    const isSeller = orderInfo?.isSeller || orderInfo?.isComposite ||
+                     ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_seller);
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
     return isSeller && matchesSearch;

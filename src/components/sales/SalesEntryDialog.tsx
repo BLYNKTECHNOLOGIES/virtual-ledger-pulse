@@ -7,11 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
+import { calculateFee } from "@/hooks/useWalletFees";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -24,8 +27,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   
   // State for wallet balance and validation errors
   const [selectedWalletBalance, setSelectedWalletBalance] = useState<number | null>(null);
+  const [selectedWalletFee, setSelectedWalletFee] = useState<number>(0);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   const [formTouched, setFormTouched] = useState(false); // Track if user has started filling form
+  const [isOffMarket, setIsOffMarket] = useState(false);
 
   const [formData, setFormData] = useState({
     order_number: '', // User must enter this manually
@@ -61,7 +66,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wallets')
-        .select('*')
+        .select('*, fee_percentage, is_fee_enabled')
         .eq('is_active', true);
       if (error) throw error;
       return data;
@@ -76,7 +81,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       const { data, error } = await supabase
         .from('wallets')
-        .select('current_balance, wallet_name, wallet_type')
+        .select('current_balance, wallet_name, wallet_type, fee_percentage, is_fee_enabled')
         .eq('id', formData.wallet_id)
         .single();
       
@@ -86,9 +91,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     enabled: !!formData.wallet_id,
   });
 
-  // Update selected wallet balance when wallet data changes
+  // Update selected wallet balance and fee when wallet data changes
   useEffect(() => {
     setSelectedWalletBalance(walletBalance?.current_balance || null);
+    if (walletBalance?.is_fee_enabled) {
+      setSelectedWalletFee(walletBalance?.fee_percentage || 0);
+    } else {
+      setSelectedWalletFee(0);
+    }
   }, [walletBalance]);
 
   // Validate stock quantity whenever quantity or platform fees changes
@@ -373,9 +383,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     });
   };
 
+  // Calculate fee based on wallet fee percentage (if not off market)
+  const quantity = parseFloat(formData.quantity) || 0;
+  const feeInfo = isOffMarket ? { feeAmount: 0, netAmount: quantity } : calculateFee(quantity, selectedWalletFee);
+  const calculatedFee = feeInfo.feeAmount;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
@@ -388,7 +403,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           className="space-y-4"
           noValidate
         >
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Order Number *</Label>
               <Input
@@ -493,28 +508,75 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
             {/* Show wallet balance when wallet is selected */}
             {selectedWalletBalance !== null && (
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString()}</strong>
+                    {selectedWalletFee > 0 && !isOffMarket && (
+                      <span className="ml-2 text-orange-600">
+                        (Platform Fee: {selectedWalletFee}%)
+                      </span>
+                    )}
                   </AlertDescription>
                 </Alert>
               </div>
             )}
+          </div>
 
+          {/* Off Market Toggle Section */}
+          <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Off Market Order</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable to bypass platform fee deduction
+                </p>
+              </div>
+              <Switch 
+                checked={isOffMarket} 
+                onCheckedChange={setIsOffMarket} 
+              />
+            </div>
+            
+            {!isOffMarket && selectedWalletFee > 0 && quantity > 0 && (
+              <div className="space-y-2 bg-background p-3 rounded-md border">
+                <div className="flex justify-between text-sm">
+                  <span>Quantity Sold:</span>
+                  <span className="font-medium">{quantity.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-orange-600">
+                  <span>Platform Fee ({selectedWalletFee}%):</span>
+                  <span className="font-medium">+{calculatedFee.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t pt-2">
+                  <span>Total Deducted from Wallet:</span>
+                  <span className="text-primary">{(quantity + calculatedFee).toFixed(4)}</span>
+                </div>
+              </div>
+            )}
+            
+            {isOffMarket && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                No platform fees will be applied
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Platform Fees (USDT)</Label>
               <Input
                 type="number"
-                value={formData.platform_fees}
+                value={isOffMarket ? '0' : (formData.platform_fees || calculatedFee.toFixed(4))}
                 onChange={(e) => handleInputChange('platform_fees', e.target.value)}
                 min="0"
                 step="0.01"
-                placeholder="Enter platform fees"
+                placeholder="Platform fees"
+                disabled={isOffMarket}
               />
               <div className="text-xs text-muted-foreground mt-1">
-                Fees will be deducted from wallet in addition to the quantity
+                {isOffMarket ? 'Off Market - No fees applied' : 'Auto-calculated based on wallet fee percentage'}
               </div>
             </div>
 

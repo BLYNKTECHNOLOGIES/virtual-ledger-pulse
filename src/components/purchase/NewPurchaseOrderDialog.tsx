@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductSelectionSection } from "./ProductSelectionSection";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
+import { calculateFee } from "@/hooks/useWalletFees";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -31,6 +33,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   const queryClient = useQueryClient();
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
+  const [isOffMarket, setIsOffMarket] = useState(false);
+  const [selectedWalletFee, setSelectedWalletFee] = useState<number>(0);
   
   const [formData, setFormData] = useState({
     order_number: "",
@@ -52,8 +56,14 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
   // Calculate amounts based on TDS option
   const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
+  const totalQuantity = productItems.reduce((total, item) => total + item.quantity, 0);
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
+  
+  // Calculate platform fee on quantity (not amount) - only if not off market
+  const platformFeeQuantity = isOffMarket ? 0 : calculateFee(totalQuantity, selectedWalletFee).feeAmount;
+  const netQuantityAfterFee = totalQuantity - platformFeeQuantity;
+  
   const netPayableAmount = totalAmount - tdsAmount;
   const tdsApplied = formData.tds_option !== "NO_TDS";
 
@@ -70,6 +80,35 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       return data;
     },
   });
+
+  // Fetch wallets to get fee percentages
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name, fee_percentage, is_fee_enabled')
+        .eq('is_active', true)
+        .order('wallet_name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Update wallet fee when product items change (get fee from first item's wallet)
+  useEffect(() => {
+    if (productItems.length > 0 && productItems[0].warehouse_id && wallets) {
+      const selectedWallet = wallets.find(w => w.id === productItems[0].warehouse_id);
+      if (selectedWallet && selectedWallet.is_fee_enabled) {
+        setSelectedWalletFee(selectedWallet.fee_percentage || 0);
+      } else {
+        setSelectedWalletFee(0);
+      }
+    } else {
+      setSelectedWalletFee(0);
+    }
+  }, [productItems, wallets]);
 
   // Fetch employees for assignment
   const { data: employees } = useQuery({
@@ -466,6 +505,45 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                   <span className="text-primary">₹{netPayableAmount.toFixed(2)}</span>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Off Market & Platform Fee Section */}
+          <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium">Off Market Order</Label>
+                <p className="text-sm text-muted-foreground">
+                  Enable to bypass platform fee deduction
+                </p>
+              </div>
+              <Switch 
+                checked={isOffMarket} 
+                onCheckedChange={setIsOffMarket} 
+              />
+            </div>
+            
+            {!isOffMarket && selectedWalletFee > 0 && (
+              <div className="space-y-2 bg-background p-3 rounded-md border">
+                <div className="flex justify-between text-sm">
+                  <span>Total Quantity Ordered:</span>
+                  <span className="font-medium">{totalQuantity.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-orange-600">
+                  <span>Platform Fee ({selectedWalletFee}%):</span>
+                  <span className="font-medium">-{platformFeeQuantity.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between text-base font-bold border-t pt-2">
+                  <span>Net Quantity to Stock:</span>
+                  <span className="text-primary">{netQuantityAfterFee.toFixed(4)}</span>
+                </div>
+              </div>
+            )}
+            
+            {isOffMarket && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                No platform fees will be applied
+              </Badge>
             )}
           </div>
 

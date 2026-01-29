@@ -55,7 +55,7 @@ export default function Financials() {
   const { data: financialData, isLoading } = useQuery({
     queryKey: ['financial_data', selectedPeriod],
     queryFn: async () => {
-      // Get revenue data
+      // Get revenue data from sales orders
       const { data: salesData } = await supabase
         .from('sales_orders')
         .select('total_amount, order_date, created_at')
@@ -63,13 +63,22 @@ export default function Financials() {
         .lte('order_date', format(endDate, 'yyyy-MM-dd'))
         .order('order_date', { ascending: true });
 
-      // Get expense data
+      // Get purchase orders for reference (COGS, not expenses)
       const { data: purchaseData } = await supabase
         .from('purchase_orders')
         .select('total_amount, order_date, created_at')
         .gte('order_date', format(startDate, 'yyyy-MM-dd'))
         .lte('order_date', format(endDate, 'yyyy-MM-dd'))
         .order('order_date', { ascending: true });
+
+      // Get OPERATING expenses from bank_transactions (excluding Purchase/Sales which are COGS/Revenue)
+      const { data: operatingExpenses } = await supabase
+        .from('bank_transactions')
+        .select('amount, transaction_date, category')
+        .eq('transaction_type', 'EXPENSE')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+        .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
 
       // Get bank balances
       const { data: bankData } = await supabase
@@ -87,7 +96,8 @@ export default function Financials() {
         .limit(10);
 
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalExpenses = purchaseData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      // Total Expenses = Operating Expenses only (NOT including purchases which are COGS)
+      const totalExpenses = operatingExpenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
       const totalBankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
       const netCashFlow = totalRevenue - totalExpenses;
 

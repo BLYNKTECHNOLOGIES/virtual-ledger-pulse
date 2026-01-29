@@ -109,7 +109,11 @@ export default function Sales() {
     },
     onError: (error) => {
       console.error('Error deleting sales order:', error);
-      toast({ title: "Error", description: "Failed to delete sales order", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: (error as any)?.message || "Failed to delete sales order",
+        variant: "destructive",
+      });
     }
   });
 

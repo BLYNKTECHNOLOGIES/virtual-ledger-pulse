@@ -38,6 +38,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
             quantity,
             unit_price,
             total_price,
+            warehouse_id,
             products (name, code)
           ),
           purchase_payment_method:purchase_payment_method_id(
@@ -59,6 +60,19 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch wallets for mapping wallet_id to wallet_name
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
   });
 
   const { data: purchaseMethods } = useQuery({
@@ -210,7 +224,13 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{(order as any).platform || 'Off Market'}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const walletId = order.purchase_order_items?.[0]?.warehouse_id;
+                        const wallet = wallets?.find(w => w.id === walletId);
+                        return wallet?.wallet_name || 'Off Market';
+                      })()}
+                    </TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>
                       {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0}

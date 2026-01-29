@@ -11,6 +11,16 @@ import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
@@ -67,6 +77,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
   const queryClient = useQueryClient();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
+  const [orderToDelete, setOrderToDelete] = useState<any>(null);
 
   const deleteMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -215,17 +226,12 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => { 
-                            if (confirm(
-                              'Are you sure you want to delete this purchase order?\n\n' +
-                              'This will permanently reverse ALL related transactions:\n' +
-                              '• Bank transactions will be reversed\n' +
-                              '• Stock quantities will be reduced\n' +
-                              '• Wallet transactions will be reversed\n\n' +
-                              'This action cannot be undone.'
-                            )) {
-                              deleteMutation.mutate(order.id);
-                            }
+                          onClick={() => {
+                            setOrderToDelete(order);
+                            toast({
+                              title: "Delete requested",
+                              description: `Confirm deletion for order ${order.order_number}.`,
+                            });
                           }}
                           disabled={deleteMutation.isPending}
                         >
@@ -240,6 +246,31 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete purchase order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-medium">{orderToDelete?.order_number}</span> and reverse related
+              transactions (bank, wallet, stock). Balances may go negative during reversal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (!orderToDelete?.id) return;
+                deleteMutation.mutate(orderToDelete.id);
+                setOrderToDelete(null);
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <PurchaseOrderDetailsDialog
         open={!!selectedOrderForDetails}

@@ -236,7 +236,7 @@ export function ClientOnboardingApprovals() {
   };
 
   const handleApprove = () => {
-    if (selectedApproval && formData.aadhar_number && formData.address && formData.proposed_monthly_limit) {
+    if (selectedApproval && formData.proposed_monthly_limit) {
       approveClientMutation.mutate({
         id: selectedApproval.id,
         clientData: formData
@@ -244,7 +244,7 @@ export function ClientOnboardingApprovals() {
     } else {
       toast({
         title: "Missing Information",
-        description: "Please fill all required fields",
+        description: "Please enter the monthly transaction limit",
         variant: "destructive"
       });
     }
@@ -496,13 +496,12 @@ export function ClientOnboardingApprovals() {
               {/* Compliance Form */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="aadhar_number">Aadhar Number *</Label>
+                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
                   <Input
                     id="aadhar_number"
                     value={formData.aadhar_number}
                     onChange={(e) => setFormData(prev => ({ ...prev, aadhar_number: e.target.value }))}
                     placeholder="Enter 12-digit Aadhar number"
-                    required
                   />
                 </div>
 
@@ -519,13 +518,12 @@ export function ClientOnboardingApprovals() {
                 </div>
 
                 <div className="col-span-2">
-                  <Label htmlFor="address">Complete Address *</Label>
+                  <Label htmlFor="address">Complete Address</Label>
                   <Textarea
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                     placeholder="Enter complete address as per Aadhar"
-                    required
                   />
                 </div>
 

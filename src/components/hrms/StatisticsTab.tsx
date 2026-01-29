@@ -1,124 +1,233 @@
-
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from "recharts";
 import { 
   TrendingUp, Users, DollarSign, ShoppingCart, Building, 
-  FileBarChart, Shield, AlertTriangle, UserCheck, Clock,
-  Download, BarChart3, PieChart as PieChartIcon, Calendar,
-  Activity, ArrowUp, ArrowDown, MapPin, Star, Briefcase
+  FileBarChart, UserCheck, Download, BarChart3, ArrowUp, ArrowDown, Briefcase
 } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
-
-// Mock data for comprehensive analytics
-const kpiData = {
-  revenue: { value: "₹2.4M", change: "+18.7%", trend: "up" },
-  users: { value: "12.4K", change: "+22.3%", trend: "up" },
-  trades: { value: "3,456", change: "+15.8%", trend: "up" },
-  employees: { value: "127", change: "+8.4%", trend: "up" },
-  profit: { value: "₹847K", change: "+12.5%", trend: "up" }
-};
-
-const tradingData = [
-  { month: "Jan", buyOrders: 245, sellOrders: 198, completed: 420, cancelled: 23, avgTime: 18 },
-  { month: "Feb", buyOrders: 289, sellOrders: 234, completed: 498, cancelled: 25, avgTime: 16 },
-  { month: "Mar", buyOrders: 356, sellOrders: 287, completed: 612, cancelled: 31, avgTime: 15 },
-  { month: "Apr", buyOrders: 398, sellOrders: 334, completed: 698, cancelled: 34, avgTime: 17 },
-  { month: "May", buyOrders: 434, sellOrders: 389, completed: 789, cancelled: 34, avgTime: 14 },
-  { month: "Jun", buyOrders: 467, sellOrders: 423, completed: 856, cancelled: 34, avgTime: 13 }
-];
-
-const financialData = [
-  { month: "Jan", revenue: 1245000, grossProfit: 356000, netProfit: 234000, expenses: 122000 },
-  { month: "Feb", revenue: 1456000, grossProfit: 423000, netProfit: 287000, expenses: 136000 },
-  { month: "Mar", revenue: 1587000, grossProfit: 487000, netProfit: 334000, expenses: 153000 },
-  { month: "Apr", revenue: 1823000, grossProfit: 556000, netProfit: 398000, expenses: 158000 },
-  { month: "May", revenue: 2045000, grossProfit: 634000, netProfit: 467000, expenses: 167000 },
-  { month: "Jun", revenue: 2234000, grossProfit: 698000, netProfit: 523000, expenses: 175000 }
-];
-
-const assetProfitData = [
-  { name: "USDT", value: 45, color: "hsl(var(--success))" },
-  { name: "BTC", value: 32, color: "hsl(var(--crypto-bitcoin))" },
-  { name: "ETH", value: 18, color: "hsl(var(--crypto-ethereum))" },
-  { name: "Others", value: 5, color: "hsl(var(--muted-foreground))" }
-];
-
-const complianceData = {
-  kyc: { pending: 45, approved: 867, rejected: 23, total: 935 },
-  suspicious: 12,
-  appeals: { raised: 8, resolved: 6 },
-  riskLevels: [
-    { level: "Low", count: 542, color: "hsl(var(--success))" },
-    { level: "Medium", count: 234, color: "hsl(var(--warning))" },
-    { level: "High", count: 67, color: "hsl(var(--destructive))" }
-  ]
-};
-
-const customerData = [
-  { month: "Jan", dau: 2134, mau: 8923, registrations: 234, retention: 68.4 },
-  { month: "Feb", dau: 2456, mau: 9567, registrations: 267, retention: 71.2 },
-  { month: "Mar", dau: 2789, mau: 10234, registrations: 298, retention: 73.8 },
-  { month: "Apr", dau: 3123, mau: 11045, registrations: 334, retention: 76.1 },
-  { month: "May", dau: 3456, mau: 11823, registrations: 387, retention: 78.5 },
-  { month: "Jun", dau: 3789, mau: 12456, registrations: 423, retention: 80.2 }
-];
-
-const employeeData = {
-  total: 127,
-  departments: [
-    { name: "Engineering", count: 45, color: "hsl(var(--primary))" },
-    { name: "Sales", count: 23, color: "hsl(var(--success))" },
-    { name: "Compliance", count: 18, color: "hsl(var(--warning))" },
-    { name: "Operations", count: 25, color: "hsl(var(--info))" },
-    { name: "Finance", count: 16, color: "hsl(var(--destructive))" }
-  ],
-  salaryExpenditure: {
-    monthly: 2340000,
-    yearly: 28080000
-  },
-  interviews: {
-    conducted: 34,
-    selected: 8,
-    rejected: 18,
-    pending: 8
-  }
-};
-
-const expenseBreakdown = [
-  { category: "Salaries", amount: 2340000, percentage: 68 },
-  { category: "Technology", amount: 456000, percentage: 13 },
-  { category: "Marketing", amount: 234000, percentage: 7 },
-  { category: "Operations", amount: 198000, percentage: 6 },
-  { category: "Legal", amount: 123000, percentage: 4 },
-  { category: "Others", amount: 89000, percentage: 2 }
-];
-
-const topTraders = [
-  { name: "Rajesh Kumar", volume: "₹2.4M", trades: 234, success: 94 },
-  { name: "Priya Sharma", volume: "₹1.8M", trades: 189, success: 91 },
-  { name: "Amit Singh", volume: "₹1.5M", trades: 167, success: 89 },
-  { name: "Neha Gupta", volume: "₹1.2M", trades: 145, success: 87 },
-  { name: "Vikram Patel", volume: "₹980K", trades: 123, success: 85 }
-];
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 export function StatisticsTab() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last30days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last30days"));
-  const [selectedMetric, setSelectedMetric] = useState("revenue");
 
-  const exportReport = (format: string) => {
-    console.log(`Exporting report as ${format}`);
-    // Implementation for export functionality
+  const getDateRange = () => {
+    if (dateRange?.from && dateRange?.to) {
+      return { startDate: dateRange.from, endDate: dateRange.to };
+    }
+    const now = new Date();
+    return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
   };
 
+  // Fetch real statistics data
+  const { data: statsData, isLoading } = useQuery({
+    queryKey: ['statistics_dashboard', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryFn: async () => {
+      const { startDate, endDate } = getDateRange();
+      const startStr = format(startDate, 'yyyy-MM-dd');
+      const endStr = format(endDate, 'yyyy-MM-dd');
+
+      // Get previous period for comparison
+      const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const prevStartDate = new Date(startDate);
+      prevStartDate.setDate(prevStartDate.getDate() - periodDays);
+      const prevEndDate = new Date(startDate);
+      prevEndDate.setDate(prevEndDate.getDate() - 1);
+      const prevStartStr = format(prevStartDate, 'yyyy-MM-dd');
+      const prevEndStr = format(prevEndDate, 'yyyy-MM-dd');
+
+      // Fetch sales orders (current period)
+      const { data: salesOrders } = await supabase
+        .from('sales_orders')
+        .select('id, total_amount, order_date, status, payment_status')
+        .gte('order_date', startStr)
+        .lte('order_date', endStr);
+
+      // Fetch sales orders (previous period)
+      const { data: prevSalesOrders } = await supabase
+        .from('sales_orders')
+        .select('id, total_amount')
+        .gte('order_date', prevStartStr)
+        .lte('order_date', prevEndStr);
+
+      // Fetch purchase orders (current period)
+      const { data: purchaseOrders } = await supabase
+        .from('purchase_orders')
+        .select('id, total_amount, order_date, status')
+        .gte('order_date', startStr)
+        .lte('order_date', endStr);
+
+      // Fetch clients
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('id, created_at, kyc_status');
+
+      // Fetch employees
+      const { data: employees } = await supabase
+        .from('employees')
+        .select('id, department, status, salary, created_at');
+
+      // Fetch expenses
+      const { data: expenses } = await supabase
+        .from('bank_transactions')
+        .select('id, amount, category, transaction_date')
+        .eq('transaction_type', 'EXPENSE')
+        .gte('transaction_date', startStr)
+        .lte('transaction_date', endStr);
+
+      // Fetch income
+      const { data: income } = await supabase
+        .from('bank_transactions')
+        .select('id, amount, category, transaction_date')
+        .eq('transaction_type', 'INCOME')
+        .gte('transaction_date', startStr)
+        .lte('transaction_date', endStr);
+
+      // Calculate KPIs
+      const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
+      const prevRevenue = prevSalesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
+      const revenueChange = prevRevenue > 0 ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+
+      const totalTrades = (salesOrders?.length || 0) + (purchaseOrders?.length || 0);
+      const totalClients = clients?.length || 0;
+      const totalEmployees = employees?.filter(e => e.status === 'ACTIVE')?.length || 0;
+
+      const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount || 0), 0) || 0;
+      const totalIncome = income?.reduce((sum, i) => sum + Number(i.amount || 0), 0) || 0;
+
+      // Calculate purchase costs for profit
+      const purchaseCosts = purchaseOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
+      const grossProfit = currentRevenue - purchaseCosts;
+      const netProfit = grossProfit - totalExpenses + totalIncome;
+
+      // Monthly data for charts (last 6 months)
+      const monthlyData = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthStart = startOfMonth(subMonths(new Date(), i));
+        const monthEnd = endOfMonth(subMonths(new Date(), i));
+        const monthStartStr = format(monthStart, 'yyyy-MM-dd');
+        const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
+        
+        const monthSales = salesOrders?.filter(o => 
+          o.order_date >= monthStartStr && o.order_date <= monthEndStr
+        ) || [];
+        const monthPurchases = purchaseOrders?.filter(o => 
+          o.order_date >= monthStartStr && o.order_date <= monthEndStr
+        ) || [];
+        const monthExpenses = expenses?.filter(e => 
+          e.transaction_date >= monthStartStr && e.transaction_date <= monthEndStr
+        ) || [];
+
+        const monthRevenue = monthSales.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const monthPurchaseCost = monthPurchases.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
+        const monthExpenseTotal = monthExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+        const monthNetProfit = monthRevenue - monthPurchaseCost - monthExpenseTotal;
+
+        monthlyData.push({
+          month: format(monthStart, 'MMM'),
+          trades: monthSales.length + monthPurchases.length,
+          revenue: monthRevenue,
+          netProfit: monthNetProfit,
+          expenses: monthExpenseTotal
+        });
+      }
+
+      // KYC Status breakdown
+      const kycApproved = clients?.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED')?.length || 0;
+      const kycPending = clients?.filter(c => c.kyc_status === 'PENDING')?.length || 0;
+      const kycRejected = clients?.filter(c => c.kyc_status === 'REJECTED')?.length || 0;
+
+      // Department distribution
+      const departmentCounts = new Map<string, number>();
+      employees?.filter(e => e.status === 'ACTIVE')?.forEach(emp => {
+        const dept = emp.department || 'Other';
+        departmentCounts.set(dept, (departmentCounts.get(dept) || 0) + 1);
+      });
+      const departmentData = Array.from(departmentCounts.entries()).map(([name, count]) => ({
+        name,
+        count
+      }));
+
+      // Expense breakdown by category
+      const expenseByCategory = new Map<string, number>();
+      expenses?.forEach(exp => {
+        const cat = exp.category || 'Other';
+        expenseByCategory.set(cat, (expenseByCategory.get(cat) || 0) + Number(exp.amount || 0));
+      });
+      const expenseBreakdown = Array.from(expenseByCategory.entries())
+        .map(([category, amount]) => ({
+          category,
+          amount,
+          percentage: totalExpenses > 0 ? Math.round((amount / totalExpenses) * 100) : 0
+        }))
+        .sort((a, b) => b.amount - a.amount);
+
+      // Top clients by trade volume
+      const clientVolumes = new Map<string, { name: string; volume: number; trades: number }>();
+      salesOrders?.forEach(order => {
+        // We don't have client_name directly, so we'll use order counts
+      });
+
+      return {
+        kpi: {
+          revenue: currentRevenue,
+          revenueChange,
+          clients: totalClients,
+          trades: totalTrades,
+          employees: totalEmployees,
+          profit: netProfit
+        },
+        monthlyData,
+        kyc: {
+          approved: kycApproved,
+          pending: kycPending,
+          rejected: kycRejected
+        },
+        departmentData,
+        expenseBreakdown,
+        totalExpenses,
+        totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0
+      };
+    },
+  });
+
   const formatCurrency = (value: number) => {
-    if (value >= 1000000) return `₹${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
-    return `₹${value}`;
+    if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)}Cr`;
+    if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
+    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
+    return `₹${value.toFixed(2)}`;
+  };
+
+  const formatNumber = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value.toString();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading statistics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const { kpi, monthlyData, kyc, departmentData, expenseBreakdown, totalExpenses, totalSalary } = statsData || {
+    kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
+    monthlyData: [],
+    kyc: { approved: 0, pending: 0, rejected: 0 },
+    departmentData: [],
+    expenseBreakdown: [],
+    totalExpenses: 0,
+    totalSalary: 0
   };
 
   return (
@@ -131,7 +240,7 @@ export function StatisticsTab() {
           </div>
           <div>
             <h1 className="text-3xl font-bold text-foreground">Statistics & Analytics</h1>
-            <p className="text-muted-foreground">Comprehensive business insights and performance metrics</p>
+            <p className="text-muted-foreground">Real-time business insights and performance metrics</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -142,11 +251,11 @@ export function StatisticsTab() {
             onPresetChange={setDatePreset}
             className="min-w-[200px]"
           />
-          <Button onClick={() => exportReport("pdf")} variant="outline" size="sm">
+          <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export PDF
           </Button>
-          <Button onClick={() => exportReport("csv")} variant="outline" size="sm">
+          <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
@@ -160,14 +269,23 @@ export function StatisticsTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-bold text-foreground">{kpiData.revenue.value}</p>
+                <p className="text-2xl font-bold text-foreground">{formatCurrency(kpi.revenue)}</p>
                 <div className="flex items-center mt-1">
-                  <ArrowUp className="h-3 w-3 text-success mr-1" />
-                  <span className="text-xs font-medium text-success">{kpiData.revenue.change}</span>
+                  {kpi.revenueChange >= 0 ? (
+                    <>
+                      <ArrowUp className="h-3 w-3 text-green-600 mr-1" />
+                      <span className="text-xs font-medium text-green-600">+{kpi.revenueChange.toFixed(1)}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDown className="h-3 w-3 text-red-600 mr-1" />
+                      <span className="text-xs font-medium text-red-600">{kpi.revenueChange.toFixed(1)}%</span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div className="p-2 bg-success/10 rounded-lg">
-                <DollarSign className="h-5 w-5 text-success" />
+              <div className="p-2 bg-green-500/10 rounded-lg">
+                <DollarSign className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -177,12 +295,9 @@ export function StatisticsTab() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Users</p>
-                <p className="text-2xl font-bold text-foreground">{kpiData.users.value}</p>
-                <div className="flex items-center mt-1">
-                  <ArrowUp className="h-3 w-3 text-success mr-1" />
-                  <span className="text-xs font-medium text-success">{kpiData.users.change}</span>
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">Clients</p>
+                <p className="text-2xl font-bold text-foreground">{formatNumber(kpi.clients)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total registered</p>
               </div>
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Users className="h-5 w-5 text-primary" />
@@ -196,14 +311,11 @@ export function StatisticsTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Trades</p>
-                <p className="text-2xl font-bold text-foreground">{kpiData.trades.value}</p>
-                <div className="flex items-center mt-1">
-                  <ArrowUp className="h-3 w-3 text-success mr-1" />
-                  <span className="text-xs font-medium text-success">{kpiData.trades.change}</span>
-                </div>
+                <p className="text-2xl font-bold text-foreground">{formatNumber(kpi.trades)}</p>
+                <p className="text-xs text-muted-foreground mt-1">In period</p>
               </div>
-              <div className="p-2 bg-info/10 rounded-lg">
-                <ShoppingCart className="h-5 w-5 text-info" />
+              <div className="p-2 bg-blue-500/10 rounded-lg">
+                <ShoppingCart className="h-5 w-5 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -214,14 +326,11 @@ export function StatisticsTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Employees</p>
-                <p className="text-2xl font-bold text-foreground">{kpiData.employees.value}</p>
-                <div className="flex items-center mt-1">
-                  <ArrowUp className="h-3 w-3 text-success mr-1" />
-                  <span className="text-xs font-medium text-success">{kpiData.employees.change}</span>
-                </div>
+                <p className="text-2xl font-bold text-foreground">{kpi.employees}</p>
+                <p className="text-xs text-muted-foreground mt-1">Active</p>
               </div>
-              <div className="p-2 bg-warning/10 rounded-lg">
-                <Briefcase className="h-5 w-5 text-warning" />
+              <div className="p-2 bg-orange-500/10 rounded-lg">
+                <Briefcase className="h-5 w-5 text-orange-600" />
               </div>
             </div>
           </CardContent>
@@ -231,15 +340,14 @@ export function StatisticsTab() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Profit</p>
-                <p className="text-2xl font-bold text-foreground">{kpiData.profit.value}</p>
-                <div className="flex items-center mt-1">
-                  <ArrowUp className="h-3 w-3 text-success mr-1" />
-                  <span className="text-xs font-medium text-success">{kpiData.profit.change}</span>
-                </div>
+                <p className="text-sm font-medium text-muted-foreground">Net Profit</p>
+                <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(kpi.profit)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">In period</p>
               </div>
-              <div className="p-2 bg-success/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-success" />
+              <div className="p-2 bg-green-500/10 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </CardContent>
@@ -248,59 +356,71 @@ export function StatisticsTab() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-        {/* Trading & Orders */}
+        {/* Trading Volume */}
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg font-semibold">Trading Volume</CardTitle>
+              <CardTitle className="text-lg font-semibold">Trading Volume (Last 6 Months)</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={tradingData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
-                  }}
-                />
-                <Area type="monotone" dataKey="completed" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }}
+                  />
+                  <Area type="monotone" dataKey="trades" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.3} name="Trades" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No trading data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Financial Insights */}
+        {/* Revenue & Profit */}
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-success" />
-              <CardTitle className="text-lg font-semibold">Revenue & Profit</CardTitle>
+              <DollarSign className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-lg font-semibold">Revenue & Profit (Last 6 Months)</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={financialData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => formatCurrency(value)} />
-                <Tooltip 
-                  formatter={(value) => formatCurrency(Number(value))}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
-                  }}
-                />
-                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} name="Revenue" />
-                <Line type="monotone" dataKey="netProfit" stroke="hsl(var(--success))" strokeWidth={2} name="Net Profit" />
-              </LineChart>
-            </ResponsiveContainer>
+            {monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => formatCurrency(value)} />
+                  <Tooltip 
+                    formatter={(value) => formatCurrency(Number(value))}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }}
+                  />
+                  <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} name="Revenue" />
+                  <Line type="monotone" dataKey="netProfit" stroke="hsl(142, 76%, 36%)" strokeWidth={2} name="Net Profit" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No financial data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -308,63 +428,71 @@ export function StatisticsTab() {
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-info" />
+              <UserCheck className="h-5 w-5 text-blue-600" />
               <CardTitle className="text-lg font-semibold">KYC Status</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: "Approved", value: complianceData.kyc.approved, color: "hsl(var(--success))" },
-                    { name: "Pending", value: complianceData.kyc.pending, color: "hsl(var(--warning))" },
-                    { name: "Rejected", value: complianceData.kyc.rejected, color: "hsl(var(--destructive))" }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                >
-                  {[
-                    { color: "hsl(var(--success))" },
-                    { color: "hsl(var(--warning))" },
-                    { color: "hsl(var(--destructive))" }
-                  ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {(kyc.approved + kyc.pending + kyc.rejected) > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Approved", value: kyc.approved },
+                      { name: "Pending", value: kyc.pending },
+                      { name: "Rejected", value: kyc.rejected }
+                    ].filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                  >
+                    <Cell fill="hsl(142, 76%, 36%)" />
+                    <Cell fill="hsl(45, 93%, 47%)" />
+                    <Cell fill="hsl(0, 84%, 60%)" />
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No KYC data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Employee Department Breakdown */}
+        {/* Department Distribution */}
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <Building className="h-5 w-5 text-warning" />
+              <Building className="h-5 w-5 text-orange-600" />
               <CardTitle className="text-lg font-semibold">Department Distribution</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={employeeData.departments}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
-                  }}
-                />
-                <Bar dataKey="count" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
+            {departmentData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={departmentData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" />
+                  <YAxis stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }}
+                  />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" name="Employees" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                No employee data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -374,133 +502,78 @@ export function StatisticsTab() {
         {/* Expense Breakdown */}
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <FileBarChart className="h-5 w-5 text-destructive" />
-              <CardTitle className="text-lg font-semibold">Expense Breakdown</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileBarChart className="h-5 w-5 text-red-600" />
+                <CardTitle className="text-lg font-semibold">Expense Breakdown</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">Total: {formatCurrency(totalExpenses)}</p>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>%</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenseBreakdown.map((expense) => (
-                  <TableRow key={expense.category}>
-                    <TableCell className="font-medium">{expense.category}</TableCell>
-                    <TableCell>{formatCurrency(expense.amount)}</TableCell>
-                    <TableCell>{expense.percentage}%</TableCell>
+            {expenseBreakdown.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">%</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {expenseBreakdown.slice(0, 8).map((expense) => (
+                    <TableRow key={expense.category}>
+                      <TableCell className="font-medium">{expense.category}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
+                      <TableCell className="text-right">{expense.percentage}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                No expenses in selected period
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Top Traders */}
+        {/* Summary Stats */}
         <Card className="shadow-lg border-0 bg-card">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-warning" />
-              <CardTitle className="text-lg font-semibold">Top Traders</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Volume</TableHead>
-                  <TableHead>Trades</TableHead>
-                  <TableHead>Success</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topTraders.map((trader) => (
-                  <TableRow key={trader.name}>
-                    <TableCell className="font-medium">{trader.name}</TableCell>
-                    <TableCell>{trader.volume}</TableCell>
-                    <TableCell>{trader.trades}</TableCell>
-                    <TableCell>{trader.success}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Advanced Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="shadow-lg border-0 bg-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-info" />
-              <CardTitle className="text-lg font-semibold">Compliance Overview</CardTitle>
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg font-semibold">Period Summary</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Suspicious Transactions</span>
-              <span className="font-bold text-destructive">{complianceData.suspicious}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Appeals Raised</span>
-              <span className="font-bold">{complianceData.appeals.raised}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Appeals Resolved</span>
-              <span className="font-bold text-success">{complianceData.appeals.resolved}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-0 bg-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg font-semibold">User Analytics</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Daily Active Users</span>
-              <span className="font-bold">3,789</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Monthly Active Users</span>
-              <span className="font-bold">12,456</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">User Retention</span>
-              <span className="font-bold text-success">80.2%</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-lg border-0 bg-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-warning" />
-              <CardTitle className="text-lg font-semibold">Performance Metrics</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Avg. Order Completion</span>
-              <span className="font-bold">13 mins</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Buy vs Sell Ratio</span>
-              <span className="font-bold">1.1:1</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Cancelled Orders</span>
-              <span className="font-bold">3.8%</span>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Revenue</p>
+                <p className="text-xl font-bold">{formatCurrency(kpi.revenue)}</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Expenses</p>
+                <p className="text-xl font-bold">{formatCurrency(totalExpenses)}</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Net Profit</p>
+                <p className={`text-xl font-bold ${kpi.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(kpi.profit)}
+                </p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Total Trades</p>
+                <p className="text-xl font-bold">{kpi.trades}</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Monthly Salary</p>
+                <p className="text-xl font-bold">{formatCurrency(totalSalary)}</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Active Employees</p>
+                <p className="text-xl font-bold">{kpi.employees}</p>
+              </div>
             </div>
           </CardContent>
         </Card>

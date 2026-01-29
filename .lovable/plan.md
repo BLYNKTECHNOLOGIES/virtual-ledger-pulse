@@ -1,206 +1,153 @@
 
-# Dual Buyer/Seller Client Management System
+# Wallet Fee Deduction System Implementation Plan
 
 ## Overview
-This plan implements a comprehensive dual-role client management system where a single client can operate as both a buyer and seller, with separate approval workflows for each role, enhanced statistics on the client details page with period filtering, and automatic phone number auto-population in order forms.
+Add a percentage fee field to wallets that will automatically deduct fees from sales and purchase order amounts. The deducted fees will be tracked separately and displayed in the Financial Management section. An "Off Market" option will bypass fee deduction for specific orders.
 
-## Current State Analysis
-- Clients are currently classified as either buyers (with KYC documents) or sellers (without KYC documents)
-- Separate approval tabs exist for buyers (`ClientOnboardingApprovals`) and sellers (`SellerOnboardingApprovals`)
-- Client details page (`ClientDetail.tsx`) determines buyer/seller status based on `buying_purpose` or `client_type`
-- Order forms (`CustomerAutocomplete`, `SupplierAutocomplete`) have partial phone auto-fill functionality
-- No "All Time" option in date range picker presets
+## Components to Modify
 
----
+### 1. Database Schema Changes
+Add new columns to the `wallets` table:
+- `fee_percentage` (DECIMAL, default 0) - The fee percentage to deduct (e.g., 1.5 for 1.5%)
+- `is_fee_enabled` (BOOLEAN, default true) - Whether fees are active for this wallet
 
-## Implementation Plan
+Create a new table `wallet_fee_deductions` to track all fee deductions:
+- `id` (UUID, primary key)
+- `wallet_id` (UUID, foreign key to wallets)
+- `order_id` (UUID) - Reference to sales/purchase order
+- `order_type` (TEXT) - 'SALES' or 'PURCHASE'
+- `order_number` (TEXT)
+- `gross_amount` (DECIMAL) - Original amount before fee
+- `fee_percentage` (DECIMAL) - Fee % applied
+- `fee_amount` (DECIMAL) - Calculated fee amount
+- `net_amount` (DECIMAL) - Amount after fee deduction
+- `created_at` (TIMESTAMP)
 
-### Phase 1: Database Schema Updates
+### 2. Wallet Management (WalletManagementTab.tsx)
+**Add Wallet Dialog Updates:**
+- Add "Fee Percentage" input field (0-100, step 0.01)
+- Add "Enable Fee Deduction" toggle switch
 
-**1.1 Add Role Tracking Columns to Clients Table**
-Add new columns to track dual-role status:
-- `is_buyer` (boolean, default false) - Set to true when client has completed at least one sales order
-- `is_seller` (boolean, default false) - Set to true when client has completed at least one purchase order
-- `buyer_approval_status` (text, default 'NOT_APPLICABLE') - PENDING_APPROVAL / APPROVED / REJECTED / NOT_APPLICABLE
-- `seller_approval_status` (text, default 'NOT_APPLICABLE') - PENDING_APPROVAL / APPROVED / REJECTED / NOT_APPLICABLE
-- `buyer_approved_at` (timestamp) - When buyer role was approved
-- `seller_approved_at` (timestamp) - When seller role was approved
+**Wallet Table Updates:**
+- Add "Fee %" column to display configured fee percentage
+- Add visual indicator showing if fees are enabled
 
-**1.2 Create Database Triggers**
-Create triggers to automatically detect when a client needs approval for a new role:
-- When a buyer completes their first purchase order, set `seller_approval_status` to 'PENDING_APPROVAL'
-- When a seller completes their first sales order, set `buyer_approval_status` to 'PENDING_APPROVAL'
+**Edit Wallet Dialog (New):**
+- Create a new edit dialog that allows modifying:
+  - Wallet name, address, chain, type
+  - Fee percentage
+  - Fee enabled toggle
 
----
+### 3. Sales Order Forms
+**StepBySalesFlow.tsx & SalesEntryDialog.tsx Updates:**
+- Add "Off Market" checkbox/toggle next to wallet selector
+- When "Off Market" is selected:
+  - Disable automatic fee calculation
+  - Store `is_off_market: true` on the order
+- When a wallet is selected (not Off Market):
+  - Fetch wallet's fee_percentage
+  - Calculate: `fee_amount = total_amount * (fee_percentage / 100)`
+  - Display calculated fee and net amount
+  - Show breakdown: "Amount: ₹X | Platform Fee (Y%): ₹Z | Net to Bank: ₹W"
+- Bank transaction should record `net_amount` (after fee deduction)
+- Fee amount recorded separately in `wallet_fee_deductions` table
 
-### Phase 2: Approval Flow Updates
+### 4. Purchase Order Forms
+**NewPurchaseOrderDialog.tsx & ManualPurchaseEntryDialog.tsx Updates:**
+- Add "Off Market" checkbox/toggle next to wallet selector
+- Same fee calculation logic as sales:
+  - Fee deducted from total amount
+  - Net amount credited to bank (amount - fee)
+  - Fee tracked in `wallet_fee_deductions`
 
-**2.1 Update Buyer Approval Tab**
-Modify `ClientOnboardingApprovals.tsx` to:
-- Show both new buyers and existing sellers transitioning to buyer role
-- Display a badge indicating "New Buyer" vs "Existing Seller - First Buy"
-- Include purchase history summary for existing sellers
+### 5. Financial Management (Financials.tsx)
+**New "Platform Fees Summary" Section:**
+- Add a new tab or card showing:
+  - Total fees collected (period-based)
+  - Breakdown by wallet
+  - Recent fee deductions list with order references
+  - Charts showing fee trends
 
-**2.2 Update Seller Approval Tab**
-Modify `SellerOnboardingApprovals.tsx` to:
-- Show both new sellers and existing buyers transitioning to seller role
-- Display a badge indicating "New Seller" vs "Existing Buyer - First Sell"
-- Include sales history summary for existing buyers
+**Fee Summary Cards:**
+- Total Platform Fees (Current Period)
+- Fees by Sales Orders
+- Fees by Purchase Orders
+- Average Fee Rate
 
----
+### 6. WalletSelector Component Updates
+- Extend to show fee percentage next to wallet name
+- Visual indicator: "Binance (1.5% fee)" or "OKX (No fees)"
 
-### Phase 3: Enhanced Client Details Page
+## Technical Flow
 
-**3.1 Create Composite Client Type Detection**
-Update `ClientDetail.tsx` to:
-- Determine client type dynamically: BUYER / SELLER / COMPOSITE (both)
-- Fetch both sales_orders and purchase_orders for the client
-- Show appropriate UI sections based on detected type
-
-**3.2 Create New Dual Statistics Panel**
-Create `ClientDualStatistics.tsx` component with:
-- Period filter (using DateRangePicker) with All Time option
-- **Buy Statistics Section:**
-  - Total Buy Orders
-  - Total Buy Volume (lifetime value)
-  - Average Buy Order Value
-  - First/Last Buy Date
-- **Sell Statistics Section:**
-  - Total Sell Orders
-  - Total Sell Volume (lifetime value)
-  - Average Sell Order Value
-  - First/Last Sell Date
-- **Combined Summary:**
-  - Total Trade Volume (Buy + Sell)
-  - Net Position indicator
-
-**3.3 Update Existing Components**
-- `ClientOverviewPanel.tsx`: Add composite type badge, show both buy/sell limits if applicable
-- `ClientValueScore.tsx`: Calculate based on both buy and sell activity
-- `OrderHistoryModule.tsx`: Add tabs for "Buy Orders" and "Sell Orders", fetch from both tables
-
-**3.4 Add Period Filter with All Time Option**
-Update `DateRangePicker.tsx` to include "All Time" as a visible preset button alongside existing options.
-
----
-
-### Phase 4: Phone Number Auto-Population
-
-**4.1 Update CustomerAutocomplete Component**
-Modify `src/components/sales/CustomerAutocomplete.tsx` to:
-- Accept `onPhoneChange` callback prop
-- Auto-populate phone when client is selected
-- Pass phone number back to parent form
-
-**4.2 Update SupplierAutocomplete Component**
-The component already has `onContactChange` - verify it's properly wired in all parent forms.
-
-**4.3 Update All Sales Order Forms**
-Update these components to use auto-populated phone:
-- `StepBySalesFlow.tsx` - Already has some auto-fill, ensure complete coverage
-- `EnhancedOrderCreationDialog.tsx` - Add client autocomplete with phone auto-fill
-- `QuickSalesOrderDialog.tsx` - Add client autocomplete with phone auto-fill
-- `SalesEntryDialog.tsx` - Add client autocomplete with phone auto-fill
-
-**4.4 Update All Purchase Order Forms**
-Verify these components properly use `onContactChange`:
-- `NewPurchaseOrderDialog.tsx` - Already implemented
-- `ManualPurchaseEntryDialog.tsx` - Already implemented, verify usage
-
----
-
-## File Changes Summary
-
-### New Files
-1. `src/components/clients/ClientDualStatistics.tsx` - Comprehensive buy/sell statistics panel
-2. `supabase/migrations/[timestamp]_add_client_dual_roles.sql` - Database migration
-
-### Modified Files
-1. `src/pages/ClientDetail.tsx` - Add composite type detection, include new statistics panel
-2. `src/components/clients/ClientOverviewPanel.tsx` - Show composite type badge and dual stats
-3. `src/components/clients/ClientValueScore.tsx` - Include sell activity in calculations
-4. `src/components/clients/OrderHistoryModule.tsx` - Add buy/sell tabs, fetch purchase orders
-5. `src/components/clients/ClientOnboardingApprovals.tsx` - Handle existing seller first-buy approvals
-6. `src/components/clients/SellerOnboardingApprovals.tsx` - Handle existing buyer first-sell approvals
-7. `src/components/sales/CustomerAutocomplete.tsx` - Add phone auto-population callback
-8. `src/components/sales/EnhancedOrderCreationDialog.tsx` - Add customer autocomplete
-9. `src/components/sales/QuickSalesOrderDialog.tsx` - Add customer autocomplete
-10. `src/components/ui/date-range-picker.tsx` - Add visible "All Time" preset button
-
----
-
-## Technical Details
-
-### Composite Type Detection Logic
-```text
-1. Fetch sales_orders where client_name OR client_phone matches
-2. Fetch purchase_orders where supplier_name OR contact_number matches
-3. If sales_orders.length > 0 AND purchase_orders.length > 0 -> COMPOSITE
-4. If sales_orders.length > 0 only -> BUYER
-5. If purchase_orders.length > 0 only -> SELLER
+### Sales Order with Fee:
+```
+User creates sale for ₹10,000 using "Binance" wallet (1.5% fee)
+→ Fee calculated: ₹150
+→ Net amount: ₹9,850
+→ Bank transaction: CREDIT ₹9,850
+→ wallet_fee_deductions: INSERT record with fee_amount=150
+→ sales_order: total_amount=10000, fee_amount=150, net_amount=9850
 ```
 
-### Approval Trigger Logic
-```text
-On new sales_order INSERT:
-  IF client exists in clients table
-  AND client.is_seller = true
-  AND client.is_buyer = false:
-    SET client.buyer_approval_status = 'PENDING_APPROVAL'
-
-On new purchase_order INSERT:
-  IF supplier exists in clients table
-  AND client.is_buyer = true
-  AND client.is_seller = false:
-    SET client.seller_approval_status = 'PENDING_APPROVAL'
+### Sales Order Off Market:
+```
+User creates sale for ₹10,000 with "Off Market" selected
+→ No fee applied
+→ Bank transaction: CREDIT ₹10,000
+→ No wallet_fee_deductions record
+→ sales_order: total_amount=10000, is_off_market=true
 ```
 
-### Phone Auto-Population Flow
-```text
-1. User types client name in order form
-2. Autocomplete shows matching clients
-3. User selects a client
-4. Phone number auto-fills into phone field
-5. Phone field becomes read-only (or editable with warning)
-6. On subsequent orders, same client selection = same phone auto-fill
+## UI/UX Design
+
+### Off Market Toggle:
+```
+┌─────────────────────────────────────────────────┐
+│ Platform/Wallet *                               │
+│ ┌───────────────────────────────────────────┐   │
+│ │ Select a wallet...                      ▼ │   │
+│ └───────────────────────────────────────────┘   │
+│                                                 │
+│ ☐ Off Market (No platform fees)                 │
+└─────────────────────────────────────────────────┘
 ```
 
----
-
-## UI/UX Changes
-
-### Client Details Page Layout (Composite Client)
-```text
-+------------------------------------------+
-| Client Overview (COMPOSITE badge)        |
-| - Shows both Buy and Sell stats inline   |
-+------------------------------------------+
-| Dual Statistics Panel                    |
-| [Period Filter: Today | 7 Days | ... | All Time]
-| +------------------+------------------+  |
-| | BUY STATISTICS   | SELL STATISTICS  |  |
-| | Orders: 15       | Orders: 8        |  |
-| | Volume: ₹5L      | Volume: ₹3L      |  |
-| | Avg: ₹33,333     | Avg: ₹37,500     |  |
-| +------------------+------------------+  |
-| Total Trade Volume: ₹8L                  |
-+------------------------------------------+
-| Order History                            |
-| [Buy Orders] [Sell Orders] Tabs          |
-+------------------------------------------+
+### Fee Display in Form:
+```
+┌─────────────────────────────────────────────────┐
+│ Amount Summary                                  │
+│ ─────────────────────────────────────────────── │
+│ Gross Amount:        ₹10,000.00                 │
+│ Platform Fee (1.5%): -₹150.00                   │
+│ ─────────────────────────────────────────────── │
+│ Net to Bank:         ₹9,850.00                  │
+└─────────────────────────────────────────────────┘
 ```
 
-### Client Directory Changes
-Clients with COMPOSITE type will show a special badge indicating dual role.
+## Files to Create/Modify
 
----
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/migrations/xxx_wallet_fees.sql` | CREATE | Add fee columns and deductions table |
+| `src/integrations/supabase/types.ts` | UPDATE | Add new types (auto-generated) |
+| `src/components/stock/WalletManagementTab.tsx` | UPDATE | Add fee fields to create/edit dialogs |
+| `src/components/stock/EditWalletDialog.tsx` | CREATE | New dialog for editing wallets |
+| `src/components/stock/WalletSelector.tsx` | UPDATE | Show fee % in dropdown |
+| `src/components/sales/StepBySalesFlow.tsx` | UPDATE | Add Off Market toggle, fee calculation |
+| `src/components/sales/SalesEntryDialog.tsx` | UPDATE | Add Off Market toggle, fee calculation |
+| `src/components/purchase/NewPurchaseOrderDialog.tsx` | UPDATE | Add Off Market toggle, fee calculation |
+| `src/components/purchase/ManualPurchaseEntryDialog.tsx` | UPDATE | Add Off Market toggle, fee calculation |
+| `src/pages/Financials.tsx` | UPDATE | Add Platform Fees Summary section |
+| `src/components/financials/PlatformFeesSummary.tsx` | CREATE | New component for fee summary |
 
-## Testing Checklist
-- New buyer first purchase triggers seller approval request
-- Existing buyer first sale triggers buyer-to-seller approval request
-- Existing seller first purchase triggers seller-to-buyer approval request
-- Client details page shows correct stats for all three types
-- Period filter correctly filters all statistics
-- All Time shows lifetime data
-- Phone auto-populates correctly in all order forms
-- Phone doesn't need to be re-entered for returning clients
+## Implementation Order
+
+1. **Database Migration** - Add fee_percentage to wallets, create wallet_fee_deductions table
+2. **Wallet Management** - Update create dialog, add edit dialog with fee settings
+3. **WalletSelector** - Show fee info in dropdown
+4. **Sales Forms** - Add Off Market toggle and fee calculation display
+5. **Purchase Forms** - Add Off Market toggle and fee calculation display
+6. **Update RPC Functions** - Modify order creation to handle fee deductions
+7. **Financials Page** - Add Platform Fees Summary section
+8. **Testing** - End-to-end testing of fee flow

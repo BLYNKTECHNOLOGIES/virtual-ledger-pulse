@@ -81,6 +81,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
 
   const deleteMutation = useMutation({
     mutationFn: async (orderId: string) => {
+      console.log("🗑️ Deleting purchase order", { orderId });
       const { data, error } = await supabase.rpc('delete_purchase_order_with_reversal', {
         order_id: orderId
       });
@@ -88,12 +89,29 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
       if (error) throw error;
       
       const result = data as { success: boolean; error?: string; message?: string };
+      console.log("🧾 delete_purchase_order_with_reversal result", result);
       
       if (!result?.success) {
         throw new Error(result?.error || 'Failed to delete purchase order');
       }
       
       return result;
+    },
+    onMutate: async (orderId: string) => {
+      toast({
+        title: "Deleting…",
+        description: "Reversing transactions and removing purchase order.",
+      });
+
+      await queryClient.cancelQueries({ queryKey: ['purchase_orders'] });
+      const previous = queryClient.getQueryData<any[]>(['purchase_orders', 'COMPLETED']);
+
+      // Optimistically remove from the completed list
+      queryClient.setQueryData<any[]>(['purchase_orders', 'COMPLETED'], (old) =>
+        (old || []).filter((o: any) => o.id !== orderId)
+      );
+
+      return { previous };
     },
     onSuccess: (data) => {
       toast({ 
@@ -109,13 +127,21 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
     },
-    onError: (error: any) => {
+    onError: (error: any, orderId: string, context) => {
+      // rollback optimistic update
+      if (context?.previous) {
+        queryClient.setQueryData(['purchase_orders', 'COMPLETED'], context.previous);
+      }
       toast({ 
         title: "Error", 
         description: error.message || "Failed to delete purchase order", 
         variant: "destructive" 
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+    }
   });
 
   if (isLoading) {

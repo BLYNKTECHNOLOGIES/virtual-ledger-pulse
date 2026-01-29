@@ -382,12 +382,11 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
 
             <div>
-              <Label htmlFor="contact_number">Contact Number *</Label>
+              <Label htmlFor="contact_number">Contact Number</Label>
               <Input
                 id="contact_number"
                 value={formData.contact_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, contact_number: e.target.value }))}
-                required
               />
             </div>
 

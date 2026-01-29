@@ -33,6 +33,7 @@ import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { PlatformFeesSummary } from "@/components/financials/PlatformFeesSummary";
+import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 
 export default function Financials() {
   const navigate = useNavigate();
@@ -195,91 +196,112 @@ export default function Financials() {
         </div>
       </div>
 
-      {/* Key Financial Metrics */}
+      {/* Key Financial Metrics - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="bg-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                  {formatCurrency(financialData?.totalRevenue || 0)}
-                </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <ArrowUpIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">This Period</span>
+        {/* Total Revenue - Clickable to Sales */}
+        <ClickableCard 
+          to="/sales" 
+          searchParams={buildTransactionFilters({ 
+            dateFrom: startDate, 
+            dateTo: endDate 
+          })}
+        >
+          <Card className="bg-emerald-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-emerald-100 text-sm font-medium">Total Revenue</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                    {formatCurrency(financialData?.totalRevenue || 0)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <ArrowUpIcon className="h-4 w-4" />
+                    <span className="text-sm font-medium">Click to view sales →</span>
+                  </div>
+                </div>
+                <div className="bg-emerald-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                  <DollarSign className="h-8 w-8" />
                 </div>
               </div>
-              <div className="bg-emerald-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <DollarSign className="h-8 w-8" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className="bg-red-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-red-100 text-sm font-medium">Total Expenses</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                  {formatCurrency(financialData?.totalExpenses || 0)}
-                </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <ArrowDownIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">This Period</span>
-                </div>
-              </div>
-              <div className="bg-red-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <TrendingDown className="h-8 w-8" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-indigo-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-indigo-100 text-sm font-medium">Net Cash Flow</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                  {financialData?.netCashFlow && financialData.netCashFlow >= 0 ? '+' : '-'}
-                  {formatCurrency(financialData?.netCashFlow || 0)}
-                </p>
-                <div className="flex items-center gap-1 mt-2">
-                  {(financialData?.netCashFlow || 0) >= 0 ? 
-                    <ArrowUpIcon className="h-4 w-4" /> : 
+        {/* Total Expenses - Clickable to BAMS Journal */}
+        <ClickableCard 
+          to="/bams" 
+          searchParams={{ tab: 'journal' }}
+        >
+          <Card className="bg-red-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-red-100 text-sm font-medium">Total Expenses</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                    {formatCurrency(financialData?.totalExpenses || 0)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2">
                     <ArrowDownIcon className="h-4 w-4" />
-                  }
-                  <span className="text-sm font-medium">This Period</span>
+                    <span className="text-sm font-medium">Click to view transactions →</span>
+                  </div>
+                </div>
+                <div className="bg-red-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                  <TrendingDown className="h-8 w-8" />
                 </div>
               </div>
-              <div className="bg-indigo-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <TrendingUp className="h-8 w-8" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className="bg-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="text-purple-100 text-sm font-medium">Bank Balance</p>
-                <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                  {formatCurrency(financialData?.totalBankBalance || 0)}
-                </p>
-                <div className="flex items-center gap-1 mt-2">
-                  <Wallet className="h-4 w-4" />
-                  <span className="text-sm font-medium">Total Available</span>
+        {/* Net Cash Flow - Clickable to P&L */}
+        <ClickableCard to="/profit-loss">
+          <Card className="bg-indigo-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-indigo-100 text-sm font-medium">Net Cash Flow</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                    {financialData?.netCashFlow && financialData.netCashFlow >= 0 ? '+' : '-'}
+                    {formatCurrency(financialData?.netCashFlow || 0)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    {(financialData?.netCashFlow || 0) >= 0 ? 
+                      <ArrowUpIcon className="h-4 w-4" /> : 
+                      <ArrowDownIcon className="h-4 w-4" />
+                    }
+                    <span className="text-sm font-medium">Click to view P&L →</span>
+                  </div>
+                </div>
+                <div className="bg-indigo-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                  <TrendingUp className="h-8 w-8" />
                 </div>
               </div>
-              <div className="bg-purple-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                <Wallet className="h-8 w-8" />
+            </CardContent>
+          </Card>
+        </ClickableCard>
+
+        {/* Bank Balance - Clickable to BAMS */}
+        <ClickableCard to="/bams">
+          <Card className="bg-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-purple-100 text-sm font-medium">Bank Balance</p>
+                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                    {formatCurrency(financialData?.totalBankBalance || 0)}
+                  </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <Wallet className="h-4 w-4" />
+                    <span className="text-sm font-medium">Click to view accounts →</span>
+                  </div>
+                </div>
+                <div className="bg-purple-700 p-3 rounded-xl shadow-lg flex-shrink-0">
+                  <Wallet className="h-8 w-8" />
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
       </div>
 
       {/* Financial Tabs */}

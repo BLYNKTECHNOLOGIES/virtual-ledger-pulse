@@ -289,20 +289,16 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent double submission
+    if (createPurchaseOrderMutation.isPending) {
+      return;
+    }
+    
     // Validation
     if (!formData.order_number.trim()) {
       toast({
         title: "Error",
         description: "Order number is mandatory.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.contact_number.trim()) {
-      toast({
-        title: "Error",
-        description: "Contact number is mandatory.",
         variant: "destructive",
       });
       return;

@@ -54,7 +54,7 @@ export function DirectoryTab() {
           created_at,
           bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
         `)
-        .not('category', 'eq', 'Purchase') // Exclude purchase-related bank transactions
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")') // Exclude core trading operations
         .order('transaction_date', { ascending: false });
 
       if (bankError) throw bankError;

@@ -339,81 +339,80 @@ export default function Dashboard() {
       {/* Clean White Header */}
       <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
         <div className="px-4 md:px-6 py-4 md:py-8">
-          <div className="flex flex-col gap-4 md:gap-6">
-            {/* Title row with date picker on right for desktop */}
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 md:p-3 bg-blue-50 rounded-xl shadow-sm">
-                    <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
-                      Welcome to Dashboard
-                    </h1>
-                    <p className="text-slate-600 text-sm md:text-lg truncate">
-                      Monitor your business performance
-                    </p>
-                  </div>
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+            {/* Left Side - Title and Quick Stats */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 md:p-3 bg-blue-50 rounded-xl shadow-sm">
+                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
                 </div>
-                
-                {/* Quick Stats in Header - scrollable on mobile */}
-                <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
-                  <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-blue-500" />
-                      <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
-                    </div>
-                  </div>
-                  <div className="bg-white border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-green-500" />
-                      <span className="text-xs md:text-sm font-medium text-slate-700 whitespace-nowrap">System Active</span>
-                    </div>
-                  </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                    Welcome to Dashboard
+                  </h1>
+                  <p className="text-slate-600 text-sm md:text-lg truncate">
+                    Monitor your business performance
+                  </p>
                 </div>
               </div>
               
-              {/* Date Range Picker - on right for desktop */}
-              <div className="flex-shrink-0">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  preset={datePreset}
-                  onPresetChange={setDatePreset}
-                  className="w-full md:w-auto md:min-w-[200px]"
-                />
+              {/* Quick Stats in Header - scrollable on mobile */}
+              <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
+                <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
+                  </div>
+                </div>
+                <div className="bg-white border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-green-500" />
+                    <span className="text-xs md:text-sm font-medium text-slate-700 whitespace-nowrap">System Active</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {/* Dashboard Controls - scrollable on mobile */}
-            <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex-shrink-0 ${isEditMode ? 
-                  "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
-                  "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
-                }`}
-              >
-                <Settings className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="whitespace-nowrap">{isEditMode ? 'Exit' : 'Edit'}</span>
-              </Button>
-              <AddWidgetDialog 
-                onAddWidget={handleAddWidget}
-                existingWidgets={dashboardWidgets.map(w => w.id)}
+            {/* Right Side - Date Picker and Controls stacked */}
+            <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
+              {/* Date Range Picker */}
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                preset={datePreset}
+                onPresetChange={setDatePreset}
+                className="w-full md:w-auto md:min-w-[200px]"
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshDashboard}
-                disabled={isRefreshing}
-                className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm flex-shrink-0"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-              </Button>
+              
+              {/* Dashboard Controls - below date picker */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  className={`flex-shrink-0 ${isEditMode ? 
+                    "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
+                    "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  <Settings className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="whitespace-nowrap">{isEditMode ? 'Exit' : 'Edit'}</span>
+                </Button>
+                <AddWidgetDialog 
+                  onAddWidget={handleAddWidget}
+                  existingWidgets={dashboardWidgets.map(w => w.id)}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefreshDashboard}
+                  disabled={isRefreshing}
+                  className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm flex-shrink-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>

@@ -25,17 +25,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   // State for wallet balance and validation errors
   const [selectedWalletBalance, setSelectedWalletBalance] = useState<number | null>(null);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
-  
-  // Generate unique order number
-  const generateOrderNumber = () => {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 12); // Longer random string
-    const counter = Math.floor(Math.random() * 10000); // Add extra randomness
-    return `SO-${timestamp}-${random}-${counter}`;
-  };
+  const [formTouched, setFormTouched] = useState(false); // Track if user has started filling form
 
   const [formData, setFormData] = useState({
-    order_number: generateOrderNumber(),
+    order_number: '', // User must enter this manually
     client_name: '',
     client_phone: '',
     product_id: '',
@@ -225,7 +218,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       // Force a full page refresh to ensure all components show updated data
       setTimeout(() => window.location.reload(), 1000);
       setFormData({
-        order_number: generateOrderNumber(),
+        order_number: '', // Reset to empty - user must enter manually
         client_name: '',
         client_phone: '',
         product_id: '',
@@ -241,6 +234,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         order_time: new Date().toTimeString().slice(0, 5),
         description: ''
       });
+      setFormTouched(false);
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
@@ -299,6 +293,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   };
 
   const handleInputChange = (field: string, value: any) => {
+    // Mark form as touched when user starts entering data
+    if (!formTouched) {
+      setFormTouched(true);
+    }
+    
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
@@ -365,12 +364,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Input
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
+                placeholder="Enter order number"
                 required
-                className={!formData.order_number.trim() ? "border-destructive" : ""}
               />
-              {!formData.order_number.trim() && (
-                <p className="text-sm text-destructive mt-1">Order number is required</p>
-              )}
             </div>
 
             <div>
@@ -378,9 +374,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 value={formData.client_name}
                 onChange={(value) => handleInputChange('client_name', value)}
               />
-              {!formData.client_name.trim() && (
-                <p className="text-sm text-destructive mt-1">Customer name is required</p>
-              )}
+            </div>
+
+            <div>
+              <Label>Customer Phone</Label>
+              <Input
+                value={formData.client_phone}
+                onChange={(e) => handleInputChange('client_phone', e.target.value)}
+              />
             </div>
 
             <div>
@@ -418,7 +419,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 value={formData.wallet_id}
                 onValueChange={(value) => handleInputChange('wallet_id', value)}
               >
-                <SelectTrigger className={!formData.wallet_id ? "border-destructive" : ""}>
+                <SelectTrigger>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
@@ -429,9 +430,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   ))}
                 </SelectContent>
               </Select>
-              {!formData.wallet_id && (
-                <p className="text-sm text-destructive mt-1">Wallet selection is required</p>
-              )}
             </div>
 
             <div>
@@ -444,11 +442,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 min="0"
                 step="0.01"
                 placeholder="Enter quantity"
-                className={stockValidationError ? "border-destructive" : (!formData.quantity || parseFloat(formData.quantity) <= 0) ? "border-destructive" : ""}
+                className={stockValidationError ? "border-destructive" : ""}
               />
-              {(!formData.quantity || parseFloat(formData.quantity) <= 0) && !stockValidationError && (
-                <p className="text-sm text-destructive mt-1">Valid quantity is required</p>
-              )}
               {stockValidationError && (
                 <Alert className="mt-2 border-destructive bg-destructive/10">
                   <AlertTriangle className="h-4 w-4 text-destructive" />

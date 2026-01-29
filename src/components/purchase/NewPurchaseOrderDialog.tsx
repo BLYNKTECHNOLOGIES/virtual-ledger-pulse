@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -44,16 +44,18 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     ifsc_code: "",
     assigned_to: "",
     order_date: new Date().toISOString().split('T')[0],
-    tds_applied: false,
+    tds_option: "NO_TDS", // "NO_TDS" | "TDS_1_PERCENT" | "TDS_20_PERCENT"
     pan_number: "",
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
 
-  // Calculate amounts
+  // Calculate amounts based on TDS option
   const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
-  const tdsAmount = formData.tds_applied ? totalAmount * 0.01 : 0; // 1% TDS
-  const netPayableAmount = formData.tds_applied ? totalAmount - tdsAmount : totalAmount;
+  const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
+  const tdsAmount = totalAmount * tdsRate;
+  const netPayableAmount = totalAmount - tdsAmount;
+  const tdsApplied = formData.tds_option !== "NO_TDS";
 
   // Fetch clients for supplier dropdown
   const { data: clients } = useQuery({
@@ -114,7 +116,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           ifsc_code: orderData.ifsc_code,
           assigned_to: orderData.assigned_to,
           total_amount: totalAmount,
-          tds_applied: orderData.tds_applied,
+          tds_applied: tdsApplied,
           pan_number: orderData.pan_number,
           tds_amount: tdsAmount,
           net_payable_amount: netPayableAmount,
@@ -147,7 +149,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       }
 
       // Create TDS record if TDS is applied
-      if (orderData.tds_applied) {
+      if (tdsApplied) {
         const currentYear = new Date().getFullYear();
         const financialYear = `${currentYear}-${currentYear + 1}`;
         
@@ -155,9 +157,9 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           .from('tds_records')
           .insert({
             purchase_order_id: purchaseOrder.id,
-            pan_number: orderData.pan_number,
+            pan_number: orderData.pan_number || null,
             total_amount: totalAmount,
-            tds_rate: 1.0,
+            tds_rate: tdsRate * 100, // Store as percentage
             tds_amount: tdsAmount,
             net_payable_amount: netPayableAmount,
             financial_year: financialYear
@@ -261,7 +263,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       ifsc_code: "",
       assigned_to: "",
       order_date: new Date().toISOString().split('T')[0],
-      tds_applied: false,
+      tds_option: "NO_TDS",
       pan_number: "",
     });
     setProductItems([]);
@@ -326,10 +328,10 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       return;
     }
 
-    if (formData.tds_applied && !formData.pan_number.trim()) {
+    if (formData.tds_option === "TDS_1_PERCENT" && !formData.pan_number.trim()) {
       toast({
         title: "Error",
-        description: "PAN number is mandatory when TDS is applied.",
+        description: "PAN number is mandatory when 1% TDS is applied.",
         variant: "destructive",
       });
       return;
@@ -417,36 +419,56 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
           {/* TDS Section */}
           <div className="space-y-4 border rounded-lg p-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="tds_applied"
-                checked={formData.tds_applied}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, tds_applied: !!checked }))}
-              />
-              <Label htmlFor="tds_applied" className="text-lg font-semibold">TDS Applied (1%)</Label>
-            </div>
+            <Label className="text-lg font-semibold">TDS Options</Label>
+            
+            <Select 
+              value={formData.tds_option} 
+              onValueChange={(value) => setFormData(prev => ({ 
+                ...prev, 
+                tds_option: value,
+                pan_number: value !== "TDS_1_PERCENT" ? "" : prev.pan_number 
+              }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select TDS option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NO_TDS">No TDS Deduction</SelectItem>
+                <SelectItem value="TDS_1_PERCENT">TDS @ 1% (PAN Required)</SelectItem>
+                <SelectItem value="TDS_20_PERCENT">TDS @ 20% (No PAN)</SelectItem>
+              </SelectContent>
+            </Select>
 
-            {formData.tds_applied && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="pan_number">PAN Number *</Label>
-                  <Input
-                    id="pan_number"
-                    value={formData.pan_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, pan_number: e.target.value.toUpperCase() }))}
-                    placeholder="Enter PAN number"
-                    required={formData.tds_applied}
-                  />
+            {formData.tds_option === "TDS_1_PERCENT" && (
+              <div>
+                <Label htmlFor="pan_number">PAN Number *</Label>
+                <Input
+                  id="pan_number"
+                  value={formData.pan_number}
+                  onChange={(e) => setFormData(prev => ({ ...prev, pan_number: e.target.value.toUpperCase() }))}
+                  placeholder="Enter PAN number"
+                  required
+                />
+              </div>
+            )}
+
+            {formData.tds_option !== "NO_TDS" && (
+              <div className="space-y-2 bg-muted/50 p-3 rounded-md">
+                <div className="flex justify-between text-sm">
+                  <span>Total Amount:</span>
+                  <span className="font-medium">₹{totalAmount.toFixed(2)}</span>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>TDS Amount (1%):</span>
-                    <span className="font-semibold">₹{tdsAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Net Payable Amount:</span>
-                    <span>₹{netPayableAmount.toFixed(2)}</span>
-                  </div>
+                <div className="flex justify-between text-sm">
+                  <span>TDS Rate:</span>
+                  <span className="font-medium">{formData.tds_option === "TDS_1_PERCENT" ? "1%" : "20%"}</span>
+                </div>
+                <div className="flex justify-between text-sm text-orange-600">
+                  <span>TDS Amount:</span>
+                  <span className="font-medium">₹{tdsAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold border-t pt-2">
+                  <span>Net Payable Amount:</span>
+                  <span className="text-primary">₹{netPayableAmount.toFixed(2)}</span>
                 </div>
               </div>
             )}

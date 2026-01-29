@@ -211,13 +211,9 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 id="order_number"
                 value={formData.order_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
-                placeholder="e.g., 788787"
+                placeholder="Enter order number"
                 required
-                className={!formData.order_number.trim() ? "border-destructive" : ""}
               />
-              {!formData.order_number.trim() && (
-                <p className="text-sm text-destructive mt-1">Order number is required</p>
-              )}
             </div>
             <div>
               <Label htmlFor="client_name">Customer Name *</Label>
@@ -227,11 +223,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 onChange={(e) => setFormData(prev => ({ ...prev, client_name: e.target.value }))}
                 placeholder="e.g., Customer Name"
                 required
-                className={!formData.client_name.trim() ? "border-destructive" : ""}
               />
-              {!formData.client_name.trim() && (
-                <p className="text-sm text-destructive mt-1">Customer name is required</p>
-              )}
             </div>
           </div>
 
@@ -301,7 +293,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
             <div>
               <Label htmlFor="bank_account_id">Bank Account *</Label>
               <Select value={formData.bank_account_id} onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}>
-                <SelectTrigger className={!formData.bank_account_id ? "border-destructive" : ""}>
+                <SelectTrigger>
                   <SelectValue placeholder="Select bank account" />
                 </SelectTrigger>
                 <SelectContent>
@@ -312,9 +304,6 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                   ))}
                 </SelectContent>
               </Select>
-              {!formData.bank_account_id && (
-                <p className="text-sm text-destructive mt-1">Bank account is required</p>
-              )}
             </div>
             <div>
               <Label htmlFor="product_id">Product (Optional)</Label>

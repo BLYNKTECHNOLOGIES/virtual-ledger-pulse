@@ -362,10 +362,17 @@ export function ClientOnboardingApprovals() {
         </CardContent>
       </Card>
 
-      {/* Reviewed Approvals */}
+      {/* Reviewed Approvals - Including Approved and Rejected */}
       <Card>
         <CardHeader>
-          <CardTitle>Reviewed Applications ({reviewedApprovals.length})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Approval History ({reviewedApprovals.length})
+            {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length > 0 && (
+              <Badge variant="destructive" className="ml-2">
+                {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length} Rejected
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -376,12 +383,12 @@ export function ClientOnboardingApprovals() {
                 <TableHead>Status</TableHead>
                 <TableHead>Reviewed By</TableHead>
                 <TableHead>Review Date</TableHead>
-                <TableHead>Monthly Limit</TableHead>
+                <TableHead>Details</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reviewedApprovals.map((approval) => (
-                <TableRow key={approval.id}>
+                <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-red-50' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>₹{approval.order_amount.toLocaleString()}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
@@ -390,10 +397,25 @@ export function ClientOnboardingApprovals() {
                     {approval.reviewed_at ? new Date(approval.reviewed_at).toLocaleDateString() : '-'}
                   </TableCell>
                   <TableCell>
-                    {approval.proposed_monthly_limit ? `₹${approval.proposed_monthly_limit.toLocaleString()}` : '-'}
+                    {approval.approval_status === 'APPROVED' ? (
+                      <span className="text-sm text-muted-foreground">
+                        Limit: ₹{approval.proposed_monthly_limit?.toLocaleString() || '-'}
+                      </span>
+                    ) : approval.approval_status === 'REJECTED' ? (
+                      <span className="text-sm text-destructive">
+                        Reason: {approval.rejection_reason || 'Not specified'}
+                      </span>
+                    ) : '-'}
                   </TableCell>
                 </TableRow>
               ))}
+              {reviewedApprovals.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No reviewed applications yet.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

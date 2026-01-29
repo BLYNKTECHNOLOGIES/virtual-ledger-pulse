@@ -594,16 +594,21 @@ export function WalletManagementTab() {
                     <TableCell className="font-mono text-sm">
                       <div className="flex items-center gap-2">
                         <span>
-                          {wallet.wallet_address.substring(0, 10)}...{wallet.wallet_address.substring(wallet.wallet_address.length - 6)}
+                          {wallet.wallet_address 
+                            ? `${wallet.wallet_address.substring(0, 10)}...${wallet.wallet_address.substring(wallet.wallet_address.length - 6)}`
+                            : 'N/A'
+                          }
                         </span>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => copyToClipboard(wallet.wallet_address)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
+                        {wallet.wallet_address && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => copyToClipboard(wallet.wallet_address)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>{wallet.current_balance.toLocaleString()}</TableCell>

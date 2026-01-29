@@ -56,22 +56,26 @@ export default function Compliance() {
 
       <ErrorBoundary>
         <Tabs defaultValue="banking" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="banking" className="flex items-center gap-2">
+          <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-4">
+            <TabsTrigger value="banking" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
               <Building2 className="h-4 w-4" />
-              Banking Compliance
+              <span className="hidden sm:inline">Banking Compliance</span>
+              <span className="sm:hidden">Banking</span>
             </TabsTrigger>
-            <TabsTrigger value="legal" className="flex items-center gap-2">
+            <TabsTrigger value="legal" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
               <Scale className="h-4 w-4" />
-              Legal Compliance
+              <span className="hidden sm:inline">Legal Compliance</span>
+              <span className="sm:hidden">Legal</span>
             </TabsTrigger>
-            <TabsTrigger value="taxation" className="flex items-center gap-2">
+            <TabsTrigger value="taxation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
               <Receipt className="h-4 w-4" />
-              Taxation Compliance
+              <span className="hidden sm:inline">Taxation Compliance</span>
+              <span className="sm:hidden">Tax</span>
             </TabsTrigger>
-            <TabsTrigger value="company" className="flex items-center gap-2">
+            <TabsTrigger value="company" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
               <Building className="h-4 w-4" />
-              Company Compliance
+              <span className="hidden sm:inline">Company Compliance</span>
+              <span className="sm:hidden">Company</span>
             </TabsTrigger>
           </TabsList>
 

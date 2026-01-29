@@ -80,24 +80,27 @@ export default function StockManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="quickview" className="flex items-center gap-2">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5">
+          <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Grid className="h-4 w-4" />
-            Quick View
+            <span className="hidden sm:inline">Quick View</span>
+            <span className="sm:hidden">View</span>
           </TabsTrigger>
-          <TabsTrigger value="transactions" className="flex items-center gap-2">
+          <TabsTrigger value="transactions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <TrendingUp className="h-4 w-4" />
-            Transactions
+            <span className="hidden sm:inline">Transactions</span>
+            <span className="sm:hidden">Trans.</span>
           </TabsTrigger>
-          <TabsTrigger value="warehouse" className="flex items-center gap-2">
+          <TabsTrigger value="warehouse" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Building className="h-4 w-4" />
             Wallets
           </TabsTrigger>
-          <TabsTrigger value="valuation" className="flex items-center gap-2">
+          <TabsTrigger value="valuation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <BarChart className="h-4 w-4" />
-            Valuation
+            <span className="hidden sm:inline">Valuation</span>
+            <span className="sm:hidden">Value</span>
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
+          <TabsTrigger value="reports" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>

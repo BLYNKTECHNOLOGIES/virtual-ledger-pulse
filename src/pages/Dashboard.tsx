@@ -159,20 +159,32 @@ export default function Dashboard() {
 
   // Fetch asset inventory data with live updates (consistent with Stock Management)
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
-    queryKey: ['dashboard_asset_inventory', Date.now()], // Always fresh
+    queryKey: ['dashboard_asset_inventory'],
     queryFn: async () => {
       // Sync USDT stock first
-      await supabase.rpc('sync_usdt_stock');
+      try {
+        await supabase.rpc('sync_usdt_stock');
+      } catch (e) {
+        console.log('sync_usdt_stock not available or failed', e);
+      }
       
-      const { data: wallets } = await supabase
+      const { data: wallets, error: walletsError } = await supabase
         .from('wallets')
         .select('*')
         .eq('is_active', true)
         .order('wallet_name');
 
-      const { data: products } = await supabase
+      if (walletsError) {
+        console.error('Error fetching wallets:', walletsError);
+      }
+
+      const { data: products, error: productsError } = await supabase
         .from('products')
         .select('*');
+
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+      }
 
       // Create asset inventory showing wallet distribution (like Stock Management)
       const assetMap = new Map();
@@ -184,7 +196,7 @@ export default function Dashboard() {
           const walletDistribution: any[] = [];
           
           wallets?.forEach(wallet => {
-            const balance = wallet.current_balance || 0;
+            const balance = Number(wallet.current_balance) || 0;
             totalWalletStock += balance;
             
             if (balance > 0) {
@@ -201,28 +213,35 @@ export default function Dashboard() {
             dist.percentage = totalWalletStock > 0 ? (dist.quantity / totalWalletStock) * 100 : 0;
           });
           
+          const productStock = Number(product.current_stock_quantity) || 0;
+          
           assetMap.set(product.id, {
             id: product.id,
             name: product.name,
             code: product.code,
-            total_stock: Math.max(product.current_stock_quantity || 0, totalWalletStock),
+            total_stock: Math.max(productStock, totalWalletStock),
             wallet_distribution: walletDistribution,
             unit: product.unit_of_measurement
           });
         } else {
           // For other products, use current stock
-          assetMap.set(product.id, {
-            id: product.id,
-            name: product.name,
-            code: product.code,
-            total_stock: product.current_stock_quantity || 0,
-            wallet_distribution: [],
-            unit: product.unit_of_measurement
-          });
+          const productStock = Number(product.current_stock_quantity) || 0;
+          if (productStock > 0) {
+            assetMap.set(product.id, {
+              id: product.id,
+              name: product.name,
+              code: product.code,
+              total_stock: productStock,
+              wallet_distribution: [],
+              unit: product.unit_of_measurement
+            });
+          }
         }
       });
 
-      return Array.from(assetMap.values()).filter(asset => asset.total_stock > 0);
+      // Return all assets from the map
+      const assets = Array.from(assetMap.values());
+      return assets;
     },
     refetchInterval: 10000, // Refresh every 10 seconds
     staleTime: 0, // Always consider data stale

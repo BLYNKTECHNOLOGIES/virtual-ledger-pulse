@@ -4345,6 +4345,10 @@ export type Database = {
           username: string
         }[]
       }
+      maybe_delete_orphan_client: {
+        Args: { client_name_param: string }
+        Returns: undefined
+      }
       process_sales_order_wallet_deduction: {
         Args: { sales_order_id: string; usdt_amount: number; wallet_id: string }
         Returns: boolean

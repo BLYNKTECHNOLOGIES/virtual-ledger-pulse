@@ -1,267 +1,265 @@
 
-
-# Implementation Plan: Auto-Create Clients from Purchase Orders with Approval Portal
+# Implementation Plan: Date-Based Period Calculations for PNL Dashboard
 
 ## Overview
-This plan implements a system where suppliers/sellers are automatically created as clients whenever a new purchase order is created. The system will auto-generate unique 6-digit client IDs, provide intelligent auto-complete for supplier names, prevent duplicate entries, and display new clients in a dedicated approval portal with order history summaries.
+This plan replaces the current FIFO-based profit calculation methodology with a simpler date-based period calculation. All statistics will be calculated based on the selected date period, making the P&L dashboard more intuitive and aligned with traditional accounting practices.
 
 ## Current State Analysis
 
-### Existing Components
-- **SupplierAutocomplete** (`src/components/purchase/SupplierAutocomplete.tsx`): Already provides basic autocomplete from the `clients` table
-- **clients table**: Has `client_id` (text), `name`, `phone`, `email`, `client_type`, `kyc_status`, and other fields
-- **purchase_orders table**: Has `supplier_name` field to store seller information
-- **ClientOnboardingApprovals**: Existing approval portal for buyer clients (from sales orders)
-- **ClientDashboard**: Shows Buyers and Sellers tabs with existing approval workflow
+### Current Implementation
+- Uses FIFO (First-In-First-Out) methodology to match sales with purchases
+- Calculates profit by matching each sale to the earliest corresponding purchase
+- Complex logic that spans across different time periods (buys may be from previous periods)
 
-### Key Requirements
-1. Auto-create client when new supplier name is entered in purchase orders
-2. Generate random 6-digit client ID
-3. Auto-recommend existing clients while typing (prevent duplicates)
-4. Force selection from dropdown if name matches existing client
-5. New clients appear in approval portal with PENDING status
-6. Click on client shows order history summary
+### User Requirements
+1. **Period-Based Calculations**: All calculations strictly within selected date range
+2. **Average Purchase Rate** = Sum of Purchase Totals / Sum of Purchase Quantities (within period)
+3. **Average Sales Rate** = Sum of Sales Totals / Sum of Sales Quantities (within period)
+4. **Net Profit Margin (NPM)** = Average Sales Rate - Average Purchase Rate
+5. **Gross Profit** = NPM × Total Sales Quantity (in period)
+6. **Net Profit** = Gross Profit - Total Expenses + Total Income
+7. **New Summary Widget**: Display Total Revenue, Total Expense, Total Income, Gross Profit, Net Profit
+
+---
+
+## Calculation Formula Summary
+
+```text
+For Selected Period (e.g., Jan 1 - Jan 15):
+┌────────────────────────────────────────────────────────────────────┐
+│ PURCHASES IN PERIOD:                                                │
+│   Total Purchase Value = Σ (quantity × unit_price)                  │
+│   Total Purchase Qty   = Σ (quantity)                               │
+│   Avg Purchase Rate    = Total Purchase Value / Total Purchase Qty  │
+├────────────────────────────────────────────────────────────────────┤
+│ SALES IN PERIOD:                                                    │
+│   Total Sales Value    = Σ (quantity × unit_price)                  │
+│   Total Sales Qty      = Σ (quantity)                               │
+│   Avg Sales Rate       = Total Sales Value / Total Sales Qty        │
+├────────────────────────────────────────────────────────────────────┤
+│ PROFIT CALCULATIONS:                                                │
+│   NPM (per unit)       = Avg Sales Rate - Avg Purchase Rate         │
+│   Gross Profit         = NPM × Total Sales Qty                      │
+│   Net Profit           = Gross Profit - Expenses + Other Income     │
+│   Profit Margin %      = (Net Profit / Total Revenue) × 100         │
+└────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Implementation Details
 
-### Phase 1: Enhanced Supplier Autocomplete Component
+### Phase 1: Update Core Calculation Logic
 
-**File: `src/components/purchase/SupplierAutocomplete.tsx`**
+**File: `src/pages/ProfitLoss.tsx`**
 
-Update the existing component to:
-- Show autocomplete suggestions as user types
-- Highlight exact matches and prevent creating duplicate names
-- Return client ID when existing client is selected
-- Flag when a new client will be created
+Replace the `calculateFIFOMatches` function with a new `calculatePeriodBasedMetrics` function:
 
-```text
-New Behavior Flow:
-┌─────────────────────────────────────────────────────┐
-│  User types "John" in Supplier Name field           │
-├─────────────────────────────────────────────────────┤
-│  System queries clients table for matching names    │
-│  Shows dropdown: "John Doe (CL123456)"              │
-│                  "Johnny Smith (CL789012)"          │
-├─────────────────────────────────────────────────────┤
-│  If user types exact "John Doe":                    │
-│  → Force selection from dropdown                    │
-│  → Show warning: "Client exists, please select"     │
-├─────────────────────────────────────────────────────┤
-│  If user types "John Wayne" (new):                  │
-│  → Show badge: "New client will be created"         │
-│  → Allow submission                                 │
-└─────────────────────────────────────────────────────┘
+```typescript
+interface PeriodMetrics {
+  // Purchase metrics
+  totalPurchaseValue: number;
+  totalPurchaseQty: number;
+  avgPurchaseRate: number;
+  
+  // Sales metrics
+  totalSalesValue: number;
+  totalSalesQty: number;
+  avgSalesRate: number;
+  
+  // Profit metrics
+  npm: number;           // Per unit margin
+  grossProfit: number;
+  netProfit: number;
+  profitMargin: number;
+  
+  // Expense/Income
+  totalExpenses: number;
+  totalIncome: number;
+}
 ```
 
-**Props Enhancement:**
-- `onClientSelect(clientId: string, clientName: string)`: Called when existing client selected
-- `onNewClient(name: string)`: Called when new client name is confirmed
-- `selectedClientId`: Current selected client ID (if any)
+**Key Changes:**
+1. Remove FIFO matching logic entirely
+2. Filter both purchases AND sales within the selected date range
+3. Calculate averages using period data only
+4. Derive profit from period averages
 
-### Phase 2: Client Auto-Creation Logic
+### Phase 2: Update Data Fetching
 
-**File: New utility function in purchase order creation**
+Modify the query to filter purchase orders within the date range (currently it fetches all purchases):
 
-When creating a purchase order with a new supplier name:
-
-1. **Generate Client ID**: Create a random 6-digit alphanumeric ID
-   - Format: 6 random characters (e.g., "7X9K2M")
-   - Ensure uniqueness by checking against existing `client_id` values
-
-2. **Create Client Record**:
-   ```typescript
-   {
-     name: supplierName,
-     client_id: generated6DigitId,
-     client_type: 'SELLER', // Mark as seller type
-     kyc_status: 'PENDING_APPROVAL', // New status for approval workflow
-     date_of_onboarding: today,
-     phone: contactNumber (if provided),
-     // Other fields as null/defaults
-   }
-   ```
-
-3. **Link to Purchase Order**: Store `client_id` reference in purchase order
-
-**Files to Modify:**
-- `src/components/purchase/NewPurchaseOrderDialog.tsx`
-- `src/components/purchase/ManualPurchaseEntryDialog.tsx`
-
-### Phase 3: New Seller Approval Portal
-
-**File: `src/components/clients/SellerOnboardingApprovals.tsx`** (New)
-
-Create a dedicated approval tab for newly created seller clients:
-
-**UI Layout:**
-- Tab in ClientDashboard: "New Seller Approvals"
-- Table showing pending sellers with columns:
-  - Seller Name
-  - Generated Client ID
-  - Contact Number
-  - First Order Date
-  - First Order Amount
-  - Source (Manual Entry / Stock Import)
-  - Status (PENDING_APPROVAL / APPROVED / REJECTED)
-  - Actions (Review / Approve / Reject)
-
-**Features:**
-- Click on seller name opens Order Summary dialog
-- Approve action changes `kyc_status` to 'VERIFIED'
-- Reject action with reason field
-
-### Phase 4: Client Order Summary Dialog
-
-**File: `src/components/clients/ClientOrderSummaryDialog.tsx`** (New)
-
-When clicking on a client in the approval portal:
-
-**Summary Display:**
-- Total number of purchase orders
-- Total purchase value
-- First order date
-- Last order date
-- Average order value
-
-**Order List:**
-- Table of all purchase orders for this seller
-- Columns: Order Number, Date, Product, Quantity, Amount, Status
-- Pagination for large datasets
-
-### Phase 5: Database Considerations
-
-**Status Values Enhancement:**
-Add a new KYC status specifically for sellers:
-- `PENDING_APPROVAL`: Newly auto-created, awaiting review
-- `VERIFIED`: Approved by admin
-- `REJECTED`: Rejected, cannot create new orders
-
-**Query Enhancement:**
-- Filter clients by `kyc_status = 'PENDING_APPROVAL'` for approval portal
-- Filter by absence of KYC documents (pan_card_url, aadhar_front_url) to identify sellers
-
----
-
-## File Changes Summary
-
-### New Files
-1. `src/components/clients/SellerOnboardingApprovals.tsx` - Approval portal for sellers
-2. `src/components/clients/ClientOrderSummaryDialog.tsx` - Order history summary popup
-3. `src/utils/clientIdGenerator.ts` - Utility for generating unique 6-digit IDs
-
-### Modified Files
-1. `src/components/purchase/SupplierAutocomplete.tsx` - Enhanced with strict matching and duplicate prevention
-2. `src/components/purchase/NewPurchaseOrderDialog.tsx` - Auto-create client logic
-3. `src/components/purchase/ManualPurchaseEntryDialog.tsx` - Auto-create client logic
-4. `src/components/clients/ClientDashboard.tsx` - Add "New Seller Approvals" tab
-
----
-
-## Technical Details
-
-### 6-Digit Client ID Generation
 ```typescript
-// Generate unique 6-character alphanumeric ID
-const generateClientId = async () => {
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  let clientId = '';
-  let isUnique = false;
-  
-  while (!isUnique) {
-    clientId = Array.from({ length: 6 }, () => 
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join('');
-    
-    // Check uniqueness in database
-    const { data } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('client_id', clientId)
-      .maybeSingle();
-    
-    isUnique = !data;
-  }
-  
-  return clientId;
-};
-```
-
-### Duplicate Name Prevention Logic
-```typescript
-// In SupplierAutocomplete
-const handleInputChange = (value: string) => {
-  const exactMatch = clients?.find(
-    c => c.name.toLowerCase() === value.toLowerCase()
-  );
-  
-  if (exactMatch) {
-    setError('This client already exists. Please select from suggestions.');
-    setMustSelectExisting(true);
-  } else {
-    setError(null);
-    setMustSelectExisting(false);
-  }
-};
-```
-
-### Order Summary Query
-```typescript
-// Fetch all purchase orders for a seller
-const { data: orders } = await supabase
+// Fetch purchase orders within period
+const { data: purchaseOrders } = await supabase
   .from('purchase_orders')
-  .select('*')
-  .eq('supplier_name', clientName)
-  .order('order_date', { ascending: false });
+  .select(`
+    id,
+    order_date,
+    total_amount,
+    purchase_order_items(quantity, unit_price, total_price)
+  `)
+  .gte('order_date', startStr)
+  .lte('order_date', endStr);
+```
 
-// Calculate summary
-const summary = {
-  totalOrders: orders.length,
-  totalValue: orders.reduce((sum, o) => sum + o.total_amount, 0),
-  firstOrder: orders[orders.length - 1]?.order_date,
-  lastOrder: orders[0]?.order_date,
-  averageValue: totalValue / orders.length
+### Phase 3: Add Period Summary Widget
+
+Create a new comprehensive summary card showing all key metrics in one place:
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│  📊 Period Summary: Jan 1 - Jan 15, 2026                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Total Revenue        Total Expenses       Total Income             │
+│  ₹5,00,000           ₹50,000              ₹10,000                   │
+│                                                                      │
+│  ─────────────────────────────────────────────────────────          │
+│                                                                      │
+│  Avg Purchase Rate    Avg Sales Rate       NPM (per unit)           │
+│  ₹85.50              ₹87.25               ₹1.75                     │
+│                                                                      │
+│  ─────────────────────────────────────────────────────────          │
+│                                                                      │
+│  Gross Profit         Net Profit           Profit Margin            │
+│  ₹8,750              ₹-31,250             -6.25%                    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 4: Update Trade Table Display
+
+Simplify the trade table to show period-based data:
+- Remove FIFO matching columns (Matched Order)
+- Keep: Date, Asset, Type (Buy/Sell), Quantity, Rate, Total
+- Add: Period contribution to average
+
+### Phase 5: Update Formula Reference
+
+Update the formula reference card to reflect new calculations:
+- **Avg Purchase Rate** = Total Purchase Value ÷ Total Purchase Qty
+- **Avg Sales Rate** = Total Sales Value ÷ Total Sales Qty  
+- **NPM** = Avg Sales Rate - Avg Purchase Rate
+- **Gross Profit** = NPM × Total Sales Qty
+- **Net Profit** = Gross Profit - Expenses + Income
+
+---
+
+## UI Changes
+
+### New Top Summary Cards Layout (6 cards instead of 5)
+
+| Card | Value | Description |
+|------|-------|-------------|
+| Total Revenue | ₹X | Sum of all sales in period |
+| Total Expenses | ₹X | Operational costs in period |
+| Total Income | ₹X | Other income in period |
+| Gross Profit | ₹X | Trading profit (NPM × Qty Sold) |
+| Net Profit | ₹X | Gross - Expenses + Income |
+| Profit Margin | X% | Net Profit / Revenue × 100 |
+
+### New Period Averages Card
+
+A dedicated card showing:
+- **Purchases**: Total Qty, Total Value, Avg Rate
+- **Sales**: Total Qty, Total Value, Avg Rate
+- **NPM**: Per-unit margin with visual indicator
+
+---
+
+## Technical Implementation
+
+### File Modified
+- `src/pages/ProfitLoss.tsx`
+
+### Changes Summary
+
+1. **Remove** `calculateFIFOMatches` function
+2. **Add** `calculatePeriodMetrics` function with date-filtered logic
+3. **Update** purchase orders query to filter by date range
+4. **Update** `ProfitLossData` interface to include new metrics:
+   - `avgPurchaseRate`
+   - `avgSalesRate`
+   - `totalPurchaseQty`
+   - `totalSalesQty`
+   - `npmPerUnit`
+5. **Add** Period Summary widget card
+6. **Update** existing summary cards layout
+7. **Update** Formula Reference card with new methodology
+
+### Code Example: New Calculation Function
+
+```typescript
+const calculatePeriodMetrics = (
+  purchaseItems: PurchaseItem[],
+  salesItems: SalesItem[],
+  expenses: number,
+  income: number
+): PeriodMetrics => {
+  // Purchase calculations
+  const totalPurchaseValue = purchaseItems.reduce(
+    (sum, item) => sum + (item.quantity * item.unit_price), 0
+  );
+  const totalPurchaseQty = purchaseItems.reduce(
+    (sum, item) => sum + item.quantity, 0
+  );
+  const avgPurchaseRate = totalPurchaseQty > 0 
+    ? totalPurchaseValue / totalPurchaseQty : 0;
+  
+  // Sales calculations
+  const totalSalesValue = salesItems.reduce(
+    (sum, item) => sum + (item.quantity * item.unit_price), 0
+  );
+  const totalSalesQty = salesItems.reduce(
+    (sum, item) => sum + item.quantity, 0
+  );
+  const avgSalesRate = totalSalesQty > 0 
+    ? totalSalesValue / totalSalesQty : 0;
+  
+  // Profit calculations
+  const npm = avgSalesRate - avgPurchaseRate;
+  const grossProfit = npm * totalSalesQty;
+  const netProfit = grossProfit - expenses + income;
+  const profitMargin = totalSalesValue > 0 
+    ? (netProfit / totalSalesValue) * 100 : 0;
+  
+  return {
+    totalPurchaseValue,
+    totalPurchaseQty,
+    avgPurchaseRate,
+    totalSalesValue,
+    totalSalesQty,
+    avgSalesRate,
+    npm,
+    grossProfit,
+    netProfit,
+    profitMargin,
+    totalExpenses: expenses,
+    totalIncome: income
+  };
 };
 ```
 
 ---
 
-## User Experience Flow
+## Validation & Edge Cases
 
-```text
-Purchase Order Creation:
-────────────────────────
-
-1. User opens "New Purchase Order" or "Manual Purchase Entry"
-2. User starts typing supplier name
-   ├── Existing matches appear in dropdown
-   │   └── User selects → Contact auto-fills, client_id linked
-   └── No exact match
-       └── User enters new name
-           ├── Badge shows: "New seller will be created"
-           └── On submit: Client auto-created with 6-digit ID
-
-Approval Portal:
-────────────────
-
-1. Admin navigates to Clients → New Seller Approvals
-2. Sees table of newly created sellers with PENDING status
-3. Clicks on seller name
-   └── Order Summary dialog opens showing:
-       ├── Client ID, Name, Contact
-       ├── Order Statistics (count, total value, dates)
-       └── Full order history table
-4. Admin clicks Approve/Reject
-   └── Status updates, seller becomes active/inactive
-```
+1. **No purchases in period**: Set avgPurchaseRate to 0, show warning
+2. **No sales in period**: Set avgSalesRate to 0, grossProfit = 0
+3. **Single day selected**: Works correctly with from = to date
+4. **Large date ranges**: Query optimization with proper indexing
+5. **Decimal precision**: All amounts display with 2 decimal places per project guidelines
 
 ---
 
-## Considerations
+## Summary of Deliverables
 
-1. **Backward Compatibility**: Existing purchase orders without client linkage will continue to work
-2. **Performance**: Client search uses debounced queries to avoid excessive API calls
-3. **Data Integrity**: Client IDs are validated for uniqueness before creation
-4. **User Feedback**: Clear visual indicators for new vs. existing clients
-
+| Component | Change |
+|-----------|--------|
+| Calculation Logic | FIFO replaced with period-based averages |
+| Purchase Query | Filtered by date range |
+| Summary Cards | 6 cards with all key metrics |
+| Period Averages Widget | New card showing purchase/sales averages |
+| Trade Table | Simplified without FIFO matching |
+| Formula Reference | Updated with new methodology |

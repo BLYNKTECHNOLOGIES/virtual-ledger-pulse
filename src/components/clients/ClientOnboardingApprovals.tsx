@@ -158,18 +158,20 @@ export function ClientOnboardingApprovals() {
         .from('client_onboarding_approvals')
         .update({
           approval_status: 'APPROVED',
-          reviewed_by: 'Current User',
           reviewed_at: new Date().toISOString(),
-          aadhar_number: clientData.aadhar_number,
-          address: clientData.address,
-          purpose_of_buying: clientData.purpose_of_buying,
-          proposed_monthly_limit: parseFloat(clientData.proposed_monthly_limit),
-          risk_assessment: clientData.risk_assessment,
-          compliance_notes: clientData.compliance_notes
+          aadhar_number: clientData.aadhar_number || null,
+          address: clientData.address || null,
+          purpose_of_buying: clientData.purpose_of_buying || null,
+          proposed_monthly_limit: clientData.proposed_monthly_limit ? parseFloat(clientData.proposed_monthly_limit) : null,
+          risk_assessment: clientData.risk_assessment || null,
+          compliance_notes: clientData.compliance_notes || null
         })
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Failed to update approval record:', updateError);
+        throw updateError;
+      }
     },
     onSuccess: () => {
       toast({
@@ -198,13 +200,15 @@ export function ClientOnboardingApprovals() {
         .from('client_onboarding_approvals')
         .update({
           approval_status: 'REJECTED',
-          reviewed_by: 'Current User',
           reviewed_at: new Date().toISOString(),
           rejection_reason: reason
         })
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Failed to reject client:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       toast({

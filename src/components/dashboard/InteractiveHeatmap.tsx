@@ -225,21 +225,6 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
             </div>
           </div>
         </div>
-
-        {/* Performance Insights */}
-        <div className="mt-6 p-4 bg-muted rounded-lg">
-          <h4 className="font-semibold text-foreground mb-2">{getMetricLabel()} Insights</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-              <span className="text-muted-foreground">Filter shows {selectedMetric} data for {selectedPeriod}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-              <span className="text-muted-foreground">Real-time data from your {selectedMetric} records</span>
-            </div>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

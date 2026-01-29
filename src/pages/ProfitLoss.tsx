@@ -91,28 +91,26 @@ export default function ProfitLoss() {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch sales orders within period
+      // Fetch sales orders within period - sales have quantity/price directly on the order
       const { data: salesOrders } = await supabase
         .from('sales_orders')
         .select(`
           id, 
           total_amount, 
-          order_date
+          order_date,
+          quantity,
+          price_per_unit,
+          client_name
         `)
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
-      // Fetch sales order items for period sales
-      const periodSalesOrderIds = salesOrders?.map(order => order.id) || [];
-      
-      let salesItems: any[] = [];
-      if (periodSalesOrderIds.length > 0) {
-        const { data: items } = await supabase
-          .from('sales_order_items')
-          .select('sales_order_id, product_id, quantity, unit_price')
-          .in('sales_order_id', periodSalesOrderIds);
-        salesItems = items || [];
-      }
+      // Convert sales orders to items format (since quantity/price is on the order itself)
+      const salesItems = salesOrders?.map(order => ({
+        sales_order_id: order.id,
+        quantity: Number(order.quantity) || 0,
+        unit_price: Number(order.price_per_unit) || 0
+      })) || [];
 
       // Fetch purchase orders within period (date-filtered)
       const { data: purchaseOrders } = await supabase

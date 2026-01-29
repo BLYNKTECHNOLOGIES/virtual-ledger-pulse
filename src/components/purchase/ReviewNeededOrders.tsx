@@ -33,6 +33,10 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
         .from('purchase_orders')
         .select(`
           *,
+          purchase_order_items (
+            id,
+            warehouse_id
+          ),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('status', 'REVIEW_NEEDED')
@@ -41,6 +45,19 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch wallets for mapping wallet_id to wallet_name
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
   });
 
   const handleReviewMutation = useMutation({
@@ -177,7 +194,13 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                         </div>
                       )}
                     </TableCell>
-                    <TableCell>{(order as any).platform || 'Off Market'}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const walletId = order.purchase_order_items?.[0]?.warehouse_id;
+                        const wallet = wallets?.find(w => w.id === walletId);
+                        return wallet?.wallet_name || 'Off Market';
+                      })()}
+                    </TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
                     <TableCell>{order.quantity || 1}</TableCell>
                     <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>

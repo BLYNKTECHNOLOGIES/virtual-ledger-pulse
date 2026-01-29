@@ -144,12 +144,12 @@ export default function ProfitLoss() {
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
-      // Fetch operating income (excluding core trading operations)
+      // Fetch operating income (excluding core trading operations and settlements which are part of sales cycle)
       const { data: incomeData } = await supabase
         .from('bank_transactions')
         .select('id, amount, category, description, transaction_date')
         .eq('transaction_type', 'INCOME')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 

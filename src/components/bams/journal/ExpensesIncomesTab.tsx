@@ -39,7 +39,7 @@ export function ExpensesIncomesTab() {
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
-        .not('category', 'eq', 'Purchase') // Exclude purchase-related transactions
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")') // Exclude core trading operations
         .order('created_at', { ascending: false });
       
       if (bankError) {

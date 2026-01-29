@@ -73,19 +73,21 @@ export function StatisticsTab() {
         .from('employees')
         .select('id, department, status, salary, created_at');
 
-      // Fetch expenses
+      // Fetch operating expenses (excluding core trading operations like Purchase/Sales)
       const { data: expenses } = await supabase
         .from('bank_transactions')
         .select('id, amount, category, transaction_date')
         .eq('transaction_type', 'EXPENSE')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
-      // Fetch income
+      // Fetch operating income (excluding core trading operations)
       const { data: income } = await supabase
         .from('bank_transactions')
         .select('id, amount, category, transaction_date')
         .eq('transaction_type', 'INCOME')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 

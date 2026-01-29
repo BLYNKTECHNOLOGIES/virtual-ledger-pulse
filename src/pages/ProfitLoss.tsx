@@ -137,20 +137,21 @@ export default function ProfitLoss() {
         purchaseItems = items || [];
       }
 
-      // Fetch expenses (excluding Purchase category)
+      // Fetch operating expenses (excluding core trading operations like Purchase/Sales)
       const { data: expenseData } = await supabase
         .from('bank_transactions')
         .select('id, amount, category, description, transaction_date')
         .eq('transaction_type', 'EXPENSE')
-        .neq('category', 'Purchase')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
-      // Fetch income
+      // Fetch operating income (excluding core trading operations)
       const { data: incomeData } = await supabase
         .from('bank_transactions')
         .select('id, amount, category, description, transaction_date')
         .eq('transaction_type', 'INCOME')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 

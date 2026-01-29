@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WalletSelector } from "@/components/stock/WalletSelector";
 
 interface EditSalesOrderDialogProps {
   open: boolean;
@@ -30,7 +30,42 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     total_amount: 0,
     payment_status: 'COMPLETED',
     order_date: '',
-    description: ''
+    description: '',
+    risk_level: 'HIGH',
+    sales_payment_method_id: '',
+    product_id: '',
+    warehouse_id: '',
+  });
+
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  // Fetch payment methods
+  const { data: paymentMethods } = useQuery({
+    queryKey: ['sales_payment_methods'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(
+            account_name,
+            bank_name,
+            status
+          )
+        `);
+      if (error) throw error;
+      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
+    },
+    enabled: open,
   });
 
   useEffect(() => {
@@ -45,13 +80,17 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         total_amount: order.total_amount || 0,
         payment_status: order.payment_status || 'COMPLETED',
         order_date: order.order_date || '',
-        description: order.description || ''
+        description: order.description || '',
+        risk_level: order.risk_level || 'HIGH',
+        sales_payment_method_id: order.sales_payment_method_id || '',
+        product_id: order.product_id || '',
+        warehouse_id: order.warehouse_id || '',
       });
     }
   }, [order]);
 
   const updateSalesOrderMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: typeof formData) => {
       const { data: result, error } = await supabase
         .from('sales_orders')
         .update({
@@ -65,6 +104,10 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           payment_status: data.payment_status,
           order_date: data.order_date,
           description: data.description,
+          risk_level: data.risk_level,
+          sales_payment_method_id: data.sales_payment_method_id || null,
+          product_id: data.product_id || null,
+          warehouse_id: data.warehouse_id || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
@@ -79,18 +122,29 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error updating sales order:', error);
-      toast({ title: "Error", description: "Failed to update sales order", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to update sales order", variant: "destructive" });
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.order_number.trim()) {
+      toast({ title: "Error", description: "Order number is required", variant: "destructive" });
+      return;
+    }
+    
+    if (!formData.client_name.trim()) {
+      toast({ title: "Error", description: "Customer name is required", variant: "destructive" });
+      return;
+    }
+
     updateSalesOrderMutation.mutate(formData);
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
@@ -107,18 +161,28 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Sales Order - {order.order_number}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Order Number *</Label>
               <Input
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <Label>Order Date *</Label>
+              <Input
+                type="date"
+                value={formData.order_date}
+                onChange={(e) => handleInputChange('order_date', e.target.value)}
                 required
               />
             </div>
@@ -141,10 +205,31 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             </div>
 
             <div>
-              <Label>Platform</Label>
-              <Input
-                value={formData.platform}
-                onChange={(e) => handleInputChange('platform', e.target.value)}
+              <Label>Product</Label>
+              <Select 
+                value={formData.product_id} 
+                onValueChange={(value) => handleInputChange('product_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <WalletSelector
+                value={formData.warehouse_id}
+                onValueChange={(value) => handleInputChange('warehouse_id', value)}
+                label="Wallet/Platform"
+                placeholder="Select wallet..."
+                filterByType="USDT"
               />
             </div>
 
@@ -177,17 +262,70 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <Input
                 type="number"
                 value={formData.total_amount}
-                disabled
-                className="bg-gray-100"
+                readOnly
+                className="bg-muted font-semibold"
               />
             </div>
 
-            <div className="col-span-2">
-              <Label>Order Date</Label>
+            <div>
+              <Label>Risk Level</Label>
+              <Select 
+                value={formData.risk_level} 
+                onValueChange={(value) => handleInputChange('risk_level', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select risk level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Payment Method</Label>
+              <Select 
+                value={formData.sales_payment_method_id} 
+                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods?.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {method.bank_accounts?.account_name || method.type} - {method.bank_accounts?.bank_name || ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Payment Status</Label>
+              <Select 
+                value={formData.payment_status} 
+                onValueChange={(value) => handleInputChange('payment_status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Platform</Label>
               <Input
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => handleInputChange('order_date', e.target.value)}
+                value={formData.platform}
+                onChange={(e) => handleInputChange('platform', e.target.value)}
+                placeholder="e.g., Binance P2P"
               />
             </div>
           </div>

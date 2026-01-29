@@ -19,33 +19,36 @@ import {
   FileText,
   Calculator,
   Target,
-  Activity
+  Activity,
+  ShoppingCart,
+  Wallet,
+  Percent,
+  ArrowRightLeft
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
 
-interface ProfitLossData {
-  totalRevenue: number;
-  totalCOGS: number;
-  totalOtherExpenses: number;
-  totalIncome: number;
+interface PeriodMetrics {
+  // Purchase metrics
+  totalPurchaseValue: number;
+  totalPurchaseQty: number;
+  avgPurchaseRate: number;
+  
+  // Sales metrics
+  totalSalesValue: number;
+  totalSalesQty: number;
+  avgSalesRate: number;
+  
+  // Profit metrics
+  npm: number;
   grossProfit: number;
   netProfit: number;
   profitMargin: number;
-}
-
-interface FIFOMatch {
-  saleId: string;
-  buyId: string;
-  saleDate: string;
-  buyDate: string;
-  quantity: number;
-  buyRate: number;
-  sellRate: number;
-  npm: number;
-  profit: number;
-  asset: string;
+  
+  // Expense/Income
+  totalExpenses: number;
+  totalIncome: number;
 }
 
 interface TradeEntry {
@@ -56,9 +59,6 @@ interface TradeEntry {
   quantity: number;
   rate: number;
   total: number;
-  npm?: number;
-  profit?: number;
-  matchedOrderRef?: string;
 }
 
 interface ExpenseIncomeEntry {
@@ -74,146 +74,68 @@ export default function ProfitLoss() {
   const [datePreset, setDatePreset] = useState<DateRangePreset>('thisMonth');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset('thisMonth'));
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('INR');
 
   const getDateRange = () => {
     if (dateRange?.from && dateRange?.to) {
       return { startDate: dateRange.from, endDate: dateRange.to };
     }
-    // Fallback to current month
     const now = new Date();
     return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
   };
 
-  const calculateFIFOMatches = (salesItems: any[], purchaseItems: any[]) => {
-    const fifoMatches: FIFOMatch[] = [];
-    let totalGrossProfit = 0;
-    let totalQuantitySold = 0;
-
-    // Group purchases by company (bank_account_holder_name)
-    const purchasesByCompany = new Map<string, any[]>();
-    purchaseItems.forEach(item => {
-      const company = item.bank_account_holder_name || 'UNKNOWN';
-      if (!purchasesByCompany.has(company)) {
-        purchasesByCompany.set(company, []);
-      }
-      purchasesByCompany.get(company)!.push({
-        ...item,
-        remaining_quantity: item.quantity
-      });
-    });
-
-    // Sort purchases by date within each company
-    purchasesByCompany.forEach((purchases, company) => {
-      purchases.sort((a, b) => 
-        new Date(a.order_date).getTime() - new Date(b.order_date).getTime()
-      );
-    });
-
-    // Group sales by company
-    const salesByCompany = new Map<string, any[]>();
-    salesItems.forEach(item => {
-      const company = item.bank_account_holder_name || 'UNKNOWN';
-      if (!salesByCompany.has(company)) {
-        salesByCompany.set(company, []);
-      }
-      salesByCompany.get(company)!.push(item);
-    });
-
-    // Process FIFO for each company independently
-    salesByCompany.forEach((sales, company) => {
-      const purchaseQueue = purchasesByCompany.get(company) || [];
-      
-      sales.forEach(saleItem => {
-        let remainingQtyToSell = saleItem.quantity;
-        
-        while (remainingQtyToSell > 0 && purchaseQueue.length > 0) {
-          const earliestPurchase = purchaseQueue[0];
-          
-          if (earliestPurchase.remaining_quantity <= 0) {
-            purchaseQueue.shift();
-            continue;
-          }
-
-          const qtyToUse = Math.min(remainingQtyToSell, earliestPurchase.remaining_quantity);
-          const npm = saleItem.unit_price - earliestPurchase.unit_price;
-          const profit = npm * qtyToUse;
-          
-          fifoMatches.push({
-            saleId: saleItem.sales_order_id,
-            buyId: earliestPurchase.purchase_order_id,
-            saleDate: saleItem.sales_order_date || new Date().toISOString(),
-            buyDate: earliestPurchase.order_date,
-            quantity: qtyToUse,
-            buyRate: earliestPurchase.unit_price,
-            sellRate: saleItem.unit_price,
-            npm: npm,
-            profit: profit,
-            asset: 'USDT'
-          });
-
-          totalGrossProfit += profit;
-          totalQuantitySold += qtyToUse;
-          
-          remainingQtyToSell -= qtyToUse;
-          earliestPurchase.remaining_quantity -= qtyToUse;
-          
-          if (earliestPurchase.remaining_quantity <= 0) {
-            purchaseQueue.shift();
-          }
-        }
-      });
-    });
-
-    return { fifoMatches, totalGrossProfit, totalQuantitySold };
-  };
-
-  // Fetch comprehensive P&L data
+  // Fetch comprehensive P&L data with period-based calculations
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['vaspcorp_pl_dashboard', dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
+    queryKey: ['period_based_pl_dashboard', dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch sales orders with bank account info through payment method
+      // Fetch sales orders within period
       const { data: salesOrders } = await supabase
         .from('sales_orders')
         .select(`
           id, 
           total_amount, 
-          order_date,
-          sales_payment_method_id,
-          sales_payment_methods:sales_payment_method_id(
-            bank_account_id,
-            bank_accounts:bank_account_id(bank_account_holder_name)
-          )
+          order_date
         `)
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
-      // Fetch sales order items
-      const { data: salesItems } = await supabase
-        .from('sales_order_items')
-        .select('sales_order_id, product_id, quantity, unit_price');
+      // Fetch sales order items for period sales
+      const periodSalesOrderIds = salesOrders?.map(order => order.id) || [];
+      
+      let salesItems: any[] = [];
+      if (periodSalesOrderIds.length > 0) {
+        const { data: items } = await supabase
+          .from('sales_order_items')
+          .select('sales_order_id, product_id, quantity, unit_price')
+          .in('sales_order_id', periodSalesOrderIds);
+        salesItems = items || [];
+      }
 
-      // Fetch purchase order items with order data and bank account info
-      const { data: purchaseItems } = await supabase
-        .from('purchase_order_items')
+      // Fetch purchase orders within period (date-filtered)
+      const { data: purchaseOrders } = await supabase
+        .from('purchase_orders')
         .select(`
-          product_id, 
-          quantity, 
-          unit_price, 
-          purchase_order_id,
-          purchase_orders!inner(
-            id, 
-            order_date, 
-            supplier_name,
-            bank_account_id,
-            bank_accounts:bank_account_id(bank_account_holder_name)
-          )
+          id,
+          order_date,
+          total_amount
         `)
-        .order('id', { ascending: true });
+        .gte('order_date', startStr)
+        .lte('order_date', endStr);
+
+      // Fetch purchase order items for period purchases
+      const periodPurchaseOrderIds = purchaseOrders?.map(order => order.id) || [];
+      
+      let purchaseItems: any[] = [];
+      if (periodPurchaseOrderIds.length > 0) {
+        const { data: items } = await supabase
+          .from('purchase_order_items')
+          .select('purchase_order_id, product_id, quantity, unit_price')
+          .in('purchase_order_id', periodPurchaseOrderIds);
+        purchaseItems = items || [];
+      }
 
       // Fetch expenses (excluding Purchase category)
       const { data: expenseData } = await supabase
@@ -232,57 +154,60 @@ export default function ProfitLoss() {
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
-      // Process data
-      const periodSalesOrderIds = salesOrders?.map(order => order.id) || [];
-      
-      // Map sales order to bank account holder name
-      const salesOrderToCompany = new Map<string, string>();
-      salesOrders?.forEach(order => {
-        const holderName = order.sales_payment_methods?.bank_accounts?.bank_account_holder_name || 'UNKNOWN';
-        salesOrderToCompany.set(order.id, holderName);
-      });
-      
-      const periodSalesItems = salesItems?.filter(item => 
-        periodSalesOrderIds.includes(item.sales_order_id)
-      ).map(item => ({
-        ...item,
-        bank_account_holder_name: salesOrderToCompany.get(item.sales_order_id) || 'UNKNOWN',
-        sales_order_date: salesOrders?.find(o => o.id === item.sales_order_id)?.order_date
-      })) || [];
-
-      // Prepare purchase items with dates and company info
-      const purchaseItemsWithDates = purchaseItems?.map(item => ({
-        ...item,
-        order_date: item.purchase_orders.order_date,
-        supplier_name: item.purchase_orders.supplier_name,
-        bank_account_holder_name: item.purchase_orders.bank_accounts?.bank_account_holder_name || 'UNKNOWN'
-      })) || [];
-
-      // Calculate FIFO matches and get total quantities
-      const { fifoMatches, totalGrossProfit, totalQuantitySold } = calculateFIFOMatches(
-        periodSalesItems, 
-        purchaseItemsWithDates
+      // Calculate period-based metrics
+      const totalPurchaseValue = purchaseItems.reduce(
+        (sum, item) => sum + (item.quantity * item.unit_price), 0
       );
+      const totalPurchaseQty = purchaseItems.reduce(
+        (sum, item) => sum + item.quantity, 0
+      );
+      const avgPurchaseRate = totalPurchaseQty > 0 
+        ? totalPurchaseValue / totalPurchaseQty : 0;
+      
+      const totalSalesValue = salesItems.reduce(
+        (sum, item) => sum + (item.quantity * item.unit_price), 0
+      );
+      const totalSalesQty = salesItems.reduce(
+        (sum, item) => sum + item.quantity, 0
+      );
+      const avgSalesRate = totalSalesQty > 0 
+        ? totalSalesValue / totalSalesQty : 0;
+      
+      // Profit calculations based on period averages
+      const npm = avgSalesRate - avgPurchaseRate;
+      const grossProfit = npm * totalSalesQty;
+      
+      const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+      const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+      
+      const netProfit = grossProfit - totalExpenses + totalIncome;
+      const profitMargin = totalSalesValue > 0 
+        ? (netProfit / totalSalesValue) * 100 : 0;
 
-      // Calculate average selling and buying prices
-      const totalSoldValue = periodSalesItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-      const avgSellingPrice = totalQuantitySold > 0 ? totalSoldValue / totalQuantitySold : 0;
-      
-      const totalBoughtValue = purchaseItemsWithDates.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
-      const totalQuantityBought = purchaseItemsWithDates.reduce((sum, item) => sum + item.quantity, 0);
-      const avgBuyingPrice = totalQuantityBought > 0 ? totalBoughtValue / totalQuantityBought : 0;
-      
-      // Correct Gross Profit = Total Qty sold * (Avg Selling price - Avg Buying price)
-      const correctedGrossProfit = totalQuantitySold * (avgSellingPrice - avgBuyingPrice);
+      const periodMetrics: PeriodMetrics = {
+        totalPurchaseValue,
+        totalPurchaseQty,
+        avgPurchaseRate,
+        totalSalesValue,
+        totalSalesQty,
+        avgSalesRate,
+        npm,
+        grossProfit,
+        netProfit,
+        profitMargin,
+        totalExpenses,
+        totalIncome
+      };
 
       // Create trade entries for table
       const tradeEntries: TradeEntry[] = [];
       
       // Add buy orders
-      purchaseItemsWithDates.forEach(item => {
+      purchaseItems.forEach(item => {
+        const order = purchaseOrders?.find(po => po.id === item.purchase_order_id);
         tradeEntries.push({
           id: item.purchase_order_id,
-          date: item.order_date,
+          date: order?.order_date || '',
           asset: 'USDT',
           type: 'Buy',
           quantity: item.quantity,
@@ -291,24 +216,17 @@ export default function ProfitLoss() {
         });
       });
 
-      // Add sell orders with NPM data
-      periodSalesItems.forEach(item => {
-        const salesOrder = salesOrders?.find(order => order.id === item.sales_order_id);
-        const relatedMatches = fifoMatches.filter(match => match.saleId === item.sales_order_id);
-        const totalNPM = relatedMatches.reduce((sum, match) => sum + match.npm, 0) / relatedMatches.length || 0;
-        const totalProfit = relatedMatches.reduce((sum, match) => sum + match.profit, 0);
-
+      // Add sell orders
+      salesItems.forEach(item => {
+        const order = salesOrders?.find(so => so.id === item.sales_order_id);
         tradeEntries.push({
           id: item.sales_order_id,
-          date: salesOrder?.order_date || '',
+          date: order?.order_date || '',
           asset: 'USDT',
           type: 'Sell',
           quantity: item.quantity,
           rate: item.unit_price,
-          total: item.quantity * item.unit_price,
-          npm: totalNPM,
-          profit: totalProfit,
-          matchedOrderRef: relatedMatches.map(m => m.buyId.slice(-8)).join(', ')
+          total: item.quantity * item.unit_price
         });
       });
 
@@ -332,25 +250,8 @@ export default function ProfitLoss() {
         })) || [])
       ];
 
-      // Calculate totals
-      const totalRevenue = salesOrders?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      const totalOtherExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
-      const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
-      const grossProfit = correctedGrossProfit; // Use corrected calculation
-      const netProfit = grossProfit - totalOtherExpenses + totalIncome; // Net Profit = Gross Profit - All Expenses + All Incomes
-      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-
       return {
-        profitLossData: {
-          totalRevenue,
-          totalCOGS: totalRevenue - totalGrossProfit, // Calculated from FIFO
-          totalOtherExpenses,
-          totalIncome,
-          grossProfit,
-          netProfit,
-          profitMargin
-        } as ProfitLossData,
-        fifoMatches,
+        periodMetrics,
         tradeEntries: tradeEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         expenseIncomeEntries: expenseIncomeEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       };
@@ -380,15 +281,14 @@ export default function ProfitLoss() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading VASPCorp P&L Dashboard...</p>
+          <p className="text-muted-foreground">Loading P&L Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  const { profitLossData, fifoMatches, tradeEntries, expenseIncomeEntries } = dashboardData || {
-    profitLossData: {} as ProfitLossData,
-    fifoMatches: [],
+  const { periodMetrics, tradeEntries, expenseIncomeEntries } = dashboardData || {
+    periodMetrics: {} as PeriodMetrics,
     tradeEntries: [],
     expenseIncomeEntries: []
   };
@@ -405,9 +305,9 @@ export default function ProfitLoss() {
                   <BarChart3 className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl">VASPCorp Profit & Loss Dashboard</CardTitle>
+                  <CardTitle className="text-2xl">Profit & Loss Dashboard</CardTitle>
                   <CardDescription>
-                    Analytics-driven P2P trading performance using FIFO methodology
+                    Period-based trading performance analytics
                   </CardDescription>
                 </div>
               </div>
@@ -443,199 +343,235 @@ export default function ProfitLoss() {
         </CardHeader>
       </Card>
 
-      {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(profitLossData?.totalRevenue || 0)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Sales volume</p>
+      {/* Period Summary Widget */}
+      <Card className="border-2 border-primary/20">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <PieChart className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Period Summary</CardTitle>
+              <CardDescription>{getPeriodLabel()}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Row 1: Revenue, Expenses, Income */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-blue-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium text-muted-foreground">Total Revenue</span>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-500" />
+              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalSalesValue || 0)}</p>
+            </div>
+            <div className="p-4 bg-red-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingDown className="h-4 w-4 text-red-500" />
+                <span className="text-sm font-medium text-muted-foreground">Total Expenses</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalExpenses || 0)}</p>
+            </div>
+            <div className="p-4 bg-green-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium text-muted-foreground">Total Income</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.totalIncome || 0)}</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Row 2: Avg Purchase Rate, Avg Sales Rate, NPM */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-orange-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ShoppingCart className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-medium text-muted-foreground">Avg Purchase Rate</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgPurchaseRate || 0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought
+              </p>
+            </div>
+            <div className="p-4 bg-cyan-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-cyan-500" />
+                <span className="text-sm font-medium text-muted-foreground">Avg Sales Rate</span>
+              </div>
+              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgSalesRate || 0)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(periodMetrics?.totalSalesQty || 0).toFixed(2)} units sold
+              </p>
+            </div>
+            <div className="p-4 bg-purple-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowRightLeft className="h-4 w-4 text-purple-500" />
+                <span className="text-sm font-medium text-muted-foreground">NPM (per unit)</span>
+              </div>
+              <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(periodMetrics?.npm || 0)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Avg Sales Rate - Avg Purchase Rate
+              </p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Row 3: Gross Profit, Net Profit, Profit Margin */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-emerald-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="h-4 w-4 text-emerald-500" />
+                <span className="text-sm font-medium text-muted-foreground">Gross Profit</span>
+              </div>
+              <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(periodMetrics?.grossProfit || 0)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                NPM × Total Sales Qty
+              </p>
+            </div>
+            <div className="p-4 bg-indigo-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Calculator className="h-4 w-4 text-indigo-500" />
+                <span className="text-sm font-medium text-muted-foreground">Net Profit</span>
+              </div>
+              <p className={`text-2xl font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(periodMetrics?.netProfit || 0)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Gross Profit - Expenses + Income
+              </p>
+            </div>
+            <div className="p-4 bg-pink-500/10 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Percent className="h-4 w-4 text-pink-500" />
+                <span className="text-sm font-medium text-muted-foreground">Profit Margin</span>
+              </div>
+              <p className={`text-2xl font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(periodMetrics?.profitMargin || 0).toFixed(2)}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Net Profit / Revenue × 100
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Top Summary Cards - Quick Glance */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Revenue</p>
+              <p className="text-lg font-bold">{formatCurrency(periodMetrics?.totalSalesValue || 0)}</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
-                <p className="text-2xl font-bold">{formatCurrency(profitLossData?.totalOtherExpenses || 0)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Operational costs</p>
-              </div>
-              <TrendingDown className="h-8 w-8 text-red-500" />
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Expenses</p>
+              <p className="text-lg font-bold">{formatCurrency(periodMetrics?.totalExpenses || 0)}</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Income</p>
-                <p className="text-2xl font-bold">{formatCurrency(profitLossData?.totalIncome || 0)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Other income</p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-green-500" />
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Income</p>
+              <p className="text-lg font-bold">{formatCurrency(periodMetrics?.totalIncome || 0)}</p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Gross Profit</p>
-                <p className={`text-2xl font-bold ${(profitLossData?.grossProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(profitLossData?.grossProfit || 0)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">From operations</p>
-              </div>
-              <Target className="h-8 w-8 text-purple-500" />
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Gross Profit</p>
+              <p className={`text-lg font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(periodMetrics?.grossProfit || 0)}
+              </p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Net Profit</p>
-                <p className={`text-2xl font-bold ${(profitLossData?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(profitLossData?.netProfit || 0)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {profitLossData?.profitMargin?.toFixed(1)}% margin
-                </p>
-              </div>
-              <Calculator className={`h-8 w-8 ${(profitLossData?.netProfit || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Net Profit</p>
+              <p className={`text-lg font-bold ${(periodMetrics?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(periodMetrics?.netProfit || 0)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-muted-foreground">Margin</p>
+              <p className={`text-lg font-bold ${(periodMetrics?.profitMargin || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(periodMetrics?.profitMargin || 0).toFixed(2)}%
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Trade-wise FIFO Profit Table */}
+      {/* Trade Table - Simplified */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Trade-wise FIFO Profit Analysis
+            Period Trade Summary
           </CardTitle>
           <CardDescription>
-            Every sale matched with earliest buy orders using First-In-First-Out logic
+            All buy and sell transactions within the selected period
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Asset</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Rate (₹)</TableHead>
-                  <TableHead className="text-right">Total (₹)</TableHead>
-                  <TableHead className="text-right">NPM (₹)</TableHead>
-                  <TableHead className="text-right">Profit (₹)</TableHead>
-                  <TableHead>Matched Order</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tradeEntries?.slice(0, 10).map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{format(new Date(entry.date), 'dd MMM yyyy')}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{entry.asset}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={entry.type === 'Buy' ? 'secondary' : 'default'}>
-                        {entry.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{entry.quantity.toFixed(4)}</TableCell>
-                    <TableCell className="text-right">{entry.rate.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(entry.total)}</TableCell>
-                    <TableCell className="text-right">
-                      {entry.npm ? (
-                        <span className={entry.npm >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {entry.npm.toFixed(2)}
-                        </span>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.profit ? (
-                        <span className={entry.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {formatCurrency(entry.profit)}
-                        </span>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {entry.matchedOrderRef || '-'}
-                    </TableCell>
+          {tradeEntries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No trades found in the selected period
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Asset</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Rate (₹)</TableHead>
+                    <TableHead className="text-right">Total (₹)</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Buy Order Matching Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChart className="h-5 w-5" />
-            FIFO Order Matching Details
-          </CardTitle>
-          <CardDescription>
-            Transparency view showing how each sale maps to specific buy orders
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Buy Date</TableHead>
-                  <TableHead>Sale Date</TableHead>
-                  <TableHead>Asset</TableHead>
-                  <TableHead className="text-right">Quantity Used</TableHead>
-                  <TableHead className="text-right">Buy Rate (₹)</TableHead>
-                  <TableHead className="text-right">Sell Rate (₹)</TableHead>
-                  <TableHead className="text-right">NPM (₹)</TableHead>
-                  <TableHead className="text-right">Profit (₹)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fifoMatches?.slice(0, 10).map((match, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{format(new Date(match.buyDate), 'dd MMM yyyy')}</TableCell>
-                    <TableCell>{format(new Date(match.saleDate), 'dd MMM yyyy')}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{match.asset}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{match.quantity.toFixed(4)}</TableCell>
-                    <TableCell className="text-right">{match.buyRate.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{match.sellRate.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                      <span className={match.npm >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {match.npm.toFixed(2)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={match.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {formatCurrency(match.profit)}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {tradeEntries?.slice(0, 15).map((entry, idx) => (
+                    <TableRow key={`${entry.id}-${idx}`}>
+                      <TableCell>{entry.date ? format(new Date(entry.date), 'dd MMM yyyy') : '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{entry.asset}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={entry.type === 'Buy' ? 'secondary' : 'default'}>
+                          {entry.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{entry.quantity.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{entry.rate.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(entry.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -651,40 +587,46 @@ export default function ProfitLoss() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Amount (₹)</TableHead>
-                  <TableHead>Description</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenseIncomeEntries?.slice(0, 10).map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{format(new Date(entry.date), 'dd MMM yyyy')}</TableCell>
-                    <TableCell>{entry.category}</TableCell>
-                    <TableCell>
-                      <Badge variant={entry.type === 'Expense' ? 'destructive' : 'default'}>
-                        {entry.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className={entry.type === 'Expense' ? 'text-red-600' : 'text-green-600'}>
-                        {formatCurrency(entry.amount)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {entry.description || '-'}
-                    </TableCell>
+          {expenseIncomeEntries.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No expenses or income found in the selected period
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Amount (₹)</TableHead>
+                    <TableHead>Description</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {expenseIncomeEntries?.slice(0, 10).map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{format(new Date(entry.date), 'dd MMM yyyy')}</TableCell>
+                      <TableCell>{entry.category}</TableCell>
+                      <TableCell>
+                        <Badge variant={entry.type === 'Expense' ? 'destructive' : 'default'}>
+                          {entry.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={entry.type === 'Expense' ? 'text-red-600' : 'text-green-600'}>
+                          {formatCurrency(entry.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {entry.description || '-'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -693,26 +635,40 @@ export default function ProfitLoss() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Info className="h-5 w-5" />
-            Formula Reference
+            Formula Reference (Period-Based)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-            <div className="space-y-2">
-              <h4 className="font-semibold">NPM Calculation</h4>
-              <p className="text-muted-foreground">NPM = Sell Rate - Buy Rate</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold">Avg Purchase Rate</h4>
+              <p className="text-muted-foreground">Total Purchase Value ÷ Total Purchase Qty</p>
+              <p className="text-xs text-muted-foreground italic">All purchases within selected period</p>
             </div>
-            <div className="space-y-2">
-              <h4 className="font-semibold">Profit Calculation</h4>
-              <p className="text-muted-foreground">Profit = NPM × Quantity</p>
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold">Avg Sales Rate</h4>
+              <p className="text-muted-foreground">Total Sales Value ÷ Total Sales Qty</p>
+              <p className="text-xs text-muted-foreground italic">All sales within selected period</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold">NPM (Net Profit Margin per unit)</h4>
+              <p className="text-muted-foreground">Avg Sales Rate - Avg Purchase Rate</p>
+              <p className="text-xs text-muted-foreground italic">Profit per unit traded</p>
+            </div>
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
               <h4 className="font-semibold">Gross Profit</h4>
-              <p className="text-muted-foreground">Sum of all FIFO-matched profits</p>
+              <p className="text-muted-foreground">NPM × Total Sales Qty</p>
+              <p className="text-xs text-muted-foreground italic">Trading profit for period</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
               <h4 className="font-semibold">Net Profit</h4>
               <p className="text-muted-foreground">Gross Profit - Expenses + Income</p>
+              <p className="text-xs text-muted-foreground italic">Final profit after all adjustments</p>
+            </div>
+            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold">Profit Margin %</h4>
+              <p className="text-muted-foreground">(Net Profit ÷ Total Revenue) × 100</p>
+              <p className="text-xs text-muted-foreground italic">Percentage return on sales</p>
             </div>
           </div>
         </CardContent>

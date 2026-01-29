@@ -11,8 +11,10 @@ import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 
 interface Widget {
   id: string;
@@ -24,7 +26,8 @@ interface Widget {
 }
 
 export default function Dashboard() {
-  const [selectedPeriod, setSelectedPeriod] = useState("7d");
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("last7days");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
   const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const { toast } = useToast();
@@ -66,28 +69,21 @@ export default function Dashboard() {
     }
   }, [dashboardWidgets]);
 
-  // Calculate date range based on selected period
-  const getDateRange = () => {
-    const now = new Date();
-    switch (selectedPeriod) {
-      case "24h":
-        return { start: subDays(now, 1), end: now };
-      case "7d":
-        return { start: subDays(now, 7), end: now };
-      case "30d":
-        return { start: subDays(now, 30), end: now };
-      case "90d":
-        return { start: subDays(now, 90), end: now };
-      default:
-        return { start: subDays(now, 7), end: now };
+  // Calculate date range based on selected range
+  const getDateRangeValues = () => {
+    if (dateRange?.from && dateRange?.to) {
+      return { start: dateRange.from, end: dateRange.to };
     }
+    // Fallback to last 7 days
+    const now = new Date();
+    return { start: subDays(now, 7), end: now };
   };
 
-  const { start: startDate, end: endDate } = getDateRange();
+  const { start: startDate, end: endDate } = getDateRangeValues();
 
   // Fetch dashboard metrics with period filtering
   const { data: metrics, refetch: refetchMetrics } = useQuery({
-    queryKey: ['dashboard_metrics', selectedPeriod],
+    queryKey: ['dashboard_metrics', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       // Sync USDT stock first to ensure accurate stock values
       await supabase.rpc('sync_usdt_stock');
@@ -235,7 +231,7 @@ export default function Dashboard() {
 
   // Fetch recent transactions for activity feed with period filtering
   const { data: recentActivity, refetch: refetchActivity } = useQuery({
-    queryKey: ['recent_activity', selectedPeriod],
+    queryKey: ['recent_activity', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       // Get recent sales orders within period
       const { data: salesOrders } = await supabase
@@ -378,23 +374,14 @@ export default function Dashboard() {
             
             {/* Enhanced Controls */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              {/* Period Filter with Clean Design */}
-              <div className="flex gap-1 p-1 bg-gray-50 rounded-lg border border-gray-200">
-                {["24h", "7d", "30d", "90d"].map((period) => (
-                  <Button
-                    key={period}
-                    variant={selectedPeriod === period ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setSelectedPeriod(period)}
-                    className={selectedPeriod === period ? 
-                      "bg-blue-600 text-white shadow-sm hover:bg-blue-700 border border-blue-600" : 
-                      "text-slate-600 hover:bg-white border border-transparent"
-                    }
-                  >
-                    {period}
-                  </Button>
-                ))}
-              </div>
+              {/* Date Range Picker */}
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                preset={datePreset}
+                onPresetChange={setDatePreset}
+                className="min-w-[200px]"
+              />
               
               {/* Dashboard Controls */}
               <div className="flex items-center gap-3 flex-wrap">
@@ -461,7 +448,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium text-slate-500">Period: {selectedPeriod}</span>
+                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
                   </div>
                 </div>
                 <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
@@ -480,7 +467,7 @@ export default function Dashboard() {
                   <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
                   <div className="flex items-center gap-1 mt-2">
                     <ArrowUpIcon className="h-4 w-4 text-purple-500" />
-                    <span className="text-sm font-medium text-slate-500">Period: {selectedPeriod}</span>
+                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
                   </div>
                 </div>
                 <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
@@ -540,7 +527,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Performance Analytics Section */}
           <div className="xl:col-span-2 space-y-6">
-            <InteractiveHeatmap selectedPeriod={selectedPeriod} />
+            <InteractiveHeatmap selectedPeriod={datePreset} />
           </div>
           
           {/* Activity Feed */}
@@ -550,7 +537,7 @@ export default function Dashboard() {
                 <div className="p-2 bg-teal-700 rounded-lg shadow-md">
                   <Activity className="h-5 w-5" />
                 </div>
-                Recent Activity ({selectedPeriod})
+                Recent Activity
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4 max-h-96 overflow-y-auto">
@@ -588,7 +575,7 @@ export default function Dashboard() {
                   <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Activity className="h-8 w-8 opacity-50" />
                   </div>
-                  <p className="font-medium">No activity in {selectedPeriod}</p>
+                  <p className="font-medium">No activity in selected period</p>
                   <p className="text-sm">Activity will appear here for the selected period</p>
                 </div>
               )}

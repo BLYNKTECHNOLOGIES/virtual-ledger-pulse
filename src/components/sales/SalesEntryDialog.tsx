@@ -345,20 +345,25 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         setStockValidationError(null);
       }
       
-      // Auto-calculate based on what's available
+      // Auto-calculate bidirectionally
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
         const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(updated.quantity) || 0;
         const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
         const total = field === 'total_amount' ? parseFloat(value) || 0 : updated.total_amount;
         
         if (field === 'quantity' && price > 0) {
-          updated.total_amount = qty * price;
-        } else if (field === 'price_per_unit' && qty > 0) {
-          updated.total_amount = qty * price;
+          // User changed quantity - calculate total
+          updated.total_amount = parseFloat((qty * price).toFixed(2));
+        } else if (field === 'price_per_unit') {
+          // User changed price - recalculate based on what exists
+          if (qty > 0) {
+            updated.total_amount = parseFloat((qty * price).toFixed(2));
+          } else if (total > 0 && price > 0) {
+            updated.quantity = (total / price).toFixed(2);
+          }
         } else if (field === 'total_amount') {
-          if (qty > 0 && total > 0) {
-            updated.price_per_unit = (total / qty).toFixed(2);
-          } else if (price > 0 && total > 0) {
+          // User changed total - calculate quantity if price exists
+          if (price > 0) {
             updated.quantity = (total / price).toFixed(2);
           }
         }
@@ -517,9 +522,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Label>Total Amount</Label>
               <Input
                 type="number"
-                value={formData.total_amount}
-                disabled
-                className="bg-gray-100"
+                value={formData.total_amount || ''}
+                onChange={(e) => handleInputChange('total_amount', e.target.value)}
+                step="0.01"
+                placeholder="Enter total amount"
               />
               {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
                 <div className="text-xs text-muted-foreground mt-1">

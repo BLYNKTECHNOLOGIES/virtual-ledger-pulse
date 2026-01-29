@@ -215,11 +215,27 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     createSalesOrderMutation.mutate(formData);
   };
 
-  // Auto-calculate values
-  const handleQuantityOrPriceChange = (field: 'quantity' | 'price_per_unit', value: number) => {
+  // Auto-calculate values bidirectionally
+  const handleFieldChange = (field: 'quantity' | 'price_per_unit' | 'total_amount', value: number) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
-      updated.total_amount = updated.quantity * updated.price_per_unit;
+      const price = field === 'price_per_unit' ? value : prev.price_per_unit;
+      
+      if (field === 'quantity' && price > 0) {
+        // User changed quantity - calculate total
+        updated.total_amount = parseFloat((value * price).toFixed(2));
+      } else if (field === 'price_per_unit') {
+        // User changed price - calculate total if quantity exists, or quantity if total exists
+        if (prev.quantity > 0) {
+          updated.total_amount = parseFloat((prev.quantity * value).toFixed(2));
+        } else if (prev.total_amount > 0 && value > 0) {
+          updated.quantity = parseFloat((prev.total_amount / value).toFixed(2));
+        }
+      } else if (field === 'total_amount' && price > 0) {
+        // User changed total - calculate quantity
+        updated.quantity = parseFloat((value / price).toFixed(2));
+      }
+      
       return updated;
     });
   };
@@ -290,8 +306,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 id="quantity"
                 type="number"
                 step="0.01"
-                value={formData.quantity}
-                onChange={(e) => handleQuantityOrPriceChange('quantity', parseFloat(e.target.value) || 0)}
+                value={formData.quantity || ''}
+                onChange={(e) => handleFieldChange('quantity', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 700"
               />
             </div>
@@ -301,8 +317,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 id="price_per_unit"
                 type="number"
                 step="0.01"
-                value={formData.price_per_unit}
-                onChange={(e) => handleQuantityOrPriceChange('price_per_unit', parseFloat(e.target.value) || 0)}
+                value={formData.price_per_unit || ''}
+                onChange={(e) => handleFieldChange('price_per_unit', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 94"
               />
             </div>
@@ -312,8 +328,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
                 id="total_amount"
                 type="number"
                 step="0.01"
-                value={formData.total_amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, total_amount: parseFloat(e.target.value) || 0 }))}
+                value={formData.total_amount || ''}
+                onChange={(e) => handleFieldChange('total_amount', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 65800"
               />
             </div>

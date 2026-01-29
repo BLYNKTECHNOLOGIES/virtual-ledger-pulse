@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay } from "date-fns";
+import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 
 const CHART_COLORS = [
   "hsl(var(--primary))",
@@ -461,103 +463,115 @@ export function StatisticsTab() {
         </div>
       </div>
 
-      {/* Primary KPI Cards */}
+      {/* Primary KPI Cards - Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <Card className="shadow-md border-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-emerald-100 text-xs font-medium">Revenue</p>
-                <p className="text-xl font-bold">{formatCurrency(kpi.revenue)}</p>
-                <div className="flex items-center mt-1">
-                  {kpi.revenueChange >= 0 ? (
-                    <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{kpi.revenueChange.toFixed(1)}%</span></>
-                  ) : (
-                    <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{kpi.revenueChange.toFixed(1)}%</span></>
-                  )}
+        <ClickableCard to="/sales">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-xs font-medium">Revenue</p>
+                  <p className="text-xl font-bold">{formatCurrency(kpi.revenue)}</p>
+                  <div className="flex items-center mt-1">
+                    {kpi.revenueChange >= 0 ? (
+                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{kpi.revenueChange.toFixed(1)}%</span></>
+                    ) : (
+                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{kpi.revenueChange.toFixed(1)}%</span></>
+                    )}
+                  </div>
                 </div>
+                <DollarSign className="h-8 w-8 text-emerald-200" />
               </div>
-              <DollarSign className="h-8 w-8 text-emerald-200" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className="shadow-md border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-xs font-medium">New Clients</p>
-                <p className="text-xl font-bold">{clientStats.newInPeriod}</p>
-                <div className="flex items-center mt-1">
-                  {clientGrowthChange >= 0 ? (
-                    <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{clientGrowthChange.toFixed(0)}%</span></>
-                  ) : (
-                    <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{clientGrowthChange.toFixed(0)}%</span></>
-                  )}
+        <ClickableCard to="/clients">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-blue-500 to-blue-600 text-white h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-xs font-medium">New Clients</p>
+                  <p className="text-xl font-bold">{clientStats.newInPeriod}</p>
+                  <div className="flex items-center mt-1">
+                    {clientGrowthChange >= 0 ? (
+                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{clientGrowthChange.toFixed(0)}%</span></>
+                    ) : (
+                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{clientGrowthChange.toFixed(0)}%</span></>
+                    )}
+                  </div>
                 </div>
+                <UserPlus className="h-8 w-8 text-blue-200" />
               </div>
-              <UserPlus className="h-8 w-8 text-blue-200" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className="shadow-md border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-100 text-xs font-medium">KYC Verified</p>
-                <p className="text-xl font-bold">{kycStats.newVerifiedInPeriod}</p>
-                <p className="text-xs text-purple-200 mt-1">{kycStats.verificationRate}% total rate</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-purple-200" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md border-0 bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-amber-100 text-xs font-medium">New Leads</p>
-                <p className="text-xl font-bold">{leadStats.newInPeriod}</p>
-                <div className="flex items-center mt-1">
-                  {leadStats.leadsChange >= 0 ? (
-                    <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{leadStats.leadsChange.toFixed(0)}%</span></>
-                  ) : (
-                    <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{leadStats.leadsChange.toFixed(0)}%</span></>
-                  )}
+        <ClickableCard to="/kyc-approvals">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-xs font-medium">KYC Verified</p>
+                  <p className="text-xl font-bold">{kycStats.newVerifiedInPeriod}</p>
+                  <p className="text-xs text-purple-200 mt-1">{kycStats.verificationRate}% total rate</p>
                 </div>
+                <UserCheck className="h-8 w-8 text-purple-200" />
               </div>
-              <Target className="h-8 w-8 text-amber-200" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className="shadow-md border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-teal-100 text-xs font-medium">Conversion Rate</p>
-                <p className="text-xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
-                <p className="text-xs text-teal-200 mt-1">{leadStats.converted} converted</p>
+        <ClickableCard to="/leads">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-amber-500 to-amber-600 text-white h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-amber-100 text-xs font-medium">New Leads</p>
+                  <p className="text-xl font-bold">{leadStats.newInPeriod}</p>
+                  <div className="flex items-center mt-1">
+                    {leadStats.leadsChange >= 0 ? (
+                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{leadStats.leadsChange.toFixed(0)}%</span></>
+                    ) : (
+                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{leadStats.leadsChange.toFixed(0)}%</span></>
+                    )}
+                  </div>
+                </div>
+                <Target className="h-8 w-8 text-amber-200" />
               </div>
-              <CheckCircle className="h-8 w-8 text-teal-200" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
-        <Card className={`shadow-md border-0 text-white ${kpi.profit >= 0 ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-red-500 to-red-600'}`}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white/80 text-xs font-medium">Net Profit</p>
-                <p className="text-xl font-bold">{formatCurrency(Math.abs(kpi.profit))}</p>
-                <p className="text-xs text-white/70 mt-1">{kpi.profit >= 0 ? 'Profit' : 'Loss'}</p>
+        <ClickableCard to="/leads">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-white h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-teal-100 text-xs font-medium">Conversion Rate</p>
+                  <p className="text-xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
+                  <p className="text-xs text-teal-200 mt-1">{leadStats.converted} converted</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-teal-200" />
               </div>
-              <TrendingUp className="h-8 w-8 text-white/60" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </ClickableCard>
+
+        <ClickableCard to="/profit-loss">
+          <Card className={`shadow-md border-0 text-white h-full ${kpi.profit >= 0 ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-red-500 to-red-600'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/80 text-xs font-medium">Net Profit</p>
+                  <p className="text-xl font-bold">{formatCurrency(Math.abs(kpi.profit))}</p>
+                  <p className="text-xs text-white/70 mt-1">{kpi.profit >= 0 ? 'Profit' : 'Loss'}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-white/60" />
+              </div>
+            </CardContent>
+          </Card>
+        </ClickableCard>
       </div>
 
       {/* Tabs for Different Views */}

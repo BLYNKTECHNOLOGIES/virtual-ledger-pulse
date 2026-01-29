@@ -15,6 +15,7 @@ import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from 
 import { useToast } from "@/hooks/use-toast";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
+import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 
 interface Widget {
   id: string;
@@ -431,87 +432,107 @@ export default function Dashboard() {
 
         {/* Enhanced Metrics Cards Grid - responsive */}
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-          {/* Total Sales Card */}
-          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                    ₹{(metrics?.totalSales || 0).toLocaleString()}
+          {/* Total Sales Card - Clickable */}
+          <ClickableCard 
+            to="/sales" 
+            searchParams={buildTransactionFilters({ 
+              dateFrom: startDate, 
+              dateTo: endDate 
+            })}
+          >
+            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-600 text-sm font-medium">Total Sales</p>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                      ₹{(metrics?.totalSales || 0).toLocaleString()}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                  <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                    <DollarSign className="h-8 w-8 text-metric-sales-icon" />
                   </div>
                 </div>
-                <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <DollarSign className="h-8 w-8 text-metric-sales-icon" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </ClickableCard>
 
-          {/* Sales Orders Card */}
-          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-purple-500" />
-                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
+          {/* Sales Orders Card - Clickable */}
+          <ClickableCard 
+            to="/sales" 
+            searchParams={buildTransactionFilters({ 
+              dateFrom: startDate, 
+              dateTo: endDate 
+            })}
+          >
+            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
+                    <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
+                    <div className="flex items-center gap-1 mt-2">
+                      <ArrowUpIcon className="h-4 w-4 text-purple-500" />
+                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                    <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
                   </div>
                 </div>
-                <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </ClickableCard>
 
-          {/* Total Clients Card */}
-          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-slate-600 text-sm font-medium">Total Clients</p>
-                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                    {metrics?.totalClients || 0}
+          {/* Total Clients Card - Clickable */}
+          <ClickableCard to="/clients">
+            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-slate-600 text-sm font-medium">Total Clients</p>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                      {metrics?.totalClients || 0}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <ArrowUpIcon className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
+                  <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                    <Users className="h-8 w-8 text-metric-clients-icon" />
                   </div>
                 </div>
-                <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <Users className="h-8 w-8 text-metric-clients-icon" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </ClickableCard>
 
-          {/* Total Cash Card */}
-          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0 relative z-10">
-                  <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                    ₹{(metrics?.totalCash || 0).toLocaleString()}
+          {/* Total Cash Card - Clickable to BAMS */}
+          <ClickableCard to="/bams">
+            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0 relative z-10">
+                    <p className="text-slate-600 text-sm font-medium">Total Cash</p>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                      ₹{(metrics?.totalCash || 0).toLocaleString()}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <ArrowUpIcon className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
+                  <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
+                    <Wallet className="h-8 w-8 text-metric-cash-icon" />
                   </div>
                 </div>
-                <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
-                  <Wallet className="h-8 w-8 text-metric-cash-icon" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </ClickableCard>
         </div>
 
         {/* Enhanced Quick Links Widget */}
@@ -577,74 +598,77 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Stock Inventory Section */}
-        <Card className="bg-card border-2 border-border shadow-xl">
-          <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
-                <Package className="h-6 w-6" />
-              </div>
-              Asset Inventory
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {warehouseStock?.map((asset, index) => (
-                <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
-                  <CardHeader className="bg-secondary border-b">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Package className="h-5 w-5 text-muted-foreground" />
-                        {asset.name} ({asset.code})
-                      </CardTitle>
-                      <Badge className="bg-muted text-foreground">
-                        {asset.total_stock} {asset.unit}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
-                        <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
-                      </div>
-                      
-                      {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
-                        <div className="space-y-2">
-                          <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
-                          {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">{dist.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{dist.quantity.toLocaleString()}</span>
-                                <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
-                              </div>
-                            </div>
-                          ))}
-                          {asset.wallet_distribution.length > 3 && (
-                            <div className="text-xs text-muted-foreground text-center">
-                              +{asset.wallet_distribution.length - 3} more wallets
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {(!warehouseStock || warehouseStock.length === 0) && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Package className="h-8 w-8 opacity-50" />
-                  </div>
-                  <p className="font-medium">No asset data available</p>
-                  <p className="text-sm">Asset inventory will appear here</p>
+        {/* Stock Inventory Section - Clickable to Stock Management */}
+        <ClickableCard to="/stock-management" searchParams={{ tab: 'quickview' }}>
+          <Card className="bg-card border-2 border-border shadow-xl">
+            <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+                  <Package className="h-6 w-6" />
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                Asset Inventory
+                <span className="ml-auto text-sm opacity-75">Click to view details →</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {warehouseStock?.map((asset, index) => (
+                  <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+                    <CardHeader className="bg-secondary border-b">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Package className="h-5 w-5 text-muted-foreground" />
+                          {asset.name} ({asset.code})
+                        </CardTitle>
+                        <Badge className="bg-muted text-foreground">
+                          {asset.total_stock} {asset.unit}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
+                          <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
+                        </div>
+                        
+                        {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
+                          <div className="space-y-2">
+                            <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
+                            {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">{dist.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{dist.quantity.toLocaleString()}</span>
+                                  <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
+                                </div>
+                              </div>
+                            ))}
+                            {asset.wallet_distribution.length > 3 && (
+                              <div className="text-xs text-muted-foreground text-center">
+                                +{asset.wallet_distribution.length - 3} more wallets
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {(!warehouseStock || warehouseStock.length === 0) && (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Package className="h-8 w-8 opacity-50" />
+                    </div>
+                    <p className="font-medium">No asset data available</p>
+                    <p className="text-sm">Asset inventory will appear here</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </ClickableCard>
 
         {/* Dynamic Widgets Grid */}
         {dashboardWidgets.length > 0 && (

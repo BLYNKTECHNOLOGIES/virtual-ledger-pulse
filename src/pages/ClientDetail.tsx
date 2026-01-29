@@ -1,4 +1,3 @@
-
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +9,7 @@ import { PurposeCommunication } from "@/components/clients/PurposeCommunication"
 import { BuyingSellingSoonTracker } from "@/components/clients/BuyingSellingSoonTracker";
 import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnalysis";
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
+import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();
@@ -31,44 +31,91 @@ export default function ClientDetail() {
     enabled: !!clientId,
   });
 
-  // Check if client is a seller (has selling purpose or client_type indicates seller)
-  const isSeller = client?.buying_purpose?.toLowerCase().includes('sell') || 
-                   client?.client_type?.toLowerCase() === 'seller' ||
-                   (client?.buying_purpose && client.buying_purpose.toLowerCase().includes('selling'));
+  // Fetch buy orders count
+  const { data: buyOrdersCount } = useQuery({
+    queryKey: ['client-buy-orders-count', clientId, client?.name, client?.phone],
+    queryFn: async () => {
+      if (!clientId || !client) return 0;
+      const { count, error } = await supabase
+        .from('sales_orders')
+        .select('id', { count: 'exact', head: true })
+        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!clientId && !!client,
+  });
+
+  // Fetch sell orders count
+  const { data: sellOrdersCount } = useQuery({
+    queryKey: ['client-sell-orders-count', clientId, client?.name, client?.phone],
+    queryFn: async () => {
+      if (!clientId || !client) return 0;
+      const { count, error } = await supabase
+        .from('purchase_orders')
+        .select('id', { count: 'exact', head: true })
+        .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!clientId && !!client,
+  });
+
+  // Determine client type dynamically
+  const isBuyer = (buyOrdersCount || 0) > 0;
+  const isSeller = (sellOrdersCount || 0) > 0;
+  const isComposite = isBuyer && isSeller;
+
+  // Legacy check for sellers without order data
+  const legacySeller = client?.buying_purpose?.toLowerCase().includes('sell') || 
+                       client?.client_type?.toLowerCase() === 'seller' ||
+                       (client?.buying_purpose && client.buying_purpose.toLowerCase().includes('selling'));
+
+  // Use detected type, fallback to legacy
+  const showAsSellerOnly = !isBuyer && (isSeller || legacySeller);
 
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Client Details</h1>
-        <p className="text-gray-600 mt-1">Comprehensive view of client information and trading activity</p>
+        <h1 className="text-3xl font-bold">Client Details</h1>
+        <p className="text-muted-foreground mt-1">Comprehensive view of client information and trading activity</p>
       </div>
 
-      {/* Row 1: Client Overview and Monthly Limits (only for buyers) */}
+      {/* Row 1: Client Overview and Monthly Limits (only for buyers/composite) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ClientOverviewPanel clientId={clientId} isSeller={isSeller} />
-        {!isSeller && <MonthlyLimitsPanel clientId={clientId} />}
+        <ClientOverviewPanel clientId={clientId} isSeller={showAsSellerOnly} isComposite={isComposite} />
+        {!showAsSellerOnly && <MonthlyLimitsPanel clientId={clientId} />}
       </div>
 
-      {/* Row 2: Client Value Score and KYC/Bank Info */}
+      {/* Row 2: Dual Statistics Panel (for composite clients or any client with orders) */}
+      {(isComposite || isBuyer || isSeller) && (
+        <div className="grid grid-cols-1 gap-6">
+          <ClientDualStatistics clientId={clientId} />
+        </div>
+      )}
+
+      {/* Row 3: Client Value Score and KYC/Bank Info */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ClientValueScore clientId={clientId} />
-        <KYCBankInfo clientId={clientId} isSeller={isSeller} />
+        <KYCBankInfo clientId={clientId} isSeller={showAsSellerOnly} />
       </div>
 
-      {/* Row 3: Purpose Communication and Buying/Selling Tracker */}
+      {/* Row 4: Purpose Communication and Buying/Selling Tracker */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PurposeCommunication clientId={clientId} />
         <BuyingSellingSoonTracker clientId={clientId} />
       </div>
 
-      {/* Row 4: Trading Pattern Analysis */}
+      {/* Row 5: Trading Pattern Analysis */}
       <div className="grid grid-cols-1 gap-6">
         <TradingPatternAnalysis clientId={clientId} />
       </div>
 
-      {/* Row 5: Order History Module */}
+      {/* Row 6: Order History Module with tabs for buy/sell */}
       <div className="grid grid-cols-1 gap-6">
-        <OrderHistoryModule clientId={clientId} />
+        <OrderHistoryModule clientId={clientId} showTabs={isComposite} />
       </div>
     </div>
   );

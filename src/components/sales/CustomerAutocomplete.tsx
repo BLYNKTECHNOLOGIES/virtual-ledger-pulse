@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +8,17 @@ interface CustomerAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onRiskLevelChange?: (riskLevel: string) => void;
+  onPhoneChange?: (phone: string) => void;
+  onClientSelect?: (client: any) => void;
 }
 
-export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: CustomerAutocompleteProps) {
+export function CustomerAutocomplete({ 
+  value, 
+  onChange, 
+  onRiskLevelChange,
+  onPhoneChange,
+  onClientSelect 
+}: CustomerAutocompleteProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const { data: clients } = useQuery({
@@ -33,6 +40,17 @@ export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: Cus
 
   const handleClientSelect = (client: any) => {
     onChange(client.name);
+    
+    // Auto-populate phone number
+    if (onPhoneChange && client.phone) {
+      onPhoneChange(client.phone);
+    }
+    
+    // Pass the full client object
+    if (onClientSelect) {
+      onClientSelect(client);
+    }
+    
     if (onRiskLevelChange) {
       // Map client risk appetite to payment method risk categories
       const riskMapping = {
@@ -64,15 +82,16 @@ export function CustomerAutocomplete({ value, onChange, onRiskLevelChange }: Cus
       />
       
       {showSuggestions && filteredClients.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-10 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredClients.map((client) => (
             <div
               key={client.id}
-              className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+              className="px-3 py-2 hover:bg-muted cursor-pointer"
               onClick={() => handleClientSelect(client)}
             >
               <div className="font-medium">{client.name}</div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
+                {client.phone && <span>📱 {client.phone} | </span>}
                 Risk: {client.risk_appetite} | Type: {client.client_type}
                 {client.monthly_limit && ` | Limit: ₹${client.monthly_limit.toLocaleString()}`}
               </div>

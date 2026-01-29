@@ -36,6 +36,7 @@ interface DateRangePickerProps {
 }
 
 const presets: { label: string; value: DateRangePreset }[] = [
+  { label: "All Time", value: "allTime" },
   { label: "Today", value: "today" },
   { label: "Yesterday", value: "yesterday" },
   { label: "Last 7 Days", value: "last7days" },

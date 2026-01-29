@@ -630,49 +630,6 @@ export default function ProfitLoss() {
         </CardContent>
       </Card>
 
-      {/* Formula Reference Footer */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5" />
-            Formula Reference (Period-Based)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">Avg Purchase Rate</h4>
-              <p className="text-muted-foreground">Total Purchase Value ÷ Total Purchase Qty</p>
-              <p className="text-xs text-muted-foreground italic">All purchases within selected period</p>
-            </div>
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">Avg Sales Rate</h4>
-              <p className="text-muted-foreground">Total Sales Value ÷ Total Sales Qty</p>
-              <p className="text-xs text-muted-foreground italic">All sales within selected period</p>
-            </div>
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">NPM (Net Profit Margin per unit)</h4>
-              <p className="text-muted-foreground">Avg Sales Rate - Avg Purchase Rate</p>
-              <p className="text-xs text-muted-foreground italic">Profit per unit traded</p>
-            </div>
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">Gross Profit</h4>
-              <p className="text-muted-foreground">NPM × Total Sales Qty</p>
-              <p className="text-xs text-muted-foreground italic">Trading profit for period</p>
-            </div>
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">Net Profit</h4>
-              <p className="text-muted-foreground">Gross Profit - Expenses + Income</p>
-              <p className="text-xs text-muted-foreground italic">Final profit after all adjustments</p>
-            </div>
-            <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold">Profit Margin %</h4>
-              <p className="text-muted-foreground">(Net Profit ÷ Total Revenue) × 100</p>
-              <p className="text-xs text-muted-foreground italic">Percentage return on sales</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

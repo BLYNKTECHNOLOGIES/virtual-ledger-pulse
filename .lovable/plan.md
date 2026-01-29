@@ -1,265 +1,257 @@
 
-# Implementation Plan: Date-Based Period Calculations for PNL Dashboard
+# Implementation Plan: Tab Grouping with PIN Protection & Enhanced Drag-Drop
 
 ## Overview
-This plan replaces the current FIFO-based profit calculation methodology with a simpler date-based period calculation. All statistics will be calculated based on the selected date period, making the P&L dashboard more intuitive and aligned with traditional accounting practices.
+This plan implements two main features:
+1. **Tab Grouping with PIN Protection**: Group specific tabs under collapsible headers that require PIN authentication (07172525) to access
+2. **Enhanced Drag-Drop**: Make all tabs (including grouped ones) draggable with position persistence per user
 
 ## Current State Analysis
 
-### Current Implementation
-- Uses FIFO (First-In-First-Out) methodology to match sales with purchases
-- Calculates profit by matching each sale to the earliest corresponding purchase
-- Complex logic that spans across different time periods (buys may be from previous periods)
+### Existing Implementation
+- Sidebar uses `@dnd-kit/core` and `@dnd-kit/sortable` for drag-and-drop
+- Tab ordering is stored in `user_sidebar_preferences` table (JSON `sidebar_order` column)
+- `useSidebarPreferences` hook handles saving/loading tab order per user ID
+- `DraggableSidebarItem` component renders individual draggable items
 
-### User Requirements
-1. **Period-Based Calculations**: All calculations strictly within selected date range
-2. **Average Purchase Rate** = Sum of Purchase Totals / Sum of Purchase Quantities (within period)
-3. **Average Sales Rate** = Sum of Sales Totals / Sum of Sales Quantities (within period)
-4. **Net Profit Margin (NPM)** = Average Sales Rate - Average Purchase Rate
-5. **Gross Profit** = NPM × Total Sales Quantity (in period)
-6. **Net Profit** = Gross Profit - Total Expenses + Total Income
-7. **New Summary Widget**: Display Total Revenue, Total Expense, Total Income, Gross Profit, Net Profit
-
----
-
-## Calculation Formula Summary
-
-```text
-For Selected Period (e.g., Jan 1 - Jan 15):
-┌────────────────────────────────────────────────────────────────────┐
-│ PURCHASES IN PERIOD:                                                │
-│   Total Purchase Value = Σ (quantity × unit_price)                  │
-│   Total Purchase Qty   = Σ (quantity)                               │
-│   Avg Purchase Rate    = Total Purchase Value / Total Purchase Qty  │
-├────────────────────────────────────────────────────────────────────┤
-│ SALES IN PERIOD:                                                    │
-│   Total Sales Value    = Σ (quantity × unit_price)                  │
-│   Total Sales Qty      = Σ (quantity)                               │
-│   Avg Sales Rate       = Total Sales Value / Total Sales Qty        │
-├────────────────────────────────────────────────────────────────────┤
-│ PROFIT CALCULATIONS:                                                │
-│   NPM (per unit)       = Avg Sales Rate - Avg Purchase Rate         │
-│   Gross Profit         = NPM × Total Sales Qty                      │
-│   Net Profit           = Gross Profit - Expenses + Other Income     │
-│   Profit Margin %      = (Net Profit / Total Revenue) × 100         │
-└────────────────────────────────────────────────────────────────────┘
-```
+### Tab Grouping Requirements
+| Group Name | Child Tabs | PIN Code |
+|------------|------------|----------|
+| HR Management | HRMS, Payroll, EMS | 07172525 |
+| Finance & Analytics | Accounting, P&L, Financials, Statistics | 07172525 |
 
 ---
 
 ## Implementation Details
 
-### Phase 1: Update Core Calculation Logic
+### Phase 1: Create PIN Dialog Component
 
-**File: `src/pages/ProfitLoss.tsx`**
+**New File: `src/components/sidebar/PinProtectionDialog.tsx`**
 
-Replace the `calculateFIFOMatches` function with a new `calculatePeriodBasedMetrics` function:
+A reusable dialog that:
+- Shows a PIN input with 8-digit numeric field
+- Validates against the provided PIN code
+- Returns success/failure callback
+- Uses masked input (dots) for security
+- Tracks unlock state per session
 
+### Phase 2: Create Collapsible Sidebar Group Component
+
+**New File: `src/components/sidebar/CollapsibleSidebarGroup.tsx`**
+
+A collapsible group component that:
+- Shows group header with expand/collapse chevron
+- Requires PIN entry on first expand attempt (per session)
+- Stores unlock state in session storage (clears on browser close)
+- Contains child tabs rendered inside
+- Supports drag-drop for child items
+- Is itself draggable as a unit
+
+### Phase 3: Create Context for PIN Unlock State
+
+**New File: `src/contexts/PinUnlockContext.tsx`**
+
+Context to manage which groups are unlocked in the current session:
 ```typescript
-interface PeriodMetrics {
-  // Purchase metrics
-  totalPurchaseValue: number;
-  totalPurchaseQty: number;
-  avgPurchaseRate: number;
-  
-  // Sales metrics
-  totalSalesValue: number;
-  totalSalesQty: number;
-  avgSalesRate: number;
-  
-  // Profit metrics
-  npm: number;           // Per unit margin
-  grossProfit: number;
-  netProfit: number;
-  profitMargin: number;
-  
-  // Expense/Income
-  totalExpenses: number;
-  totalIncome: number;
+interface PinUnlockContextType {
+  unlockedGroups: Set<string>;
+  unlockGroup: (groupId: string) => void;
+  isGroupUnlocked: (groupId: string) => boolean;
 }
 ```
 
-**Key Changes:**
-1. Remove FIFO matching logic entirely
-2. Filter both purchases AND sales within the selected date range
-3. Calculate averages using period data only
-4. Derive profit from period averages
+### Phase 4: Update AppSidebar Configuration
 
-### Phase 2: Update Data Fetching
+**Modified File: `src/components/AppSidebar.tsx`**
 
-Modify the query to filter purchase orders within the date range (currently it fetches all purchases):
+#### New Configuration Structure
 
 ```typescript
-// Fetch purchase orders within period
-const { data: purchaseOrders } = await supabase
-  .from('purchase_orders')
-  .select(`
-    id,
-    order_date,
-    total_amount,
-    purchase_order_items(quantity, unit_price, total_price)
-  `)
-  .gte('order_date', startStr)
-  .lte('order_date', endStr);
-```
+interface SidebarGroup {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  color: string;
+  bgColor: string;
+  pinProtected: boolean;
+  pinCode?: string;
+  children: SidebarItem[];
+}
 
-### Phase 3: Add Period Summary Widget
-
-Create a new comprehensive summary card showing all key metrics in one place:
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  📊 Period Summary: Jan 1 - Jan 15, 2026                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  Total Revenue        Total Expenses       Total Income             │
-│  ₹5,00,000           ₹50,000              ₹10,000                   │
-│                                                                      │
-│  ─────────────────────────────────────────────────────────          │
-│                                                                      │
-│  Avg Purchase Rate    Avg Sales Rate       NPM (per unit)           │
-│  ₹85.50              ₹87.25               ₹1.75                     │
-│                                                                      │
-│  ─────────────────────────────────────────────────────────          │
-│                                                                      │
-│  Gross Profit         Net Profit           Profit Margin            │
-│  ₹8,750              ₹-31,250             -6.25%                    │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Phase 4: Update Trade Table Display
-
-Simplify the trade table to show period-based data:
-- Remove FIFO matching columns (Matched Order)
-- Keep: Date, Asset, Type (Buy/Sell), Quantity, Rate, Total
-- Add: Period contribution to average
-
-### Phase 5: Update Formula Reference
-
-Update the formula reference card to reflect new calculations:
-- **Avg Purchase Rate** = Total Purchase Value ÷ Total Purchase Qty
-- **Avg Sales Rate** = Total Sales Value ÷ Total Sales Qty  
-- **NPM** = Avg Sales Rate - Avg Purchase Rate
-- **Gross Profit** = NPM × Total Sales Qty
-- **Net Profit** = Gross Profit - Expenses + Income
-
----
-
-## UI Changes
-
-### New Top Summary Cards Layout (6 cards instead of 5)
-
-| Card | Value | Description |
-|------|-------|-------------|
-| Total Revenue | ₹X | Sum of all sales in period |
-| Total Expenses | ₹X | Operational costs in period |
-| Total Income | ₹X | Other income in period |
-| Gross Profit | ₹X | Trading profit (NPM × Qty Sold) |
-| Net Profit | ₹X | Gross - Expenses + Income |
-| Profit Margin | X% | Net Profit / Revenue × 100 |
-
-### New Period Averages Card
-
-A dedicated card showing:
-- **Purchases**: Total Qty, Total Value, Avg Rate
-- **Sales**: Total Qty, Total Value, Avg Rate
-- **NPM**: Per-unit margin with visual indicator
-
----
-
-## Technical Implementation
-
-### File Modified
-- `src/pages/ProfitLoss.tsx`
-
-### Changes Summary
-
-1. **Remove** `calculateFIFOMatches` function
-2. **Add** `calculatePeriodMetrics` function with date-filtered logic
-3. **Update** purchase orders query to filter by date range
-4. **Update** `ProfitLossData` interface to include new metrics:
-   - `avgPurchaseRate`
-   - `avgSalesRate`
-   - `totalPurchaseQty`
-   - `totalSalesQty`
-   - `npmPerUnit`
-5. **Add** Period Summary widget card
-6. **Update** existing summary cards layout
-7. **Update** Formula Reference card with new methodology
-
-### Code Example: New Calculation Function
-
-```typescript
-const calculatePeriodMetrics = (
-  purchaseItems: PurchaseItem[],
-  salesItems: SalesItem[],
-  expenses: number,
-  income: number
-): PeriodMetrics => {
-  // Purchase calculations
-  const totalPurchaseValue = purchaseItems.reduce(
-    (sum, item) => sum + (item.quantity * item.unit_price), 0
-  );
-  const totalPurchaseQty = purchaseItems.reduce(
-    (sum, item) => sum + item.quantity, 0
-  );
-  const avgPurchaseRate = totalPurchaseQty > 0 
-    ? totalPurchaseValue / totalPurchaseQty : 0;
+const sidebarConfig = {
+  // Regular standalone items
+  standaloneItems: [
+    { id: "dashboard", title: "Dashboard", ... },
+    { id: "stock", title: "Stock Management", ... },
+    { id: "sales", title: "Sales", ... },
+    { id: "purchase", title: "Purchase", ... },
+    { id: "bams", title: "BAMS", ... },
+    { id: "clients", title: "Clients", ... },
+    { id: "leads", title: "Leads", ... },
+    { id: "user-management", title: "User Management", ... },
+    { id: "compliance", title: "Compliance", ... },
+    { id: "risk-management", title: "Risk Management", ... },
+    { id: "video-kyc", title: "Video KYC", ... },
+    { id: "kyc-approvals", title: "KYC Approvals", ... },
+  ],
   
-  // Sales calculations
-  const totalSalesValue = salesItems.reduce(
-    (sum, item) => sum + (item.quantity * item.unit_price), 0
-  );
-  const totalSalesQty = salesItems.reduce(
-    (sum, item) => sum + item.quantity, 0
-  );
-  const avgSalesRate = totalSalesQty > 0 
-    ? totalSalesValue / totalSalesQty : 0;
-  
-  // Profit calculations
-  const npm = avgSalesRate - avgPurchaseRate;
-  const grossProfit = npm * totalSalesQty;
-  const netProfit = grossProfit - expenses + income;
-  const profitMargin = totalSalesValue > 0 
-    ? (netProfit / totalSalesValue) * 100 : 0;
-  
-  return {
-    totalPurchaseValue,
-    totalPurchaseQty,
-    avgPurchaseRate,
-    totalSalesValue,
-    totalSalesQty,
-    avgSalesRate,
-    npm,
-    grossProfit,
-    netProfit,
-    profitMargin,
-    totalExpenses: expenses,
-    totalIncome: income
-  };
+  // Grouped items
+  groups: [
+    {
+      id: "hr-management",
+      title: "HR Management",
+      icon: Users,
+      color: "text-pink-600",
+      bgColor: "bg-pink-100",
+      pinProtected: true,
+      pinCode: "07172525",
+      children: [
+        { id: "hrms", title: "HRMS", ... },
+        { id: "payroll", title: "Payroll", ... },
+        { id: "ems", title: "EMS", ... },
+      ]
+    },
+    {
+      id: "finance-analytics",
+      title: "Finance & Analytics",
+      icon: BarChart3,
+      color: "text-green-600",
+      bgColor: "bg-green-100",
+      pinProtected: true,
+      pinCode: "07172525",
+      children: [
+        { id: "accounting", title: "Accounting", ... },
+        { id: "profit-loss", title: "P&L", ... },
+        { id: "financials", title: "Financials", ... },
+        { id: "statistics", title: "Statistics", ... },
+      ]
+    }
+  ]
 };
 ```
 
+### Phase 5: Update Sidebar Preferences Hook
+
+**Modified File: `src/hooks/useSidebarPreferences.tsx`**
+
+Add support for storing:
+1. **Item order** (array of item IDs including group IDs)
+2. **Group expanded states** (optional enhancement)
+
+The existing `sidebar_order` JSON field can store:
+```json
+{
+  "order": ["dashboard", "stock", "hr-management", "sales", "finance-analytics", ...],
+  "groupOrder": {
+    "hr-management": ["hrms", "payroll", "ems"],
+    "finance-analytics": ["accounting", "profit-loss", "financials", "statistics"]
+  }
+}
+```
+
+### Phase 6: Update DraggableSidebarItem
+
+**Modified File: `src/components/DraggableSidebarItem.tsx`**
+
+- Handle both regular items and group headers
+- Pass through to CollapsibleSidebarGroup for groups
+- Maintain existing drag behavior for items
+
+### Phase 7: Update App.tsx for Provider
+
+**Modified File: `src/App.tsx`**
+
+Wrap application with `PinUnlockProvider`:
+```tsx
+<PinUnlockProvider>
+  <SidebarEditProvider>
+    {/* existing app content */}
+  </SidebarEditProvider>
+</PinUnlockProvider>
+```
+
 ---
 
-## Validation & Edge Cases
+## UI/UX Design
 
-1. **No purchases in period**: Set avgPurchaseRate to 0, show warning
-2. **No sales in period**: Set avgSalesRate to 0, grossProfit = 0
-3. **Single day selected**: Works correctly with from = to date
-4. **Large date ranges**: Query optimization with proper indexing
-5. **Decimal precision**: All amounts display with 2 decimal places per project guidelines
+### Collapsed Group View
+```text
+┌─────────────────────────────────┐
+│ ⋮⋮ [👥] HR Management    🔒 ▶  │
+└─────────────────────────────────┘
+```
+
+### Expanded Group View (After PIN Entry)
+```text
+┌─────────────────────────────────┐
+│ ⋮⋮ [👥] HR Management    🔓 ▼  │
+├─────────────────────────────────┤
+│    ⋮⋮ [👤] HRMS               │
+│    ⋮⋮ [💰] Payroll            │
+│    ⋮⋮ [👤] EMS                │
+└─────────────────────────────────┘
+```
+
+### PIN Dialog
+```text
+┌──────────────────────────────────┐
+│     🔒 Enter PIN to Access       │
+│                                  │
+│  ┌──┬──┬──┬──┬──┬──┬──┬──┐      │
+│  │ • │ • │ • │ • │ • │ • │ • │ • │      │
+│  └──┴──┴──┴──┴──┴──┴──┴──┘      │
+│                                  │
+│      [Cancel]     [Unlock]       │
+└──────────────────────────────────┘
+```
 
 ---
 
-## Summary of Deliverables
+## Technical Considerations
 
-| Component | Change |
-|-----------|--------|
-| Calculation Logic | FIFO replaced with period-based averages |
-| Purchase Query | Filtered by date range |
-| Summary Cards | 6 cards with all key metrics |
-| Period Averages Widget | New card showing purchase/sales averages |
-| Trade Table | Simplified without FIFO matching |
-| Formula Reference | Updated with new methodology |
+### Security Notes
+- PIN is stored in component (not sent to server for validation)
+- Unlock state stored in sessionStorage (clears on browser close)
+- This is for **testing convenience** only, not production security
+- For production, implement server-side PIN validation
+
+### Drag-Drop Behavior
+- Groups can be dragged as a unit
+- Items within groups can be reordered within the group
+- Items cannot be dragged out of groups (by design for this feature)
+- Both group order and internal item order are persisted
+
+### Session State
+- Unlock state persists for browser session only
+- Closing browser requires re-entering PIN
+- Each group tracks its own unlock state independently
+
+---
+
+## Files to Create
+| File | Purpose |
+|------|---------|
+| `src/components/sidebar/PinProtectionDialog.tsx` | PIN entry modal dialog |
+| `src/components/sidebar/CollapsibleSidebarGroup.tsx` | Collapsible group with PIN protection |
+| `src/contexts/PinUnlockContext.tsx` | Session-based unlock state management |
+
+## Files to Modify
+| File | Changes |
+|------|---------|
+| `src/components/AppSidebar.tsx` | New grouping configuration, integrate groups |
+| `src/hooks/useSidebarPreferences.tsx` | Extended order storage format |
+| `src/components/DraggableSidebarItem.tsx` | Support for group item type |
+| `src/App.tsx` | Add PinUnlockProvider wrapper |
+
+---
+
+## Summary
+
+| Feature | Implementation |
+|---------|----------------|
+| Tab Grouping | Group headers with collapsible children |
+| PIN Protection | 8-digit PIN dialog with session-based unlock |
+| Drag-Drop Groups | Groups draggable as units using dnd-kit |
+| Drag-Drop Items | Items within groups reorderable |
+| Position Persistence | Extended preferences hook with group support |
+| Session-Only Unlock | SessionStorage for unlock state |

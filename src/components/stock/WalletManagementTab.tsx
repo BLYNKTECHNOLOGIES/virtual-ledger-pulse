@@ -6,15 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Settings } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Settings, Pencil, Percent } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { ImportWalletsDialog } from "./ImportWalletsDialog";
 import { ManualWalletAdjustmentDialog } from "./ManualWalletAdjustmentDialog";
+import { EditWalletDialog } from "./EditWalletDialog";
 
-interface Wallet {
+interface WalletType {
   id: string;
   wallet_name: string;
   wallet_address: string;
@@ -26,6 +28,8 @@ interface Wallet {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  fee_percentage?: number;
+  is_fee_enabled?: boolean;
 }
 
 interface WalletTransaction {
@@ -39,7 +43,7 @@ interface WalletTransaction {
   balance_before: number;
   balance_after: number;
   created_at: string;
-  wallets?: Wallet;
+  wallets?: WalletType;
 }
 
 export function WalletManagementTab() {
@@ -47,8 +51,9 @@ export function WalletManagementTab() {
   const queryClient = useQueryClient();
   const [showAddWalletDialog, setShowAddWalletDialog] = useState(false);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
-  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+  const [selectedWallet, setSelectedWallet] = useState<WalletType | null>(null);
+  const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
 
@@ -62,7 +67,7 @@ export function WalletManagementTab() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Wallet[];
+      return data as WalletType[];
     },
     refetchInterval: 5000, // Live updates every 5 seconds
     staleTime: 0, // Always consider data stale to ensure fresh data
@@ -99,6 +104,8 @@ export function WalletManagementTab() {
       wallet_type: string;
       chain_name: string;
       current_balance: number;
+      fee_percentage?: number;
+      is_fee_enabled?: boolean;
     }) => {
       const { error } = await supabase
         .from('wallets')
@@ -215,10 +222,16 @@ export function WalletManagementTab() {
   };
 
   // Delete wallet with confirmation
-  const handleDeleteWallet = (wallet: Wallet) => {
+  const handleDeleteWallet = (wallet: WalletType) => {
     if (window.confirm(`Are you sure you want to delete wallet "${wallet.wallet_name}"? This action cannot be undone.`)) {
       deleteWalletMutation.mutate(wallet.id);
     }
+  };
+
+  // Handle edit wallet
+  const handleEditWallet = (wallet: WalletType) => {
+    setEditingWallet(wallet);
+    setShowEditDialog(true);
   };
 
   // Sync USDT stock mutation
@@ -251,14 +264,18 @@ export function WalletManagementTab() {
       wallet_address: '',
       wallet_type: 'USDT',
       chain_name: '',
-      current_balance: ''
+      current_balance: '',
+      fee_percentage: '0',
+      is_fee_enabled: true
     });
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       addWalletMutation.mutate({
         ...formData,
-        current_balance: parseFloat(formData.current_balance) || 0
+        current_balance: parseFloat(formData.current_balance) || 0,
+        fee_percentage: parseFloat(formData.fee_percentage) || 0,
+        is_fee_enabled: formData.is_fee_enabled
       });
     };
 
@@ -329,6 +346,42 @@ export function WalletManagementTab() {
                 required
               />
             </div>
+            
+            {/* Platform Fee Settings */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <Percent className="h-4 w-4" />
+                Platform Fee Settings
+              </h4>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_fee_enabled">Enable Fee Deduction</Label>
+                  <p className="text-xs text-muted-foreground">Auto-deduct fees from orders</p>
+                </div>
+                <Switch
+                  id="is_fee_enabled"
+                  checked={formData.is_fee_enabled}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_fee_enabled: checked })}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="fee_percentage">Fee Percentage (%)</Label>
+                <Input
+                  id="fee_percentage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.fee_percentage}
+                  onChange={(e) => setFormData({ ...formData, fee_percentage: e.target.value })}
+                  placeholder="e.g., 1.5"
+                  disabled={!formData.is_fee_enabled}
+                />
+              </div>
+            </div>
+            
             <div className="flex gap-2">
               <Button type="submit" disabled={addWalletMutation.isPending}>
                 {addWalletMutation.isPending ? 'Adding...' : 'Add Wallet'}
@@ -523,8 +576,7 @@ export function WalletManagementTab() {
                   <TableHead>Chain</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Balance</TableHead>
-                  <TableHead>Total Received</TableHead>
-                  <TableHead>Total Sent</TableHead>
+                  <TableHead>Fee %</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -555,22 +607,40 @@ export function WalletManagementTab() {
                       </div>
                     </TableCell>
                     <TableCell>{wallet.current_balance.toLocaleString()}</TableCell>
-                    <TableCell>{wallet.total_received.toLocaleString()}</TableCell>
-                    <TableCell>{wallet.total_sent.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {wallet.is_fee_enabled && (wallet.fee_percentage || 0) > 0 ? (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          <Percent className="h-3 w-3 mr-1" />
+                          {(wallet.fee_percentage || 0).toFixed(2)}%
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No fee</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={wallet.is_active ? "default" : "secondary"}>
                         {wallet.is_active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDeleteWallet(wallet)}
-                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditWallet(wallet)}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleDeleteWallet(wallet)}
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -632,6 +702,13 @@ export function WalletManagementTab() {
 
       <AddWalletDialog />
       <AddTransactionDialog />
+
+      {/* Edit Wallet Dialog */}
+      <EditWalletDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        wallet={editingWallet}
+      />
 
       {/* Import Dialog */}
       <ImportWalletsDialog 

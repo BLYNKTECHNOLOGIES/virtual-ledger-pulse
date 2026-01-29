@@ -2825,8 +2825,12 @@ export type Database = {
           description: string | null
           failure_proof_url: string | null
           failure_reason: string | null
+          fee_amount: number | null
+          fee_percentage: number | null
           id: string
           ifsc_code: string | null
+          is_off_market: boolean | null
+          net_amount: number | null
           net_payable_amount: number | null
           order_date: string
           order_number: string
@@ -2860,8 +2864,12 @@ export type Database = {
           description?: string | null
           failure_proof_url?: string | null
           failure_reason?: string | null
+          fee_amount?: number | null
+          fee_percentage?: number | null
           id?: string
           ifsc_code?: string | null
+          is_off_market?: boolean | null
+          net_amount?: number | null
           net_payable_amount?: number | null
           order_date: string
           order_number: string
@@ -2895,8 +2903,12 @@ export type Database = {
           description?: string | null
           failure_proof_url?: string | null
           failure_reason?: string | null
+          fee_amount?: number | null
+          fee_percentage?: number | null
           id?: string
           ifsc_code?: string | null
+          is_off_market?: boolean | null
+          net_amount?: number | null
           net_payable_amount?: number | null
           order_date?: string
           order_number?: string
@@ -3316,7 +3328,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          fee_amount: number | null
+          fee_percentage: number | null
           id: string
+          is_off_market: boolean | null
+          net_amount: number | null
           order_date: string
           order_number: string
           payment_status: string
@@ -3343,7 +3359,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          fee_amount?: number | null
+          fee_percentage?: number | null
           id?: string
+          is_off_market?: boolean | null
+          net_amount?: number | null
           order_date: string
           order_number: string
           payment_status?: string
@@ -3370,7 +3390,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          fee_amount?: number | null
+          fee_percentage?: number | null
           id?: string
+          is_off_market?: boolean | null
+          net_amount?: number | null
           order_date?: string
           order_number?: string
           payment_status?: string
@@ -3980,6 +4004,53 @@ export type Database = {
           },
         ]
       }
+      wallet_fee_deductions: {
+        Row: {
+          created_at: string
+          fee_amount: number
+          fee_percentage: number
+          gross_amount: number
+          id: string
+          net_amount: number
+          order_id: string
+          order_number: string
+          order_type: string
+          wallet_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
+          gross_amount: number
+          id?: string
+          net_amount: number
+          order_id: string
+          order_number: string
+          order_type: string
+          wallet_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          fee_amount?: number
+          fee_percentage?: number
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          order_id?: string
+          order_number?: string
+          order_type?: string
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_fee_deductions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -4032,8 +4103,10 @@ export type Database = {
           chain_name: string | null
           created_at: string
           current_balance: number
+          fee_percentage: number | null
           id: string
           is_active: boolean
+          is_fee_enabled: boolean | null
           total_received: number
           total_sent: number
           updated_at: string
@@ -4045,8 +4118,10 @@ export type Database = {
           chain_name?: string | null
           created_at?: string
           current_balance?: number
+          fee_percentage?: number | null
           id?: string
           is_active?: boolean
+          is_fee_enabled?: boolean | null
           total_received?: number
           total_sent?: number
           updated_at?: string
@@ -4058,8 +4133,10 @@ export type Database = {
           chain_name?: string | null
           created_at?: string
           current_balance?: number
+          fee_percentage?: number | null
           id?: string
           is_active?: boolean
+          is_fee_enabled?: boolean | null
           total_received?: number
           total_sent?: number
           updated_at?: string

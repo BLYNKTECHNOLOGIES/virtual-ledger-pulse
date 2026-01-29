@@ -335,67 +335,67 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
       {/* Clean White Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
-        <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+        <div className="px-4 md:px-6 py-4 md:py-8">
+          <div className="flex flex-col gap-4 md:gap-6">
             <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-blue-50 rounded-xl shadow-sm">
-                  <BarChart3 className="h-8 w-8 text-blue-600" />
+              <div className="flex items-center gap-3 mb-2 md:mb-4">
+                <div className="p-2 md:p-3 bg-blue-50 rounded-xl shadow-sm">
+                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
                 </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                <div className="min-w-0">
+                  <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
                     Welcome to Dashboard
                   </h1>
-                  <p className="text-slate-600 text-lg">
-                    Monitor your business performance in real-time
+                  <p className="text-slate-600 text-sm md:text-lg truncate">
+                    Monitor your business performance
                   </p>
                 </div>
               </div>
               
-              {/* Quick Stats in Header */}
-              <div className="flex flex-wrap gap-4 mt-6">
-                <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-4 py-2 shadow-sm">
+              {/* Quick Stats in Header - scrollable on mobile */}
+              <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
+                <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium">Today: {format(new Date(), "MMM dd, yyyy")}</span>
+                    <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
                   </div>
                 </div>
-                <div className="bg-white border border-green-200 rounded-lg px-4 py-2 shadow-sm">
+                <div className="bg-white border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium text-slate-700">System Active</span>
+                    <span className="text-xs md:text-sm font-medium text-slate-700 whitespace-nowrap">System Active</span>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Enhanced Controls */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Enhanced Controls - stacked on mobile */}
+            <div className="flex flex-col gap-3 md:gap-4">
               {/* Date Range Picker */}
               <DateRangePicker
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
                 preset={datePreset}
                 onPresetChange={setDatePreset}
-                className="min-w-[200px]"
+                className="w-full md:w-auto md:min-w-[200px]"
               />
               
-              {/* Dashboard Controls */}
-              <div className="flex items-center gap-3 flex-wrap">
+              {/* Dashboard Controls - scrollable on mobile */}
+              <div className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsEditMode(!isEditMode)}
-                  className={isEditMode ? 
+                  className={`flex-shrink-0 ${isEditMode ? 
                     "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
                     "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
-                  }
+                  }`}
                 >
-                  <Settings className="h-4 w-4 mr-2" />
-                  {isEditMode ? 'Exit Edit' : 'Edit Mode'}
+                  <Settings className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="whitespace-nowrap">{isEditMode ? 'Exit' : 'Edit'}</span>
                 </Button>
                 <AddWidgetDialog 
                   onAddWidget={handleAddWidget}
@@ -406,10 +406,10 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
-                  className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
+                  className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm flex-shrink-0"
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
                 </Button>
               </div>
             </div>
@@ -417,26 +417,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="p-6 space-y-8">
+      <div className="space-y-4 md:space-y-8">
         {/* Edit Mode Banner */}
         {isEditMode && (
-          <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-6 shadow-md">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md">
-                <Settings className="h-6 w-6 text-white" />
+          <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-4 md:p-6 shadow-md">
+            <div className="flex items-start md:items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                <Settings className="h-5 w-5 md:h-6 md:w-6 text-white" />
               </div>
-              <div>
-                <h3 className="text-lg font-bold">🎨 Edit Mode Active</h3>
-                <p className="text-amber-700 mt-1">
-                  Customize your dashboard by moving, removing, or adding widgets. Use the three-dot menu on each widget for options.
+              <div className="min-w-0">
+                <h3 className="text-base md:text-lg font-bold">🎨 Edit Mode Active</h3>
+                <p className="text-amber-700 mt-1 text-sm md:text-base">
+                  Customize your dashboard by moving or removing widgets.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Enhanced Metrics Cards Grid with Blue and White Theme */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Enhanced Metrics Cards Grid - responsive */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
           {/* Total Sales Card */}
           <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <CardContent className="p-6">

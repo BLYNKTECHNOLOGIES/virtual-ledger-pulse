@@ -182,113 +182,188 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
     return matchesSearch && inFrom && inTo;
   });
 
+  // Helper to get wallet name
+  const getWalletName = (order: any) => {
+    const walletId = order.purchase_order_items?.[0]?.warehouse_id;
+    const wallet = wallets?.find(w => w.id === walletId);
+    return wallet?.wallet_name || 'Off Market';
+  };
+
+  // Mobile card view
+  const renderMobileCard = (order: any) => (
+    <Card key={order.id} className="mb-3">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <p className="font-mono text-sm font-medium">{order.order_number}</p>
+            <p className="font-semibold text-lg">{order.supplier_name}</p>
+          </div>
+          <Badge className="bg-green-100 text-green-800">Completed</Badge>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+          <div>
+            <span className="text-gray-500">Amount:</span>
+            <p className="font-medium">₹{order.total_amount?.toLocaleString()}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Quantity:</span>
+            <p className="font-medium">{order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 0}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Platform:</span>
+            <p className="font-medium">{getWalletName(order)}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Date:</span>
+            <p className="font-medium">{format(new Date(order.order_date), 'MMM dd')}</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 pt-2 border-t flex-wrap">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setSelectedOrderForDetails(order)}
+            className="text-blue-600 flex-1"
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            View
+          </Button>
+          <Button 
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedOrderForEdit(order)}
+            className="text-green-600 flex-1"
+          >
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setOrderToDelete(order)}
+            disabled={deleteMutation.isPending}
+            className="text-red-600"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <CheckCircle className="h-5 w-5 text-green-600" />
             Completed Purchase Orders
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 md:p-6 pt-0">
           {!filteredOrders || filteredOrders.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No completed orders found.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Platform</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{order.supplier_name}</div>
-                      {order.description && (
-                        <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                          {order.description}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const walletId = order.purchase_order_items?.[0]?.warehouse_id;
-                        const wallet = wallets?.find(w => w.id === walletId);
-                        return wallet?.wallet_name || 'Off Market';
-                      })()}
-                    </TableCell>
-                    <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
-                    <TableCell>
-                      {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0}
-                    </TableCell>
-                    <TableCell>
-                      ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.price_per_unit || order.total_amount).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800">Completed</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {(order as any).created_by_user ? (
-                        <span className="font-medium text-gray-700">
-                          {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
-                        </span>
-                      ) : <span className="text-gray-400">N/A</span>}
-                    </TableCell>
-                    <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedOrderForDetails(order)}
-                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedOrderForEdit(order)}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setOrderToDelete(order);
-                            toast({
-                              title: "Delete requested",
-                              description: `Confirm deletion for order ${order.order_number}.`,
-                            });
-                          }}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              {/* Mobile view - cards */}
+              <div className="md:hidden">
+                {filteredOrders.map((order) => renderMobileCard(order))}
+              </div>
+              
+              {/* Desktop view - table */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order #</TableHead>
+                      <TableHead>Supplier</TableHead>
+                      <TableHead>Platform</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Qty</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created By</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOrders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
+                        <TableCell>
+                          <div className="font-medium">{order.supplier_name}</div>
+                          {order.description && (
+                            <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                              {order.description}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>{getWalletName(order)}</TableCell>
+                        <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
+                        <TableCell>
+                          {order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0}
+                        </TableCell>
+                        <TableCell>
+                          ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.price_per_unit || order.total_amount).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-green-100 text-green-800">Completed</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {(order as any).created_by_user ? (
+                            <span className="font-medium text-gray-700">
+                              {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
+                            </span>
+                          ) : <span className="text-gray-400">N/A</span>}
+                        </TableCell>
+                        <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedOrderForDetails(order)}
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => setSelectedOrderForEdit(order)}
+                              className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setOrderToDelete(order);
+                                toast({
+                                  title: "Delete requested",
+                                  description: `Confirm deletion for order ${order.order_number}.`,
+                                });
+                              }}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

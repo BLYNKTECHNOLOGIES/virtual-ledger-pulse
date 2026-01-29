@@ -220,107 +220,201 @@ export default function Sales() {
     }
   };
 
+  // Mobile-friendly card view for orders
+  const renderMobileOrderCard = (order: any, isCompleted: boolean = false) => (
+    <Card key={order.id} className="mb-3">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <p className="font-mono text-sm font-medium">{order.order_number}</p>
+            <p className="font-semibold text-lg">{order.client_name}</p>
+          </div>
+          {getStatusBadge(order.payment_status)}
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+          <div>
+            <span className="text-gray-500">Amount:</span>
+            <p className="font-medium">₹{Number(order.total_amount).toLocaleString()}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Quantity:</span>
+            <p className="font-medium">{order.quantity || 1}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Platform:</span>
+            <p className="font-medium">{order.platform || 'Off Market'}</p>
+          </div>
+          <div>
+            <span className="text-gray-500">Date:</span>
+            <p className="font-medium">{format(new Date(order.order_date), 'MMM dd')}</p>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 pt-2 border-t flex-wrap">
+          {order.payment_status === 'USER_PAYING' ? (
+            <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedOrderForUserPaying(order)}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 flex-1"
+              >
+                Take Action
+              </Button>
+            </PermissionGate>
+          ) : (
+            <>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setSelectedOrderForDetails(order)}
+                className="text-blue-600 flex-1"
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                View
+              </Button>
+              <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedOrderForEdit(order)}
+                  className="text-green-600 flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleDeleteOrder(order.id)}
+                  disabled={deleteSalesOrderMutation.isPending}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </PermissionGate>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const renderOrdersTable = (orders: any[], isCompleted: boolean = false) => (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Order #</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead>Platform</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Qty</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created By</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
-              <TableCell>
-                <div className="font-medium">{order.client_name}</div>
-                {order.description && (
-                  <div className="text-sm text-gray-500 max-w-[200px] truncate">
-                    {order.description}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>{order.platform || 'Off Market'}</TableCell>
-              <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
-              <TableCell>{order.quantity || 1}</TableCell>
-              <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
-              <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
-              <TableCell>
-                {order.created_by_user ? (
-                  <span className="font-medium text-gray-700">
-                    {order.created_by_user.first_name || order.created_by_user.username}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">N/A</span>
-                )}
-              </TableCell>
-              <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {order.payment_status === 'USER_PAYING' ? (
-                    <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedOrderForUserPaying(order)}
-                        className="bg-blue-50 hover:bg-blue-100 text-blue-700"
-                      >
-                        Take Action
-                      </Button>
-                    </PermissionGate>
+    <>
+      {/* Mobile view - cards */}
+      <div className="md:hidden space-y-3">
+        {orders.map((order) => renderMobileOrderCard(order, isCompleted))}
+        {orders.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No orders found for this category.
+          </div>
+        )}
+      </div>
+      
+      {/* Desktop view - table */}
+      <div className="hidden md:block overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order #</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Platform</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Qty</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created By</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{order.client_name}</div>
+                  {order.description && (
+                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                      {order.description}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>{order.platform || 'Off Market'}</TableCell>
+                <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
+                <TableCell>{order.quantity || 1}</TableCell>
+                <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+                <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
+                <TableCell>
+                  {order.created_by_user ? (
+                    <span className="font-medium text-gray-700">
+                      {order.created_by_user.first_name || order.created_by_user.username}
+                    </span>
                   ) : (
-                    <>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setSelectedOrderForDetails(order)}
-                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                    <span className="text-gray-400">N/A</span>
+                  )}
+                </TableCell>
+                <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {order.payment_status === 'USER_PAYING' ? (
                       <PermissionGate permissions={["sales_manage"]} showFallback={false}>
                         <Button 
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => setSelectedOrderForEdit(order)}
-                          className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                          onClick={() => setSelectedOrderForUserPaying(order)}
+                          className="bg-blue-50 hover:bg-blue-100 text-blue-700"
                         >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleDeleteOrder(order.id)}
-                          disabled={deleteSalesOrderMutation.isPending}
-                        >
-                          <Trash2 className="h-3 w-3" />
+                          Take Action
                         </Button>
                       </PermissionGate>
-                    </>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {orders.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No orders found for this category.
-        </div>
-      )}
-    </div>
+                    ) : (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedOrderForDetails(order)}
+                          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <PermissionGate permissions={["sales_manage"]} showFallback={false}>
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedOrderForEdit(order)}
+                            className="text-green-600 hover:text-green-800 hover:bg-green-50"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteOrder(order.id)}
+                            disabled={deleteSalesOrderMutation.isPending}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </PermissionGate>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {orders.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No orders found for this category.
+          </div>
+        )}
+      </div>
+    </>
   );
 
   return (
@@ -347,42 +441,43 @@ export default function Sales() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
-        <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-emerald-50 rounded-xl shadow-sm">
-                  <ShoppingCart className="h-8 w-8 text-emerald-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                    Sales Order Processing
-                  </h1>
-                  <p className="text-slate-600 text-lg">
-                    Comprehensive sales order management and processing
-                  </p>
-                </div>
+      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+        <div className="px-4 md:px-6 py-4 md:py-8">
+          <div className="flex flex-col gap-4 md:gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 md:p-3 bg-emerald-50 rounded-xl shadow-sm">
+                <ShoppingCart className="h-6 w-6 md:h-8 md:w-8 text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                  Sales Order Processing
+                </h1>
+                <p className="text-slate-600 text-sm md:text-lg truncate">
+                  Manage and process sales orders
+                </p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleExportCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+            
+            {/* Action buttons - scrollable on mobile */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-end">
+              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
+                <Download className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Export</span>
               </Button>
               <PermissionGate permissions={["sales_manage"]} showFallback={false}>
-                <Button variant="outline" onClick={() => setShowManualSalesEntry(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Manual Sales Entry
+                <Button variant="outline" onClick={() => setShowManualSalesEntry(true)} size="sm" className="flex-shrink-0">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="whitespace-nowrap">Manual Entry</span>
                 </Button>
                 <Button 
                   onClick={() => setShowStepByStepFlow(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
+                  size="sm"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Order
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="whitespace-nowrap">New Order</span>
                 </Button>
               </PermissionGate>
             </div>
@@ -391,20 +486,21 @@ export default function Sales() {
       </div>
 
       {/* Search and Filter Bar */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
+      <Card className="mb-4">
+        <CardContent className="p-3 md:p-4">
+          <div className="flex gap-2 md:gap-4">
             <div className="flex-1">
               <Input 
-                placeholder="Search by order number, customer name, platform..." 
+                placeholder="Search orders..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="text-sm"
               />
             </div>
             <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-              <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
+              <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
+                <Filter className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Filter</span>
               </Button>
               <DialogContent>
                 <DialogHeader>

@@ -87,36 +87,36 @@ export default function Purchase() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
-        <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-violet-50 rounded-xl shadow-sm">
-                  <ShoppingBag className="h-8 w-8 text-violet-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                    Purchase Order Management
-                  </h1>
-                  <p className="text-slate-600 text-lg">
-                    Manage inventory purchases and supplier orders
-                  </p>
-                </div>
+      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+        <div className="px-4 md:px-6 py-4 md:py-8">
+          <div className="flex flex-col gap-4 md:gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 md:p-3 bg-violet-50 rounded-xl shadow-sm">
+                <ShoppingBag className="h-6 w-6 md:h-8 md:w-8 text-violet-600" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                  Purchase Order Management
+                </h1>
+                <p className="text-slate-600 text-sm md:text-lg truncate">
+                  Manage purchases and orders
+                </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-              <Button variant="outline" onClick={handleExportCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+            
+            {/* Action buttons - scrollable on mobile */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-end">
+              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
+                <Download className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Export CSV</span>
               </Button>
               <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
                 <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-                <Button onClick={() => setShowPurchaseOrderDialog(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Purchase Stock
+                <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0">
+                  <Plus className="h-4 w-4 mr-1" />
+                  <span className="whitespace-nowrap">New Purchase Stock</span>
                 </Button>
               </PermissionGate>
             </div>
@@ -124,26 +124,26 @@ export default function Purchase() {
         </div>
       </div>
 
-      {/* Action Buttons */}
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4 text-gray-400" />
-                  <Input 
-                    placeholder="Search by order number, supplier, contact..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+      {/* Search and Filter */}
+      <Card className="mb-4">
+        <CardContent className="p-3 md:p-4">
+          <div className="flex gap-2 md:gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-400 hidden md:block" />
+                <Input 
+                  placeholder="Search orders..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="text-sm"
+                />
               </div>
-              <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-                <Button variant="outline" onClick={() => setShowFilterDialog(true)}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filter
-                </Button>
+            </div>
+            <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
+              <Button variant="outline" onClick={() => setShowFilterDialog(true)} size="sm">
+                <Filter className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Filter</span>
+              </Button>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Filter Purchase Orders</DialogTitle>
@@ -177,25 +177,25 @@ export default function Purchase() {
         </Card>
         {/* Purchase Orders Tabs */}
         <Card className="w-full">
-        <CardContent className="p-6">
+        <CardContent className="p-3 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="pending" className="flex items-center gap-2">
-                Pending Purchase Orders
+            <TabsList className="grid w-full grid-cols-3 mb-4 md:mb-6 h-auto">
+              <TabsTrigger value="pending" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <span className="truncate">Pending</span>
                 {ordersSummary?.pending > 0 && (
-                  <Badge variant="secondary">{ordersSummary.pending}</Badge>
+                  <Badge variant="secondary" className="text-xs">{ordersSummary.pending}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="review" className="flex items-center gap-2">
-                Review Needed
+              <TabsTrigger value="review" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <span className="truncate">Review</span>
                 {ordersSummary?.review > 0 && (
-                  <Badge variant="destructive">{ordersSummary.review}</Badge>
+                  <Badge variant="destructive" className="text-xs">{ordersSummary.review}</Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="completed" className="flex items-center gap-2">
-                Completed Orders
+              <TabsTrigger value="completed" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <span className="truncate">Completed</span>
                 {ordersSummary?.completed > 0 && (
-                  <Badge variant="default">{ordersSummary.completed}</Badge>
+                  <Badge variant="default" className="text-xs">{ordersSummary.completed}</Badge>
                 )}
               </TabsTrigger>
             </TabsList>

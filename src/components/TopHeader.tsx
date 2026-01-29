@@ -62,32 +62,34 @@ export function TopHeader() {
   };
 
   return (
-    <header className="h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-6 shadow-sm">
-      <div className="flex items-center gap-4">
+    <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">
+      <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         <button 
           onClick={handleDashboardClick}
-          className="text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer"
+          className="text-sm md:text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer truncate"
         >
-          BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.
+          <span className="hidden sm:inline">BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.</span>
+          <span className="sm:hidden">BLYNK VT</span>
         </button>
         
         {isDragMode && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <Edit3 className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-700">Sidebar Edit Mode Active</span>
           </div>
         )}
       </div>
       
-      <div className="flex items-center gap-4">
-        <form onSubmit={handleSearch} className="relative">
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Search - hidden on mobile, visible on tablet+ */}
+        <form onSubmit={handleSearch} className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <input
             type="text"
             placeholder="Search or type a command (⌘ + K)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white"
+            className="w-64 xl:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white"
           />
         </form>
         

@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -22,38 +21,39 @@ import {
   Building,
   Calendar,
   Target,
-  Shield
+  Shield,
+  Percent
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useNavigate } from "react-router-dom";
+import { DateRange } from "react-day-picker";
+import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
+import { PlatformFeesSummary } from "@/components/financials/PlatformFeesSummary";
 
 export default function Financials() {
   const navigate = useNavigate();
-  const [selectedPeriod, setSelectedPeriod] = useState("current_month");
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("thisMonth");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("thisMonth"));
 
-  // Calculate date range
-  const getDateRange = () => {
-    const now = new Date();
-    switch (selectedPeriod) {
-      case "current_month":
-        return { start: startOfMonth(now), end: endOfMonth(now) };
-      case "last_month":
-        const lastMonth = subDays(startOfMonth(now), 1);
-        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
-      default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+  // Calculate date range based on selected range
+  const getDateRangeValues = () => {
+    if (dateRange?.from && dateRange?.to) {
+      return { start: dateRange.from, end: dateRange.to };
     }
+    // Fallback to current month
+    const now = new Date();
+    return { start: startOfMonth(now), end: endOfMonth(now) };
   };
 
-  const { start: startDate, end: endDate } = getDateRange();
+  const { start: startDate, end: endDate } = getDateRangeValues();
 
   // Fetch financial data
   const { data: financialData, isLoading } = useQuery({
-    queryKey: ['financial_data', selectedPeriod],
+    queryKey: ['financial_data', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       // Get revenue data from sales orders
       const { data: salesData } = await supabase
@@ -164,15 +164,13 @@ export default function Financials() {
             </div>
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-48 bg-white text-gray-900">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="current_month">Current Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                </SelectContent>
-              </Select>
+              <DateRangePicker
+                dateRange={dateRange}
+                onDateRangeChange={setDateRange}
+                preset={datePreset}
+                onPresetChange={setDatePreset}
+                className="w-auto min-w-[200px]"
+              />
               
               <div className="flex items-center gap-3">
                 <Button
@@ -286,10 +284,14 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="accounts">Bank Accounts</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="platform-fees" className="flex items-center gap-1">
+            <Percent className="h-3 w-3" />
+            Platform Fees
+          </TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
@@ -491,6 +493,11 @@ export default function Financials() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Platform Fees Tab */}
+        <TabsContent value="platform-fees" className="space-y-6">
+          <PlatformFeesSummary startDate={startDate} endDate={endDate} />
         </TabsContent>
       </Tabs>
     </div>

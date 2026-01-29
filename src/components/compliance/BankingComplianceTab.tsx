@@ -11,26 +11,30 @@ import { PastInvestigationsTab } from "./PastInvestigationsTab";
 export function BankingComplianceTab() {
   return (
     <Tabs defaultValue="cases" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-5">
-        <TabsTrigger value="cases" className="flex items-center gap-2">
+      <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5">
+        <TabsTrigger value="cases" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
           <AlertTriangle className="h-4 w-4" />
           Cases
         </TabsTrigger>
-        <TabsTrigger value="active-investigations" className="flex items-center gap-2">
+        <TabsTrigger value="active-investigations" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
           <Search className="h-4 w-4" />
-          Active Investigations
+          <span className="hidden sm:inline">Active Investigations</span>
+          <span className="sm:hidden">Active</span>
         </TabsTrigger>
-        <TabsTrigger value="past-investigations" className="flex items-center gap-2">
+        <TabsTrigger value="past-investigations" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
           <Archive className="h-4 w-4" />
-          Past Cases
+          <span className="hidden sm:inline">Past Cases</span>
+          <span className="sm:hidden">Past</span>
         </TabsTrigger>
-        <TabsTrigger value="bank-communications" className="flex items-center gap-2">
+        <TabsTrigger value="bank-communications" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
           <MessageSquare className="h-4 w-4" />
-          Communications
+          <span className="hidden sm:inline">Communications</span>
+          <span className="sm:hidden">Comms.</span>
         </TabsTrigger>
-        <TabsTrigger value="banking-credentials" className="flex items-center gap-2">
+        <TabsTrigger value="banking-credentials" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
           <Key className="h-4 w-4" />
-          Credentials
+          <span className="hidden sm:inline">Credentials</span>
+          <span className="sm:hidden">Creds.</span>
         </TabsTrigger>
       </TabsList>
 

@@ -8,18 +8,21 @@ export function LegalComplianceTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="documents" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="documents" className="flex items-center gap-2">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-3">
+          <TabsTrigger value="documents" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <FileText className="h-4 w-4" />
-            Document Management
+            <span className="hidden sm:inline">Document Management</span>
+            <span className="sm:hidden">Documents</span>
           </TabsTrigger>
-          <TabsTrigger value="legal-actions" className="flex items-center gap-2">
+          <TabsTrigger value="legal-actions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Scale className="h-4 w-4" />
-            Legal Actions
+            <span className="hidden sm:inline">Legal Actions</span>
+            <span className="sm:hidden">Legal</span>
           </TabsTrigger>
-          <TabsTrigger value="communications" className="flex items-center gap-2">
+          <TabsTrigger value="communications" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <MessageSquare className="h-4 w-4" />
-            Legal Communications
+            <span className="hidden sm:inline">Legal Communications</span>
+            <span className="sm:hidden">Comms.</span>
           </TabsTrigger>
         </TabsList>
 

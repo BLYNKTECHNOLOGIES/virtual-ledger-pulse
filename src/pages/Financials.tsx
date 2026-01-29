@@ -284,15 +284,22 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="accounts">Bank Accounts</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="platform-fees" className="flex items-center gap-1">
-            <Percent className="h-3 w-3" />
-            Platform Fees
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5">
+          <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
+          <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <span className="hidden sm:inline">Bank Accounts</span>
+            <span className="sm:hidden">Banks</span>
           </TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="transactions" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <span className="hidden sm:inline">Transactions</span>
+            <span className="sm:hidden">Trans.</span>
+          </TabsTrigger>
+          <TabsTrigger value="platform-fees" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <Percent className="h-3 w-3" />
+            <span className="hidden sm:inline">Platform Fees</span>
+            <span className="sm:hidden">Fees</span>
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">

@@ -38,32 +38,38 @@ export default function HRMS() {
     </div>
 
       <Tabs defaultValue="recruitment" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="recruitment" className="flex items-center gap-2">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-7">
+          <TabsTrigger value="recruitment" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Users className="h-4 w-4" />
-            Recruitment
+            <span className="hidden sm:inline">Recruitment</span>
+            <span className="sm:hidden">Recruit</span>
           </TabsTrigger>
-          <TabsTrigger value="candidates" className="flex items-center gap-2">
+          <TabsTrigger value="candidates" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <UserCircle className="h-4 w-4" />
-            Candidates
+            <span className="hidden sm:inline">Candidates</span>
+            <span className="sm:hidden">Cands.</span>
           </TabsTrigger>
-          <TabsTrigger value="lifecycle" className="flex items-center gap-2">
+          <TabsTrigger value="lifecycle" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <UserCheck className="h-4 w-4" />
-            Employee Lifecycle
+            <span className="hidden sm:inline">Employee Lifecycle</span>
+            <span className="sm:hidden">Lifecycle</span>
           </TabsTrigger>
-          <TabsTrigger value="performance" className="flex items-center gap-2">
+          <TabsTrigger value="performance" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Trophy className="h-4 w-4" />
-            Performance
+            <span className="hidden sm:inline">Performance</span>
+            <span className="sm:hidden">Perf.</span>
           </TabsTrigger>
-          <TabsTrigger value="attendance" className="flex items-center gap-2">
+          <TabsTrigger value="attendance" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Clock className="h-4 w-4" />
-            Shift & Attendance
+            <span className="hidden sm:inline">Shift & Attendance</span>
+            <span className="sm:hidden">Attend.</span>
           </TabsTrigger>
-          <TabsTrigger value="expense" className="flex items-center gap-2">
+          <TabsTrigger value="expense" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Receipt className="h-4 w-4" />
-            Claim Expense
+            <span className="hidden sm:inline">Claim Expense</span>
+            <span className="sm:hidden">Expense</span>
           </TabsTrigger>
-          <TabsTrigger value="leaves" className="flex items-center gap-2">
+          <TabsTrigger value="leaves" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Calendar className="h-4 w-4" />
             Leaves
           </TabsTrigger>

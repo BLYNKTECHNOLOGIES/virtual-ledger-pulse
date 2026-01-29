@@ -562,12 +562,12 @@ export function StatisticsTab() {
 
       {/* Tabs for Different Views */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="clients">Clients & KYC</TabsTrigger>
-          <TabsTrigger value="leads">Leads</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="financial">Financial</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto gap-1 mb-6 md:grid md:grid-cols-5">
+          <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
+          <TabsTrigger value="clients" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Clients & KYC</TabsTrigger>
+          <TabsTrigger value="leads" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Leads</TabsTrigger>
+          <TabsTrigger value="performance" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Performance</TabsTrigger>
+          <TabsTrigger value="financial" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Financial</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}

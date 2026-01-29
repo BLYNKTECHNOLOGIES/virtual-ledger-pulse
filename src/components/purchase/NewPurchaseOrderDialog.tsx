@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { ProductSelectionSection } from "./ProductSelectionSection";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
-import { calculateFee } from "@/hooks/useWalletFees";
+import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
+import { useAverageCost } from "@/hooks/useAverageCost";
+import { TrendingUp } from "lucide-react";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -54,15 +56,43 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
 
+  // Fetch live USDT/INR rate
+  const { data: usdtRateData } = useUSDTRate();
+  
+  // Fetch average cost for USDT
+  const { data: averageCosts } = useAverageCost();
+
   // Calculate amounts based on TDS option
   const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
   const totalQuantity = productItems.reduce((total, item) => total + item.quantity, 0);
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
   
-  // Calculate platform fee on quantity (not amount) - only if not off market
-  const platformFeeQuantity = isOffMarket ? 0 : calculateFee(totalQuantity, selectedWalletFee).feeAmount;
-  const netQuantityAfterFee = totalQuantity - platformFeeQuantity;
+  // Calculate platform fee in USDT based on total amount
+  const calculatedFee = useMemo(() => {
+    if (isOffMarket || !totalAmount || totalAmount <= 0 || !selectedWalletFee) {
+      return { feeINR: 0, feeUSDT: 0, feePercentage: 0 };
+    }
+
+    const usdtRate = usdtRateData?.rate || 84.5;
+    const { feeINR, feeUSDT } = calculatePlatformFeeInUSDT(
+      totalAmount,
+      selectedWalletFee,
+      usdtRate
+    );
+
+    return {
+      feeINR,
+      feeUSDT,
+      feePercentage: selectedWalletFee
+    };
+  }, [totalAmount, selectedWalletFee, usdtRateData, isOffMarket]);
+
+  // Get average buying price for USDT
+  const averageBuyingPrice = useMemo(() => {
+    const usdtCost = averageCosts?.find(c => c.product_code === 'USDT');
+    return usdtCost?.average_cost || 0;
+  }, [averageCosts]);
   
   const netPayableAmount = totalAmount - tdsAmount;
   const tdsApplied = formData.tds_option !== "NO_TDS";
@@ -262,6 +292,45 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         }
       } catch (txErr) {
         console.warn('Bank transaction creation skipped:', txErr);
+      }
+
+      // Handle USDT fee deduction from wallet
+      if (!isOffMarket && calculatedFee.feeUSDT > 0 && productItems.length > 0) {
+        const walletId = productItems[0].warehouse_id;
+        
+        if (walletId) {
+          // Debit fee from wallet
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: walletId,
+              transaction_type: 'DEBIT',
+              amount: calculatedFee.feeUSDT,
+              reference_type: 'PLATFORM_FEE',
+              reference_id: purchaseOrder.id,
+              description: `Platform fee for purchase order ${orderData.order_number} (${calculatedFee.feePercentage}% of ₹${totalAmount})`,
+              balance_before: 0,
+              balance_after: 0
+            });
+
+          // Record fee deduction with all relevant data
+          await supabase
+            .from('wallet_fee_deductions')
+            .insert({
+              wallet_id: walletId,
+              order_id: purchaseOrder.id,
+              order_type: 'PURCHASE',
+              order_number: orderData.order_number,
+              gross_amount: totalAmount,
+              fee_percentage: calculatedFee.feePercentage,
+              fee_amount: calculatedFee.feeINR,
+              net_amount: totalAmount,
+              fee_usdt_amount: calculatedFee.feeUSDT,
+              usdt_rate_used: usdtRateData?.rate || 0,
+              average_buying_price: averageBuyingPrice,
+              fee_inr_value_at_buying_price: calculatedFee.feeUSDT * averageBuyingPrice
+            });
+        }
       }
 
       return purchaseOrder;
@@ -517,26 +586,44 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                   Enable to bypass platform fee deduction
                 </p>
               </div>
-              <Switch 
-                checked={isOffMarket} 
-                onCheckedChange={setIsOffMarket} 
-              />
+              <div className="flex items-center gap-3">
+                {usdtRateData && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    USDT/INR: ₹{usdtRateData.rate.toFixed(2)}
+                  </Badge>
+                )}
+                <Switch 
+                  checked={isOffMarket} 
+                  onCheckedChange={setIsOffMarket} 
+                />
+              </div>
             </div>
             
-            {!isOffMarket && selectedWalletFee > 0 && (
+            {!isOffMarket && calculatedFee.feePercentage > 0 && (
               <div className="space-y-2 bg-background p-3 rounded-md border">
                 <div className="flex justify-between text-sm">
-                  <span>Total Quantity Ordered:</span>
-                  <span className="font-medium">{totalQuantity.toFixed(4)}</span>
+                  <span>Total Order Amount:</span>
+                  <span className="font-medium">₹{totalAmount.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-orange-600">
-                  <span>Platform Fee ({selectedWalletFee}%):</span>
-                  <span className="font-medium">-{platformFeeQuantity.toFixed(4)}</span>
+                <div className="flex justify-between text-sm">
+                  <span>Platform Fee Rate:</span>
+                  <span className="font-medium">{calculatedFee.feePercentage}%</span>
                 </div>
-                <div className="flex justify-between text-base font-bold border-t pt-2">
-                  <span>Net Quantity to Stock:</span>
-                  <span className="text-primary">{netQuantityAfterFee.toFixed(4)}</span>
+                <div className="flex justify-between text-sm">
+                  <span>Fee (INR):</span>
+                  <span className="font-medium">₹{calculatedFee.feeINR.toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between text-sm text-amber-600 font-medium border-t pt-2">
+                  <span>Fee to Deduct (USDT):</span>
+                  <span>{calculatedFee.feeUSDT.toFixed(6)} USDT</span>
+                </div>
+                {usdtRateData && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>USDT/INR Rate Used:</span>
+                    <span>₹{usdtRateData.rate.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             )}
             

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +16,9 @@ import { FileUpload } from "./FileUpload";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { WalletSelector } from "@/components/stock/WalletSelector";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
-import { AlertTriangle, Info } from "lucide-react";
+import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
+import { useAverageCost } from "@/hooks/useAverageCost";
+import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -47,6 +50,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   });
   
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const [isOffMarket, setIsOffMarket] = useState(false);
+
+  // Fetch live USDT/INR rate
+  const { data: usdtRateData } = useUSDTRate();
+  
+  // Fetch average cost for USDT
+  const { data: averageCosts } = useAverageCost();
 
   // Fetch products
   const { data: products } = useQuery({
@@ -92,9 +102,58 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     },
   });
 
+  // Fetch wallets with fee info
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets_with_fees'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name, wallet_type, fee_percentage, is_fee_enabled, current_balance')
+        .eq('is_active', true)
+        .order('wallet_name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Calculate platform fee in USDT based on selected wallet and order amount
+  const calculatedFee = useMemo(() => {
+    if (isOffMarket || !formData.wallet_id || !formData.amount || formData.amount <= 0) {
+      return { feeINR: 0, feeUSDT: 0, feePercentage: 0 };
+    }
+
+    const selectedWallet = wallets?.find(w => w.id === formData.wallet_id);
+    if (!selectedWallet?.is_fee_enabled || !selectedWallet.fee_percentage) {
+      return { feeINR: 0, feeUSDT: 0, feePercentage: 0 };
+    }
+
+    const usdtRate = usdtRateData?.rate || 84.5;
+    const { feeINR, feeUSDT } = calculatePlatformFeeInUSDT(
+      formData.amount,
+      selectedWallet.fee_percentage,
+      usdtRate
+    );
+
+    return {
+      feeINR,
+      feeUSDT,
+      feePercentage: selectedWallet.fee_percentage
+    };
+  }, [formData.wallet_id, formData.amount, wallets, usdtRateData, isOffMarket]);
+
+  // Get average buying price for USDT
+  const averageBuyingPrice = useMemo(() => {
+    const usdtCost = averageCosts?.find(c => c.product_code === 'USDT');
+    return usdtCost?.average_cost || 0;
+  }, [averageCosts]);
+
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      const netQuantity = parseFloat(orderData.quantity) || 0;
+      const feeUSDT = orderData.feeUSDT || 0; // Fee in USDT to deduct from wallet
       
       // Validate stock before creating sales order
       if (orderData.product_id && orderData.quantity) {
@@ -109,19 +168,16 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         if (!product) {
           throw new Error('Product not found');
         }
-
-        const netQuantity = parseFloat(orderData.quantity) || 0;
-        const platformFees = parseFloat(orderData.platform_fees) || 0;
-        const totalQuantityNeeded = netQuantity + platformFees;
         
-        if (product.current_stock_quantity < totalQuantityNeeded) {
+        // Only check for net quantity - fees are separate
+        if (product.current_stock_quantity < netQuantity) {
           throw new Error(
-            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) for product: ${product.name}`
+            `Insufficient stock. Available: ${product.current_stock_quantity}, Required: ${netQuantity} for product: ${product.name}`
           );
         }
       }
 
-      // Validate wallet balance for USDT transactions
+      // Validate wallet balance for USDT transactions (quantity + fee)
       if (orderData.wallet_id && orderData.quantity) {
         const { data: wallet, error: walletError } = await supabase
           .from('wallets')
@@ -135,13 +191,12 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
           throw new Error('Wallet not found');
         }
 
-        const netQuantity = parseFloat(orderData.quantity) || 0;
-        const platformFees = parseFloat(orderData.platform_fees) || 0;
-        const totalQuantityNeeded = netQuantity + platformFees;
+        // Total required = net quantity + fee in USDT
+        const totalRequired = netQuantity + feeUSDT;
         
-        if (wallet.current_balance < totalQuantityNeeded) {
+        if (wallet.current_balance < totalRequired) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${totalQuantityNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${wallet.current_balance.toFixed(6)} USDT, Required: ${totalRequired.toFixed(6)} USDT (${netQuantity.toFixed(6)} quantity + ${feeUSDT.toFixed(6)} fee) in wallet: ${wallet.wallet_name}`
           );
         }
       }
@@ -151,13 +206,15 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         ? `${orderData.order_date}T${orderData.order_time}:00.000Z`
         : `${orderData.order_date}T00:00:00.000Z`;
       
+      // Create sales order - platform_fees now stores the USDT fee amount
       const { data, error } = await supabase
         .from('sales_orders')
         .insert([{
           ...orderData,
           order_date: orderDateTime,
-          quantity: parseFloat(orderData.quantity) || 0,
+          quantity: netQuantity,
           price_per_unit: parseFloat(orderData.price_per_unit) || 0,
+          platform_fees: feeUSDT, // Store USDT fee amount
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
           created_by: user?.id,
         }])
@@ -166,31 +223,53 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
       if (error) throw error;
 
-      // Handle USDT wallet transactions for sales (debit from wallet)
-      if (orderData.product_id && orderData.wallet_id && orderData.quantity) {
-        // Check if product is USDT
-        const { data: product } = await supabase
-          .from('products')
-          .select('code')
-          .eq('id', orderData.product_id)
-          .single();
-        
-        if (product?.code === 'USDT') {
-          const netQuantity = parseFloat(orderData.quantity) || 0;
-          const platformFees = parseFloat(orderData.platform_fees) || 0;
-          const totalDebitAmount = netQuantity + platformFees;
-          
+      // Handle USDT wallet transactions for sales
+      if (orderData.wallet_id && netQuantity > 0) {
+        // Debit net quantity from wallet for the sale
+        await supabase
+          .from('wallet_transactions')
+          .insert({
+            wallet_id: orderData.wallet_id,
+            transaction_type: 'DEBIT',
+            amount: netQuantity,
+            reference_type: 'SALES_ORDER',
+            reference_id: data.id,
+            description: `USDT sold via sales order ${data.order_number}`,
+            balance_before: 0,
+            balance_after: 0
+          });
+
+        // Debit fee from wallet separately (if applicable)
+        if (feeUSDT > 0) {
           await supabase
             .from('wallet_transactions')
             .insert({
               wallet_id: orderData.wallet_id,
               transaction_type: 'DEBIT',
-              amount: totalDebitAmount,
-              reference_type: 'SALES_ORDER',
+              amount: feeUSDT,
+              reference_type: 'PLATFORM_FEE',
               reference_id: data.id,
-              description: `USDT sold via sales order ${data.order_number} (${netQuantity} + ${platformFees} platform fees)`,
-              balance_before: 0, // Will be updated by trigger
-              balance_after: 0   // Will be updated by trigger
+              description: `Platform fee for sales order ${data.order_number} (${orderData.feePercentage}% of ₹${orderData.amount})`,
+              balance_before: 0,
+              balance_after: 0
+            });
+
+          // Record fee deduction with all relevant data
+          await supabase
+            .from('wallet_fee_deductions')
+            .insert({
+              wallet_id: orderData.wallet_id,
+              order_id: data.id,
+              order_type: 'SALES',
+              order_number: data.order_number,
+              gross_amount: orderData.amount,
+              fee_percentage: orderData.feePercentage,
+              fee_amount: orderData.feeINR, // Fee in INR (for reference)
+              net_amount: orderData.amount, // Net amount unchanged
+              fee_usdt_amount: feeUSDT, // Actual USDT deducted
+              usdt_rate_used: orderData.usdtRate || 0,
+              average_buying_price: orderData.averageBuyingPrice || 0,
+              fee_inr_value_at_buying_price: feeUSDT * (orderData.averageBuyingPrice || 0)
             });
         }
       }
@@ -211,9 +290,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             })
             .eq('id', orderData.sales_payment_method_id);
         }
-
-        // Bank transaction is handled automatically by database trigger: create_sales_bank_transaction
-        // No manual bank transaction creation needed here
       }
 
       return data;
@@ -250,7 +326,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       price_per_unit: "",
       platform_fees: "",
       order_date: new Date().toISOString().split('T')[0],
-      order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
+      order_time: new Date().toTimeString().slice(0, 5),
       delivery_date: "",
       payment_status: "PENDING",
       sales_payment_method_id: "",
@@ -260,6 +336,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     });
     setAttachmentUrls([]);
     setShowPaymentMethodAlert(false);
+    setIsOffMarket(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -289,7 +366,18 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       return;
     }
 
-    createSalesOrderMutation.mutate(formData);
+    // Pass calculated fee data to mutation
+    const orderDataWithFees = {
+      ...formData,
+      feeUSDT: calculatedFee.feeUSDT,
+      feeINR: calculatedFee.feeINR,
+      feePercentage: calculatedFee.feePercentage,
+      usdtRate: usdtRateData?.rate || 0,
+      averageBuyingPrice: averageBuyingPrice,
+      isOffMarket: isOffMarket,
+    };
+
+    createSalesOrderMutation.mutate(orderDataWithFees);
   };
 
   const getAvailableLimit = (methodId: string) => {
@@ -420,39 +508,59 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="platform_fees">Platform Fees (USDT)</Label>
-                    <Input
-                      id="platform_fees"
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter platform fees"
-                      value={formData.platform_fees}
-                      onChange={(e) => setFormData(prev => ({ ...prev, platform_fees: e.target.value }))}
-                    />
-                    {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Fees will be deducted from total quantity
-                      </p>
+                {/* Off Market Toggle and Fee Display */}
+                <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="off_market"
+                        checked={isOffMarket}
+                        onCheckedChange={(checked) => setIsOffMarket(!!checked)}
+                      />
+                      <Label htmlFor="off_market" className="font-medium">Off Market (No Platform Fee)</Label>
+                    </div>
+                    {usdtRateData && (
+                      <Badge variant="outline" className="flex items-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        USDT/INR: ₹{usdtRateData.rate.toFixed(2)}
+                      </Badge>
                     )}
                   </div>
-                  <div>
-                    <Label htmlFor="quantity">Net Quantity Received *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      placeholder="Enter net quantity"
-                      value={formData.quantity}
-                      onChange={(e) => handleQuantityChange(e.target.value)}
-                      required
-                    />
-                    {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && formData.quantity && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Total deducted: {(parseFloat(formData.quantity) + parseFloat(formData.platform_fees)).toFixed(6)} USDT
-                      </p>
-                    )}
-                  </div>
+                  
+                  {!isOffMarket && calculatedFee.feePercentage > 0 && formData.amount > 0 && (
+                    <div className="text-sm space-y-1 pl-6">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Fee Rate:</span>
+                        <span>{calculatedFee.feePercentage}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Fee (INR):</span>
+                        <span>₹{calculatedFee.feeINR.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium text-amber-600">
+                        <span>Fee to Deduct (USDT):</span>
+                        <span>{calculatedFee.feeUSDT.toFixed(6)} USDT</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="quantity">Quantity (USDT) *</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    step="0.000001"
+                    placeholder="Enter quantity"
+                    value={formData.quantity}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
+                    required
+                  />
+                  {!isOffMarket && calculatedFee.feeUSDT > 0 && formData.quantity && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Total wallet deduction: {(parseFloat(formData.quantity) + calculatedFee.feeUSDT).toFixed(6)} USDT
+                    </p>
+                  )}
                 </div>
 
                 <div>

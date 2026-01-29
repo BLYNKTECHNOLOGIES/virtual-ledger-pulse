@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon, Coins } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfMonth, endOfMonth } from "date-fns";
+import { format } from "date-fns";
 
 interface PlatformFeesSummaryProps {
   startDate: Date;
@@ -12,7 +12,7 @@ interface PlatformFeesSummaryProps {
 }
 
 export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryProps) {
-  // Fetch fee deductions data
+  // Fetch fee deductions data with new USDT columns
   const { data: feeData, isLoading } = useQuery({
     queryKey: ['wallet_fee_deductions', startDate, endDate],
     queryFn: async () => {
@@ -34,28 +34,38 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     },
   });
 
-  // Calculate summary statistics
-  const totalFees = feeData?.reduce((sum, d) => sum + Number(d.fee_amount || 0), 0) || 0;
-  const salesFees = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_amount || 0), 0) || 0;
-  const purchaseFees = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + Number(d.fee_amount || 0), 0) || 0;
+  // Calculate summary statistics - now using fee_inr_value_at_buying_price for accounting
+  const totalFeesINR = feeData?.reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  const totalFeesUSDT = feeData?.reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
+  
+  const salesFeesINR = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  const salesFeesUSDT = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
+  
+  const purchaseFeesINR = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  const purchaseFeesUSDT = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
   
   // Calculate average fee rate
   const totalGross = feeData?.reduce((sum, d) => sum + Number(d.gross_amount || 0), 0) || 0;
-  const avgFeeRate = totalGross > 0 ? ((totalFees / totalGross) * 100).toFixed(2) : '0.00';
+  const avgFeeRate = totalGross > 0 ? ((feeData?.reduce((sum, d) => sum + Number(d.fee_amount || 0), 0) || 0) / totalGross * 100).toFixed(2) : '0.00';
 
-  // Group by wallet
+  // Group by wallet with USDT values
   const feesByWallet = feeData?.reduce((acc, d) => {
     const walletName = d.wallets?.wallet_name || 'Unknown';
     if (!acc[walletName]) {
-      acc[walletName] = { fees: 0, count: 0 };
+      acc[walletName] = { feesINR: 0, feesUSDT: 0, count: 0 };
     }
-    acc[walletName].fees += Number(d.fee_amount || 0);
+    acc[walletName].feesINR += Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0);
+    acc[walletName].feesUSDT += Number(d.fee_usdt_amount || 0);
     acc[walletName].count += 1;
     return acc;
-  }, {} as Record<string, { fees: number; count: number }>);
+  }, {} as Record<string, { feesINR: number; feesUSDT: number; count: number }>);
 
   const formatCurrency = (amount: number) => {
     return `₹${amount.toFixed(2).toLocaleString()}`;
+  };
+
+  const formatUSDT = (amount: number) => {
+    return `${amount.toFixed(4)} USDT`;
   };
 
   if (isLoading) {
@@ -77,11 +87,11 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-amber-100 text-sm font-medium">Total Platform Fees</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(totalFees)}</p>
-                <p className="text-sm text-amber-200 mt-1">This Period</p>
+                <p className="text-2xl font-bold mt-2">{formatCurrency(totalFeesINR)}</p>
+                <p className="text-sm text-amber-200 mt-1">{formatUSDT(totalFeesUSDT)}</p>
               </div>
               <div className="bg-amber-600 p-3 rounded-xl">
-                <Percent className="h-6 w-6" />
+                <Coins className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
@@ -92,10 +102,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-emerald-100 text-sm font-medium">Fees from Sales</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(salesFees)}</p>
+                <p className="text-2xl font-bold mt-2">{formatCurrency(salesFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowUpIcon className="h-3 w-3" />
-                  <span className="text-sm text-emerald-200">{feeData?.filter(d => d.order_type === 'SALES').length || 0} orders</span>
+                  <span className="text-sm text-emerald-200">{formatUSDT(salesFeesUSDT)}</span>
                 </div>
               </div>
               <div className="bg-emerald-600 p-3 rounded-xl">
@@ -110,10 +120,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-blue-100 text-sm font-medium">Fees from Purchases</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(purchaseFees)}</p>
+                <p className="text-2xl font-bold mt-2">{formatCurrency(purchaseFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
                   <ArrowDownIcon className="h-3 w-3" />
-                  <span className="text-sm text-blue-200">{feeData?.filter(d => d.order_type === 'PURCHASE').length || 0} orders</span>
+                  <span className="text-sm text-blue-200">{formatUSDT(purchaseFeesUSDT)}</span>
                 </div>
               </div>
               <div className="bg-blue-600 p-3 rounded-xl">
@@ -132,12 +142,27 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                 <p className="text-sm text-purple-200 mt-1">Across all orders</p>
               </div>
               <div className="bg-purple-600 p-3 rounded-xl">
-                <Wallet className="h-6 w-6" />
+                <Percent className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Info Card about calculation */}
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <Coins className="h-5 w-5 text-amber-600 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800">Fee Calculation Method</p>
+              <p className="text-amber-700 mt-1">
+                Platform fees are deducted in USDT from wallet balances. The INR value shown is calculated using the average buying price of USDT in the period, ensuring accurate cost accounting.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Fees by Wallet */}
       {feesByWallet && Object.keys(feesByWallet).length > 0 && (
@@ -155,9 +180,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                   <div>
                     <p className="font-medium">{wallet}</p>
                     <p className="text-sm text-muted-foreground">{data.count} transactions</p>
+                    <p className="text-xs text-amber-600">{formatUSDT(data.feesUSDT)}</p>
                   </div>
                   <Badge variant="secondary" className="text-lg px-3 py-1">
-                    {formatCurrency(data.fees)}
+                    {formatCurrency(data.feesINR)}
                   </Badge>
                 </div>
               ))}
@@ -183,10 +209,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                   <TableHead>Order Number</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Wallet</TableHead>
-                  <TableHead className="text-right">Gross Amount</TableHead>
+                  <TableHead className="text-right">Order Amount</TableHead>
                   <TableHead className="text-right">Fee %</TableHead>
-                  <TableHead className="text-right">Fee Amount</TableHead>
-                  <TableHead className="text-right">Net Amount</TableHead>
+                  <TableHead className="text-right">Fee (USDT)</TableHead>
+                  <TableHead className="text-right">Fee Value (INR)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -203,10 +229,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                     <TableCell className="text-right">{formatCurrency(Number(deduction.gross_amount))}</TableCell>
                     <TableCell className="text-right">{Number(deduction.fee_percentage).toFixed(2)}%</TableCell>
                     <TableCell className="text-right text-amber-600 font-medium">
-                      {formatCurrency(Number(deduction.fee_amount))}
+                      {formatUSDT(Number(deduction.fee_usdt_amount || 0))}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(Number(deduction.net_amount))}
+                      {formatCurrency(Number(deduction.fee_inr_value_at_buying_price || deduction.fee_amount || 0))}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -214,7 +240,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
             </Table>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
-              <Percent className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <Coins className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="font-medium">No fee deductions found</p>
               <p className="text-sm">Fee deductions will appear here when orders with platform fees are created</p>
             </div>

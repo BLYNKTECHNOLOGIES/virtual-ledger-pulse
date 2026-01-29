@@ -6,166 +6,218 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
 import { DraggableSidebarItem } from "@/components/DraggableSidebarItem";
-import { useState } from "react";
+import { CollapsibleSidebarGroup, SidebarGroupConfig, SidebarGroupItem } from "@/components/sidebar/CollapsibleSidebarGroup";
+import { useState, useMemo } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 
-// Menu items with required permissions - adding id field for sortable
-const items = [{
-  id: "dashboard",
-  title: "Dashboard",
-  url: "/dashboard",
-  icon: Home,
-  color: "text-blue-600",
-  bgColor: "bg-blue-100",
-  permissions: ["dashboard_view"]
-}, {
-  id: "stock",
-  title: "Stock Management",
-  url: "/stock",
-  icon: Package,
-  color: "text-amber-600",
-  bgColor: "bg-amber-100",
-  permissions: ["stock_view", "stock_manage"]
-}, {
-  id: "sales",
-  title: "Sales",
-  url: "/sales",
-  icon: TrendingUp,
-  color: "text-emerald-600",
-  bgColor: "bg-emerald-100",
-  permissions: ["sales_view", "sales_manage"]
-}, {
-  id: "purchase",
-  title: "Purchase",
-  url: "/purchase",
-  icon: ShoppingCart,
-  color: "text-purple-600",
-  bgColor: "bg-purple-100",
-  permissions: ["purchase_view", "purchase_manage"]
-}, {
-  id: "bams",
-  title: "BAMS",
-  url: "/bams",
-  icon: Building2,
-  color: "text-orange-600",
-  bgColor: "bg-orange-100",
-  permissions: ["bams_view", "bams_manage"]
-}, {
-  id: "clients",
-  title: "Clients",
-  url: "/clients",
-  icon: Users,
-  color: "text-cyan-600",
-  bgColor: "bg-cyan-100",
-  permissions: ["clients_view", "clients_manage"]
-}, {
-  id: "leads",
-  title: "Leads",
-  url: "/leads",
-  icon: UserPlus,
-  color: "text-teal-600",
-  bgColor: "bg-teal-100",
-  permissions: ["leads_view", "leads_manage"]
-}, {
-  id: "user-management",
-  title: "User Management",
-  url: "/user-management",
-  icon: Settings,
-  color: "text-indigo-600",
-  bgColor: "bg-indigo-100",
-  permissions: ["user_management_view", "user_management_manage"]
-}, {
-  id: "hrms",
-  title: "HRMS",
-  url: "/hrms",
-  icon: UserCheck,
-  color: "text-pink-600",
-  bgColor: "bg-pink-100",
-  permissions: ["hrms_view", "hrms_manage"]
-}, {
-  id: "payroll",
-  title: "Payroll",
-  url: "/payroll",
-  icon: Calculator,
-  color: "text-blue-700",
-  bgColor: "bg-blue-100",
-  permissions: ["payroll_view", "payroll_manage"]
-}, {
-  id: "compliance",
-  title: "Compliance",
-  url: "/compliance",
-  icon: Scale,
-  color: "text-red-600",
-  bgColor: "bg-red-100",
-  permissions: ["compliance_view", "compliance_manage"]
-}, {
-  id: "risk-management",
-  title: "Risk Management",
-  url: "/risk-management",
-  icon: Shield,
-  color: "text-yellow-600",
-  bgColor: "bg-yellow-100",
-  permissions: ["risk_management_view", "risk_management_manage"]
-}, {
-  id: "accounting",
-  title: "Accounting",
-  url: "/accounting",
-  icon: BookOpen,
-  color: "text-yellow-700",
-  bgColor: "bg-yellow-100",
-  permissions: ["accounting_view", "accounting_manage"]
-}, {
-  id: "video-kyc",
-  title: "Video KYC",
-  url: "/video-kyc",
-  icon: Video,
-  color: "text-violet-600",
-  bgColor: "bg-violet-100",
-  permissions: ["video_kyc_view", "video_kyc_manage"]
-}, {
-  id: "kyc-approvals",
-  title: "KYC Approvals",
-  url: "/kyc-approvals",
-  icon: Shield,
-  color: "text-blue-600",
-  bgColor: "bg-blue-100",
-  permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
-}, {
-  id: "profit-loss",
-  title: "P&L",
-  url: "/profit-loss",
-  icon: TrendingUp,
-  color: "text-teal-600",
-  bgColor: "bg-teal-100",
-  permissions: ["accounting_view", "accounting_manage"]
-}, {
-  id: "financials",
-  title: "Financials",
-  url: "/financials",
-  icon: Calculator,
-  color: "text-emerald-600",
-  bgColor: "bg-emerald-100",
-  permissions: ["accounting_view", "accounting_manage"]
-}, {
-  id: "ems",
-  title: "EMS",
-  url: "/ems",
-  icon: UserCheck,
-  color: "text-indigo-600",
-  bgColor: "bg-indigo-100",
-  permissions: ["hrms_view", "hrms_manage"]
-}, {
-  id: "statistics",
-  title: "Statistics",
-  url: "/statistics",
-  icon: BarChart3,
-  color: "text-green-600",
-  bgColor: "bg-green-100",
-  permissions: ["statistics_view", "statistics_manage"]
-}];
+// Standalone menu items (not in groups)
+const standaloneItems: SidebarGroupItem[] = [
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Home,
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+    permissions: ["dashboard_view"]
+  },
+  {
+    id: "stock",
+    title: "Stock Management",
+    url: "/stock",
+    icon: Package,
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
+    permissions: ["stock_view", "stock_manage"]
+  },
+  {
+    id: "sales",
+    title: "Sales",
+    url: "/sales",
+    icon: TrendingUp,
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100",
+    permissions: ["sales_view", "sales_manage"]
+  },
+  {
+    id: "purchase",
+    title: "Purchase",
+    url: "/purchase",
+    icon: ShoppingCart,
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
+    permissions: ["purchase_view", "purchase_manage"]
+  },
+  {
+    id: "bams",
+    title: "BAMS",
+    url: "/bams",
+    icon: Building2,
+    color: "text-orange-600",
+    bgColor: "bg-orange-100",
+    permissions: ["bams_view", "bams_manage"]
+  },
+  {
+    id: "clients",
+    title: "Clients",
+    url: "/clients",
+    icon: Users,
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-100",
+    permissions: ["clients_view", "clients_manage"]
+  },
+  {
+    id: "leads",
+    title: "Leads",
+    url: "/leads",
+    icon: UserPlus,
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
+    permissions: ["leads_view", "leads_manage"]
+  },
+  {
+    id: "user-management",
+    title: "User Management",
+    url: "/user-management",
+    icon: Settings,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+    permissions: ["user_management_view", "user_management_manage"]
+  },
+  {
+    id: "compliance",
+    title: "Compliance",
+    url: "/compliance",
+    icon: Scale,
+    color: "text-red-600",
+    bgColor: "bg-red-100",
+    permissions: ["compliance_view", "compliance_manage"]
+  },
+  {
+    id: "risk-management",
+    title: "Risk Management",
+    url: "/risk-management",
+    icon: Shield,
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+    permissions: ["risk_management_view", "risk_management_manage"]
+  },
+  {
+    id: "video-kyc",
+    title: "Video KYC",
+    url: "/video-kyc",
+    icon: Video,
+    color: "text-violet-600",
+    bgColor: "bg-violet-100",
+    permissions: ["video_kyc_view", "video_kyc_manage"]
+  },
+  {
+    id: "kyc-approvals",
+    title: "KYC Approvals",
+    url: "/kyc-approvals",
+    icon: Shield,
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+    permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
+  }
+];
+
+// Grouped items with PIN protection
+const sidebarGroups: SidebarGroupConfig[] = [
+  {
+    id: "hr-management",
+    title: "HR Management",
+    icon: Users,
+    color: "text-pink-600",
+    bgColor: "bg-pink-100",
+    pinProtected: true,
+    pinCode: "07172525",
+    children: [
+      {
+        id: "hrms",
+        title: "HRMS",
+        url: "/hrms",
+        icon: UserCheck,
+        color: "text-pink-600",
+        bgColor: "bg-pink-100",
+        permissions: ["hrms_view", "hrms_manage"]
+      },
+      {
+        id: "payroll",
+        title: "Payroll",
+        url: "/payroll",
+        icon: Calculator,
+        color: "text-blue-700",
+        bgColor: "bg-blue-100",
+        permissions: ["payroll_view", "payroll_manage"]
+      },
+      {
+        id: "ems",
+        title: "EMS",
+        url: "/ems",
+        icon: UserCheck,
+        color: "text-indigo-600",
+        bgColor: "bg-indigo-100",
+        permissions: ["hrms_view", "hrms_manage"]
+      }
+    ]
+  },
+  {
+    id: "finance-analytics",
+    title: "Finance & Analytics",
+    icon: BarChart3,
+    color: "text-green-600",
+    bgColor: "bg-green-100",
+    pinProtected: true,
+    pinCode: "07172525",
+    children: [
+      {
+        id: "accounting",
+        title: "Accounting",
+        url: "/accounting",
+        icon: BookOpen,
+        color: "text-yellow-700",
+        bgColor: "bg-yellow-100",
+        permissions: ["accounting_view", "accounting_manage"]
+      },
+      {
+        id: "profit-loss",
+        title: "P&L",
+        url: "/profit-loss",
+        icon: TrendingUp,
+        color: "text-teal-600",
+        bgColor: "bg-teal-100",
+        permissions: ["accounting_view", "accounting_manage"]
+      },
+      {
+        id: "financials",
+        title: "Financials",
+        url: "/financials",
+        icon: Calculator,
+        color: "text-emerald-600",
+        bgColor: "bg-emerald-100",
+        permissions: ["accounting_view", "accounting_manage"]
+      },
+      {
+        id: "statistics",
+        title: "Statistics",
+        url: "/statistics",
+        icon: BarChart3,
+        color: "text-green-600",
+        bgColor: "bg-green-100",
+        permissions: ["statistics_view", "statistics_manage"]
+      }
+    ]
+  }
+];
+
+// Combined type for sidebar items
+type SidebarEntry = 
+  | { type: 'item'; data: SidebarGroupItem }
+  | { type: 'group'; data: SidebarGroupConfig };
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -175,7 +227,6 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
   const isCollapsed = state === "collapsed";
-  const [localItems, setLocalItems] = useState(items);
 
   // Configure drag sensors
   const sensors = useSensors(
@@ -189,52 +240,65 @@ export function AppSidebar() {
     })
   );
 
-  // Filter items based on user permissions and apply saved order
-  const filteredItems = localItems.filter(item => !isLoading && hasAnyPermission(item.permissions));
-  const visibleItems = applySidebarOrder(filteredItems);
+  // Build sidebar entries with permissions filtering
+  const sidebarEntries = useMemo(() => {
+    const entries: SidebarEntry[] = [];
+    
+    // Add standalone items that user has permission for
+    standaloneItems.forEach(item => {
+      if (!isLoading && hasAnyPermission(item.permissions)) {
+        entries.push({ type: 'item', data: item });
+      }
+    });
+    
+    // Add groups (filter children by permissions)
+    sidebarGroups.forEach(group => {
+      const filteredChildren = group.children.filter(
+        child => !isLoading && hasAnyPermission(child.permissions)
+      );
+      if (filteredChildren.length > 0) {
+        entries.push({
+          type: 'group',
+          data: { ...group, children: filteredChildren }
+        });
+      }
+    });
+    
+    return entries;
+  }, [isLoading, hasAnyPermission]);
+
+  // Apply saved order to entries
+  const orderedEntries = useMemo(() => {
+    return applySidebarOrder(sidebarEntries);
+  }, [sidebarEntries, applySidebarOrder]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (!active || !over) {
+    if (!active || !over || active.id === over.id) {
       return;
     }
 
-    if (active.id !== over.id) {
-      try {
-        const oldIndex = visibleItems.findIndex(item => item.id === active.id);
-        const newIndex = visibleItems.findIndex(item => item.id === over.id);
-        
-        if (oldIndex === -1 || newIndex === -1) {
-          return;
-        }
-        
-        try {
-          const newOrder = arrayMove(visibleItems, oldIndex, newIndex);
-          
-          // Update local state immediately for smooth UI
-          setLocalItems(prevItems => {
-            const visibleIds = new Set(visibleItems.map(item => item.id));
-            const nonVisibleItems = prevItems.filter(item => !visibleIds.has(item.id));
-            return [...newOrder, ...nonVisibleItems];
-          });
-          
-          // Save to database (this will also invalidate cache)
-          saveSidebarOrder(newOrder);
-        } catch (error) {
-          toast({
-            title: "Error",
-            description: "Failed to reorder sidebar items. Please try again.",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to reorder sidebar items. Please try again.",
-          variant: "destructive",
-        });
+    try {
+      const oldIndex = orderedEntries.findIndex(
+        entry => (entry.type === 'item' ? entry.data.id : entry.data.id) === active.id
+      );
+      const newIndex = orderedEntries.findIndex(
+        entry => (entry.type === 'item' ? entry.data.id : entry.data.id) === over.id
+      );
+      
+      if (oldIndex === -1 || newIndex === -1) {
+        return;
       }
+      
+      const newOrder = arrayMove(orderedEntries, oldIndex, newIndex);
+      saveSidebarOrder(newOrder);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reorder sidebar items. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -266,6 +330,10 @@ export function AppSidebar() {
     );
   }
 
+  const sortableIds = orderedEntries.map(entry => 
+    entry.type === 'item' ? entry.data.id : entry.data.id
+  );
+
   return (
     <Sidebar className="border-r-2 border-gray-200 bg-white shadow-lg" collapsible="icon">
       <SidebarHeader className={`border-b-2 border-gray-100 bg-blue-600 ${isCollapsed ? 'p-2' : 'p-4'}`}>
@@ -293,25 +361,38 @@ export function AppSidebar() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={visibleItems.map(item => item.id)}
+                items={sortableIds}
                 strategy={verticalListSortingStrategy}
               >
                 <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-1' : 'px-2'}`}>
-                  {visibleItems.map(item => (
-                    <DraggableSidebarItem
-                      key={item.id}
-                      item={item}
-                      isCollapsed={isCollapsed}
-                      isDragMode={isDragMode}
-                    />
-                  ))}
+                  {orderedEntries.map(entry => {
+                    if (entry.type === 'group') {
+                      return (
+                        <CollapsibleSidebarGroup
+                          key={entry.data.id}
+                          group={entry.data}
+                          isCollapsed={isCollapsed}
+                          isDragMode={isDragMode}
+                        />
+                      );
+                    }
+                    
+                    return (
+                      <DraggableSidebarItem
+                        key={entry.data.id}
+                        item={entry.data}
+                        isCollapsed={isCollapsed}
+                        isDragMode={isDragMode}
+                      />
+                    );
+                  })}
                 </SidebarMenu>
               </SortableContext>
             </DndContext>
           </SidebarGroupContent>
         </SidebarGroup>
         
-        {visibleItems.length === 0 && (
+        {orderedEntries.length === 0 && (
           <SidebarGroup>
             <SidebarGroupContent>
               <div className="text-center py-8 text-gray-500">

@@ -35,19 +35,22 @@ export function ClientDashboard() {
   });
 
   // Filter clients by type and search term  
-  // Buyers: Have KYC documents uploaded (pan_card_url, aadhar_front_url) - from multi-step form
-  // Sellers: Don't have KYC documents uploaded - from single-step form
-  const filteredBuyers = clients?.filter(client =>
-    (client.pan_card_url || client.aadhar_front_url) &&
-    (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     client.client_id.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Buyers: is_buyer = true OR have KYC documents (pan_card_url, aadhar_front_url)
+  // Sellers: is_seller = true OR don't have KYC documents
+  // Composite clients (both buyer and seller) appear in BOTH directories
+  const filteredBuyers = clients?.filter(client => {
+    const isBuyer = client.is_buyer || client.pan_card_url || client.aadhar_front_url;
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
+    return isBuyer && matchesSearch;
+  });
 
-  const filteredSellers = clients?.filter(client =>
-    (!client.pan_card_url && !client.aadhar_front_url) &&
-    (client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     client.client_id.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredSellers = clients?.filter(client => {
+    const isSeller = client.is_seller || (!client.pan_card_url && !client.aadhar_front_url);
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
+    return isSeller && matchesSearch;
+  });
 
   const getRiskBadge = (risk: string) => {
     const colors = {

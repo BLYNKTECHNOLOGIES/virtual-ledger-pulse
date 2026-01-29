@@ -6,7 +6,7 @@ import { MonthlyLimitsPanel } from "@/components/clients/MonthlyLimitsPanel";
 import { ClientValueScore } from "@/components/clients/ClientValueScore";
 import { KYCBankInfo } from "@/components/clients/KYCBankInfo";
 import { PurposeCommunication } from "@/components/clients/PurposeCommunication";
-import { BuyingSellingSoonTracker } from "@/components/clients/BuyingSellingSoonTracker";
+import { ClientTDSRecords } from "@/components/clients/ClientTDSRecords";
 import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnalysis";
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
@@ -102,10 +102,12 @@ export default function ClientDetail() {
         <KYCBankInfo clientId={clientId} isSeller={showAsSellerOnly} />
       </div>
 
-      {/* Row 4: Purpose Communication and Buying/Selling Tracker */}
+      {/* Row 4: Purpose Communication and TDS Records (for sellers/composite) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PurposeCommunication clientId={clientId} />
-        <BuyingSellingSoonTracker clientId={clientId} />
+        {(isSeller || showAsSellerOnly || isComposite) && (
+          <ClientTDSRecords clientId={clientId} clientName={client?.name} clientPhone={client?.phone} />
+        )}
       </div>
 
       {/* Row 5: Trading Pattern Analysis */}

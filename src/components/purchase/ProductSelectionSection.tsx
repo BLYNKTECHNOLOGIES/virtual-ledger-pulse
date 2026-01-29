@@ -14,6 +14,7 @@ interface ProductItem {
   quantity: number;
   unit_price: number;
   warehouse_id: string;
+  total_amount?: number;
 }
 
 interface ProductSelectionSectionProps {
@@ -75,6 +76,24 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
     onItemsChange(updatedItems);
   };
 
+  const updateItemWithTotal = (index: number, field: keyof ProductItem, value: any, totalAmount: number) => {
+    const updatedItems = [...items];
+    updatedItems[index] = { ...updatedItems[index], [field]: value, total_amount: totalAmount } as any;
+    onItemsChange(updatedItems);
+  };
+
+  const updateItemWithQuantityFromTotal = (index: number, totalAmount: number, quantity: number) => {
+    const updatedItems = [...items];
+    updatedItems[index] = { ...updatedItems[index], quantity: quantity, total_amount: totalAmount } as any;
+    onItemsChange(updatedItems);
+  };
+
+  const updateItemTotal = (index: number, totalAmount: number | undefined) => {
+    const updatedItems = [...items];
+    updatedItems[index] = { ...updatedItems[index], total_amount: totalAmount } as any;
+    onItemsChange(updatedItems);
+  };
+
   // Initialize with one item if empty
   if (items.length === 0) {
     onItemsChange([{
@@ -99,7 +118,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       <div className="space-y-4">
         {items.map((item, index) => (
           <div key={item.id} className="border rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <div>
                 <Label>Product *</Label>
                 <Select 
@@ -147,6 +166,11 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   onChange={(e) => {
                     const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
                     updateItem(index, 'quantity', value);
+                    // Auto-calculate total amount if unit price exists
+                    if (item.unit_price && value) {
+                      const totalAmount = value * item.unit_price;
+                      updateItemWithTotal(index, 'quantity', value, totalAmount);
+                    }
                   }}
                   placeholder="0.00"
                 />
@@ -161,6 +185,31 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   onChange={(e) => {
                     const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
                     updateItem(index, 'unit_price', value);
+                    // Auto-calculate total amount if quantity exists
+                    if (item.quantity && value) {
+                      const totalAmount = item.quantity * value;
+                      updateItemWithTotal(index, 'unit_price', value, totalAmount);
+                    }
+                  }}
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <Label>Total Amount *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={(item as any).total_amount || ""}
+                  onChange={(e) => {
+                    const totalAmount = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
+                    // Auto-calculate quantity if unit price exists
+                    if (item.unit_price && totalAmount) {
+                      const calculatedQuantity = totalAmount / item.unit_price;
+                      updateItemWithQuantityFromTotal(index, totalAmount, calculatedQuantity);
+                    } else {
+                      updateItemTotal(index, totalAmount);
+                    }
                   }}
                   placeholder="0.00"
                 />
@@ -178,16 +227,13 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                 </Button>
               </div>
             </div>
-            <div className="mt-2 text-right">
-              <span className="font-medium">Total: ₹{(item.quantity * item.unit_price).toFixed(2)}</span>
-            </div>
           </div>
         ))}
       </div>
 
       <div className="mt-4 text-right">
         <div className="text-xl font-bold">
-          Grand Total: ₹{items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+          Grand Total: ₹{items.reduce((sum, item) => sum + ((item as any).total_amount || (item.quantity * item.unit_price) || 0), 0).toFixed(2)}
         </div>
       </div>
     </div>

@@ -235,10 +235,38 @@ export function PaymentMethodManagement() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     console.log('Sales form submission on step:', step);
     console.log('Sales form data:', formData);
+    
+    // Validate required fields
+    if (!formData.bank_account_id) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a bank account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.frequency) {
+      toast({
+        title: "Validation Error", 
+        description: "Please select a reset frequency.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (formData.payment_gateway && !formData.settlement_cycle) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a settlement cycle for payment gateway.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Skip validation for editing - just submit
     if (editingMethod) {

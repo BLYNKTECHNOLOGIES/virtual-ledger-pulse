@@ -42,6 +42,13 @@ export function PaymentMethodManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+
+  const LIMIT_MIN = 100;
+  const LIMIT_MAX = 10000000;
+  const normalizeLimit = (value: number) => {
+    const v = Number.isFinite(value) ? value : LIMIT_MIN;
+    return Math.min(1, Math.max(0, (v - LIMIT_MIN) / (LIMIT_MAX - LIMIT_MIN)));
+  };
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<SalesPaymentMethod | null>(null);
@@ -124,8 +131,8 @@ export function PaymentMethodManagement() {
           bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit) || 0,
-          min_limit: Math.max(1, parseFloat(methodData.minLimit) || 100),
-          max_limit: parseFloat(methodData.maxLimit) || 10000000,
+          min_limit: Math.max(LIMIT_MIN, parseFloat(methodData.minLimit) || LIMIT_MIN),
+          max_limit: parseFloat(methodData.maxLimit) || LIMIT_MAX,
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
           beneficiaries_per_24h: null,
@@ -188,8 +195,8 @@ export function PaymentMethodManagement() {
           bank_account_id: methodData.bank_account_id, // Always required now
           risk_category: methodData.risk_category,
           payment_limit: parseFloat(methodData.payment_limit) || 0,
-          min_limit: Math.max(1, parseFloat(methodData.minLimit) || 100),
-          max_limit: parseFloat(methodData.maxLimit) || 10000000,
+          min_limit: Math.max(LIMIT_MIN, parseFloat(methodData.minLimit) || LIMIT_MIN),
+          max_limit: parseFloat(methodData.maxLimit) || LIMIT_MAX,
           frequency: methodData.frequency,
           custom_frequency: methodData.frequency === "Custom" ? methodData.custom_frequency : null,
           beneficiaries_per_24h: null,
@@ -289,10 +296,10 @@ export function PaymentMethodManagement() {
 
     const minLimit = Number(formData.minLimit);
     const maxLimit = Number(formData.maxLimit);
-    if (!Number.isFinite(minLimit) || minLimit < 0) {
+    if (!Number.isFinite(minLimit) || minLimit < LIMIT_MIN) {
       toast({
         title: "Validation Error",
-        description: "Please enter a valid minimum limit.",
+        description: `Minimum limit must be at least ₹${LIMIT_MIN.toLocaleString()}.`,
         variant: "destructive",
       });
       return;
@@ -609,30 +616,30 @@ export function PaymentMethodManagement() {
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
-                              stroke={getProgressColor((parseInt(formData.minLimit) - 200) / (10000000 - 200))}
+                              stroke={getProgressColor(normalizeLimit(parseInt(formData.minLimit || `${LIMIT_MIN}`)))}
                               strokeWidth="3"
-                              strokeDasharray={`${((parseInt(formData.minLimit) - 200) / (10000000 - 200)) * 100}, 100`}
+                              strokeDasharray={`${normalizeLimit(parseInt(formData.minLimit || `${LIMIT_MIN}`)) * 100}, 100`}
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.minLimit || "200").toLocaleString()}
+                              ₹{parseInt(formData.minLimit || `${LIMIT_MIN}`).toLocaleString()}
                             </span>
                           </div>
                         </div>
                       </div>
                       <Slider
-                        value={[parseInt(formData.minLimit || "200")]}
+                        value={[parseInt(formData.minLimit || `${LIMIT_MIN}`)]}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, minLimit: value[0].toString() }))}
-                        min={200}
-                        max={10000000}
+                        min={LIMIT_MIN}
+                        max={LIMIT_MAX}
                         step={1000}
                         className="w-full"
                       />
                       <Input
                         type="number"
-                        min="200"
-                        max="10000000"
+                        min={String(LIMIT_MIN)}
+                        max={String(LIMIT_MAX)}
                         value={formData.minLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, minLimit: e.target.value }))}
                         className="text-center text-sm"
@@ -654,30 +661,30 @@ export function PaymentMethodManagement() {
                             <path
                               d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                               fill="none"
-                              stroke={getProgressColor((parseInt(formData.maxLimit) - 200) / (10000000 - 200))}
+                              stroke={getProgressColor(normalizeLimit(parseInt(formData.maxLimit || `${LIMIT_MAX}`)))}
                               strokeWidth="3"
-                              strokeDasharray={`${((parseInt(formData.maxLimit) - 200) / (10000000 - 200)) * 100}, 100`}
+                              strokeDasharray={`${normalizeLimit(parseInt(formData.maxLimit || `${LIMIT_MAX}`)) * 100}, 100`}
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}
+                              ₹{parseInt(formData.maxLimit || `${LIMIT_MAX}`).toLocaleString()}
                             </span>
                           </div>
                         </div>
                       </div>
                       <Slider
-                        value={[parseInt(formData.maxLimit || "10000000")]}
+                        value={[parseInt(formData.maxLimit || `${LIMIT_MAX}`)]}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, maxLimit: value[0].toString() }))}
-                        min={200}
-                        max={10000000}
+                        min={LIMIT_MIN}
+                        max={LIMIT_MAX}
                         step={1000}
                         className="w-full"
                       />
                       <Input
                         type="number"
-                        min="200"
-                        max="10000000"
+                        min={String(LIMIT_MIN)}
+                        max={String(LIMIT_MAX)}
                         value={formData.maxLimit}
                         onChange={(e) => setFormData(prev => ({ ...prev, maxLimit: e.target.value }))}
                         className="text-center text-sm"

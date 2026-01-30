@@ -46,6 +46,7 @@ export function PaymentMethodManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<SalesPaymentMethod | null>(null);
   const [step, setStep] = useState(1);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     type: "UPI" as "UPI" | "Bank Account",
     upi_id: "",
@@ -109,12 +110,13 @@ export function PaymentMethodManagement() {
   // Create payment method mutation
   const createMethodMutation = useMutation({
     mutationFn: async (methodData: typeof formData) => {
+      setSubmitError(null);
       // Validate that bank account is selected
       if (!methodData.bank_account_id) {
         throw new Error("Bank account selection is required for all payment methods");
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('sales_payment_methods')
         .insert({
           type: methodData.type,
@@ -132,20 +134,26 @@ export function PaymentMethodManagement() {
           settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
           is_active: true,
           last_reset: new Date().toISOString()
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Payment Method Created",
         description: "New payment method has been successfully added and linked to bank account.",
       });
-      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      await queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      await queryClient.refetchQueries({ queryKey: ['sales_payment_methods'] });
       resetForm();
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
+      const details = [error?.message, error?.details, error?.hint].filter(Boolean).join("\n");
+      setSubmitError(details || "Failed to create payment method");
       // Handle specific constraint violation for bank account uniqueness
       if (error.message?.includes('unique_sales_bank_account_transfer')) {
         toast({
@@ -156,7 +164,7 @@ export function PaymentMethodManagement() {
       } else {
         toast({
           title: "Error",
-          description: error.message || "Failed to create payment method",
+          description: details || "Failed to create payment method",
           variant: "destructive",
         });
       }
@@ -166,12 +174,13 @@ export function PaymentMethodManagement() {
   // Update payment method mutation
   const updateMethodMutation = useMutation({
     mutationFn: async (methodData: typeof formData & { id: string }) => {
+      setSubmitError(null);
       // Validate that bank account is selected
       if (!methodData.bank_account_id) {
         throw new Error("Bank account selection is required for all payment methods");
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('sales_payment_methods')
         .update({
           type: methodData.type,
@@ -190,24 +199,30 @@ export function PaymentMethodManagement() {
           is_active: true,
           updated_at: new Date().toISOString()
         })
-        .eq('id', methodData.id);
+        .eq('id', methodData.id)
+        .select('id')
+        .single();
 
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Payment Method Updated",
         description: "Payment method has been successfully updated.",
       });
-      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      await queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      await queryClient.refetchQueries({ queryKey: ['sales_payment_methods'] });
       resetForm();
       setIsAddDialogOpen(false);
       setEditingMethod(null);
     },
     onError: (error: any) => {
+      const details = [error?.message, error?.details, error?.hint].filter(Boolean).join("\n");
+      setSubmitError(details || "Failed to update payment method");
       toast({
         title: "Error",
-        description: error.message || "Failed to update payment method",
+        description: details || "Failed to update payment method",
         variant: "destructive",
       });
     },
@@ -362,6 +377,7 @@ export function PaymentMethodManagement() {
   };
 
   const resetForm = () => {
+    setSubmitError(null);
     setFormData({
       type: "UPI",
       upi_id: "",
@@ -456,6 +472,11 @@ export function PaymentMethodManagement() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {submitError && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive whitespace-pre-line">
+                  {submitError}
+                </div>
+              )}
               {step === 1 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Basic Information</h3>

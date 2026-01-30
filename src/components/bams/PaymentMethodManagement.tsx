@@ -235,8 +235,8 @@ export function PaymentMethodManagement() {
     },
   });
 
-  const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-    if (e) e.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     console.log('Sales form submission on step:', step);
     console.log('Sales form data:', formData);
     
@@ -245,6 +245,44 @@ export function PaymentMethodManagement() {
       toast({
         title: "Validation Error",
         description: "Please select a bank account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.type === "UPI" && !formData.upi_id.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid UPI ID.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const paymentLimit = Number(formData.payment_limit);
+    if (!Number.isFinite(paymentLimit) || paymentLimit <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid payment limit.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const minLimit = Number(formData.minLimit);
+    const maxLimit = Number(formData.maxLimit);
+    if (!Number.isFinite(minLimit) || minLimit < 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid minimum limit.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!Number.isFinite(maxLimit) || maxLimit <= 0 || maxLimit < minLimit) {
+      toast({
+        title: "Validation Error",
+        description: "Max limit must be greater than or equal to min limit.",
         variant: "destructive",
       });
       return;
@@ -258,6 +296,18 @@ export function PaymentMethodManagement() {
       });
       return;
     }
+
+    if (formData.frequency === "Custom") {
+      const customHours = Number(formData.custom_frequency);
+      if (!Number.isFinite(customHours) || customHours <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid custom frequency (hours).",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     
     if (formData.payment_gateway && !formData.settlement_cycle) {
       toast({
@@ -266,6 +316,18 @@ export function PaymentMethodManagement() {
         variant: "destructive",
       });
       return;
+    }
+
+    if (formData.payment_gateway && formData.settlement_cycle === "Custom") {
+      const days = Number(formData.settlement_days);
+      if (!Number.isFinite(days) || days <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please enter valid settlement days (T+n).",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     // Skip validation for editing - just submit
@@ -744,12 +806,7 @@ export function PaymentMethodManagement() {
                   </Button>
                 ) : (
                   <Button 
-                    type="button" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      console.log('Sales submit button clicked on step:', step);
-                      handleSubmit(e);
-                    }}
+                    type="submit" 
                     disabled={createMethodMutation.isPending || updateMethodMutation.isPending}
                   >
                     {createMethodMutation.isPending || updateMethodMutation.isPending ? 

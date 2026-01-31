@@ -1,5 +1,5 @@
 import { BuyOrder, BuyOrderStatus, BUY_ORDER_STATUS_CONFIG, STATUS_ORDER, calculatePayout } from '@/lib/buy-order-types';
-import { hasBankingDetails, hasPanDetails, getMissingFieldsForStatus, getEffectivePanType } from '@/lib/buy-order-helpers';
+import { hasBankingDetails, hasTdsTypeSelected, getMissingFieldsForStatus, getEffectivePanType } from '@/lib/buy-order-helpers';
 import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ export function BuyOrderCard({
   const nextStatus = statusConfig.nextStatus;
 
   const bankingCollected = hasBankingDetails(order);
-  const panCollected = hasPanDetails(order);
+  const tdsSelected = hasTdsTypeSelected(order);
 
   // Payment tracking
   const totalPaid = order.total_paid || 0;
@@ -103,22 +103,43 @@ export function BuyOrderCard({
     }).format(amount);
   };
 
+  // Calculate the actual next status, skipping steps if data is already provided
+  const getActualNextStatus = (targetStatus: BuyOrderStatus): BuyOrderStatus => {
+    // If targeting banking_collected and already have banking, skip to pan_collected
+    if (targetStatus === 'banking_collected' && bankingCollected) {
+      // Check if pan is also collected, skip that too
+      if (tdsSelected) {
+        return 'added_to_bank';
+      }
+      return 'pan_collected';
+    }
+    // If targeting pan_collected and already have TDS selected, skip to added_to_bank
+    if (targetStatus === 'pan_collected' && tdsSelected) {
+      return 'added_to_bank';
+    }
+    return targetStatus;
+  };
+
   const handleStatusChange = (newStatus: BuyOrderStatus) => {
     if (newStatus === 'paid') {
       onRecordPayment();
       return;
     }
 
-    const missing = getMissingFieldsForStatus(order, newStatus);
+    // Calculate the effective status after auto-skipping completed steps
+    const effectiveStatus = getActualNextStatus(newStatus);
+    
+    const missing = getMissingFieldsForStatus(order, effectiveStatus);
     
     if (missing.type === 'timer') {
-      onSetTimer(newStatus);
+      onSetTimer(effectiveStatus);
     } else if (missing.type === 'pan') {
-      onCollectFields(newStatus, missing.type, missing.fields);
+      onCollectFields(effectiveStatus, missing.type, missing.fields);
     } else if (missing.type && missing.fields.length > 0) {
-      onCollectFields(newStatus, missing.type, missing.fields);
+      onCollectFields(effectiveStatus, missing.type, missing.fields);
     } else {
-      onStatusChange(newStatus);
+      // No dialog needed, directly change to the effective status
+      onStatusChange(effectiveStatus);
     }
   };
 
@@ -127,7 +148,7 @@ export function BuyOrderCard({
     if (index < currentIndex) return true;
     if (currentStatus === 'completed') return true;
     if (status === 'banking_collected' && bankingCollected) return true;
-    if (status === 'pan_collected' && panCollected) return true;
+    if (status === 'pan_collected' && tdsSelected) return true;
     return false;
   };
 
@@ -191,10 +212,10 @@ export function BuyOrderCard({
                   Banking
                 </Badge>
               )}
-              {panCollected && STATUS_ORDER.indexOf(currentStatus) <= STATUS_ORDER.indexOf('banking_collected') && (
+              {tdsSelected && STATUS_ORDER.indexOf(currentStatus) <= STATUS_ORDER.indexOf('banking_collected') && (
                 <Badge variant="outline" className="text-xs text-green-600 border-green-200 bg-green-50">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                  PAN
+                  {tdsLabel || 'TDS'}
                 </Badge>
               )}
               

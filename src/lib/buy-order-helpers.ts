@@ -14,6 +14,15 @@ export function hasPanDetails(order: BuyOrder): boolean {
   return !!order.pan_number;
 }
 
+// Check if TDS type is already determined (either by PAN or by notes)
+export function hasTdsTypeSelected(order: BuyOrder): boolean {
+  // PAN number provided = 1% TDS
+  if (order.pan_number) return true;
+  // Check if notes contain TDS type marker
+  const panType = parsePanTypeFromNotes(order.notes);
+  return panType !== null;
+}
+
 // Get effective PAN type based on order data
 // If pan_number exists, it's always pan_provided (1% TDS) - cannot be changed
 // Otherwise, parse from notes or return null
@@ -34,7 +43,7 @@ export function getEffectiveCompletedSteps(order: BuyOrder): {
 } {
   return {
     bankingCollected: hasBankingDetails(order),
-    panCollected: hasPanDetails(order),
+    panCollected: hasTdsTypeSelected(order),
   };
 }
 
@@ -44,6 +53,10 @@ export function getMissingFieldsForStatus(
   targetStatus: string
 ): { type: 'banking' | 'pan' | 'timer' | null; fields: string[] } {
   if (targetStatus === 'banking_collected') {
+    // If banking details already provided, skip this step entirely
+    if (hasBankingDetails(order)) {
+      return { type: null, fields: [] };
+    }
     if (order.payment_method_type === 'UPI') {
       if (!order.upi_id) {
         return { type: 'banking', fields: ['upi_id'] };
@@ -60,8 +73,8 @@ export function getMissingFieldsForStatus(
   }
 
   if (targetStatus === 'pan_collected') {
-    // If PAN number already provided (during creation), skip PAN collection
-    if (order.pan_number) {
+    // If TDS type already selected (by PAN or notes marker), skip this step
+    if (hasTdsTypeSelected(order)) {
       return { type: null, fields: [] };
     }
     // Otherwise show dialog for TDS options

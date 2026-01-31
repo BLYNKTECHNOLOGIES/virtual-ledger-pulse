@@ -1,5 +1,6 @@
 import { BuyOrder, BuyOrderStatus, BUY_ORDER_STATUS_CONFIG, STATUS_ORDER, calculatePayout } from '@/lib/buy-order-types';
 import { hasBankingDetails, hasPanDetails, getMissingFieldsForStatus, getEffectivePanType } from '@/lib/buy-order-helpers';
+import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,9 +73,10 @@ export function BuyOrderCard({
   // Payment tracking
   const totalPaid = order.total_paid || 0;
   const effectivePanType = getEffectivePanType(order);
+  const grossAmount = getBuyOrderGrossAmount(order);
   const payoutInfo = effectivePanType 
-    ? calculatePayout(order.total_amount, effectivePanType)
-    : { payout: order.total_amount, deductionPercent: 0 };
+    ? calculatePayout(grossAmount, effectivePanType)
+    : { payout: grossAmount, deductionPercent: 0 };
   const remainingAmount = Math.max(0, payoutInfo.payout - totalPaid);
   const hasPartialPayment = totalPaid > 0 && remainingAmount > 0;
 
@@ -209,7 +211,7 @@ export function BuyOrderCard({
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <div className="flex flex-col">
                 <span className="font-semibold text-foreground text-lg">
-                  {formatAmount(order.total_amount)}
+                  {formatAmount(grossAmount)}
                 </span>
                 {hasPartialPayment && (
                   <div className="flex items-center gap-1.5 text-xs text-orange-600 font-medium">

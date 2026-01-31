@@ -11,6 +11,7 @@ import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
 import { useOrderAlerts } from "@/hooks/use-order-alerts";
+import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -165,9 +166,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       if (newStatus === 'completed') {
         const order = orders?.find(o => o.id === orderId);
         if (order) {
-          const amountToDeduct = order.tds_applied && order.net_payable_amount 
-            ? order.net_payable_amount 
-            : order.total_amount;
+          const amountToDeduct = getBuyOrderNetPayableAmount(order);
 
           // Handle wallet credit for USDT
           const orderItems = order.purchase_order_items || [];

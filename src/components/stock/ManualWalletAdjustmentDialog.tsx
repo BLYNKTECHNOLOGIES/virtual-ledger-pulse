@@ -117,7 +117,8 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       const mainBefore = Number(mainWallet.current_balance ?? 0);
       const adjBefore = Number(adjWallet?.current_balance ?? 0);
       const isCredit = adjustment_type === "CREDIT";
-      const refId = `ADJ-${Date.now()}`;
+      // wallet_transactions.reference_id is a UUID column, so we must store a valid UUID
+      const refId = globalThis.crypto?.randomUUID?.() ?? null;
 
       const mainAfter = isCredit ? mainBefore + amount : mainBefore - amount;
       const adjAfter = isCredit ? adjBefore - amount : adjBefore + amount;
@@ -130,7 +131,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
           amount,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
-          description: `Manual Balance Adjustment: ${reason}`,
+          description: `Manual Balance Adjustment${refId ? ` (${refId})` : ""}: ${reason}`,
           balance_before: mainBefore,
           balance_after: mainAfter
         },
@@ -140,7 +141,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
           amount,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
-          description: `Contra Entry - Adjustment for ${mainWallet.wallet_name}: ${reason}`,
+          description: `Contra Entry - Adjustment for ${mainWallet.wallet_name}${refId ? ` (${refId})` : ""}: ${reason}`,
           balance_before: adjBefore,
           balance_after: adjAfter
         }

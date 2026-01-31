@@ -266,15 +266,10 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               <p className="text-2xl font-bold text-indigo-600">{totalOrders}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Completion Rate</label>
-              <div className="flex items-center gap-1">
-                <TrendingUp className={`h-4 w-4 ${completionRate >= 80 ? 'text-green-500' : completionRate >= 50 ? 'text-yellow-500' : 'text-red-500'}`} />
-                <p className={`text-xl font-bold ${completionRate >= 80 ? 'text-green-600' : completionRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
-                  {completionRate.toFixed(1)}%
-                </p>
-              </div>
+              <label className="text-sm font-medium text-indigo-700">Avg Order Value</label>
+              <p className="text-2xl font-bold text-indigo-600">₹{avgOrderValue.toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">
-                {completedOrders} of {totalOrders} orders
+                Across all transactions
               </p>
             </div>
             <div>

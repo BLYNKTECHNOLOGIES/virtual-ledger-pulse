@@ -1,0 +1,106 @@
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useOrderFocus } from './OrderFocusContext';
+
+export interface GlobalNotification {
+  id: string;
+  title: string;
+  description: string;
+  time: Date;
+  type: 'info' | 'warning' | 'error' | 'success';
+  read: boolean;
+  orderId?: string;
+  orderRoute?: string;
+}
+
+interface NotificationContextType {
+  notifications: GlobalNotification[];
+  unreadCount: number;
+  addNotification: (notification: Omit<GlobalNotification, 'id' | 'time' | 'read'>) => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+  clearNotifications: () => void;
+  handleNotificationClick: (notification: GlobalNotification) => void;
+}
+
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const [notifications, setNotifications] = useState<GlobalNotification[]>([]);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { focusOrder } = useOrderFocus();
+
+  const addNotification = useCallback((notification: Omit<GlobalNotification, 'id' | 'time' | 'read'>) => {
+    const newNotification: GlobalNotification = {
+      ...notification,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      time: new Date(),
+      read: false,
+    };
+
+    setNotifications(prev => {
+      // Keep max 50 notifications, remove oldest
+      const updated = [newNotification, ...prev].slice(0, 50);
+      return updated;
+    });
+  }, []);
+
+  const markAsRead = useCallback((id: string) => {
+    setNotifications(prev => 
+      prev.map(n => n.id === id ? { ...n, read: true } : n)
+    );
+  }, []);
+
+  const markAllAsRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const handleNotificationClick = useCallback((notification: GlobalNotification) => {
+    // Mark as read
+    markAsRead(notification.id);
+    
+    // Navigate if there's an order route
+    if (notification.orderId && notification.orderRoute) {
+      // If not on the target route, navigate first
+      if (location.pathname !== notification.orderRoute) {
+        navigate(notification.orderRoute);
+        // Delay focus to allow page to load
+        setTimeout(() => {
+          focusOrder(notification.orderId!);
+        }, 500);
+      } else {
+        // Already on the page, just focus
+        focusOrder(notification.orderId);
+      }
+    }
+  }, [markAsRead, navigate, location.pathname, focusOrder]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <NotificationContext.Provider value={{
+      notifications,
+      unreadCount,
+      addNotification,
+      markAsRead,
+      markAllAsRead,
+      clearNotifications,
+      handleNotificationClick,
+    }}>
+      {children}
+    </NotificationContext.Provider>
+  );
+}
+
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (context === undefined) {
+    throw new Error('useNotifications must be used within a NotificationProvider');
+  }
+  return context;
+}

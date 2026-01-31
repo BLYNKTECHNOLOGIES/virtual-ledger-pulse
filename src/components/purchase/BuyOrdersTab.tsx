@@ -14,7 +14,8 @@ import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
 import { useOrderAlerts, stopContinuousAlarm } from "@/hooks/use-order-alerts";
 import { getBuyOrderNetPayableAmount, getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
 import { useOrderFocus } from "@/contexts/OrderFocusContext";
-import { showOrderAlertNotification } from "@/lib/alert-notifications";
+import { showOrderAlertNotification, createGlobalNotification } from "@/lib/alert-notifications";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -39,6 +40,9 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
 
   // Order focus context for navigation
   const { focusOrder } = useOrderFocus();
+
+  // Global notification context
+  const { addNotification } = useNotifications();
 
   // Alert hooks
   const {
@@ -106,16 +110,21 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
           const notificationKey = `${order.id}-${alertState.alertType}-${alertState.lastAlertTime}`;
           if (!notifiedOrdersRef.current.has(notificationKey)) {
             notifiedOrdersRef.current.add(notificationKey);
-            showOrderAlertNotification(
-              {
-                orderId: order.id,
-                orderNumber: order.order_number,
-                supplierName: order.supplier_name,
-                amount: getBuyOrderGrossAmount(order),
-                alertType: alertState.alertType,
-              },
-              handleNotificationNavigate
-            );
+            
+            const orderInfo = {
+              orderId: order.id,
+              orderNumber: order.order_number,
+              supplierName: order.supplier_name,
+              amount: getBuyOrderGrossAmount(order),
+              alertType: alertState.alertType,
+            };
+            
+            // Show toast notification
+            showOrderAlertNotification(orderInfo, handleNotificationNavigate);
+            
+            // Add to global notification bell
+            const globalNotif = createGlobalNotification(orderInfo);
+            addNotification(globalNotif);
           }
         }
       });
@@ -124,7 +133,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       isInitialLoadRef.current = false;
       cleanupAttendedOrders(orders.map(o => o.id));
     }
-  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, handleNotificationNavigate]);
+  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, handleNotificationNavigate, addNotification]);
 
   // Calculate status counts
   const statusCounts = useMemo(() => {

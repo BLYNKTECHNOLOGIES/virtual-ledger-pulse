@@ -19,7 +19,6 @@ import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseE
 import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { OrderFocusProvider } from "@/contexts/OrderFocusContext";
 
 export default function Purchase() {
   const navigate = useNavigate();
@@ -89,7 +88,6 @@ export default function Purchase() {
         </div>
       }
     >
-    <OrderFocusProvider>
     <div className="min-h-screen bg-gray-50 p-3 md:p-6">
       <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
         <div className="px-4 md:px-6 py-4 md:py-8">
@@ -250,7 +248,6 @@ export default function Purchase() {
         onOpenChange={setShowPurchaseOrderDialog}
       />
     </div>
-    </OrderFocusProvider>
     </PermissionGate>
   );
 }

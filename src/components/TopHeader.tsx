@@ -1,4 +1,4 @@
-import { Bell, Settings, RotateCcw, Grid3X3, Globe, Edit3, X, Save, Search } from "lucide-react";
+import { Settings, RotateCcw, Globe, Edit3, X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export function TopHeader() {
   const { user } = useAuth();
@@ -94,9 +95,7 @@ export function TopHeader() {
         </form>
         
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="p-2 text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-2 border-gray-200 rounded-lg">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationDropdown />
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

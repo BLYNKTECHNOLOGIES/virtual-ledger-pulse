@@ -21,12 +21,18 @@ interface NotificationContextType {
   markAllAsRead: () => void;
   clearNotifications: () => void;
   handleNotificationClick: (notification: GlobalNotification) => void;
+  /**
+   * Emits when the user clicks a bell notification that targets an order.
+   * Consumers (e.g. BuyOrdersTab) can use this to mark the order attended, stop buzzers, etc.
+   */
+  lastOrderNavigation: { orderId: string; at: number } | null;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<GlobalNotification[]>([]);
+  const [lastOrderNavigation, setLastOrderNavigation] = useState<{ orderId: string; at: number } | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { focusOrder } = useOrderFocus();
@@ -72,10 +78,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         // Delay focus to allow page to load
         setTimeout(() => {
           focusOrder(notification.orderId!);
+          setLastOrderNavigation({ orderId: notification.orderId!, at: Date.now() });
         }, 500);
       } else {
         // Already on the page, just focus
         focusOrder(notification.orderId);
+        setLastOrderNavigation({ orderId: notification.orderId, at: Date.now() });
       }
     }
   }, [markAsRead, navigate, location.pathname, focusOrder]);
@@ -91,6 +99,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       markAllAsRead,
       clearNotifications,
       handleNotificationClick,
+      lastOrderNavigation,
     }}>
       {children}
     </NotificationContext.Provider>

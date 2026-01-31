@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -11,11 +11,10 @@ import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
-import { useOrderAlerts, stopContinuousAlarm } from "@/hooks/use-order-alerts";
-import { getBuyOrderNetPayableAmount, getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
-import { useOrderFocus } from "@/contexts/OrderFocusContext";
-import { showOrderAlertNotification, createGlobalNotification } from "@/lib/alert-notifications";
+import { stopContinuousAlarm } from "@/hooks/use-order-alerts";
+import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -35,24 +34,12 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const isInitialLoadRef = useRef(true);
-  const notifiedOrdersRef = useRef<Set<string>>(new Set());
-
-  // Order focus context for navigation
-  const { focusOrder } = useOrderFocus();
 
   // Global notification context
-  const { addNotification } = useNotifications();
+  const { lastOrderNavigation } = useNotifications();
 
-  // Alert hooks
-  const {
-    markAttended,
-    needsAttention,
-    triggerTimerAlert,
-    processOrderChanges,
-    cleanupAttendedOrders,
-    getOrderForAttended,
-  } = useOrderAlerts();
+  // Alert hooks (shared globally via provider)
+  const { markAttended, needsAttention, triggerTimerAlert } = useOrderAlertsContext();
 
   // Fetch purchase orders with buy order workflow status
   const { data: orders, isLoading, refetch } = useQuery({
@@ -90,50 +77,16 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     staleTime: 15000,
   });
 
-  // Handle notification navigation
-  const handleNotificationNavigate = useCallback((orderId: string) => {
-    focusOrder(orderId);
-    // Also mark as attended when navigating via notification
-    const order = orders?.find(o => o.id === orderId);
-    if (order) {
-      markAttended(orderId, order);
-    }
-  }, [focusOrder, orders, markAttended]);
-
-  // Process order changes for alerts and show notifications
+  // When user clicks a bell notification, mark the order attended to stop repeat buzzers
   useEffect(() => {
-    if (orders) {
-      // Check for new alerts and show notifications
-      orders.forEach(order => {
-        const alertState = needsAttention(order.id);
-        if (alertState?.needsAttention && alertState.alertType) {
-          const notificationKey = `${order.id}-${alertState.alertType}-${alertState.lastAlertTime}`;
-          if (!notifiedOrdersRef.current.has(notificationKey)) {
-            notifiedOrdersRef.current.add(notificationKey);
-            
-            const orderInfo = {
-              orderId: order.id,
-              orderNumber: order.order_number,
-              supplierName: order.supplier_name,
-              amount: getBuyOrderGrossAmount(order),
-              alertType: alertState.alertType,
-            };
-            
-            // Show toast notification
-            showOrderAlertNotification(orderInfo, handleNotificationNavigate);
-            
-            // Add to global notification bell
-            const globalNotif = createGlobalNotification(orderInfo);
-            addNotification(globalNotif);
-          }
-        }
-      });
-      
-      processOrderChanges(orders, isInitialLoadRef.current);
-      isInitialLoadRef.current = false;
-      cleanupAttendedOrders(orders.map(o => o.id));
+    if (!lastOrderNavigation?.orderId || !orders) return;
+    const order = orders.find(o => o.id === lastOrderNavigation.orderId);
+    if (order) {
+      markAttended(order.id, order);
     }
-  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, handleNotificationNavigate, addNotification]);
+  }, [lastOrderNavigation?.at, lastOrderNavigation?.orderId, orders, markAttended]);
+
+  // NOTE: Alert detection + notification emitting now runs globally via BuyOrderAlertWatcher.
 
   // Calculate status counts
   const statusCounts = useMemo(() => {

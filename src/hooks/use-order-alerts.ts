@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { isNotificationMuted } from './useNotificationMute';
 
 export type AlertType = 'new_order' | 'info_update' | 'payment_timer' | 'order_timer';
@@ -193,6 +193,14 @@ export function useOrderAlerts() {
   const attendedOrdersRef = useRef<AttendedState>(getAttendedOrders());
   const previousOrdersRef = useRef<Map<string, string>>(getPreviousOrderHashes());
   const activeTimerAlarmsRef = useRef<Set<string>>(new Set());
+
+  // Safety: if the Purchase page (or this hook) unmounts, ensure we stop any lingering intervals.
+  // This prevents "ghost" buzzers continuing after navigation.
+  useEffect(() => {
+    return () => {
+      stopAllAlarms();
+    };
+  }, []);
 
   // Mark order as attended
   const markAttended = useCallback((orderId: string, order?: any) => {

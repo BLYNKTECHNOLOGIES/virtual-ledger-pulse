@@ -8,6 +8,7 @@ import { CollectFieldsDialog } from "./CollectFieldsDialog";
 import { SetTimerDialog } from "./SetTimerDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
+import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
 import { useOrderAlerts } from "@/hooks/use-order-alerts";
@@ -30,6 +31,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   const [showTimerDialog, setShowTimerDialog] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const isInitialLoadRef = useRef(true);
 
   // Alert hooks
@@ -322,11 +324,8 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   };
 
   const handleEdit = (order: BuyOrder) => {
-    // Edit functionality - could open edit dialog
-    toast({
-      title: "Edit Order",
-      description: `Editing order ${order.order_number}`,
-    });
+    setSelectedOrder(order);
+    setShowEditDialog(true);
   };
 
   const handleMarkAttended = (orderId: string) => {
@@ -341,6 +340,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setShowTimerDialog(false);
     setShowPaymentDialog(false);
     setShowDetailsDialog(false);
+    setShowEditDialog(false);
     refetch();
   };
 
@@ -351,6 +351,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setShowTimerDialog(false);
     setShowPaymentDialog(false);
     setShowDetailsDialog(false);
+    setShowEditDialog(false);
   };
 
   if (isLoading) {
@@ -434,6 +435,16 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       <PurchaseOrderDetailsDialog
         open={showDetailsDialog}
         onOpenChange={(open) => !open && closeAllDialogs()}
+        order={selectedOrder}
+      />
+
+      {/* Edit Order Dialog */}
+      <EditPurchaseOrderDialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          if (!open) closeAllDialogs();
+          else setShowEditDialog(open);
+        }}
         order={selectedOrder}
       />
     </div>

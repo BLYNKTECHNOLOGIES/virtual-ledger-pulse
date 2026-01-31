@@ -42,7 +42,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     enabled: !!activeClientId,
   });
 
-  // Fetch buy orders (sales_orders)
+  // Fetch buy orders (sales_orders) - exclude cancelled
   const { data: buyOrders, isLoading: buyLoading } = useQuery({
     queryKey: ['client-buy-orders-history', activeClientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -52,6 +52,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
         .from('sales_orders')
         .select('*')
         .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
       if (error) throw error;
@@ -60,7 +61,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     enabled: !!activeClientId && !!client,
   });
 
-  // Fetch sell orders (purchase_orders)
+  // Fetch sell orders (purchase_orders) - exclude cancelled
   const { data: sellOrders, isLoading: sellLoading } = useQuery({
     queryKey: ['client-sell-orders-history', activeClientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -70,6 +71,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
         .from('purchase_orders')
         .select('*')
         .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
       if (error) throw error;

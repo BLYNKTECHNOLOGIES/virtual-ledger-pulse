@@ -15,7 +15,7 @@ import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
 export function BuyOrderAlertWatcher() {
   const isInitialLoadRef = useRef(true);
   const notifiedRef = useRef<Set<string>>(new Set());
-  const { addNotification, lastOrderNavigation } = useNotifications();
+  const { addNotification, lastOrderNavigation, lastAttendedOrders, notificationsResetSignal } = useNotifications();
   const { focusOrder } = useOrderFocus();
 
   const {
@@ -81,6 +81,22 @@ export function BuyOrderAlertWatcher() {
       markAttended(order.id, order);
     }
   }, [lastOrderNavigation?.at, lastOrderNavigation?.orderId, orders, markAttended]);
+
+  // When user marks all notifications read or clears them, treat those orders as attended too
+  useEffect(() => {
+    if (!lastAttendedOrders?.orderIds?.length) return;
+    const orderIds = lastAttendedOrders.orderIds;
+    orderIds.forEach((orderId) => {
+      const order = orders?.find((o) => o.id === orderId);
+      // order can be undefined; markAttended still stops alarm and stores best-effort hash
+      markAttended(orderId, order);
+    });
+  }, [lastAttendedOrders?.at, lastAttendedOrders?.orderIds, orders, markAttended]);
+
+  // If notifications were cleared, allow re-emitting notifications for still-active alerts/buzzers
+  useEffect(() => {
+    notifiedRef.current = new Set();
+  }, [notificationsResetSignal]);
 
   useEffect(() => {
     if (!orders) return;

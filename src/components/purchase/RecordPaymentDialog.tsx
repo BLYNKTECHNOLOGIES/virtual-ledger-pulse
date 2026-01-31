@@ -11,12 +11,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { BuyOrder, calculatePayout } from '@/lib/buy-order-types';
 import { getEffectivePanType } from '@/lib/buy-order-helpers';
 import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CreditCard, Upload, Receipt, X, Image } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, CreditCard, Upload, Receipt, X, Image, Building2 } from 'lucide-react';
 
 interface RecordPaymentDialogProps {
   open: boolean;
@@ -34,11 +42,27 @@ export function RecordPaymentDialog({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [amountPaid, setAmountPaid] = useState('');
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState('');
   const [screenshotUrl, setScreenshotUrl] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [notes, setNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Fetch active bank accounts
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank_accounts_active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('id, account_name, bank_name, balance')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
 
   if (!order) return null;
 
@@ -137,6 +161,15 @@ export function RecordPaymentDialog({
       return;
     }
 
+    if (!selectedBankAccountId) {
+      toast({
+        title: 'Bank Account Required',
+        description: 'Please select the bank account from which payment is being made',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       // Upload screenshot if provided
@@ -156,6 +189,30 @@ export function RecordPaymentDialog({
         });
 
       if (paymentError) throw paymentError;
+
+      // Create bank EXPENSE transaction to deduct from bank balance
+      const { error: bankTxError } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: selectedBankAccountId,
+          transaction_type: 'EXPENSE',
+          amount: amount,
+          transaction_date: new Date().toISOString().split('T')[0],
+          category: 'Purchase',
+          description: `Buy Order Payment - ${order.supplier_name || 'Unknown'} - Order #${order.order_number}`,
+          reference_number: order.order_number,
+          related_account_name: order.supplier_name || null,
+        });
+
+      if (bankTxError) throw bankTxError;
+
+      // Update purchase order with the bank account if not already set
+      if (!order.bank_account_id) {
+        await supabase
+          .from('purchase_orders')
+          .update({ bank_account_id: selectedBankAccountId })
+          .eq('id', order.id);
+      }
 
       // Check if fully paid
       const newTotalPaid = totalPaid + amount;
@@ -183,6 +240,7 @@ export function RecordPaymentDialog({
 
       // Reset form
       setAmountPaid('');
+      setSelectedBankAccountId('');
       setScreenshotUrl('');
       setScreenshotFile(null);
       setNotes('');
@@ -215,7 +273,7 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-emerald-500" />
@@ -261,6 +319,36 @@ export function RecordPaymentDialog({
                 </span>
               </div>
             </div>
+          </div>
+
+          {/* Bank Account Selector */}
+          <div className="space-y-2">
+            <Label htmlFor="bank_account">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Payment From Bank Account *
+              </div>
+            </Label>
+            <Select
+              value={selectedBankAccountId}
+              onValueChange={setSelectedBankAccountId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select bank account" />
+              </SelectTrigger>
+              <SelectContent>
+                {bankAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    <div className="flex flex-col">
+                      <span>{account.account_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {account.bank_name} • Balance: ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Amount Input */}

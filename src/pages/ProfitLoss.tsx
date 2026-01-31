@@ -91,7 +91,7 @@ export default function ProfitLoss() {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Fetch sales orders within period - sales have quantity/price directly on the order
+      // Fetch completed sales orders within period - sales have quantity/price directly on the order
       const { data: salesOrders } = await supabase
         .from('sales_orders')
         .select(`
@@ -102,6 +102,7 @@ export default function ProfitLoss() {
           price_per_unit,
           client_name
         `)
+        .eq('status', 'COMPLETED')
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
@@ -112,7 +113,7 @@ export default function ProfitLoss() {
         unit_price: Number(order.price_per_unit) || 0
       })) || [];
 
-      // Fetch purchase orders within period (date-filtered)
+      // Fetch completed purchase orders within period (date-filtered)
       const { data: purchaseOrders } = await supabase
         .from('purchase_orders')
         .select(`
@@ -120,6 +121,7 @@ export default function ProfitLoss() {
           order_date,
           total_amount
         `)
+        .eq('status', 'COMPLETED')
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 

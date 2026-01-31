@@ -28,17 +28,19 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
         phone: c.phone
       }));
 
-      // Fetch all sales orders (buyers)
+      // Fetch all sales orders (buyers) - exclude cancelled
       const { data: salesOrders, error: salesError } = await supabase
         .from('sales_orders')
-        .select('client_name, client_phone');
+        .select('client_name, client_phone')
+        .neq('status', 'CANCELLED');
 
       if (salesError) throw salesError;
 
-      // Fetch all purchase orders (sellers)
+      // Fetch all purchase orders (sellers) - exclude cancelled
       const { data: purchaseOrders, error: purchaseError } = await supabase
         .from('purchase_orders')
-        .select('supplier_name, contact_number');
+        .select('supplier_name, contact_number')
+        .neq('status', 'CANCELLED');
 
       if (purchaseError) throw purchaseError;
 

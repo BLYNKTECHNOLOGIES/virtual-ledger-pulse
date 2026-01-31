@@ -34,7 +34,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     enabled: !!activeClientId,
   });
 
-  // Fetch client's buy orders (sales_orders where client is buyer)
+  // Fetch client's buy orders (sales_orders where client is buyer) - exclude cancelled
   const { data: buyOrders } = useQuery({
     queryKey: ['client-buy-orders-analysis', activeClientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -44,6 +44,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         .from('sales_orders')
         .select('*')
         .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
       if (error) throw error;
@@ -52,7 +53,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     enabled: !!activeClientId && !!client,
   });
 
-  // Fetch client's sell orders (purchase_orders where client is seller)
+  // Fetch client's sell orders (purchase_orders where client is seller) - exclude cancelled
   const { data: sellOrders } = useQuery({
     queryKey: ['client-sell-orders-analysis', activeClientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -62,6 +63,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         .from('purchase_orders')
         .select('*')
         .or(`supplier_name.ilike.%${client.name}%,contact_number.eq.${client.phone || 'NONE'}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
       if (error) throw error;

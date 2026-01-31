@@ -31,7 +31,7 @@ export default function ClientDetail() {
     enabled: !!clientId,
   });
 
-  // Fetch buy orders count
+  // Fetch buy orders count - exclude cancelled
   const { data: buyOrdersCount } = useQuery({
     queryKey: ['client-buy-orders-count', clientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -39,7 +39,8 @@ export default function ClientDetail() {
       const { count, error } = await supabase
         .from('sales_orders')
         .select('id', { count: 'exact', head: true })
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`);
+        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .neq('status', 'CANCELLED');
       
       if (error) throw error;
       return count || 0;
@@ -47,7 +48,7 @@ export default function ClientDetail() {
     enabled: !!clientId && !!client,
   });
 
-  // Fetch sell orders count
+  // Fetch sell orders count - exclude cancelled
   const { data: sellOrdersCount } = useQuery({
     queryKey: ['client-sell-orders-count', clientId, client?.name, client?.phone],
     queryFn: async () => {
@@ -55,7 +56,8 @@ export default function ClientDetail() {
       const { count, error } = await supabase
         .from('purchase_orders')
         .select('id', { count: 'exact', head: true })
-        .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`);
+        .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
+        .neq('status', 'CANCELLED');
       
       if (error) throw error;
       return count || 0;

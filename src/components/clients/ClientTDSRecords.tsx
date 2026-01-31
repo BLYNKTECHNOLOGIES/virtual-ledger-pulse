@@ -36,20 +36,21 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
   const name = clientName || client?.name;
   const phone = clientPhone || client?.phone;
 
-  // Fetch TDS records for this seller (by matching supplier_name in purchase_orders)
+  // Fetch TDS records for this seller (by matching supplier_name in purchase_orders) - exclude cancelled
   const { data: tdsRecords, isLoading } = useQuery({
     queryKey: ['client-tds-records', name, phone],
     queryFn: async () => {
       if (!name) return [];
       
-      // First get purchase order IDs for this supplier (use ilike for case-insensitive matching)
+      // First get purchase order IDs for this supplier (use ilike for case-insensitive matching) - exclude cancelled
       const filters = [`supplier_name.ilike.%${name}%`];
       if (phone) filters.push(`contact_number.eq.${phone}`);
       
       const { data: purchaseOrders, error: poError } = await supabase
         .from('purchase_orders')
-        .select('id, order_number, supplier_name, total_amount, order_date, tds_applied, tds_amount, net_payable_amount, pan_number')
-        .or(filters.join(','));
+        .select('id, order_number, supplier_name, total_amount, order_date, tds_applied, tds_amount, net_payable_amount, pan_number, status')
+        .or(filters.join(','))
+        .neq('status', 'CANCELLED');
       
       if (poError) throw poError;
       if (!purchaseOrders || purchaseOrders.length === 0) return [];

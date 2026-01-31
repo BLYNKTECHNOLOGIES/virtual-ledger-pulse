@@ -57,12 +57,13 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       // For buyers, fetch sales_orders; for sellers, fetch purchase_orders; for composite fetch both
       const allOrders: any[] = [];
       
-      // Fetch sales orders (buyer activity)
+      // Fetch sales orders (buyer activity) - exclude cancelled
       if (!isSeller || isComposite) {
         const { data: salesData } = await supabase
           .from('sales_orders')
           .select('id, order_number, order_date, total_amount, status, payment_status')
           .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
+          .neq('status', 'CANCELLED')
           .order('order_date', { ascending: true });
         
         if (salesData) {
@@ -70,12 +71,13 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         }
       }
       
-      // Fetch purchase orders (seller activity)
+      // Fetch purchase orders (seller activity) - exclude cancelled
       if (isSeller || isComposite) {
         const { data: purchaseData } = await supabase
           .from('purchase_orders')
           .select('id, order_number, order_date, total_amount, status, order_status')
           .or(`supplier_name.ilike.%${client.name}%,contact_number.eq.${client.phone || 'NONE'}`)
+          .neq('status', 'CANCELLED')
           .order('order_date', { ascending: true });
         
         if (purchaseData) {

@@ -33,7 +33,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
     enabled: !!clientId,
   });
 
-  // Fetch buy orders (sales_orders)
+  // Fetch buy orders (sales_orders) - exclude cancelled
   const { data: buyOrders } = useQuery({
     queryKey: ['client-buy-orders', clientId, client?.name, client?.phone, dateRange],
     queryFn: async () => {
@@ -43,6 +43,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         .from('sales_orders')
         .select('*')
         .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       
       // Apply date filter if range is set
@@ -60,7 +61,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
     enabled: !!clientId && !!client,
   });
 
-  // Fetch sell orders (purchase_orders)
+  // Fetch sell orders (purchase_orders) - exclude cancelled
   const { data: sellOrders } = useQuery({
     queryKey: ['client-sell-orders', clientId, client?.name, client?.phone, dateRange],
     queryFn: async () => {
@@ -70,6 +71,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         .from('purchase_orders')
         .select('*')
         .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
+        .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       
       // Apply date filter if range is set

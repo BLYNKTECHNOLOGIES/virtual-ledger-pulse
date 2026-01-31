@@ -113,8 +113,11 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
 
   // Combined statistics
   const totalTradeVolume = buyStats.totalVolume + sellStats.totalVolume;
-  const netPosition = buyStats.totalVolume - sellStats.totalVolume;
   const totalOrders = buyStats.totalOrders + sellStats.totalOrders;
+  const avgOrderValue = totalOrders > 0 ? totalTradeVolume / totalOrders : 0;
+  const completedOrders = (buyOrders?.filter(o => o.status === 'COMPLETED').length || 0) + 
+    (sellOrders?.filter(o => o.status === 'COMPLETED').length || 0);
+  const completionRate = totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0;
 
   // Determine client type
   const isBuyer = buyStats.totalOrders > 0;
@@ -263,19 +266,15 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               <p className="text-2xl font-bold text-indigo-600">{totalOrders}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-indigo-700">Net Position</label>
+              <label className="text-sm font-medium text-indigo-700">Completion Rate</label>
               <div className="flex items-center gap-1">
-                {netPosition >= 0 ? (
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-4 w-4 text-red-500" />
-                )}
-                <p className={`text-xl font-bold ${netPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ₹{Math.abs(netPosition).toLocaleString()}
+                <TrendingUp className={`h-4 w-4 ${completionRate >= 80 ? 'text-green-500' : completionRate >= 50 ? 'text-yellow-500' : 'text-red-500'}`} />
+                <p className={`text-xl font-bold ${completionRate >= 80 ? 'text-green-600' : completionRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                  {completionRate.toFixed(1)}%
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                {netPosition >= 0 ? 'Net Buyer' : 'Net Seller'}
+                {completedOrders} of {totalOrders} orders
               </p>
             </div>
             <div>

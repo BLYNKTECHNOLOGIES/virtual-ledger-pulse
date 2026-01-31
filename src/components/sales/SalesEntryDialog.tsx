@@ -499,11 +499,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 min="0"
                 step="0.01"
                 placeholder="Enter price per unit"
-                className={!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0 ? "border-destructive" : ""}
               />
-              {(!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) && (
-                <p className="text-sm text-destructive mt-1">Valid price per unit is required</p>
-              )}
             </div>
 
             {/* Show wallet balance when wallet is selected */}

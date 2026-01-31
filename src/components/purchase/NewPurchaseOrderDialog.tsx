@@ -217,6 +217,9 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           ifsc_code: orderData.ifsc_code,
           assigned_to: orderData.assigned_to,
           total_amount: totalAmount,
+          // Persist convenience fields used across the buy-order workflow UI
+          quantity: totalQuantity,
+          price_per_unit: totalQuantity > 0 ? totalAmount / totalQuantity : 0,
           tds_applied: tdsApplied,
           pan_number: orderData.pan_number,
           tds_amount: tdsAmount,

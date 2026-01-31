@@ -23,6 +23,14 @@ export function getBuyOrderGrossAmount(order: Pick<BuyOrder, 'total_amount' | 'q
   }, 0);
   if (fromItems > 0) return fromItems;
 
+  // Common legacy case in this app: header quantity is set, item quantity is 0,
+  // but unit_price exists on the first item.
+  const headerQty = safeNumber(order.quantity);
+  if (headerQty > 0 && items.length > 0) {
+    const firstUnitPrice = safeNumber(items[0]?.unit_price);
+    if (firstUnitPrice > 0) return headerQty * firstUnitPrice;
+  }
+
   return safeNumber(order.quantity) * safeNumber(order.price_per_unit);
 }
 

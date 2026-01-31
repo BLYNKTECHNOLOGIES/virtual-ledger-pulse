@@ -202,7 +202,6 @@ export function CollectFieldsDialog({
                 placeholder="example@upi"
                 value={formData.upi_id}
                 onChange={(e) => updateField('upi_id', e.target.value)}
-                required
               />
             </div>
           )}
@@ -215,7 +214,6 @@ export function CollectFieldsDialog({
                   <Select
                     value={formData.bank_name}
                     onValueChange={(value) => updateField('bank_name', value)}
-                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select bank" />
@@ -233,7 +231,6 @@ export function CollectFieldsDialog({
                       placeholder="Enter bank name"
                       value={formData.other_bank_name}
                       onChange={(e) => updateField('other_bank_name', e.target.value)}
-                      required
                     />
                   )}
                 </div>
@@ -247,7 +244,6 @@ export function CollectFieldsDialog({
                     placeholder="Enter account number"
                     value={formData.account_number}
                     onChange={(e) => updateField('account_number', e.target.value)}
-                    required
                   />
                 </div>
               )}
@@ -262,7 +258,6 @@ export function CollectFieldsDialog({
                     onChange={(e) => updateField('ifsc_code', e.target.value)}
                     className={cn(ifscError && 'border-destructive')}
                     maxLength={11}
-                    required
                   />
                   {ifscError ? (
                     <p className="text-xs text-destructive flex items-center gap-1">
@@ -376,6 +371,17 @@ export function CollectFieldsDialog({
               disabled={loading}
             >
               Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                // Skip without saving - just close dialog and move to next status
+                onOpenChange(false);
+              }}
+              disabled={loading}
+            >
+              Skip for Now
             </Button>
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

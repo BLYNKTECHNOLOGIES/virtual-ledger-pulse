@@ -307,10 +307,17 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setTargetStatus(targetStat);
   };
 
-  const handleSetTimer = (order: BuyOrder, targetStat: BuyOrderStatus) => {
+  const handleSetTimer = (order: BuyOrder, targetStat: BuyOrderStatus, showPayNow?: boolean) => {
     setSelectedOrder(order);
     setTargetStatus(targetStat);
     setShowTimerDialog(true);
+    // If showPayNow is true, we'll handle the Pay Now click in the dialog
+  };
+
+  const handlePayNowFromTimer = () => {
+    // Close timer dialog and open payment dialog
+    setShowTimerDialog(false);
+    setShowPaymentDialog(true);
   };
 
   const handleRecordPayment = (order: BuyOrder) => {
@@ -393,7 +400,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
               onCollectFields={(targetStat, collectTyp, fields) => 
                 handleCollectFields(order, targetStat, collectTyp, fields)
               }
-              onSetTimer={(targetStat) => handleSetTimer(order, targetStat)}
+              onSetTimer={(targetStat, showPayNow) => handleSetTimer(order, targetStat, showPayNow)}
               onViewDetails={() => handleViewDetails(order)}
               onRecordPayment={() => handleRecordPayment(order)}
               alertState={needsAttention(order.id)}
@@ -421,6 +428,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         onOpenChange={(open) => !open && closeAllDialogs()}
         order={selectedOrder}
         onSuccess={handleDialogSuccess}
+        onPayNow={handlePayNowFromTimer}
       />
 
       {/* Record Payment Dialog */}

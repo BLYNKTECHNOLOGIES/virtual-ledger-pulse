@@ -52,6 +52,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     order_date: new Date().toISOString().split('T')[0],
     tds_option: "NO_TDS", // "NO_TDS" | "TDS_1_PERCENT" | "TDS_20_PERCENT"
     pan_number: "",
+    order_expiry_minutes: 55, // Default 55 minutes
+    is_safe_fund: false,
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
@@ -373,6 +375,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       order_date: new Date().toISOString().split('T')[0],
       tds_option: "NO_TDS",
       pan_number: "",
+      order_expiry_minutes: 55,
+      is_safe_fund: false,
     });
     setProductItems([]);
     setSelectedClientId('');
@@ -520,6 +524,34 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             </div>
           </div>
 
+          {/* Order Expiry Section */}
+          <div className="space-y-2">
+            <Label>Order Expiry (minutes)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                value={formData.order_expiry_minutes}
+                onChange={(e) => setFormData(prev => ({ ...prev, order_expiry_minutes: parseInt(e.target.value) || 0 }))}
+                className="w-24"
+                placeholder="55"
+              />
+              <div className="flex gap-1">
+                {[30, 45, 55, 60].map((mins) => (
+                  <Button
+                    key={mins}
+                    type="button"
+                    variant={formData.order_expiry_minutes === mins ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData(prev => ({ ...prev, order_expiry_minutes: mins }))}
+                  >
+                    {mins}m
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Default: 55 minutes</p>
+          </div>
+
           {/* TDS Section */}
           <div className="space-y-4 border rounded-lg p-4">
             <Label className="text-lg font-semibold">TDS Options</Label>
@@ -632,6 +664,20 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                 No platform fees will be applied
               </Badge>
             )}
+          </div>
+
+          {/* Safe Fund Checkbox */}
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="safe_fund"
+              checked={formData.is_safe_fund}
+              onChange={(e) => setFormData(prev => ({ ...prev, is_safe_fund: e.target.checked }))}
+              className="h-4 w-4 rounded border-input text-primary focus:ring-primary"
+            />
+            <Label htmlFor="safe_fund" className="text-sm font-medium cursor-pointer">
+              Safe Fund
+            </Label>
           </div>
 
           <div>

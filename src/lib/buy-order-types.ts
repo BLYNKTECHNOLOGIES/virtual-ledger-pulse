@@ -28,6 +28,7 @@ export interface BuyOrder {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  order_date?: string;
   timer_end_at: string | null;
   order_expires_at: string | null;
   pan_type?: PanType | null;

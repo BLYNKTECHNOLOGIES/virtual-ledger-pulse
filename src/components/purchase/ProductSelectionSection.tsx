@@ -118,14 +118,15 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
       <div className="space-y-4">
         {items.map((item, index) => (
           <div key={item.id} className="border rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            {/* Two rows layout for better readability */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
                 <Label>Product *</Label>
                 <Select 
                   value={item.product_id} 
                   onValueChange={(value) => updateItem(index, 'product_id', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent>
@@ -144,7 +145,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   value={item.warehouse_id} 
                   onValueChange={(value) => updateItem(index, 'warehouse_id', value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select wallet" />
                   </SelectTrigger>
                   <SelectContent>
@@ -156,7 +157,9 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end">
               <div>
                 <Label>Quantity *</Label>
                 <Input
@@ -215,7 +218,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex justify-end">
                 <Button
                   type="button"
                   onClick={() => removeItem(index)}

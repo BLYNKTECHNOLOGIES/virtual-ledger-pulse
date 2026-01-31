@@ -145,6 +145,14 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       if (newStatus === 'completed') {
         updates.status = 'COMPLETED';
       }
+      
+      // Handle cancellation - update main status, NO fee deduction
+      if (newStatus === 'cancelled') {
+        updates.status = 'CANCELLED';
+        // Explicitly ensure no fee is applied on cancellation
+        updates.fee_amount = 0;
+        updates.net_amount = 0;
+      }
 
       const { error } = await supabase
         .from('purchase_orders')
@@ -153,7 +161,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       
       if (error) throw error;
 
-      // If completing, handle balance updates
+      // ONLY handle balance updates and fee deduction when COMPLETING (not cancelling)
       if (newStatus === 'completed') {
         const order = orders?.find(o => o.id === orderId);
         if (order) {
@@ -175,15 +183,38 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
 
               if (usdtWallets && usdtWallets.length > 0) {
                 const wallet = usdtWallets[0];
+                
+                // Calculate net quantity after platform fee (only if not off-market)
+                let netQuantity = item.quantity;
+                if (!order.is_off_market && order.fee_percentage > 0) {
+                  const feeQuantity = item.quantity * (order.fee_percentage / 100);
+                  netQuantity = item.quantity - feeQuantity;
+                  
+                  // Record platform fee deduction transaction
+                  await supabase
+                    .from('wallet_transactions')
+                    .insert({
+                      wallet_id: wallet.id,
+                      transaction_type: 'FEE_DEDUCTION',
+                      amount: feeQuantity,
+                      reference_type: 'PLATFORM_FEE',
+                      reference_id: orderId,
+                      description: `Platform fee (${order.fee_percentage}%) for buy order ${order.order_number}`,
+                      balance_before: 0,
+                      balance_after: 0
+                    });
+                }
+                
+                // Credit net quantity to wallet
                 await supabase
                   .from('wallet_transactions')
                   .insert({
                     wallet_id: wallet.id,
                     transaction_type: 'CREDIT',
-                    amount: item.quantity,
+                    amount: netQuantity,
                     reference_type: 'PURCHASE_ORDER',
                     reference_id: orderId,
-                    description: `USDT purchased via buy order ${order.order_number}`,
+                    description: `USDT purchased via buy order ${order.order_number}${!order.is_off_market && order.fee_percentage > 0 ? ' (after platform fee)' : ''}`,
                     balance_before: 0,
                     balance_after: 0
                   });
@@ -208,6 +239,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
           }
         }
       }
+      // NOTE: Cancelled orders do NOT trigger any balance updates or fee deductions
     },
     onSuccess: (_, { newStatus }) => {
       if (newStatus === 'completed') {
@@ -218,6 +250,12 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
         queryClient.invalidateQueries({ queryKey: ['wallets'] });
         queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['wallet_fee_deductions'] });
+      } else if (newStatus === 'cancelled') {
+        toast({
+          title: "Order Cancelled",
+          description: "Buy order has been cancelled. No fees were deducted.",
+        });
       } else {
         toast({
           title: "Status Updated",

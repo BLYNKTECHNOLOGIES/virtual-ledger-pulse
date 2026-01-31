@@ -42,20 +42,25 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
     queryFn: async () => {
       if (!name) return [];
       
-      // First get purchase order IDs for this supplier
-      let query = supabase
-        .from('purchase_orders')
-        .select('id, order_number, supplier_name, total_amount, order_date')
-        .or(`supplier_name.eq.${name}${phone ? `,contact_number.eq.${phone}` : ''}`);
+      // First get purchase order IDs for this supplier (use ilike for case-insensitive matching)
+      const filters = [`supplier_name.ilike.%${name}%`];
+      if (phone) filters.push(`contact_number.eq.${phone}`);
       
-      const { data: purchaseOrders, error: poError } = await query;
+      const { data: purchaseOrders, error: poError } = await supabase
+        .from('purchase_orders')
+        .select('id, order_number, supplier_name, total_amount, order_date, tds_applied, tds_amount, net_payable_amount, pan_number')
+        .or(filters.join(','));
       
       if (poError) throw poError;
       if (!purchaseOrders || purchaseOrders.length === 0) return [];
 
-      const poIds = purchaseOrders.map(po => po.id);
+      // Filter to only orders with TDS applied
+      const ordersWithTds = purchaseOrders.filter(po => po.tds_applied);
+      if (ordersWithTds.length === 0) return [];
+
+      const poIds = ordersWithTds.map(po => po.id);
       
-      // Now get TDS records for these purchase orders
+      // Get TDS records for these purchase orders
       const { data: tds, error: tdsError } = await supabase
         .from('tds_records')
         .select('*')
@@ -64,14 +69,34 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
       
       if (tdsError) throw tdsError;
 
-      // Merge TDS records with purchase order info
-      return (tds || []).map(record => {
-        const po = purchaseOrders.find(p => p.id === record.purchase_order_id);
+      // Merge TDS records with purchase order info, or create virtual records from purchase_orders if missing
+      const tdsMap = new Map((tds || []).map(t => [t.purchase_order_id, t]));
+      
+      return ordersWithTds.map(po => {
+        const existingTds = tdsMap.get(po.id);
+        if (existingTds) {
+          return {
+            ...existingTds,
+            order_number: po.order_number,
+            supplier_name: po.supplier_name,
+            order_date: po.order_date,
+          };
+        }
+        // Create virtual TDS record from purchase_order data if tds_records entry is missing
         return {
-          ...record,
-          order_number: po?.order_number,
-          supplier_name: po?.supplier_name,
-          order_date: po?.order_date,
+          id: po.id,
+          purchase_order_id: po.id,
+          pan_number: po.pan_number,
+          total_amount: po.total_amount,
+          tds_amount: po.tds_amount,
+          net_payable_amount: po.net_payable_amount,
+          tds_rate: po.tds_amount && po.total_amount ? (po.tds_amount / po.total_amount) * 100 : 1,
+          deduction_date: po.order_date,
+          financial_year: null,
+          tds_certificate_number: null,
+          order_number: po.order_number,
+          supplier_name: po.supplier_name,
+          order_date: po.order_date,
         };
       });
     },

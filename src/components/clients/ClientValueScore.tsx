@@ -31,20 +31,37 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
     enabled: !!activeClientId,
   });
 
-  // Fetch client's orders to calculate value metrics
+  // Fetch client's orders to calculate value metrics (both sales AND purchase orders)
   const { data: orders } = useQuery({
     queryKey: ['client-orders-value', activeClientId, client?.name, client?.phone],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
+      const allOrders: any[] = [];
+      
+      // Fetch sales orders (buyer activity)
+      const { data: salesData } = await supabase
         .from('sales_orders')
-        .select('*')
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .select('id, order_number, order_date, total_amount, status')
+        .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
         .order('order_date', { ascending: false });
       
-      if (error) throw error;
-      return data || [];
+      if (salesData) {
+        allOrders.push(...salesData.map(o => ({ ...o, order_type: 'SALES' })));
+      }
+      
+      // Fetch purchase orders (seller activity)
+      const { data: purchaseData } = await supabase
+        .from('purchase_orders')
+        .select('id, order_number, order_date, total_amount, status')
+        .or(`supplier_name.ilike.%${client.name}%,contact_number.eq.${client.phone || 'NONE'}`)
+        .order('order_date', { ascending: false });
+      
+      if (purchaseData) {
+        allOrders.push(...purchaseData.map(o => ({ ...o, order_type: 'PURCHASE' })));
+      }
+      
+      return allOrders;
     },
     enabled: !!activeClientId && !!client,
   });

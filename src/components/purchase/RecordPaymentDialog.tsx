@@ -273,53 +273,106 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-emerald-500" />
             Record Payment
           </DialogTitle>
           <DialogDescription>
-            Order: {order.order_number}
+            Order #{order.order_number} • {order.supplier_name || 'Unknown Supplier'}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Payment Summary */}
-          <div className="p-4 rounded-lg bg-muted border space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Order Amount</span>
-              <span className="font-mono font-medium">₹{orderAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          {/* Payment Details Card */}
+          <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Receipt className="h-4 w-4" />
+              Payment Details
             </div>
-            {payoutInfo.deductionPercent > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">
-                  TDS ({payoutInfo.deductionPercent}%)
-                </span>
-                <span className="font-mono text-destructive">
-                  -₹{payoutInfo.deduction.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
+            
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">Order Amount:</span>
+                <p className="font-mono font-semibold">₹{orderAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Net Payable:</span>
+                <p className="font-mono font-bold text-lg text-emerald-600">
+                  ₹{payoutInfo.payout.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            
+            {payoutInfo.deductionPercent > 0 ? (
+              <div className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                {payoutInfo.deductionPercent}% TDS Applied (-₹{payoutInfo.deduction.toFixed(2)})
+              </div>
+            ) : (
+              <div className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                Non-TDS
               </div>
             )}
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Net Payable</span>
-              <span className="font-mono font-semibold">₹{payoutInfo.payout.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+
+          {/* Beneficiary Details Card */}
+          <div className="p-4 rounded-lg border bg-muted/30 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Building2 className="h-4 w-4" />
+              Beneficiary Details
             </div>
-            {totalPaid > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Already Paid</span>
-                <span className="font-mono text-green-600">₹{totalPaid.toFixed(2)}</span>
+            
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-20">Name:</span>
+                <span className="font-medium">{order.supplier_name || 'Not specified'}</span>
               </div>
-            )}
-            <div className="border-t pt-2 mt-2">
-              <div className="flex justify-between items-center">
-                <span className="font-medium">Remaining</span>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground w-20">Phone:</span>
+                <span className="font-mono">{order.contact_number || 'Not specified'}</span>
+              </div>
+              {order.upi_id && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground w-20">UPI ID:</span>
+                  <span className="font-mono">{order.upi_id}</span>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400">
+                    UPI
+                  </span>
+                </div>
+              )}
+              {order.bank_account_number && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground w-20">A/C No:</span>
+                    <span className="font-mono">{order.bank_account_number}</span>
+                  </div>
+                  {order.ifsc_code && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground w-20">IFSC:</span>
+                      <span className="font-mono">{order.ifsc_code}</span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Already Paid Info */}
+          {totalPaid > 0 && (
+            <div className="p-3 rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-green-700 dark:text-green-400">Already Paid:</span>
+                <span className="font-mono font-medium text-green-700 dark:text-green-400">₹{totalPaid.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="font-medium">Remaining to Pay:</span>
                 <span className="font-mono font-bold text-lg text-orange-600">
                   ₹{remainingAmount.toFixed(2)}
                 </span>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Bank Account Selector */}
           <div className="space-y-2">

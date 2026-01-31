@@ -202,6 +202,10 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
         }
       }
       
+      // Calculate order expiry timestamp
+      const orderExpiryMinutes = orderData.order_expiry_minutes || 55;
+      const orderExpiresAt = new Date(Date.now() + orderExpiryMinutes * 60 * 1000).toISOString();
+      
       // Create purchase order
       const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
@@ -226,6 +230,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           net_payable_amount: netPayableAmount,
           tax_amount: tdsAmount,
           order_date: orderData.order_date,
+          order_expires_at: orderExpiresAt,
           created_by: user?.id,
           status: 'PENDING'
         })

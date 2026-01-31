@@ -223,18 +223,32 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
 
           // Create bank expense transaction if bank account is linked
           if (order.bank_account_id) {
-            await supabase
+            // Prevent duplicate deductions: if any Purchase EXPENSE already exists for this order reference,
+            // don't insert another one.
+            const { data: existingTx, error: existingTxError } = await supabase
               .from('bank_transactions')
-              .insert({
-                bank_account_id: order.bank_account_id,
-                transaction_type: 'EXPENSE',
-                amount: amountToDeduct,
-                transaction_date: new Date().toISOString().split('T')[0],
-                category: 'Purchase',
-                description: `Buy Order - ${order.supplier_name} - Order #${order.order_number}`,
-                reference_number: order.order_number,
-                related_account_name: order.supplier_name,
-              });
+              .select('id')
+              .eq('transaction_type', 'EXPENSE')
+              .eq('category', 'Purchase')
+              .eq('reference_number', order.order_number)
+              .limit(1);
+
+            if (existingTxError) throw existingTxError;
+
+            if (!existingTx || existingTx.length === 0) {
+              await supabase
+                .from('bank_transactions')
+                .insert({
+                  bank_account_id: order.bank_account_id,
+                  transaction_type: 'EXPENSE',
+                  amount: amountToDeduct,
+                  transaction_date: new Date().toISOString().split('T')[0],
+                  category: 'Purchase',
+                  description: `Buy Order - ${order.supplier_name} - Order #${order.order_number}`,
+                  reference_number: order.order_number,
+                  related_account_name: order.supplier_name,
+                });
+            }
           }
         }
       }

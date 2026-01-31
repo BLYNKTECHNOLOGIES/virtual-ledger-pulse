@@ -241,7 +241,7 @@ export function useOrderAlerts() {
     }
   }, []);
 
-  // Trigger timer alert - but NOT for terminal/expired orders
+  // Trigger timer alert - but NOT for terminal/expired orders or already-attended orders
   const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer', order?: any) => {
     // If order is provided, check if it's in a terminal state
     if (order) {
@@ -253,6 +253,14 @@ export function useOrderAlerts() {
         // Don't trigger alerts for terminal/expired orders
         stopContinuousAlarm(orderId);
         activeTimerAlarmsRef.current.delete(orderId);
+        return;
+      }
+      
+      // Check if already attended with the same data hash (including timer state)
+      const currentDataHash = generateOrderDataHash(order);
+      const attendedState = attendedOrdersRef.current[orderId];
+      if (attendedState && attendedState.dataHash === currentDataHash) {
+        // Already attended with same data - don't trigger timer alert
         return;
       }
     }
@@ -282,6 +290,9 @@ export function useOrderAlerts() {
     const currentOrderMap = new Map<string, string>();
     const now = Date.now();
     const TEN_SECONDS = 10 * 1000;
+    
+    // Refresh attended state from localStorage on each process
+    attendedOrdersRef.current = getAttendedOrders();
     
     orders.forEach(order => {
       const orderId = order.id;
@@ -322,22 +333,27 @@ export function useOrderAlerts() {
         return;
       }
       
+      // Check if already attended with the same data hash
+      const attendedState = attendedOrdersRef.current[orderId];
+      if (attendedState && attendedState.dataHash === orderDataHash) {
+        // Already attended with same data - don't trigger alert
+        return;
+      }
+      
       if (!isInitialLoad) {
         const previousHash = previousOrdersRef.current.get(orderId);
-        const attendedState = attendedOrdersRef.current[orderId];
         
         if (!previousHash) {
           triggerAlert(orderId, 'new_order', orderDataHash);
         } else if (previousHash !== orderDataHash) {
-          if (!attendedState || attendedState.dataHash !== orderDataHash) {
-            triggerAlert(orderId, 'info_update', orderDataHash);
-          }
+          triggerAlert(orderId, 'info_update', orderDataHash);
         }
       } else {
-        const attendedState = attendedOrdersRef.current[orderId];
+        // On initial load, only alert if data changed from attended state
         if (attendedState && attendedState.dataHash !== orderDataHash) {
           triggerAlert(orderId, 'info_update', orderDataHash);
         }
+        // On initial load without prior attended state, don't alert
       }
     });
     

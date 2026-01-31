@@ -181,6 +181,8 @@ export function ClientDashboard() {
                         const valueScore = getClientValueScore(client);
                         const priority = getClientPriority(valueScore);
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
+                        const orderInfo = clientOrderCounts?.get(client.id);
+                        const totalOrders = orderInfo?.salesOrderCount || 0;
                         
                         return (
                           <tr 
@@ -192,8 +194,8 @@ export function ClientDashboard() {
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4">0</td> {/* Will be calculated from orders */}
-                            <td className="py-3 px-4">-</td> {/* Will be calculated from orders */}
+                            <td className="py-3 px-4">{totalOrders}</td>
+                            <td className="py-3 px-4">-</td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="destructive">Alert</Badge>
@@ -279,6 +281,8 @@ export function ClientDashboard() {
                         const valueScore = getClientValueScore(client);
                         const priority = getClientPriority(valueScore);
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
+                        const orderInfo = clientOrderCounts?.get(client.id);
+                        const totalOrders = orderInfo?.purchaseOrderCount || 0;
                         
                         return (
                           <tr 
@@ -290,8 +294,8 @@ export function ClientDashboard() {
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4">0</td> {/* Will be calculated from orders */}
-                            <td className="py-3 px-4">-</td> {/* Will be calculated from orders */}
+                            <td className="py-3 px-4">{totalOrders}</td>
+                            <td className="py-3 px-4">-</td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="destructive">Alert</Badge>

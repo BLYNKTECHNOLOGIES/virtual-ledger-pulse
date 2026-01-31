@@ -21,6 +21,7 @@ import {
 import { BuyOrder, BuyOrderStatus, COMMON_BANKS, PanType, calculatePayout } from '@/lib/buy-order-types';
 import { validateIFSC, formatIFSCInput } from '@/lib/buy-order-helpers';
 import { setPanTypeInNotes } from '@/lib/pan-notes';
+import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Banknote, CreditCard, FileText, AlertCircle } from 'lucide-react';
@@ -62,6 +63,8 @@ export function CollectFieldsDialog({
     e.preventDefault();
     if (!order) return;
 
+    const orderAmount = getBuyOrderGrossAmount(order);
+
     if (collectType === 'banking' && order.payment_method_type !== 'UPI' && formData.ifsc_code) {
       if (!validateIFSC(formData.ifsc_code)) {
         setIfscError('IFSC must be 11 alphanumeric characters');
@@ -88,18 +91,18 @@ export function CollectFieldsDialog({
         if (panType === 'pan_provided') {
           updateData.pan_number = formData.pan_number;
           updateData.tds_applied = true;
-          updateData.tds_amount = order.total_amount * 0.01;
-          updateData.net_payable_amount = order.total_amount - updateData.tds_amount;
+          updateData.tds_amount = orderAmount * 0.01;
+          updateData.net_payable_amount = orderAmount - updateData.tds_amount;
         } else if (panType === 'pan_not_provided') {
           updateData.pan_number = null;
           updateData.tds_applied = true;
-          updateData.tds_amount = order.total_amount * 0.20;
-          updateData.net_payable_amount = order.total_amount - updateData.tds_amount;
+          updateData.tds_amount = orderAmount * 0.20;
+          updateData.net_payable_amount = orderAmount - updateData.tds_amount;
         } else {
           updateData.pan_number = null;
           updateData.tds_applied = false;
           updateData.tds_amount = 0;
-          updateData.net_payable_amount = order.total_amount;
+          updateData.net_payable_amount = orderAmount;
         }
         updateData.notes = setPanTypeInNotes(order.notes, panType);
       }
@@ -112,7 +115,7 @@ export function CollectFieldsDialog({
       if (error) throw error;
 
       if (collectType === 'pan') {
-        const payout = calculatePayout(order.total_amount, panType);
+        const payout = calculatePayout(orderAmount, panType);
         toast({
           title: 'Details Collected',
           description: `Payout: ₹${payout.payout.toLocaleString('en-IN')} (${payout.deductionPercent}% TDS deducted)`,
@@ -157,7 +160,8 @@ export function CollectFieldsDialog({
 
   if (!order || !collectType) return null;
 
-  const payoutInfo = collectType === 'pan' ? calculatePayout(order.total_amount, panType) : null;
+  const orderAmount = getBuyOrderGrossAmount(order);
+  const payoutInfo = collectType === 'pan' ? calculatePayout(orderAmount, panType) : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -182,7 +186,7 @@ export function CollectFieldsDialog({
           </DialogTitle>
           <DialogDescription>
             {collectType === 'pan' 
-              ? `Order Amount: ₹${order.total_amount.toLocaleString('en-IN')}`
+              ? `Order Amount: ₹${orderAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               : `Please enter the ${order.payment_method_type === 'UPI' ? 'UPI' : 'bank'} details for order ${order.order_number}`
             }
           </DialogDescription>
@@ -340,7 +344,7 @@ export function CollectFieldsDialog({
                 <div className="p-4 rounded-lg bg-muted border">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-muted-foreground">Order Amount</span>
-                    <span className="font-mono">₹{order.total_amount.toLocaleString('en-IN')}</span>
+                    <span className="font-mono">₹{orderAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-muted-foreground">
@@ -354,7 +358,7 @@ export function CollectFieldsDialog({
                     <div className="flex justify-between items-center">
                       <span className="font-medium">Payout Amount</span>
                       <span className="font-mono font-bold text-lg text-green-600">
-                        ₹{payoutInfo.payout.toLocaleString('en-IN')}
+                        ₹{payoutInfo.payout.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>

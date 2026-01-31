@@ -28,6 +28,8 @@ interface ProductItem {
   quantity: number;
   unit_price: number;
   warehouse_id: string;
+  // Optional user-entered total amount (used to back-calculate quantity when needed)
+  total_amount?: number;
 }
 
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
@@ -64,9 +66,37 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   // Fetch average cost for USDT
   const { data: averageCosts } = useAverageCost();
 
+  // Normalize items so amount calculations always work even if user filled "Total Amount" first
+  const normalizedItems = useMemo(() => {
+    return (productItems || []).map((item) => {
+      const totalFromField = Number((item as any).total_amount || 0);
+      const unitPrice = Number(item.unit_price || 0);
+
+      let quantity = Number(item.quantity || 0);
+      if ((quantity <= 0 || !Number.isFinite(quantity)) && totalFromField > 0 && unitPrice > 0) {
+        quantity = totalFromField / unitPrice;
+      }
+
+      const total = totalFromField > 0 ? totalFromField : quantity * unitPrice;
+
+      return {
+        ...item,
+        quantity: Number.isFinite(quantity) ? quantity : 0,
+        unit_price: Number.isFinite(unitPrice) ? unitPrice : 0,
+        total_amount: Number.isFinite(total) ? total : 0,
+      };
+    });
+  }, [productItems]);
+
   // Calculate amounts based on TDS option
-  const totalAmount = productItems.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
-  const totalQuantity = productItems.reduce((total, item) => total + item.quantity, 0);
+  const totalAmount = useMemo(
+    () => normalizedItems.reduce((total, item) => total + (item.total_amount || 0), 0),
+    [normalizedItems]
+  );
+  const totalQuantity = useMemo(
+    () => normalizedItems.reduce((total, item) => total + (item.quantity || 0), 0),
+    [normalizedItems]
+  );
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
   
@@ -201,14 +231,14 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
       if (orderError) throw orderError;
 
-      // Create purchase order items
-      if (productItems.length > 0) {
-        const orderItems = productItems.map(item => ({
+       // Create purchase order items
+       if (normalizedItems.length > 0) {
+         const orderItems = normalizedItems.map(item => ({
           purchase_order_id: purchaseOrder.id,
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          total_price: item.quantity * item.unit_price,
+           total_price: item.total_amount || (item.quantity * item.unit_price),
           warehouse_id: item.warehouse_id
         }));
 
@@ -297,8 +327,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       }
 
       // Handle USDT fee deduction from wallet
-      if (!isOffMarket && calculatedFee.feeUSDT > 0 && productItems.length > 0) {
-        const walletId = productItems[0].warehouse_id;
+       if (!isOffMarket && calculatedFee.feeUSDT > 0 && normalizedItems.length > 0) {
+         const walletId = normalizedItems[0].warehouse_id;
         
         if (walletId) {
           // Debit fee from wallet
@@ -425,16 +455,25 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       return;
     }
 
-    // Validate all product items have wallet selected
-    const missingWallet = productItems.find(item => !item.warehouse_id);
-    if (missingWallet) {
+    // Validate item amounts (quantity/unit price OR total amount)
+    const invalidItem = normalizedItems.find((item) => {
+      if (!item.product_id) return true;
+      if (!item.warehouse_id) return true;
+      if (item.unit_price <= 0) return true;
+      if (item.quantity <= 0) return true;
+      if ((item.total_amount || 0) <= 0) return true;
+      return false;
+    });
+    if (invalidItem || totalAmount <= 0) {
       toast({
         title: "Error",
-        description: "Please select a wallet for all product items - it is required for all purchase orders.",
+        description: "Please enter valid quantity and unit price (or total amount) for all items.",
         variant: "destructive",
       });
       return;
     }
+
+    // Wallet validation is included above in invalidItem check
 
     if (formData.tds_option === "TDS_1_PERCENT" && !formData.pan_number.trim()) {
       toast({

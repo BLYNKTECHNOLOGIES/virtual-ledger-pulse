@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BuyOrder, calculatePayout } from '@/lib/buy-order-types';
 import { getEffectivePanType } from '@/lib/buy-order-helpers';
+import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CreditCard, Upload, Receipt, X, Image } from 'lucide-react';
@@ -41,9 +42,8 @@ export function RecordPaymentDialog({
 
   if (!order) return null;
 
-  // Get the actual order amount - use net_amount if available, otherwise calculate
-  const orderAmount = order.total_amount || 
-    (order.quantity && order.price_per_unit ? order.quantity * order.price_per_unit : 0);
+  // Best-available gross order amount
+  const orderAmount = getBuyOrderGrossAmount(order);
 
   // Calculate remaining amount based on TDS
   const effectivePanType = getEffectivePanType(order);

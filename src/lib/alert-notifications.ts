@@ -23,6 +23,7 @@ export function getAlertDetails(alertType: AlertType, orderInfo: OrderAlertInfo)
   title: string;
   description: string;
   icon: string;
+  type: 'info' | 'warning' | 'error' | 'success';
 } {
   const orderLabel = orderInfo.orderNumber || 'Order';
   const supplierLabel = orderInfo.supplierName ? ` from ${orderInfo.supplierName}` : '';
@@ -34,30 +35,35 @@ export function getAlertDetails(alertType: AlertType, orderInfo: OrderAlertInfo)
         title: '🆕 New Buy Order',
         description: `Order #${orderLabel}${supplierLabel}${amountLabel} has been created and needs attention.`,
         icon: '🆕',
+        type: 'info',
       };
     case 'info_update':
       return {
         title: '📝 Order Updated',
         description: `Order #${orderLabel}${supplierLabel} has been updated with new information.`,
         icon: '📝',
+        type: 'info',
       };
     case 'payment_timer':
       return {
         title: '⏰ Payment Timer Alert',
         description: `Order #${orderLabel}${amountLabel} - Payment timer is running low! Complete payment soon.`,
         icon: '⏰',
+        type: 'warning',
       };
     case 'order_timer':
       return {
         title: '⚠️ Order Expiring Soon',
         description: `Order #${orderLabel}${supplierLabel}${amountLabel} is about to expire! Take action now.`,
         icon: '⚠️',
+        type: 'error',
       };
     default:
       return {
         title: '🔔 Order Alert',
         description: `Order #${orderLabel} requires your attention.`,
         icon: '🔔',
+        type: 'info',
       };
   }
 }
@@ -82,4 +88,25 @@ export function showOrderAlertNotification(
     duration: isUrgent ? 10000 : 5000,
     onClick: () => onNavigate(orderInfo.orderId),
   });
+}
+
+// Add to global notification bell - this function should be called with the addNotification from context
+export function createGlobalNotification(
+  orderInfo: OrderAlertInfo
+): {
+  title: string;
+  description: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  orderId: string;
+  orderRoute: string;
+} {
+  const { title, description, type } = getAlertDetails(orderInfo.alertType, orderInfo);
+  
+  return {
+    title,
+    description,
+    type,
+    orderId: orderInfo.orderId,
+    orderRoute: '/purchase',
+  };
 }

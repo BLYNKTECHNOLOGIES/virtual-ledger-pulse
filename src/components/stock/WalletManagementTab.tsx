@@ -611,7 +611,7 @@ export function WalletManagementTab() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{wallet.current_balance.toLocaleString()}</TableCell>
+                    <TableCell>{(wallet.current_balance ?? 0).toLocaleString()}</TableCell>
                     <TableCell>
                       {wallet.is_fee_enabled && (wallet.fee_percentage || 0) > 0 ? (
                         <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
@@ -691,12 +691,12 @@ export function WalletManagementTab() {
                         {transaction.transaction_type}
                       </Badge>
                     </TableCell>
-                    <TableCell>{transaction.amount.toLocaleString()}</TableCell>
+                    <TableCell>{(transaction.amount ?? 0).toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{transaction.reference_type}</Badge>
                     </TableCell>
                     <TableCell>{transaction.description}</TableCell>
-                    <TableCell>{transaction.balance_after.toLocaleString()}</TableCell>
+                    <TableCell>{(transaction.balance_after ?? 0).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

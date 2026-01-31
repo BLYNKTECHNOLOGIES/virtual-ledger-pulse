@@ -2813,6 +2813,96 @@ export type Database = {
           },
         ]
       }
+      purchase_order_payments: {
+        Row: {
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          screenshot_url: string | null
+        }
+        Insert: {
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          screenshot_url?: string | null
+        }
+        Update: {
+          amount_paid?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          screenshot_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_order_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+          order_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+          order_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_orders: {
         Row: {
           assigned_to: string | null
@@ -2830,10 +2920,14 @@ export type Database = {
           id: string
           ifsc_code: string | null
           is_off_market: boolean | null
+          is_safe_fund: boolean | null
           net_amount: number | null
           net_payable_amount: number | null
+          notes: string | null
           order_date: string
+          order_expires_at: string | null
           order_number: string
+          order_status: string | null
           pan_number: string | null
           payment_method_type: string | null
           payment_method_used: string | null
@@ -2848,7 +2942,9 @@ export type Database = {
           tax_amount: number | null
           tds_amount: number | null
           tds_applied: boolean | null
+          timer_end_at: string | null
           total_amount: number
+          total_paid: number | null
           updated_at: string
           upi_id: string | null
           warehouse_name: string | null
@@ -2869,10 +2965,14 @@ export type Database = {
           id?: string
           ifsc_code?: string | null
           is_off_market?: boolean | null
+          is_safe_fund?: boolean | null
           net_amount?: number | null
           net_payable_amount?: number | null
+          notes?: string | null
           order_date: string
+          order_expires_at?: string | null
           order_number: string
+          order_status?: string | null
           pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
@@ -2887,7 +2987,9 @@ export type Database = {
           tax_amount?: number | null
           tds_amount?: number | null
           tds_applied?: boolean | null
+          timer_end_at?: string | null
           total_amount: number
+          total_paid?: number | null
           updated_at?: string
           upi_id?: string | null
           warehouse_name?: string | null
@@ -2908,10 +3010,14 @@ export type Database = {
           id?: string
           ifsc_code?: string | null
           is_off_market?: boolean | null
+          is_safe_fund?: boolean | null
           net_amount?: number | null
           net_payable_amount?: number | null
+          notes?: string | null
           order_date?: string
+          order_expires_at?: string | null
           order_number?: string
+          order_status?: string | null
           pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
@@ -2926,7 +3032,9 @@ export type Database = {
           tax_amount?: number | null
           tds_amount?: number | null
           tds_applied?: boolean | null
+          timer_end_at?: string | null
           total_amount?: number
+          total_paid?: number | null
           updated_at?: string
           upi_id?: string | null
           warehouse_name?: string | null

@@ -258,9 +258,16 @@ export function useOrderAlerts() {
       const isExpired = order.order_expires_at && new Date(order.order_expires_at).getTime() < Date.now();
       
       if (isTerminal || isExpired) {
-        // Don't trigger alerts for terminal/expired orders
+        // STRICT: terminal/expired orders must never start/restart buzzers.
+        // Always force-stop any alarm and clear alert state.
         stopContinuousAlarm(orderId);
         activeTimerAlarmsRef.current.delete(orderId);
+        setAlertStates(prev => {
+          if (!prev.has(orderId)) return prev;
+          const next = new Map(prev);
+          next.delete(orderId);
+          return next;
+        });
         return;
       }
       

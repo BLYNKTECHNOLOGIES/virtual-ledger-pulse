@@ -8,11 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Settings, RefreshCw, Palette, User, LogOut } from "lucide-react";
+import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
+import { useNotificationMute } from "@/hooks/useNotificationMute";
 
 export function NotificationDropdown() {
+  const { isMuted, toggleMute } = useNotificationMute();
   const [notifications] = useState([
     { id: 1, title: "New Order Received", time: "2 minutes ago" },
     { id: 2, title: "Payment Confirmed", time: "5 minutes ago" },
@@ -49,13 +51,13 @@ export function NotificationDropdown() {
               <DropdownMenuItem key={notification.id} className="p-4 cursor-pointer">
                 <div className="flex flex-col space-y-1">
                   <span className="font-medium">{notification.title}</span>
-                  <span className="text-sm text-gray-500">{notification.time}</span>
+                  <span className="text-sm text-muted-foreground">{notification.time}</span>
                 </div>
               </DropdownMenuItem>
             ))}
           </div>
         ) : (
-          <div className="p-4 text-center text-gray-500">
+          <div className="p-4 text-center text-muted-foreground">
             No new notifications
           </div>
         )}
@@ -63,6 +65,20 @@ export function NotificationDropdown() {
         <DropdownMenuSeparator />
         
         <div className="p-2">
+          <DropdownMenuItem onClick={toggleMute}>
+            {isMuted ? (
+              <>
+                <VolumeX className="h-4 w-4 mr-2 text-destructive" />
+                <span>Unmute Notifications</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="h-4 w-4 mr-2" />
+                <span>Mute Notifications</span>
+              </>
+            )}
+          </DropdownMenuItem>
+          
           <DropdownMenuItem onClick={handleReload}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Reload

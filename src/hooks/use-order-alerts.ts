@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { isNotificationMuted } from './useNotificationMute';
 
 export type AlertType = 'new_order' | 'info_update' | 'payment_timer' | 'order_timer';
 
@@ -87,6 +88,9 @@ function playTone(frequency: number, duration: number, delay: number = 0, volume
 
 // Play alert sound once
 export function playAlertSound(type: AlertType) {
+  // Check if notifications are muted for current user
+  if (isNotificationMuted()) return;
+  
   try {
     switch (type) {
       case 'new_order':
@@ -122,6 +126,8 @@ export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'o
   if (activeAlarms.has(orderId)) return;
 
   const playAlarm = () => {
+    // Check mute status on each alarm iteration
+    if (isNotificationMuted()) return;
     if (type === 'payment_timer') {
       playTone(2400, 0.12, 0, 1.0);
       playTone(2800, 0.12, 0.15, 1.0);

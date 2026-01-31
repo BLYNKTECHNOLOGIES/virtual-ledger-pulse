@@ -48,20 +48,43 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId,
   });
 
-  // Fetch client's orders to calculate first order value and stats
+  // Fetch client's orders to calculate first order value and stats (both sales AND purchase orders for composite/seller)
   const { data: orders } = useQuery({
-    queryKey: ['client-orders', activeClientId],
+    queryKey: ['client-orders', activeClientId, isSeller],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select('*')
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
-        .order('order_date', { ascending: true });
+      // For buyers, fetch sales_orders; for sellers, fetch purchase_orders; for composite fetch both
+      const allOrders: any[] = [];
       
-      if (error) throw error;
-      return data || [];
+      // Fetch sales orders (buyer activity)
+      if (!isSeller || isComposite) {
+        const { data: salesData } = await supabase
+          .from('sales_orders')
+          .select('id, order_number, order_date, total_amount, status, payment_status')
+          .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
+          .order('order_date', { ascending: true });
+        
+        if (salesData) {
+          allOrders.push(...salesData.map(o => ({ ...o, order_type: 'SALES' })));
+        }
+      }
+      
+      // Fetch purchase orders (seller activity)
+      if (isSeller || isComposite) {
+        const { data: purchaseData } = await supabase
+          .from('purchase_orders')
+          .select('id, order_number, order_date, total_amount, status, order_status')
+          .or(`supplier_name.ilike.%${client.name}%,contact_number.eq.${client.phone || 'NONE'}`)
+          .order('order_date', { ascending: true });
+        
+        if (purchaseData) {
+          allOrders.push(...purchaseData.map(o => ({ ...o, order_type: 'PURCHASE' })));
+        }
+      }
+      
+      // Sort all orders by date
+      return allOrders.sort((a, b) => new Date(a.order_date).getTime() - new Date(b.order_date).getTime());
     },
     enabled: !!activeClientId && !!client,
   });

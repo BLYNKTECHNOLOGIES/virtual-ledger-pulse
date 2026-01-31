@@ -11,7 +11,7 @@ import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
-import { useOrderAlerts } from "@/hooks/use-order-alerts";
+import { useOrderAlerts, stopContinuousAlarm } from "@/hooks/use-order-alerts";
 import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
 
 interface BuyOrdersTabProps {
@@ -256,7 +256,12 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       }
       // NOTE: Cancelled orders do NOT trigger any balance updates or fee deductions
     },
-    onSuccess: (_, { newStatus }) => {
+    onSuccess: (_, { orderId, newStatus }) => {
+      // Stop any active alarms immediately for completed/cancelled orders
+      if (newStatus === 'completed' || newStatus === 'cancelled') {
+        stopContinuousAlarm(orderId);
+      }
+      
       if (newStatus === 'completed') {
         toast({
           title: "Order Completed",

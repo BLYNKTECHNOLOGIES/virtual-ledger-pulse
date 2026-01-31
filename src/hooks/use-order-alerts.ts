@@ -241,8 +241,22 @@ export function useOrderAlerts() {
     }
   }, []);
 
-  // Trigger timer alert
-  const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer') => {
+  // Trigger timer alert - but NOT for terminal/expired orders
+  const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer', order?: any) => {
+    // If order is provided, check if it's in a terminal state
+    if (order) {
+      const orderStatus = order.order_status;
+      const isTerminal = orderStatus === 'completed' || orderStatus === 'cancelled';
+      const isExpired = order.order_expires_at && new Date(order.order_expires_at).getTime() < Date.now();
+      
+      if (isTerminal || isExpired) {
+        // Don't trigger alerts for terminal/expired orders
+        stopContinuousAlarm(orderId);
+        activeTimerAlarmsRef.current.delete(orderId);
+        return;
+      }
+    }
+    
     const currentState = alertStates.get(orderId);
     if (currentState?.alertType === type) return;
     
@@ -266,12 +280,47 @@ export function useOrderAlerts() {
   // Check for new orders or updates
   const processOrderChanges = useCallback((orders: any[], isInitialLoad: boolean = false) => {
     const currentOrderMap = new Map<string, string>();
+    const now = Date.now();
+    const TEN_SECONDS = 10 * 1000;
     
     orders.forEach(order => {
       const orderId = order.id;
       const orderDataHash = generateOrderDataHash(order);
+      const orderStatus = order.order_status;
       
       currentOrderMap.set(orderId, orderDataHash);
+      
+      // Check if this is a terminal state (completed, cancelled, or expired)
+      const isTerminal = orderStatus === 'completed' || orderStatus === 'cancelled';
+      const isExpired = order.order_expires_at && new Date(order.order_expires_at).getTime() < now;
+      
+      // If order is in terminal state or expired, stop any active alarms
+      // and don't trigger new alerts
+      if (isTerminal || isExpired) {
+        // Check if the order was completed/expired within the last 10 seconds
+        // If so, allow a brief grace period, then stop
+        const completedAt = order.updated_at ? new Date(order.updated_at).getTime() : 0;
+        const expiredAt = order.order_expires_at ? new Date(order.order_expires_at).getTime() : 0;
+        const terminalTime = isTerminal ? completedAt : expiredAt;
+        
+        if (now - terminalTime > TEN_SECONDS) {
+          // More than 10 seconds since terminal state - stop alarms immediately
+          stopContinuousAlarm(orderId);
+          activeTimerAlarmsRef.current.delete(orderId);
+          
+          // Remove from alert states
+          setAlertStates(prev => {
+            if (prev.has(orderId)) {
+              const newStates = new Map(prev);
+              newStates.delete(orderId);
+              return newStates;
+            }
+            return prev;
+          });
+        }
+        // Don't trigger new alerts for terminal/expired orders
+        return;
+      }
       
       if (!isInitialLoad) {
         const previousHash = previousOrdersRef.current.get(orderId);

@@ -359,26 +359,29 @@ export function BuyOrderCard({
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Order
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {STATUS_ORDER.map((status) => (
-                  <DropdownMenuItem
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={currentStatus === status}
-                  >
-                    <span className="mr-2">{BUY_ORDER_STATUS_CONFIG[status].icon}</span>
-                    Move to {BUY_ORDER_STATUS_CONFIG[status].label}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => onStatusChange('cancelled')}
-                  className="text-destructive"
-                  disabled={currentStatus === 'cancelled'}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Cancel Order
-                </DropdownMenuItem>
+                {currentStatus !== 'completed' && currentStatus !== 'cancelled' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    {STATUS_ORDER.map((status) => (
+                      <DropdownMenuItem
+                        key={status}
+                        onClick={() => handleStatusChange(status)}
+                        disabled={currentStatus === status}
+                      >
+                        <span className="mr-2">{BUY_ORDER_STATUS_CONFIG[status].icon}</span>
+                        Move to {BUY_ORDER_STATUS_CONFIG[status].label}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onStatusChange('cancelled')}
+                      className="text-destructive"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Cancel Order
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

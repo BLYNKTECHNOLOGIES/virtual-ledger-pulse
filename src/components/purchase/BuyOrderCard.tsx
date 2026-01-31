@@ -65,10 +65,33 @@ export function BuyOrderCard({
     nextStatus: 'new' as BuyOrderStatus,
     icon: '❓',
   };
-  const nextStatus = statusConfig.nextStatus;
 
   const bankingCollected = hasBankingDetails(order);
   const tdsSelected = hasTdsTypeSelected(order);
+
+  // Calculate the ACTUAL next status, skipping steps where data is already provided
+  const computeNextStatus = (): BuyOrderStatus | null => {
+    const staticNext = statusConfig.nextStatus;
+    if (!staticNext) return null;
+
+    // From 'new' status: skip banking_collected if banking already provided
+    if (currentStatus === 'new' && bankingCollected) {
+      // If TDS is also already selected, skip to added_to_bank
+      if (tdsSelected) {
+        return 'added_to_bank';
+      }
+      return 'pan_collected';
+    }
+
+    // From 'banking_collected' status: skip pan_collected if TDS already selected
+    if (currentStatus === 'banking_collected' && tdsSelected) {
+      return 'added_to_bank';
+    }
+
+    return staticNext;
+  };
+
+  const nextStatus = computeNextStatus();
 
   // Payment tracking
   const totalPaid = order.total_paid || 0;

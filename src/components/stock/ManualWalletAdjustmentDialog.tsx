@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,16 @@ interface ManualWalletAdjustmentDialogProps {
 }
 
 const ADJUSTMENT_WALLET_NAME = "Balance Adjustment Wallet";
+
+const adjustmentSchema = z.object({
+  wallet_id: z.string().min(1, "Please select a wallet"),
+  adjustment_type: z.enum(["CREDIT", "DEBIT"]),
+  amount: z
+    .string()
+    .transform((v) => Number.parseFloat(v))
+    .refine((v) => Number.isFinite(v) && v > 0, "Please enter a valid amount"),
+  reason: z.string().trim().min(1, "Reason is required").max(500, "Reason is too long"),
+});
 
 export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalletAdjustmentDialogProps) {
   const { toast } = useToast();
@@ -75,40 +86,53 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
 
   const adjustmentMutation = useMutation({
     mutationFn: async () => {
-      const amount = parseFloat(formData.amount);
-      if (isNaN(amount) || amount <= 0) {
-        throw new Error("Please enter a valid amount");
+      const parsed = adjustmentSchema.safeParse(formData);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message || "Invalid input");
       }
 
-      const selectedWallet = wallets?.find(w => w.id === formData.wallet_id);
-      if (!selectedWallet) throw new Error("Please select a wallet");
+      const { wallet_id, adjustment_type, amount, reason } = parsed.data;
 
       // Ensure adjustment wallet exists
       const adjustmentWalletId = await ensureAdjustmentWallet();
 
-      // Get current balances
-      const { data: adjWallet } = await supabase
-        .from('wallets')
-        .select('current_balance')
-        .eq('id', adjustmentWalletId)
-        .single();
+      // Fetch fresh balances from DB (don't rely on cached list)
+      const [{ data: mainWallet, error: mainErr }, { data: adjWallet, error: adjErr }] = await Promise.all([
+        supabase
+          .from('wallets')
+          .select('id, wallet_name, wallet_type, current_balance')
+          .eq('id', wallet_id)
+          .single(),
+        supabase
+          .from('wallets')
+          .select('id, current_balance')
+          .eq('id', adjustmentWalletId)
+          .single(),
+      ]);
 
-      const isCredit = formData.adjustment_type === "CREDIT";
+      if (mainErr) throw mainErr;
+      if (adjErr) throw adjErr;
+      if (!mainWallet) throw new Error('Wallet not found');
+
+      const mainBefore = Number(mainWallet.current_balance ?? 0);
+      const adjBefore = Number(adjWallet?.current_balance ?? 0);
+      const isCredit = adjustment_type === "CREDIT";
       const refId = `ADJ-${Date.now()}`;
+
+      const mainAfter = isCredit ? mainBefore + amount : mainBefore - amount;
+      const adjAfter = isCredit ? adjBefore - amount : adjBefore + amount;
 
       // Create wallet transactions for both wallets (contra entry)
       const transactions = [
         {
-          wallet_id: formData.wallet_id,
+          wallet_id,
           transaction_type: isCredit ? "CREDIT" : "DEBIT",
           amount,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
-          description: `Manual Balance Adjustment: ${formData.reason}`,
-          balance_before: selectedWallet.current_balance,
-          balance_after: isCredit 
-            ? selectedWallet.current_balance + amount 
-            : selectedWallet.current_balance - amount
+          description: `Manual Balance Adjustment: ${reason}`,
+          balance_before: mainBefore,
+          balance_after: mainAfter
         },
         {
           wallet_id: adjustmentWalletId,
@@ -116,11 +140,9 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
           amount,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
-          description: `Contra Entry - Adjustment for ${selectedWallet.wallet_name}: ${formData.reason}`,
-          balance_before: adjWallet?.current_balance || 0,
-          balance_after: isCredit 
-            ? (adjWallet?.current_balance || 0) - amount 
-            : (adjWallet?.current_balance || 0) + amount
+          description: `Contra Entry - Adjustment for ${mainWallet.wallet_name}: ${reason}`,
+          balance_before: adjBefore,
+          balance_after: adjAfter
         }
       ];
 
@@ -129,6 +151,21 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
         .insert(transactions);
 
       if (txError) throw txError;
+
+      // Update wallets table so UI reflects balances immediately
+      const [{ error: updMainErr }, { error: updAdjErr }] = await Promise.all([
+        supabase
+          .from('wallets')
+          .update({ current_balance: mainAfter })
+          .eq('id', wallet_id),
+        supabase
+          .from('wallets')
+          .update({ current_balance: adjAfter })
+          .eq('id', adjustmentWalletId),
+      ]);
+
+      if (updMainErr) throw updMainErr;
+      if (updAdjErr) throw updAdjErr;
     },
     onSuccess: () => {
       toast({
@@ -191,7 +228,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
               <SelectContent>
                 {wallets?.filter(w => w.wallet_name !== ADJUSTMENT_WALLET_NAME).map((wallet) => (
                   <SelectItem key={wallet.id} value={wallet.id}>
-                    {wallet.wallet_name} ({wallet.wallet_type}) - {wallet.current_balance.toFixed(2)}
+                    {wallet.wallet_name} ({wallet.wallet_type}) - {(Number(wallet.current_balance ?? 0)).toFixed(2)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -202,7 +239,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
             <div className="bg-muted p-3 rounded-md text-sm">
               <div className="flex justify-between">
                 <span>Current Balance:</span>
-                <span className="font-medium">{selectedWallet.current_balance.toFixed(2)} {selectedWallet.wallet_type}</span>
+                <span className="font-medium">{(Number(selectedWallet.current_balance ?? 0)).toFixed(2)} {selectedWallet.wallet_type}</span>
               </div>
             </div>
           )}
@@ -252,8 +289,8 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
                 <span>New Balance (after adjustment):</span>
                 <span className="font-medium">
                   {(formData.adjustment_type === "CREDIT" 
-                    ? selectedWallet.current_balance + parseFloat(formData.amount || "0")
-                    : selectedWallet.current_balance - parseFloat(formData.amount || "0")
+                    ? Number(selectedWallet.current_balance ?? 0) + parseFloat(formData.amount || "0")
+                    : Number(selectedWallet.current_balance ?? 0) - parseFloat(formData.amount || "0")
                   ).toFixed(2)} {selectedWallet.wallet_type}
                 </span>
               </div>

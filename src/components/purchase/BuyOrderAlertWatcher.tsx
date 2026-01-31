@@ -15,7 +15,7 @@ import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
 export function BuyOrderAlertWatcher() {
   const isInitialLoadRef = useRef(true);
   const notifiedRef = useRef<Set<string>>(new Set());
-  const { addNotification } = useNotifications();
+  const { addNotification, lastOrderNavigation } = useNotifications();
   const { focusOrder } = useOrderFocus();
 
   const {
@@ -72,6 +72,15 @@ export function BuyOrderAlertWatcher() {
     },
     [focusOrder, orders, markAttended]
   );
+
+  // When user clicks a bell notification, immediately mark order as attended and stop buzzer
+  useEffect(() => {
+    if (!lastOrderNavigation?.orderId || !orders) return;
+    const order = orders.find((o) => o.id === lastOrderNavigation.orderId);
+    if (order) {
+      markAttended(order.id, order);
+    }
+  }, [lastOrderNavigation?.at, lastOrderNavigation?.orderId, orders, markAttended]);
 
   useEffect(() => {
     if (!orders) return;

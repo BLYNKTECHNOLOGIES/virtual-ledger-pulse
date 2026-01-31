@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Download, ShoppingBag, Filter, Search } from "lucide-react";
+import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PendingPurchaseOrders } from "@/components/purchase/PendingPurchaseOrders";
 import { ReviewNeededOrders } from "@/components/purchase/ReviewNeededOrders";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
+import { BuyOrdersTab } from "@/components/purchase/BuyOrdersTab";
 import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
 import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 export default function Purchase() {
   const navigate = useNavigate();
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("buy_orders");
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
@@ -40,15 +40,16 @@ export default function Purchase() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('status');
+        .select('status, order_status');
       
       if (error) throw error;
       
       const pending = data?.filter(order => order.status === 'PENDING').length || 0;
       const review = data?.filter(order => order.status === 'REVIEW_NEEDED').length || 0;
       const completed = data?.filter(order => order.status === 'COMPLETED').length || 0;
+      const buyOrders = data?.filter(order => order.order_status !== null).length || 0;
       
-      return { pending, review, completed };
+      return { pending, review, completed, buyOrders };
     },
   });
 
@@ -179,26 +180,41 @@ export default function Purchase() {
         <Card className="w-full">
         <CardContent className="p-3 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4 md:mb-6 h-auto">
+            <TabsList className="grid w-full grid-cols-4 mb-4 md:mb-6 h-auto">
+              <TabsTrigger value="buy_orders" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="truncate">Buy Orders</span>
+                {ordersSummary?.buyOrders ? (
+                  <Badge variant="secondary" className="text-xs">{ordersSummary.buyOrders}</Badge>
+                ) : null}
+              </TabsTrigger>
               <TabsTrigger value="pending" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <span className="truncate">Pending</span>
-                {ordersSummary?.pending > 0 && (
+                {ordersSummary?.pending ? (
                   <Badge variant="secondary" className="text-xs">{ordersSummary.pending}</Badge>
-                )}
+                ) : null}
               </TabsTrigger>
               <TabsTrigger value="review" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <span className="truncate">Review</span>
-                {ordersSummary?.review > 0 && (
+                {ordersSummary?.review ? (
                   <Badge variant="destructive" className="text-xs">{ordersSummary.review}</Badge>
-                )}
+                ) : null}
               </TabsTrigger>
               <TabsTrigger value="completed" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <span className="truncate">Completed</span>
-                {ordersSummary?.completed > 0 && (
+                {ordersSummary?.completed ? (
                   <Badge variant="default" className="text-xs">{ordersSummary.completed}</Badge>
-                )}
+                ) : null}
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="buy_orders">
+              <BuyOrdersTab
+                searchTerm={searchTerm}
+                dateFrom={filterDateFrom}
+                dateTo={filterDateTo}
+              />
+            </TabsContent>
 
             <TabsContent value="pending">
               <PendingPurchaseOrders 

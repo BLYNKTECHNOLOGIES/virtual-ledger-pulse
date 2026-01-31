@@ -26,6 +26,18 @@ interface NotificationContextType {
    * Consumers (e.g. BuyOrdersTab) can use this to mark the order attended, stop buzzers, etc.
    */
   lastOrderNavigation: { orderId: string; at: number } | null;
+
+  /**
+   * Emits when user actions imply "I'm done with all current alerts" (mark all read / clear).
+   * Watchers should interpret this as attending those orders so buzzers stop.
+   */
+  lastAttendedOrders: { orderIds: string[]; at: number } | null;
+
+  /**
+   * Emits when notifications were cleared, so watchers can re-emit notifications
+   * for any still-active alerts/buzzers.
+   */
+  notificationsResetSignal: number;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -33,6 +45,8 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<GlobalNotification[]>([]);
   const [lastOrderNavigation, setLastOrderNavigation] = useState<{ orderId: string; at: number } | null>(null);
+  const [lastAttendedOrders, setLastAttendedOrders] = useState<{ orderIds: string[]; at: number } | null>(null);
+  const [notificationsResetSignal, setNotificationsResetSignal] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { focusOrder } = useOrderFocus();
@@ -59,16 +73,39 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications(prev => {
+      const orderIds = Array.from(
+        new Set(prev.map(n => n.orderId).filter((id): id is string => Boolean(id)))
+      );
+      if (orderIds.length > 0) {
+        setLastAttendedOrders({ orderIds, at: Date.now() });
+      }
+      return prev.map(n => ({ ...n, read: true }));
+    });
   }, []);
 
   const clearNotifications = useCallback(() => {
-    setNotifications([]);
+    setNotifications(prev => {
+      const orderIds = Array.from(
+        new Set(prev.map(n => n.orderId).filter((id): id is string => Boolean(id)))
+      );
+      if (orderIds.length > 0) {
+        setLastAttendedOrders({ orderIds, at: Date.now() });
+      }
+      return [];
+    });
+    // Let watchers re-emit notifications for any still-active alerts
+    setNotificationsResetSignal(s => s + 1);
   }, []);
 
   const handleNotificationClick = useCallback((notification: GlobalNotification) => {
     // Mark as read
     markAsRead(notification.id);
+
+    // Treat clicking any order notification as "attended" for buzzer suppression
+    if (notification.orderId) {
+      setLastAttendedOrders({ orderIds: [notification.orderId], at: Date.now() });
+    }
     
     // Navigate if there's an order route
     if (notification.orderId && notification.orderRoute) {
@@ -100,6 +137,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       clearNotifications,
       handleNotificationClick,
       lastOrderNavigation,
+      lastAttendedOrders,
+      notificationsResetSignal,
     }}>
       {children}
     </NotificationContext.Provider>

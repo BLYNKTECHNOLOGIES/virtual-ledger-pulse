@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,9 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+
+  // Prevent SetTimerDialog close from clearing state when user clicks "Pay Now"
+  const payNowTransitionRef = useRef(false);
 
   // Global notification context
   const { lastOrderNavigation } = useNotifications();
@@ -319,13 +322,26 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   };
 
   const handlePayNowFromTimer = () => {
-    // Close timer dialog and open payment dialog
-    // NOTE: We only close the timer dialog, NOT clear selectedOrder, so payment dialog has the order
+    payNowTransitionRef.current = true;
     setShowTimerDialog(false);
-    // Use a small delay to ensure React has updated state before opening the next dialog
-    setTimeout(() => {
-      setShowPaymentDialog(true);
-    }, 50);
+    setShowPaymentDialog(true);
+    // Reset shortly after transition completes
+    window.setTimeout(() => {
+      payNowTransitionRef.current = false;
+    }, 300);
+  };
+
+  const handleTimerDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      // If we're closing because of Pay Now, don't clear selectedOrder.
+      if (payNowTransitionRef.current) {
+        setShowTimerDialog(false);
+        return;
+      }
+      closeAllDialogs();
+      return;
+    }
+    setShowTimerDialog(true);
   };
 
   const handleRecordPayment = (order: BuyOrder) => {
@@ -433,7 +449,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       {/* Set Timer Dialog */}
       <SetTimerDialog
         open={showTimerDialog}
-        onOpenChange={(open) => !open && closeAllDialogs()}
+        onOpenChange={handleTimerDialogOpenChange}
         order={selectedOrder}
         onSuccess={handleDialogSuccess}
         onPayNow={handlePayNowFromTimer}

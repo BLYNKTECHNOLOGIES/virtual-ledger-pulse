@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -12,7 +12,9 @@ import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
 import { useOrderAlerts, stopContinuousAlarm } from "@/hooks/use-order-alerts";
-import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
+import { getBuyOrderNetPayableAmount, getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
+import { useOrderFocus } from "@/contexts/OrderFocusContext";
+import { showOrderAlertNotification } from "@/lib/alert-notifications";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -33,6 +35,10 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const isInitialLoadRef = useRef(true);
+  const notifiedOrdersRef = useRef<Set<string>>(new Set());
+
+  // Order focus context for navigation
+  const { focusOrder } = useOrderFocus();
 
   // Alert hooks
   const {
@@ -80,14 +86,45 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     staleTime: 15000,
   });
 
-  // Process order changes for alerts
+  // Handle notification navigation
+  const handleNotificationNavigate = useCallback((orderId: string) => {
+    focusOrder(orderId);
+    // Also mark as attended when navigating via notification
+    const order = orders?.find(o => o.id === orderId);
+    if (order) {
+      markAttended(orderId, order);
+    }
+  }, [focusOrder, orders, markAttended]);
+
+  // Process order changes for alerts and show notifications
   useEffect(() => {
     if (orders) {
+      // Check for new alerts and show notifications
+      orders.forEach(order => {
+        const alertState = needsAttention(order.id);
+        if (alertState?.needsAttention && alertState.alertType) {
+          const notificationKey = `${order.id}-${alertState.alertType}-${alertState.lastAlertTime}`;
+          if (!notifiedOrdersRef.current.has(notificationKey)) {
+            notifiedOrdersRef.current.add(notificationKey);
+            showOrderAlertNotification(
+              {
+                orderId: order.id,
+                orderNumber: order.order_number,
+                supplierName: order.supplier_name,
+                amount: getBuyOrderGrossAmount(order),
+                alertType: alertState.alertType,
+              },
+              handleNotificationNavigate
+            );
+          }
+        }
+      });
+      
       processOrderChanges(orders, isInitialLoadRef.current);
       isInitialLoadRef.current = false;
       cleanupAttendedOrders(orders.map(o => o.id));
     }
-  }, [orders, processOrderChanges, cleanupAttendedOrders]);
+  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, handleNotificationNavigate]);
 
   // Calculate status counts
   const statusCounts = useMemo(() => {

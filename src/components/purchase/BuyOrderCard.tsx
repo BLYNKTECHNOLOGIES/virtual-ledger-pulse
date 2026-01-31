@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { BuyOrder, BuyOrderStatus, BUY_ORDER_STATUS_CONFIG, STATUS_ORDER, calculatePayout } from '@/lib/buy-order-types';
 import { hasBankingDetails, hasTdsTypeSelected, getMissingFieldsForStatus, getEffectivePanType } from '@/lib/buy-order-helpers';
 import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
@@ -31,6 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { OrderTimer, OrderExpiryTimer } from './OrderTimer';
 import type { AlertType } from '@/hooks/use-order-alerts';
+import { useIsOrderFocused } from '@/contexts/OrderFocusContext';
 
 interface BuyOrderCardProps {
   order: BuyOrder;
@@ -58,6 +60,21 @@ export function BuyOrderCard({
   onTriggerTimerAlert
 }: BuyOrderCardProps) {
   const currentStatus = order.order_status || 'new';
+  const isFocused = useIsOrderFocused(order.id);
+  const [showFocusHighlight, setShowFocusHighlight] = useState(false);
+
+  // Handle focus highlight animation
+  useEffect(() => {
+    if (isFocused) {
+      setShowFocusHighlight(true);
+      // Remove highlight after animation completes
+      const timer = setTimeout(() => {
+        setShowFocusHighlight(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isFocused]);
+
   const statusConfig = BUY_ORDER_STATUS_CONFIG[currentStatus] || {
     label: currentStatus,
     color: 'text-gray-600',
@@ -177,6 +194,11 @@ export function BuyOrderCard({
   };
 
   const getCardStyles = () => {
+    // Focus highlight takes priority
+    if (showFocusHighlight) {
+      return 'border-2 border-primary bg-primary/5 ring-2 ring-primary/20 shadow-lg transition-all duration-500';
+    }
+
     if (!needsBlink) {
       if (hasActiveTimer) {
         return 'border-red-300 bg-red-50/30';
@@ -196,7 +218,10 @@ export function BuyOrderCard({
   };
 
   return (
-    <Card className={cn('hover:shadow-md transition-all', getCardStyles())}>
+    <Card 
+      id={`order-card-${order.id}`}
+      className={cn('hover:shadow-md transition-all', getCardStyles())}
+    >
       <CardContent className="p-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Left Section - Order Info */}

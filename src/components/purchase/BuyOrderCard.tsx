@@ -37,7 +37,7 @@ interface BuyOrderCardProps {
   onEdit: () => void;
   onStatusChange: (newStatus: BuyOrderStatus) => void;
   onCollectFields: (targetStatus: BuyOrderStatus, collectType: 'banking' | 'pan', missingFields: string[]) => void;
-  onSetTimer: (targetStatus: BuyOrderStatus) => void;
+  onSetTimer: (targetStatus: BuyOrderStatus, showPayNow?: boolean) => void;
   onViewDetails: () => void;
   onRecordPayment: () => void;
   alertState?: { needsAttention: boolean; alertType: AlertType | null } | null;
@@ -155,7 +155,8 @@ export function BuyOrderCard({
     const missing = getMissingFieldsForStatus(order, effectiveStatus);
     
     if (missing.type === 'timer') {
-      onSetTimer(effectiveStatus);
+      // Pass showPayNow=true to allow instant payment option
+      onSetTimer(effectiveStatus, true);
     } else if (missing.type === 'pan') {
       onCollectFields(effectiveStatus, missing.type, missing.fields);
     } else if (missing.type && missing.fields.length > 0) {
@@ -366,7 +367,9 @@ export function BuyOrderCard({
                 className="gap-1"
               >
                 {BUY_ORDER_STATUS_CONFIG[nextStatus].icon}
-                <span className="hidden sm:inline">{BUY_ORDER_STATUS_CONFIG[nextStatus].label}</span>
+                <span className="hidden sm:inline">
+                  {nextStatus === 'added_to_bank' ? 'Add to Bank' : BUY_ORDER_STATUS_CONFIG[nextStatus].label}
+                </span>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             )}
@@ -392,7 +395,7 @@ export function BuyOrderCard({
                         disabled={currentStatus === status}
                       >
                         <span className="mr-2">{BUY_ORDER_STATUS_CONFIG[status].icon}</span>
-                        Move to {BUY_ORDER_STATUS_CONFIG[status].label}
+                        {status === 'added_to_bank' ? 'Add to Bank' : `Move to ${BUY_ORDER_STATUS_CONFIG[status].label}`}
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />

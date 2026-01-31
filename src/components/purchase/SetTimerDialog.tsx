@@ -10,16 +10,21 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BuyOrder } from '@/lib/buy-order-types';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { BuyOrder, calculatePayout } from '@/lib/buy-order-types';
+import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
+import { getEffectivePanType } from '@/lib/buy-order-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Timer, Clock } from 'lucide-react';
+import { Loader2, Timer, Clock, CreditCard, Banknote, User, Phone, Wallet } from 'lucide-react';
 
 interface SetTimerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order: BuyOrder | null;
   onSuccess: () => void;
+  onPayNow?: () => void;
 }
 
 const PRESET_TIMES = [
@@ -34,15 +39,42 @@ export function SetTimerDialog({
   onOpenChange,
   order,
   onSuccess,
+  onPayNow,
 }: SetTimerDialogProps) {
   const [loading, setLoading] = useState(false);
   const [customMinutes, setCustomMinutes] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(30);
   const { toast } = useToast();
 
+  if (!order) return null;
+
+  // Get payment details
+  const effectivePanType = getEffectivePanType(order);
+  const grossAmount = getBuyOrderGrossAmount(order);
+  const payoutInfo = effectivePanType 
+    ? calculatePayout(grossAmount, effectivePanType)
+    : { payout: grossAmount, deductionPercent: 0, deduction: 0 };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const getTdsLabel = () => {
+    if (!effectivePanType) return null;
+    switch (effectivePanType) {
+      case 'pan_provided': return '1% TDS';
+      case 'pan_not_provided': return '20% TDS';
+      case 'non_tds': return 'Non-TDS';
+      default: return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!order) return;
 
     const minutes = customMinutes ? parseInt(customMinutes) : selectedPreset;
     if (!minutes || minutes <= 0) {
@@ -89,25 +121,127 @@ export function SetTimerDialog({
     }
   };
 
-  if (!order) return null;
+  const handlePayNow = () => {
+    onOpenChange(false);
+    if (onPayNow) {
+      onPayNow();
+    }
+  };
+
+  const tdsLabel = getTdsLabel();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Timer className="h-5 w-5 text-orange-500" />
-            Set Wait Time
+            Add to Bank
           </DialogTitle>
           <DialogDescription>
-            Set how long to wait before the order can be marked as paid. 
-            Alerts will trigger at 5 min and 1 min before time ends.
+            Review payment details and choose to wait or pay immediately.
           </DialogDescription>
         </DialogHeader>
 
+        {/* Payment Details Section */}
+        <div className="bg-muted/30 border rounded-lg p-4 space-y-3">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <Wallet className="h-4 w-4" />
+            Payment Details
+          </h4>
+          
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">Order Amount:</span>
+              <div className="font-semibold">{formatAmount(grossAmount)}</div>
+            </div>
+            
+            {tdsLabel && payoutInfo.deduction > 0 && (
+              <div>
+                <span className="text-muted-foreground">TDS Deduction ({payoutInfo.deductionPercent}%):</span>
+                <div className="font-semibold text-red-600">-{formatAmount(payoutInfo.deduction)}</div>
+              </div>
+            )}
+            
+            <div className="col-span-2">
+              <span className="text-muted-foreground">Net Payable:</span>
+              <div className="font-bold text-lg text-primary">{formatAmount(payoutInfo.payout)}</div>
+            </div>
+          </div>
+
+          {tdsLabel && (
+            <Badge variant="outline" className="text-xs">
+              {tdsLabel}
+            </Badge>
+          )}
+        </div>
+
+        {/* Beneficiary Details Section */}
+        <div className="bg-muted/30 border rounded-lg p-4 space-y-2">
+          <h4 className="font-medium text-sm flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Beneficiary Details
+          </h4>
+          
+          <div className="space-y-1.5 text-sm">
+            {order.supplier_name && (
+              <div className="flex items-center gap-2">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{order.supplier_name}</span>
+              </div>
+            )}
+            
+            {order.contact_number && (
+              <div className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>{order.contact_number}</span>
+              </div>
+            )}
+            
+            {order.payment_method_type === 'UPI' && order.upi_id && (
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="font-mono">{order.upi_id}</span>
+                <Badge variant="secondary" className="text-xs">UPI</Badge>
+              </div>
+            )}
+            
+            {order.payment_method_type !== 'UPI' && order.bank_account_name && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{order.bank_account_name}</span>
+                </div>
+                {order.bank_account_number && (
+                  <div className="flex items-center gap-2 ml-5">
+                    <span className="text-muted-foreground">A/C:</span>
+                    <span className="font-mono">{order.bank_account_number}</span>
+                  </div>
+                )}
+                {order.ifsc_code && (
+                  <div className="flex items-center gap-2 ml-5">
+                    <span className="text-muted-foreground">IFSC:</span>
+                    <span className="font-mono">{order.ifsc_code}</span>
+                  </div>
+                )}
+              </>
+            )}
+            
+            {!order.upi_id && !order.bank_account_name && (
+              <p className="text-muted-foreground italic">No payment details provided</p>
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Timer or Pay Now Section */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-3">
-            <Label>Quick Select</Label>
+            <Label className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Set Wait Time (Optional)
+            </Label>
             <div className="grid grid-cols-4 gap-2">
               {PRESET_TIMES.map((preset) => (
                 <Button
@@ -127,12 +261,7 @@ export function SetTimerDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="custom_minutes">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Custom Time (minutes)
-              </div>
-            </Label>
+            <Label htmlFor="custom_minutes">Custom Time (minutes)</Label>
             <Input
               id="custom_minutes"
               type="number"
@@ -152,11 +281,11 @@ export function SetTimerDialog({
           <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <span>🔔</span>
-              <span>You'll receive alerts at 5 min and 1 min before timer ends</span>
+              <span>Alerts will trigger at 5 min and 1 min before timer ends</span>
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               type="button"
               variant="outline"
@@ -165,8 +294,23 @@ export function SetTimerDialog({
             >
               Cancel
             </Button>
+            
+            {onPayNow && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handlePayNow}
+                disabled={loading}
+                className="gap-1"
+              >
+                <Wallet className="h-4 w-4" />
+                Pay Now
+              </Button>
+            )}
+            
             <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Timer className="h-4 w-4 mr-1" />
               Start Timer
             </Button>
           </DialogFooter>

@@ -320,8 +320,12 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
 
   const handlePayNowFromTimer = () => {
     // Close timer dialog and open payment dialog
+    // NOTE: We only close the timer dialog, NOT clear selectedOrder, so payment dialog has the order
     setShowTimerDialog(false);
-    setShowPaymentDialog(true);
+    // Use a small delay to ensure React has updated state before opening the next dialog
+    setTimeout(() => {
+      setShowPaymentDialog(true);
+    }, 50);
   };
 
   const handleRecordPayment = (order: BuyOrder) => {

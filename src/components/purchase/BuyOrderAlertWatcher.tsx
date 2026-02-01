@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BuyOrder } from "@/lib/buy-order-types";
 import { useOrderFocus } from "@/contexts/OrderFocusContext";
@@ -9,13 +9,34 @@ import { showOrderAlertNotification, createGlobalNotification } from "@/lib/aler
 import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 
+// Persist initial load state across component remounts (tab switches)
+const INITIAL_LOAD_KEY = 'buy_order_watcher_initialized';
+
+function getWasInitialized(): boolean {
+  try {
+    return sessionStorage.getItem(INITIAL_LOAD_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function setWasInitialized() {
+  try {
+    sessionStorage.setItem(INITIAL_LOAD_KEY, 'true');
+  } catch {
+    // Ignore
+  }
+}
+
 /**
  * Runs buy-order alert detection globally (even when user is on other pages)
  * so the header bell always shows the exact reason for the buzzer.
+ * Also sets up real-time subscriptions for live updates.
  */
 export function BuyOrderAlertWatcher() {
-  const isInitialLoadRef = useRef(true);
+  const wasAlreadyInitializedRef = useRef(getWasInitialized());
   const notifiedRef = useRef<Set<string>>(new Set());
+  const queryClient = useQueryClient();
   const { addNotification, lastOrderNavigation, lastAttendedOrders, notificationsResetSignal } = useNotifications();
   const { focusOrder } = useOrderFocus();
 
@@ -64,9 +85,33 @@ export function BuyOrderAlertWatcher() {
       if (error) throw error;
       return (data || []) as BuyOrder[];
     },
-    staleTime: 15000,
-    refetchInterval: 15000,
+    staleTime: 10000,
+    refetchInterval: 30000, // Reduce polling since we have real-time now
   });
+
+  // Set up real-time subscription for purchase_orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('purchase_orders_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'purchase_orders',
+        },
+        (payload) => {
+          // Invalidate and refetch on any change
+          queryClient.invalidateQueries({ queryKey: ['buy_orders_alerts'] });
+          queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const handleNavigate = useCallback(
     (orderId: string) => {
@@ -105,9 +150,18 @@ export function BuyOrderAlertWatcher() {
   useEffect(() => {
     if (!orders) return;
 
+    // Use persistent flag to determine if this is truly the first load
+    const isFirstLoad = !wasAlreadyInitializedRef.current;
+    
     // Update alert states based on latest data
-    processOrderChanges(orders, isInitialLoadRef.current);
-    isInitialLoadRef.current = false;
+    processOrderChanges(orders, isFirstLoad);
+    
+    // Mark as initialized after first processing
+    if (isFirstLoad) {
+      wasAlreadyInitializedRef.current = true;
+      setWasInitialized();
+    }
+    
     cleanupAttendedOrders(orders.map((o) => o.id));
 
     // Emit toast + bell notifications for any active alert

@@ -359,6 +359,8 @@ export function useOrderAlerts() {
     
     // Refresh attended state from localStorage on each process
     attendedOrdersRef.current = getAttendedOrders();
+    // Refresh previous order hashes from localStorage to handle tab switches
+    previousOrdersRef.current = getPreviousOrderHashes();
     
     orders.forEach(order => {
       const orderId = order.id;
@@ -403,23 +405,33 @@ export function useOrderAlerts() {
       const attendedState = attendedOrdersRef.current[orderId];
       if (attendedState && attendedState.dataHash === orderDataHash) {
         // Already attended with same data - don't trigger alert
+        // Also ensure no alarm is running for this order
+        stopContinuousAlarm(orderId);
+        activeTimerAlarmsRef.current.delete(orderId);
         return;
       }
       
-      if (!isInitialLoad) {
-        const previousHash = previousOrdersRef.current.get(orderId);
-        
-        if (!previousHash) {
-          triggerAlert(orderId, 'new_order', orderDataHash);
-        } else if (previousHash !== orderDataHash) {
-          triggerAlert(orderId, 'info_update', orderDataHash);
-        }
-      } else {
+      // Check if this order already existed with the same data (no change)
+      const previousHash = previousOrdersRef.current.get(orderId);
+      
+      if (isInitialLoad) {
         // On initial load, only alert if data changed from attended state
         if (attendedState && attendedState.dataHash !== orderDataHash) {
           triggerAlert(orderId, 'info_update', orderDataHash);
         }
-        // On initial load without prior attended state, don't alert
+        // On initial load without prior attended state but with previous hash (tab switch),
+        // don't alert if data hasn't changed
+        // If no attended state and no previous hash, this is truly new session - don't alert
+      } else {
+        // Not initial load - check for changes
+        if (!previousHash) {
+          // New order
+          triggerAlert(orderId, 'new_order', orderDataHash);
+        } else if (previousHash !== orderDataHash) {
+          // Order data changed
+          triggerAlert(orderId, 'info_update', orderDataHash);
+        }
+        // If previousHash === orderDataHash, no change - don't alert
       }
     });
     

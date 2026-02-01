@@ -81,8 +81,31 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       if (error) throw error;
       return (data || []) as BuyOrder[];
     },
-    staleTime: 15000,
+    staleTime: 10000,
   });
+
+  // Set up real-time subscription for live updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('buy_orders_realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'purchase_orders',
+        },
+        () => {
+          // Refetch on any change to get updated data
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
 
   // When user clicks a bell notification, mark the order attended to stop repeat buzzers
   useEffect(() => {

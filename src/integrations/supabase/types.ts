@@ -3952,6 +3952,42 @@ export type Database = {
         }
         Relationships: []
       }
+      system_action_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+          module: string
+          recorded_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          module: string
+          recorded_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          module?: string
+          recorded_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_functions: {
         Row: {
           created_at: string

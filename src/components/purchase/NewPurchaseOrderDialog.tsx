@@ -17,6 +17,7 @@ import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
 import { TrendingUp } from "lucide-react";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -376,6 +377,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
       // Record order creation timing
       await recordActionTiming(purchaseOrder.id, 'order_created', 'purchase_creator', user?.id);
+
+      // Log action for audit trail
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_ORDER_CREATED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: purchaseOrder.id,
+        module: Modules.PURCHASE,
+        metadata: { order_number: purchaseOrder.order_number, supplier_name: orderData.supplier_name }
+      });
 
       return purchaseOrder;
     },

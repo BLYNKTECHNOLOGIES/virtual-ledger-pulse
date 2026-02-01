@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Timer, Clock, CreditCard, Banknote, User, Phone, Wallet } from 'lucide-react';
 import { recordActionTiming } from '@/lib/purchase-action-timing';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from '@/lib/system-action-logger';
 
 interface SetTimerDialogProps {
   open: boolean;
@@ -104,6 +105,15 @@ export function SetTimerDialog({
 
       // Record action timing for Add to Bank
       await recordActionTiming(order.id, 'added_to_bank', 'payer');
+      
+      // Log action for audit trail
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_ADDED_TO_BANK,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: order.id,
+        module: Modules.PURCHASE,
+        metadata: { order_number: order.order_number, timer_minutes: minutes }
+      });
 
       toast({
         title: 'Timer Set',

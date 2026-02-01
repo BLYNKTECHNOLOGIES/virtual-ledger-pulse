@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Banknote, CreditCard, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { recordActionTiming } from '@/lib/purchase-action-timing';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from '@/lib/system-action-logger';
 
 interface CollectFieldsDialogProps {
   open: boolean;
@@ -128,8 +129,22 @@ export function CollectFieldsDialog({
       // Record action timing for the collection event
       if (collectType === 'banking') {
         await recordActionTiming(order.id, 'banking_collected', 'purchase_creator');
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_BANKING_COLLECTED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: order.id,
+          module: Modules.PURCHASE,
+          metadata: { order_number: order.order_number }
+        });
       } else if (collectType === 'pan') {
         await recordActionTiming(order.id, 'pan_collected', 'purchase_creator');
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_PAN_COLLECTED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: order.id,
+          module: Modules.PURCHASE,
+          metadata: { order_number: order.order_number, pan_type: panType }
+        });
       }
 
       if (collectType === 'pan') {

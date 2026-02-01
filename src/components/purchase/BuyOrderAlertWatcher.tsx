@@ -174,7 +174,7 @@ export function BuyOrderAlertWatcher() {
         return;
       }
       
-      // Parse previous data if available
+      // Parse previous data if available (prevHash is a JSON string from generateOrderDataHash)
       let prev: any = null;
       if (prevHash) {
         try {
@@ -186,19 +186,23 @@ export function BuyOrderAlertWatcher() {
       
       // Detect specific transitions
       if (eventType === 'INSERT') {
+        // New order created - Payer should receive notification
         alertType = 'new_order';
       } else if (eventType === 'UPDATE') {
+        // Parse old record data for comparison (oldRecord may have order_status)
+        const prevStatus = prev?.order_status || oldRecord?.order_status;
+        
         // Add to Bank is silent - no notification
-        if (prev?.order_status !== 'added_to_bank' && orderStatus === 'added_to_bank') {
+        if (prevStatus !== 'added_to_bank' && orderStatus === 'added_to_bank') {
           return;
         }
         
-        // Payment done
-        if (prev?.order_status !== 'paid' && orderStatus === 'paid') {
+        // Payment done - triggers notification for Payer
+        if (prevStatus !== 'paid' && orderStatus === 'paid') {
           alertType = 'payment_done';
         }
-        // Banking collected
-        else if (!prev?.order_status || prev.order_status === 'new') {
+        // Banking collected - check if banking details were just added
+        else if (orderStatus === 'new' || orderStatus === 'banking_collected') {
           const prevHadBank = Boolean(prev?.bank_account_name || prev?.bank_account_number || prev?.ifsc_code || prev?.upi_id);
           const nowHasBank = Boolean(newRecord.bank_account_name || newRecord.bank_account_number || newRecord.ifsc_code || newRecord.upi_id);
           if (!prevHadBank && nowHasBank) {
@@ -207,6 +211,7 @@ export function BuyOrderAlertWatcher() {
         }
         
         // Fallback to info_update if something changed but no specific type matched
+        // info_update is not relevant for Payer, so this won't trigger for them
         if (!alertType && prevHash) {
           alertType = 'info_update';
         }

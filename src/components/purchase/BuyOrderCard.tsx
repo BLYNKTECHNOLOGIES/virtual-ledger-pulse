@@ -277,12 +277,30 @@ export function BuyOrderCard({
     }
   };
 
+  // Determine if a workflow step is completed
+  // IMPORTANT: Banking and PAN steps are completed based on ACTUAL DATA.
+  // Other steps use position-based logic (completed if status is past that step).
   const isStepCompleted = (status: BuyOrderStatus, index: number): boolean => {
     const currentIndex = STATUS_ORDER.indexOf(currentStatus);
-    if (index < currentIndex) return true;
+    
+    // Terminal state: all steps show as done
     if (currentStatus === 'completed') return true;
-    if (status === 'banking_collected' && bankingCollected) return true;
-    if (status === 'pan_collected' && tdsSelected) return true;
+    
+    // Banking step: completed only when actual banking data exists
+    if (status === 'banking_collected') {
+      return bankingCollected;
+    }
+    
+    // PAN step: completed only when TDS/PAN data is actually provided
+    // Do NOT auto-mark as completed just because status advanced past it
+    if (status === 'pan_collected') {
+      return tdsSelected;
+    }
+    
+    // For all other steps (new, added_to_bank, paid), use position-based logic
+    // A step is completed if the current status is past that step
+    if (index < currentIndex) return true;
+    
     return false;
   };
 

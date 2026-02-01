@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WalletSelector } from "@/components/stock/WalletSelector";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface EditSalesOrderDialogProps {
   open: boolean;
@@ -117,7 +118,16 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       if (error) throw error;
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.SALES_ORDER_EDITED,
+        entityType: EntityTypes.SALES_ORDER,
+        entityId: order.id,
+        module: Modules.SALES,
+        metadata: { order_number: data.order_number }
+      });
+      
       toast({ title: "Success", description: "Sales order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       onOpenChange(false);

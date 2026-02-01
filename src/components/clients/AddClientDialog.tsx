@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -114,6 +115,15 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
         console.error('Supabase error:', error);
         throw error;
       }
+
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_CREATED,
+        entityType: EntityTypes.CLIENT,
+        entityId: formData.client_id,
+        module: Modules.CLIENTS,
+        metadata: { client_name: formData.name, client_type: formData.client_type }
+      });
 
       toast({
         title: "Success",

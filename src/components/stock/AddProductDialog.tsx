@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -75,7 +76,18 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Log the action
+      if (!editingProduct) {
+        logActionWithCurrentUser({
+          actionType: ActionTypes.STOCK_PRODUCT_CREATED,
+          entityType: EntityTypes.PRODUCT,
+          entityId: 'new', // Will be replaced with actual ID in future
+          module: Modules.STOCK,
+          metadata: { name: variables.name, code: variables.code }
+        });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['products_with_warehouse_stock'] });
       toast({

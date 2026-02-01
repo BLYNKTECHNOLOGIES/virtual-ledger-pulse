@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface EditClientDetailsDialogProps {
   open: boolean;
@@ -76,6 +77,15 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
         .eq("id", client.id);
 
       if (error) throw error;
+
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_UPDATED,
+        entityType: EntityTypes.CLIENT,
+        entityId: client.id,
+        module: Modules.CLIENTS,
+        metadata: { client_name: formData.name }
+      });
 
       toast({
         title: "Client Updated",

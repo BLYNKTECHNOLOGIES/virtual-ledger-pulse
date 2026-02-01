@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -241,8 +242,18 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       console.log('🎉 Sales order created successfully');
+      
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.SALES_MANUAL_ENTRY_CREATED,
+        entityType: EntityTypes.SALES_ORDER,
+        entityId: data.id,
+        module: Modules.SALES,
+        metadata: { order_number: data.order_number, client_name: formData.client_name, total_amount: formData.total_amount }
+      });
+      
       toast({ title: "Success", description: "Sales order created successfully. New clients will appear in approvals queue." });
       onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });

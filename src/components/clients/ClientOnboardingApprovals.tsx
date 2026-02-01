@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Download
 } from 'lucide-react';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface ClientOnboardingApproval {
   id: string;
@@ -173,7 +174,16 @@ export function ClientOnboardingApprovals() {
         throw updateError;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_BUYER_APPROVED,
+        entityType: EntityTypes.CLIENT_ONBOARDING,
+        entityId: variables.id,
+        module: Modules.CLIENTS,
+        metadata: { proposed_monthly_limit: variables.clientData.proposed_monthly_limit }
+      });
+      
       toast({
         title: "Client Approved",
         description: "Client has been successfully onboarded and added to the directory"
@@ -210,7 +220,16 @@ export function ClientOnboardingApprovals() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_BUYER_REJECTED,
+        entityType: EntityTypes.CLIENT_ONBOARDING,
+        entityId: variables.id,
+        module: Modules.CLIENTS,
+        metadata: { rejection_reason: variables.reason }
+      });
+      
       toast({
         title: "Client Rejected",
         description: "Client application has been rejected"

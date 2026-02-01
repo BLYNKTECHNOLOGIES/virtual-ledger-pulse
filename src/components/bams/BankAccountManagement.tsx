@@ -19,6 +19,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
 import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
 import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface BankAccount {
   id: string;
@@ -201,6 +202,15 @@ export function BankAccountManagement() {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.BANK_ACCOUNT_CREATED,
+        entityType: EntityTypes.BANK_ACCOUNT,
+        entityId: formData.account_number, // Use account number as entity ID
+        module: Modules.BAMS,
+        metadata: { account_name: formData.account_name, bank_name: formData.bank_name }
+      });
+      
       toast({
         title: "Bank Account Created",
         description: "New bank account has been submitted for approval."

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface ManualBalanceAdjustmentDialogProps {
   open: boolean;
@@ -121,6 +122,15 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
       if (txError) throw txError;
     },
     onSuccess: () => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.BANK_BALANCE_ADJUSTED,
+        entityType: EntityTypes.BANK_ACCOUNT,
+        entityId: formData.bank_account_id,
+        module: Modules.BAMS,
+        metadata: { adjustment_type: formData.adjustment_type, amount: formData.amount, reason: formData.reason }
+      });
+      
       toast({
         title: "Adjustment Recorded",
         description: "Balance adjustment has been recorded with a contra entry in the adjustment account."

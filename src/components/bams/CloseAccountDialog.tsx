@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface BankAccount {
   id: string;
@@ -203,6 +204,15 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
       if (updateError) {
         throw new Error(`Failed to close bank account: ${updateError.message}`);
       }
+
+      // Log the action
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.BANK_ACCOUNT_CLOSED,
+        entityType: EntityTypes.BANK_ACCOUNT,
+        entityId: account.id,
+        module: Modules.BAMS,
+        metadata: { account_name: account.account_name, closure_reason: closureReason, final_balance: account.balance }
+      });
 
       toast({
         title: "Success",

@@ -71,8 +71,11 @@ export function PendingRegistrationsTab() {
       const { data, error } = await supabase
         .from("pending_registrations")
         .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        // DB stores status as 'PENDING' (historically some code used 'pending').
+        // Accept both so the approvals portal never silently shows 0.
+        .in("status", ["PENDING", "pending"])
+        // Table uses submitted_at (not created_at)
+        .order("submitted_at", { ascending: false });
 
       if (error) throw error;
       return data as PendingRegistration[];

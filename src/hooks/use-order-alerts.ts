@@ -10,6 +10,11 @@ interface OrderAlertState {
   alertType: AlertType | null;
   lastAlertTime: number;
   attendedDataHash: string | null;
+  /**
+   * For timer alerts (payment_timer/order_timer), distinguishes 5-min vs 2-min phase.
+   * This fixes the "2-min doesn't fire after 5-min" issue.
+   */
+  timerUrgent: boolean | null;
 }
 
 // Generate a hash of order data to track changes
@@ -295,19 +300,10 @@ export function useOrderAlerts() {
         alertType: type,
         lastAlertTime: Date.now(),
         attendedDataHash: null,
+        timerUrgent: null,
       });
       return newStates;
     });
-    
-    playAlertSound(type);
-    
-    // Only start continuous alarm for URGENT (2 min) timer alerts, not 5 min
-    if ((type === 'payment_timer' || type === 'order_timer') && isUrgent) {
-      if (!activeTimerAlarmsRef.current.has(orderId)) {
-        activeTimerAlarmsRef.current.add(orderId);
-        startContinuousAlarm(orderId, type);
-      }
-    }
   }, []);
 
   // Trigger timer alert - but NOT for terminal/expired orders or already-attended orders
@@ -318,7 +314,7 @@ export function useOrderAlerts() {
     type: 'payment_timer' | 'order_timer', 
     order?: any, 
     isUrgent: boolean = false,
-    buzzerConfig?: { type: 'none' | 'single' | 'single_subtle' | 'continuous' | 'duration'; durationMs?: number }
+    buzzerConfig?: { type: 'none' | 'single' | 'single_subtle' | 'continuous' | 'duration'; durationMs?: number; repeatIntervalMs?: number }
   ) => {
     // If order is provided, check if it's in a terminal state
     if (order) {
@@ -350,7 +346,8 @@ export function useOrderAlerts() {
     }
     
     const currentState = alertStates.get(orderId);
-    if (currentState?.alertType === type) return;
+    // Allow 2-min escalation even if 5-min of the same timer type already fired.
+    if (currentState?.alertType === type && currentState?.timerUrgent === isUrgent) return;
     
     setAlertStates(prev => {
       const newStates = new Map(prev);
@@ -359,42 +356,10 @@ export function useOrderAlerts() {
         alertType: type,
         lastAlertTime: Date.now(),
         attendedDataHash: null,
+        timerUrgent: isUrgent,
       });
       return newStates;
     });
-    
-    // If buzzerConfig is provided, use it; otherwise fall back to default behavior
-    if (buzzerConfig) {
-      if (buzzerConfig.type === 'none') {
-        // No sound at all for this user/role
-        return;
-      } else if (buzzerConfig.type === 'single' || buzzerConfig.type === 'single_subtle') {
-        playAlertSound(type, buzzerConfig.type === 'single_subtle');
-      } else if (buzzerConfig.type === 'continuous') {
-        playAlertSound(type);
-        if (!activeTimerAlarmsRef.current.has(orderId)) {
-          activeTimerAlarmsRef.current.add(orderId);
-          startContinuousAlarm(orderId, type);
-        }
-      } else if (buzzerConfig.type === 'duration' && buzzerConfig.durationMs) {
-        // 10-second repeating buzzer (for Payer at 2 min mark)
-        playAlertSound(type);
-        if (!activeTimerAlarmsRef.current.has(orderId)) {
-          activeTimerAlarmsRef.current.add(orderId);
-          startContinuousAlarm(orderId, type, buzzerConfig.durationMs);
-        }
-      }
-    } else {
-      // Default behavior (backward compatibility)
-      // Play single beep for 5 min mark
-      playAlertSound(type);
-      
-      // Only start continuous alarm for URGENT (2 min) timer alerts
-      if (isUrgent && !activeTimerAlarmsRef.current.has(orderId)) {
-        activeTimerAlarmsRef.current.add(orderId);
-        startContinuousAlarm(orderId, type);
-      }
-    }
   }, [alertStates]);
 
   // Check for new orders or updates
@@ -474,7 +439,34 @@ export function useOrderAlerts() {
           // New order
           triggerAlert(orderId, 'new_order', orderDataHash);
         } else if (previousHash !== orderDataHash) {
-          // Order data changed
+          // Order data changed - detect key transitions for correct alert targeting.
+          let prev: any = null;
+          try {
+            prev = JSON.parse(previousHash);
+          } catch {
+            prev = null;
+          }
+
+          // 4) Add to Bank must be silent (no notification/blink/attended).
+          if (prev?.order_status !== 'added_to_bank' && orderStatus === 'added_to_bank') {
+            return;
+          }
+
+          // 1) Payment created (order moved to paid)
+          if (prev?.order_status !== 'paid' && orderStatus === 'paid') {
+            triggerAlert(orderId, 'payment_done', orderDataHash);
+            return;
+          }
+
+          // 3) Banking collected (bank details newly present)
+          const prevHadBank = Boolean(prev?.bank_account_name || prev?.bank_account_number || prev?.ifsc_code || prev?.upi_id);
+          const nowHasBank = Boolean(order.bank_account_name || order.bank_account_number || order.ifsc_code || order.upi_id);
+          if (!prevHadBank && nowHasBank) {
+            triggerAlert(orderId, 'banking_collected', orderDataHash);
+            return;
+          }
+
+          // Fallback: generic update
           triggerAlert(orderId, 'info_update', orderDataHash);
         }
         // If previousHash === orderDataHash, no change - don't alert

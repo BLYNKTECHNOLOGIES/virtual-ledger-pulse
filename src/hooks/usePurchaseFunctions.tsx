@@ -7,8 +7,8 @@ export type BuzzerIntensity =
   | { type: 'none' }
   | { type: 'single' }
   | { type: 'single_subtle' }
-  | { type: 'continuous' }
-  | { type: 'duration'; durationMs: number };
+  | { type: 'continuous'; repeatIntervalMs?: number }
+  | { type: 'duration'; durationMs: number; repeatIntervalMs?: number };
 
 export type PurchaseAlertType = AlertType | 'banking_collected' | 'payment_done' | 'order_expired' | 'order_cancelled' | 'review_message';
 
@@ -140,11 +140,9 @@ export function usePurchaseFunctions() {
     }
 
     // Purchase Creator relevance
-    // Creator should NOT receive: new_order, banking_collected, payment_timer (Add to Bank timer)
+    // Creator should NOT receive: new_order, banking_collected, payment_timer (Add to Bank timer), payment_done
     if (isPurchaseCreator && !isPayer) {
       switch (alertType) {
-        case 'payment_done':
-          return true; // Single subtle buzzer for payment completion
         case 'order_timer':
           return true; // Order expiry timer (5 min single, 2 min continuous)
         case 'review_message':
@@ -157,13 +155,15 @@ export function usePurchaseFunctions() {
         case 'order_expired':
         case 'order_cancelled':
           return false;
+        case 'payment_done':
+          return false;
         default:
           return false;
       }
     }
 
     // Payer relevance
-    // Payer receives: new_order, banking_collected, payment_timer (Add to Bank timer)
+    // Payer receives: new_order, banking_collected, payment_timer (Add to Bank timer), payment_done
     if (isPayer && !isPurchaseCreator) {
       switch (alertType) {
         case 'new_order':
@@ -172,12 +172,13 @@ export function usePurchaseFunctions() {
           return true; // Single buzzer when banking is collected
         case 'payment_timer':
           return true; // Add to Bank timer: 5 min single, 2 min for 10 seconds
+        case 'payment_done':
+          return true; // Single notification sound when payment is recorded
         case 'order_expired':
         case 'order_cancelled':
           return true; // Single buzzer
         // Payer must NOT receive these:
         case 'order_timer': // Order expiry timer - Creator only
-        case 'payment_done':
         case 'review_message':
         case 'info_update':
           return false;
@@ -206,8 +207,8 @@ export function usePurchaseFunctions() {
     // - order_timer (Order expiry): 5 min = SINGLE, 2 min = continuous
     if (isCombined) {
       if (alertType === 'payment_timer' || alertType === 'order_timer') {
-        // 5 min = single beep only, 2 min = continuous
-        return isUrgent ? { type: 'continuous' } : { type: 'single' };
+        // 5 min = single beep only, 2 min = repeating alarm every 10s
+        return isUrgent ? { type: 'continuous', repeatIntervalMs: 10000 } : { type: 'single' };
       }
       return { type: 'single' };
     }
@@ -216,11 +217,9 @@ export function usePurchaseFunctions() {
     // Does NOT receive payment_timer (Add to Bank timer)
     if (isPurchaseCreator && !isPayer) {
       switch (alertType) {
-        case 'payment_done':
-          return { type: 'single_subtle' };
         case 'order_timer':
-          // Order expiry: 5 min = single, 2 min = continuous
-          return isUrgent ? { type: 'continuous' } : { type: 'single' };
+          // Order expiry: 5 min = single, 2 min = repeating alarm every 10s
+          return isUrgent ? { type: 'continuous', repeatIntervalMs: 10000 } : { type: 'single' };
         case 'review_message':
           return { type: 'single' };
         default:
@@ -238,8 +237,10 @@ export function usePurchaseFunctions() {
         case 'order_cancelled':
           return { type: 'single' };
         case 'payment_timer':
-          // Add to Bank timer: 5 min = SINGLE beep only, 2 min = 10 seconds duration
-          return isUrgent ? { type: 'duration', durationMs: 10000 } : { type: 'single' };
+          // Add to Bank timer: 5 min = single, 2 min = repeating alarm every 10s
+          return isUrgent ? { type: 'continuous', repeatIntervalMs: 10000 } : { type: 'single' };
+        case 'payment_done':
+          return { type: 'single' };
         default:
           return { type: 'none' };
       }

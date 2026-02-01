@@ -8,6 +8,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { showOrderAlertNotification, createGlobalNotification } from "@/lib/alert-notifications";
 import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
+import { playAlertSound, startContinuousAlarm, stopContinuousAlarm } from "@/hooks/use-order-alerts";
 
 // Persist initial load state across component remounts (tab switches)
 const INITIAL_LOAD_KEY = 'buy_order_watcher_initialized';
@@ -171,6 +172,8 @@ export function BuyOrderAlertWatcher() {
 
       // Role-based filtering: skip alerts that aren't relevant to this user
       if (!isAlertRelevant(alertState.alertType, order.order_status)) {
+        // Ensure we never leave an alarm running for irrelevant alerts.
+        stopContinuousAlarm(order.id);
         return;
       }
 
@@ -186,10 +189,36 @@ export function BuyOrderAlertWatcher() {
         alertType: alertState.alertType,
       };
 
-      // Get buzzer intensity for this alert type based on role
-      const buzzerIntensity = getBuzzerIntensity(alertState.alertType);
+      // Get buzzer intensity for this alert type based on role.
+      // For timers, use urgent phase to get correct 5-min vs 2-min behavior.
+      const buzzerIntensity = getBuzzerIntensity(
+        alertState.alertType,
+        Boolean((alertState as any).timerUrgent)
+      );
       
-      // Only show notification and play sound if buzzer is not 'none'
+      // Role-correct sound behavior
+      if (buzzerIntensity.type === 'single') {
+        playAlertSound(alertState.alertType);
+      } else if (buzzerIntensity.type === 'single_subtle') {
+        playAlertSound(alertState.alertType, true);
+      } else if (buzzerIntensity.type === 'continuous') {
+        playAlertSound(alertState.alertType);
+        if (alertState.alertType === 'payment_timer' || alertState.alertType === 'order_timer') {
+          startContinuousAlarm(order.id, alertState.alertType, undefined, buzzerIntensity.repeatIntervalMs ?? 1500);
+        }
+      } else if (buzzerIntensity.type === 'duration') {
+        playAlertSound(alertState.alertType);
+        if (alertState.alertType === 'payment_timer' || alertState.alertType === 'order_timer') {
+          startContinuousAlarm(
+            order.id,
+            alertState.alertType,
+            buzzerIntensity.durationMs,
+            buzzerIntensity.repeatIntervalMs ?? 1500
+          );
+        }
+      }
+
+      // Only show toast/bell if buzzer is not 'none'
       if (buzzerIntensity.type !== 'none') {
         showOrderAlertNotification(orderInfo, handleNavigate);
         addNotification(createGlobalNotification(orderInfo));

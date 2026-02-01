@@ -21,7 +21,8 @@ import {
   Wallet,
   MapPin,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -518,6 +519,23 @@ export function BuyOrderCard({
                 <AlertCircle className="h-3 w-3 mr-1" />
                 Waiting for Payment
               </Badge>
+            )}
+
+            {/*
+              IMPORTANT: PAN/TDS collection must remain actionable for Purchase Creator,
+              even if the Payer has already moved the order to "Added to Bank".
+              This is independent from status progression.
+            */}
+            {pf.canCollectPan && !tdsSelected && !['completed', 'cancelled'].includes(currentStatus) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusChange('pan_collected')}
+                className="gap-1"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Provide TDS</span>
+              </Button>
             )}
 
             {/* Attended Button */}

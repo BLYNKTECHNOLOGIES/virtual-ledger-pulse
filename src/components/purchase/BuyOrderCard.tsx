@@ -36,6 +36,7 @@ import { OrderTimer, OrderExpiryTimer } from './OrderTimer';
 import { ReviewDialog } from './ReviewDialog';
 import { ReviewIndicator } from './ReviewIndicator';
 import type { AlertType } from '@/hooks/use-order-alerts';
+import type { BuzzerIntensity } from '@/hooks/usePurchaseFunctions';
 import { useIsOrderFocused } from '@/contexts/OrderFocusContext';
 
 interface PurchaseFunctionContext {
@@ -51,6 +52,8 @@ interface PurchaseFunctionContext {
   canSubmitReview: boolean;
   canSeeReviews: boolean;
   canCompleteOrder: boolean;
+  getBuzzerIntensity: (alertType: string, isUrgent?: boolean) => BuzzerIntensity;
+  isAlertRelevant: (alertType: string, orderStatus?: string) => boolean;
 }
 
 interface BuyOrderCardProps {
@@ -63,7 +66,7 @@ interface BuyOrderCardProps {
   onRecordPayment: () => void;
   alertState?: { needsAttention: boolean; alertType: AlertType | null } | null;
   onMarkAttended?: () => void;
-  onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer', isUrgent: boolean) => void;
+  onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer', isUrgent: boolean, buzzerConfig?: BuzzerIntensity) => void;
   purchaseFunctions?: PurchaseFunctionContext;
 }
 
@@ -99,6 +102,8 @@ export function BuyOrderCard({
     canSubmitReview: false,
     canSeeReviews: false,
     canCompleteOrder: true,
+    getBuzzerIntensity: () => ({ type: 'single' as const }),
+    isAlertRelevant: () => true,
   };
 
   // Handle focus highlight animation
@@ -309,12 +314,17 @@ export function BuyOrderCard({
           {/* Left Section - Order Info */}
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Order Expiry Timer */}
+              {/* Order Expiry Timer - Only trigger if relevant to this role */}
               {order.order_expires_at && !['completed', 'cancelled'].includes(currentStatus) && (
                 <OrderExpiryTimer
                   orderExpiresAt={order.order_expires_at}
                   orderId={order.id}
-                  onTriggerAlert={onTriggerTimerAlert ? (isUrgent: boolean) => onTriggerTimerAlert('order_timer', isUrgent) : undefined}
+                  onTriggerAlert={onTriggerTimerAlert && pf.isAlertRelevant('order_timer', currentStatus) 
+                    ? (isUrgent: boolean) => {
+                        const buzzerConfig = pf.getBuzzerIntensity('order_timer', isUrgent);
+                        onTriggerTimerAlert('order_timer', isUrgent, buzzerConfig);
+                      } 
+                    : undefined}
                 />
               )}
               <span className="font-mono font-semibold text-lg">{order.order_number}</span>
@@ -350,12 +360,17 @@ export function BuyOrderCard({
                 </Badge>
               )}
               
-              {/* Payment Timer */}
+              {/* Payment Timer - Only trigger if relevant to this role (Payer only for Add to Bank timer) */}
               {currentStatus === 'added_to_bank' && order.timer_end_at && (
                 <OrderTimer 
                   timerEndAt={order.timer_end_at} 
                   orderId={order.id}
-                  onTriggerAlert={onTriggerTimerAlert ? (isUrgent: boolean) => onTriggerTimerAlert('payment_timer', isUrgent) : undefined}
+                  onTriggerAlert={onTriggerTimerAlert && pf.isAlertRelevant('payment_timer', currentStatus)
+                    ? (isUrgent: boolean) => {
+                        const buzzerConfig = pf.getBuzzerIntensity('payment_timer', isUrgent);
+                        onTriggerTimerAlert('payment_timer', isUrgent, buzzerConfig);
+                      }
+                    : undefined}
                 />
               )}
             </div>

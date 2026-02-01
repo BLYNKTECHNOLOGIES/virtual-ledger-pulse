@@ -145,7 +145,14 @@ export function playAlertSound(type: AlertType, isSubtle: boolean = false) {
 }
 
 // Start continuous alarm for an order
-export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'order_timer', durationMs?: number) {
+// repeatIntervalMs: interval between repeats (default 1500ms)
+// durationMs: auto-stop after this duration (undefined = no auto-stop)
+export function startContinuousAlarm(
+  orderId: string, 
+  type: 'payment_timer' | 'order_timer', 
+  durationMs?: number,
+  repeatIntervalMs: number = 1500
+) {
   if (activeAlarms.has(orderId)) return;
 
   const playAlarm = () => {
@@ -166,7 +173,7 @@ export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'o
   };
 
   playAlarm();
-  const intervalId = window.setInterval(playAlarm, 1500);
+  const intervalId = window.setInterval(playAlarm, repeatIntervalMs);
   
   // If durationMs is specified, auto-stop after that duration
   let timeoutId: number | undefined;
@@ -304,8 +311,15 @@ export function useOrderAlerts() {
   }, []);
 
   // Trigger timer alert - but NOT for terminal/expired orders or already-attended orders
-  // isUrgent: true = 2 min mark (continuous), false = 5 min mark (single beep only)
-  const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer', order?: any, isUrgent: boolean = false) => {
+  // isUrgent: true = 2 min mark (continuous/duration), false = 5 min mark (single beep only)
+  // buzzerConfig: optional config to override default buzzer behavior (from usePurchaseFunctions)
+  const triggerTimerAlert = useCallback((
+    orderId: string, 
+    type: 'payment_timer' | 'order_timer', 
+    order?: any, 
+    isUrgent: boolean = false,
+    buzzerConfig?: { type: 'none' | 'single' | 'single_subtle' | 'continuous' | 'duration'; durationMs?: number }
+  ) => {
     // If order is provided, check if it's in a terminal state
     if (order) {
       const orderStatus = order.order_status;
@@ -349,13 +363,37 @@ export function useOrderAlerts() {
       return newStates;
     });
     
-    // Play single beep for 5 min mark
-    playAlertSound(type);
-    
-    // Only start continuous alarm for URGENT (2 min) timer alerts
-    if (isUrgent && !activeTimerAlarmsRef.current.has(orderId)) {
-      activeTimerAlarmsRef.current.add(orderId);
-      startContinuousAlarm(orderId, type);
+    // If buzzerConfig is provided, use it; otherwise fall back to default behavior
+    if (buzzerConfig) {
+      if (buzzerConfig.type === 'none') {
+        // No sound at all for this user/role
+        return;
+      } else if (buzzerConfig.type === 'single' || buzzerConfig.type === 'single_subtle') {
+        playAlertSound(type, buzzerConfig.type === 'single_subtle');
+      } else if (buzzerConfig.type === 'continuous') {
+        playAlertSound(type);
+        if (!activeTimerAlarmsRef.current.has(orderId)) {
+          activeTimerAlarmsRef.current.add(orderId);
+          startContinuousAlarm(orderId, type);
+        }
+      } else if (buzzerConfig.type === 'duration' && buzzerConfig.durationMs) {
+        // 10-second repeating buzzer (for Payer at 2 min mark)
+        playAlertSound(type);
+        if (!activeTimerAlarmsRef.current.has(orderId)) {
+          activeTimerAlarmsRef.current.add(orderId);
+          startContinuousAlarm(orderId, type, buzzerConfig.durationMs);
+        }
+      }
+    } else {
+      // Default behavior (backward compatibility)
+      // Play single beep for 5 min mark
+      playAlertSound(type);
+      
+      // Only start continuous alarm for URGENT (2 min) timer alerts
+      if (isUrgent && !activeTimerAlarmsRef.current.has(orderId)) {
+        activeTimerAlarmsRef.current.add(orderId);
+        startContinuousAlarm(orderId, type);
+      }
     }
   }, [alertStates]);
 

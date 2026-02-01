@@ -48,7 +48,7 @@ export function BuyOrderAlertWatcher() {
   } = useOrderAlertsContext();
 
   // Get purchase function context for role-based alert filtering
-  const { isAlertRelevant, isCombined, isPurchaseCreator, isPayer } = usePurchaseFunctions();
+  const { isAlertRelevant, getBuzzerIntensity, isCombined, isPurchaseCreator, isPayer } = usePurchaseFunctions();
 
   const { data: orders } = useQuery({
     queryKey: ["buy_orders_alerts"],
@@ -186,8 +186,14 @@ export function BuyOrderAlertWatcher() {
         alertType: alertState.alertType,
       };
 
-      showOrderAlertNotification(orderInfo, handleNavigate);
-      addNotification(createGlobalNotification(orderInfo));
+      // Get buzzer intensity for this alert type based on role
+      const buzzerIntensity = getBuzzerIntensity(alertState.alertType);
+      
+      // Only show notification and play sound if buzzer is not 'none'
+      if (buzzerIntensity.type !== 'none') {
+        showOrderAlertNotification(orderInfo, handleNavigate);
+        addNotification(createGlobalNotification(orderInfo));
+      }
     });
   }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, addNotification, handleNavigate, isAlertRelevant]);
 

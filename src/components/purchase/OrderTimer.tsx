@@ -3,11 +3,13 @@ import { Badge } from '@/components/ui/badge';
 import { Timer, AlertTriangle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+import type { BuzzerIntensity } from '@/hooks/usePurchaseFunctions';
+
 interface OrderTimerProps {
   timerEndAt: string | null;
   orderId: string;
   className?: string;
-  onTriggerAlert?: (isUrgent: boolean) => void;
+  onTriggerAlert?: (isUrgent: boolean, buzzerConfig?: BuzzerIntensity) => void;
 }
 
 export function OrderTimer({ timerEndAt, orderId, className, onTriggerAlert }: OrderTimerProps) {
@@ -115,7 +117,7 @@ interface OrderExpiryTimerProps {
   orderExpiresAt: string | null;
   orderId: string;
   className?: string;
-  onTriggerAlert?: (isUrgent: boolean) => void;
+  onTriggerAlert?: (isUrgent: boolean, buzzerConfig?: BuzzerIntensity) => void;
 }
 
 export function OrderExpiryTimer({ orderExpiresAt, orderId, className, onTriggerAlert }: OrderExpiryTimerProps) {

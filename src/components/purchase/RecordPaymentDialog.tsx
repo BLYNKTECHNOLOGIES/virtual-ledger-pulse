@@ -25,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, CreditCard, Upload, Receipt, X, Image, Building2 } from 'lucide-react';
+import { recordActionTiming } from '@/lib/purchase-action-timing';
 
 interface RecordPaymentDialogProps {
   open: boolean;
@@ -228,6 +229,9 @@ export function RecordPaymentDialog({
       const newTotalPaid = totalPaid + amount;
       const isFullyPaid = newTotalPaid >= payoutInfo.payout - 0.01;
 
+      // Record payment timing
+      await recordActionTiming(order.id, 'payment_created', 'payer');
+
       // Update order status if fully paid
       if (isFullyPaid) {
         const { error: statusError } = await supabase
@@ -239,6 +243,9 @@ export function RecordPaymentDialog({
           .eq('id', order.id);
 
         if (statusError) throw statusError;
+
+        // Record payment completion timing
+        await recordActionTiming(order.id, 'payment_completed', 'payer');
       }
 
       toast({

@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Banknote, CreditCard, FileText, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { recordActionTiming } from '@/lib/purchase-action-timing';
 
 interface CollectFieldsDialogProps {
   open: boolean;
@@ -123,6 +124,13 @@ export function CollectFieldsDialog({
         .eq('id', order.id);
 
       if (error) throw error;
+
+      // Record action timing for the collection event
+      if (collectType === 'banking') {
+        await recordActionTiming(order.id, 'banking_collected', 'purchase_creator');
+      } else if (collectType === 'pan') {
+        await recordActionTiming(order.id, 'pan_collected', 'purchase_creator');
+      }
 
       if (collectType === 'pan') {
         const payout = calculatePayout(orderAmount, panType);

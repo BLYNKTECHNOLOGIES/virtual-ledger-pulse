@@ -18,6 +18,7 @@ import { getEffectivePanType } from '@/lib/buy-order-helpers';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Timer, Clock, CreditCard, Banknote, User, Phone, Wallet } from 'lucide-react';
+import { recordActionTiming } from '@/lib/purchase-action-timing';
 
 interface SetTimerDialogProps {
   open: boolean;
@@ -100,6 +101,9 @@ export function SetTimerDialog({
         .eq('id', order.id);
 
       if (error) throw error;
+
+      // Record action timing for Add to Bank
+      await recordActionTiming(order.id, 'added_to_bank', 'payer');
 
       toast({
         title: 'Timer Set',

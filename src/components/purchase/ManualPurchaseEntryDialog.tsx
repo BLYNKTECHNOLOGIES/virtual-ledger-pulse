@@ -540,7 +540,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 
                 <Select 
                   value={formData.credit_wallet_id} 
-                  onValueChange={(value) => handleInputChange('credit_wallet_id', value)}
+                  onValueChange={(value) => {
+                    console.log('🪙 ManualPurchase: wallet selected:', value);
+                    handleInputChange('credit_wallet_id', value);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select wallet to credit purchased USDT" />
@@ -548,15 +551,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   <SelectContent className="bg-white z-50">
                     {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
                       <SelectItem key={wallet.id} value={wallet.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{wallet.wallet_name}</span>
-                          {wallet.chain_name && (
-                            <Badge variant="secondary" className="text-xs">{wallet.chain_name}</Badge>
-                          )}
-                          <span className="text-muted-foreground">
-                            ({wallet.current_balance?.toFixed(4) || '0'} USDT)
-                          </span>
-                        </div>
+                        {wallet.wallet_name}
+                        {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
+                        {` (${(wallet.current_balance ?? 0).toFixed(4)} USDT)`}
                       </SelectItem>
                     ))}
                   </SelectContent>

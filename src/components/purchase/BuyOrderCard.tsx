@@ -178,6 +178,11 @@ export function BuyOrderCard({
       return null;
     }
 
+    // Role-based: Purchase Creator cannot record payment (advance to 'paid')
+    if (staticNext === 'paid' && !pf.canRecordPayment) {
+      return null;
+    }
+
     return staticNext;
   };
 
@@ -235,6 +240,8 @@ export function BuyOrderCard({
 
   const handleStatusChange = (newStatus: BuyOrderStatus) => {
     if (newStatus === 'paid') {
+      // Only payers can record payment
+      if (!pf.canRecordPayment) return;
       onRecordPayment();
       return;
     }
@@ -464,6 +471,14 @@ export function BuyOrderCard({
               </Badge>
             )}
 
+            {/* Waiting for Payment indicator for Creator-only */}
+            {!pf.canRecordPayment && currentStatus === 'added_to_bank' && (
+              <Badge variant="outline" className="text-xs border-amber-300 text-amber-600 bg-amber-50">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Waiting for Payment
+              </Badge>
+            )}
+
             {/* Attended Button */}
             {needsBlink && onMarkAttended && (
               <Button
@@ -521,16 +536,25 @@ export function BuyOrderCard({
                 {currentStatus !== 'completed' && currentStatus !== 'cancelled' && (
                   <>
                     <DropdownMenuSeparator />
-                    {STATUS_ORDER.map((status) => (
-                      <DropdownMenuItem
-                        key={status}
-                        onClick={() => handleStatusChange(status)}
-                        disabled={currentStatus === status}
-                      >
-                        <span className="mr-2">{BUY_ORDER_STATUS_CONFIG[status].icon}</span>
-                        {status === 'added_to_bank' ? 'Add to Bank' : `Move to ${BUY_ORDER_STATUS_CONFIG[status].label}`}
-                      </DropdownMenuItem>
-                    ))}
+                    {STATUS_ORDER.map((status) => {
+                      // Hide 'paid' option for creators who can't record payment
+                      if (status === 'paid' && !pf.canRecordPayment) return null;
+                      // Hide 'pan_collected' option for payers who can't collect PAN
+                      if (status === 'pan_collected' && !pf.canCollectPan) return null;
+                      // Hide 'added_to_bank' option for creators who can't add to bank
+                      if (status === 'added_to_bank' && !pf.canAddToBank) return null;
+                      
+                      return (
+                        <DropdownMenuItem
+                          key={status}
+                          onClick={() => handleStatusChange(status)}
+                          disabled={currentStatus === status}
+                        >
+                          <span className="mr-2">{BUY_ORDER_STATUS_CONFIG[status].icon}</span>
+                          {status === 'added_to_bank' ? 'Add to Bank' : `Move to ${BUY_ORDER_STATUS_CONFIG[status].label}`}
+                        </DropdownMenuItem>
+                      );
+                    })}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => onStatusChange('cancelled')}

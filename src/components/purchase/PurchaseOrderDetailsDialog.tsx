@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
 import { Download, Printer } from "lucide-react";
+import { ActivityTimeline } from "@/components/ui/activity-timeline";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -121,6 +122,14 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               <label className="text-sm font-medium text-gray-600">Description</label>
               <p className="text-sm mt-1 p-3 bg-gray-50 rounded-lg">{order.description}</p>
             </div>
+          )}
+
+          {/* Activity Timeline for closed orders */}
+          {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED') && (
+            <ActivityTimeline 
+              entityId={order.id} 
+              entityType="purchase_order"
+            />
           )}
 
           <div className="flex gap-3 pt-4 border-t">

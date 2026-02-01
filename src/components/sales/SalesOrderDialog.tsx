@@ -19,6 +19,7 @@ import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
 import { AlertTriangle, Info, TrendingUp } from "lucide-react";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -294,7 +295,16 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.SALES_ORDER_CREATED,
+        entityType: EntityTypes.SALES_ORDER,
+        entityId: data.id,
+        module: Modules.SALES,
+        metadata: { order_number: data.order_number, client_name: formData.client_name, amount: formData.amount }
+      });
+      
       toast({
         title: "Sales Order Created",
         description: "Sales order has been successfully created.",

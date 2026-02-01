@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface AddUserDialogProps {
   onAddUser: (userData: {
@@ -169,6 +170,15 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
       });
 
       if (result.success) {
+        // Log the action
+        logActionWithCurrentUser({
+          actionType: ActionTypes.USER_CREATED,
+          entityType: EntityTypes.USER,
+          entityId: formData.username, // Will be replaced with actual user ID
+          module: Modules.USER_MANAGEMENT,
+          metadata: { username: formData.username, email: formData.email }
+        });
+        
         // Reset form
         setFormData({
           username: "",

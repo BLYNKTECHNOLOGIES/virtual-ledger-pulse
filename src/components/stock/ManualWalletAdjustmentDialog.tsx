@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface ManualWalletAdjustmentDialogProps {
   open: boolean;
@@ -169,6 +170,15 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       if (updAdjErr) throw updAdjErr;
     },
     onSuccess: () => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.STOCK_WALLET_ADJUSTED,
+        entityType: EntityTypes.WALLET,
+        entityId: formData.wallet_id,
+        module: Modules.STOCK,
+        metadata: { adjustment_type: formData.adjustment_type, amount: formData.amount, reason: formData.reason }
+      });
+      
       toast({
         title: "Adjustment Recorded",
         description: "Wallet balance adjustment has been recorded with a contra entry in the adjustment wallet."

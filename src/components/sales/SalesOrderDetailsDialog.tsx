@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
 import { Download, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ActivityTimeline } from "@/components/ui/activity-timeline";
 
 interface SalesOrderDetailsDialogProps {
   open: boolean;
@@ -218,6 +219,14 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-800 font-medium">⚠️ COSMOS Alert was triggered for this order</p>
             </div>
+          )}
+
+          {/* Activity Timeline for completed/cancelled orders */}
+          {(order.payment_status === 'COMPLETED' || order.status === 'CANCELLED') && (
+            <ActivityTimeline 
+              entityId={order.id} 
+              entityType="sales_order"
+            />
           )}
           
           {/* PDF Action Buttons */}

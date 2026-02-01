@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 export function StockAdjustmentTab() {
   const { toast } = useToast();
@@ -117,7 +118,16 @@ export function StockAdjustmentTab() {
 
       return adjustment;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Log the action
+      logActionWithCurrentUser({
+        actionType: ActionTypes.STOCK_ADJUSTMENT_CREATED,
+        entityType: EntityTypes.STOCK_ADJUSTMENT,
+        entityId: data.id,
+        module: Modules.STOCK,
+        metadata: { adjustment_type: formData.adjustment_type, quantity: formData.quantity }
+      });
+      
       toast({
         title: "Stock Adjustment Created",
         description: "Stock adjustment has been successfully recorded.",

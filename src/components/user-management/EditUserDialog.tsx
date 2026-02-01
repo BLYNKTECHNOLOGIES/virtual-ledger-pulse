@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface Role {
   id: string;
@@ -71,6 +72,26 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       const result = await onSave(user.id, submitData);
       
       if (result?.success !== false) {
+        // Log the action
+        logActionWithCurrentUser({
+          actionType: ActionTypes.USER_UPDATED,
+          entityType: EntityTypes.USER,
+          entityId: user.id,
+          module: Modules.USER_MANAGEMENT,
+          metadata: { username: formData.username, email: formData.email, role_id: formData.role_id }
+        });
+        
+        // If role was changed, log that separately
+        if (formData.role_id !== initialRoleId) {
+          logActionWithCurrentUser({
+            actionType: ActionTypes.USER_ROLE_ASSIGNED,
+            entityType: EntityTypes.USER,
+            entityId: user.id,
+            module: Modules.USER_MANAGEMENT,
+            metadata: { old_role_id: initialRoleId, new_role_id: formData.role_id }
+          });
+        }
+        
         toast({
           title: "Success",
           description: "User updated successfully",

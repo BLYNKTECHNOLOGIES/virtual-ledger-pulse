@@ -151,26 +151,38 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
     setIsLoading(true);
 
     try {
+      console.log('Saving role:', role.id, 'with data:', formData);
+      console.log('Selected functions:', selectedFunctions);
+      
       // First save permissions
       const result = await onSave(role.id, formData);
+      console.log('onSave result:', result);
       
       if (result?.success === false) {
+        console.error('onSave failed:', result?.error);
         toast({
           title: "Error",
-          description: result?.error?.message || "Failed to update role",
+          description: result?.error?.message || "Failed to update role permissions",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       // Then update functions
       // Delete existing role_functions
-      const { error: deleteError } = await supabase
+      console.log('Deleting existing role_functions for role:', role.id);
+      const { error: deleteError, count: deleteCount } = await supabase
         .from('role_functions')
         .delete()
-        .eq('role_id', role.id);
+        .eq('role_id', role.id)
+        .select();
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Delete role_functions error:', deleteError);
+        throw deleteError;
+      }
+      console.log('Deleted role_functions count:', deleteCount);
 
       // Insert new role_functions
       if (selectedFunctions.length > 0) {
@@ -178,12 +190,19 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
           .filter(f => selectedFunctions.includes(f.function_key))
           .map(f => ({ role_id: role.id, function_id: f.id }));
 
-        if (functionIds.length > 0) {
-          const { error: insertError } = await supabase
-            .from('role_functions')
-            .insert(functionIds);
+        console.log('Inserting role_functions:', functionIds);
 
-          if (insertError) throw insertError;
+        if (functionIds.length > 0) {
+          const { data: insertData, error: insertError } = await supabase
+            .from('role_functions')
+            .insert(functionIds)
+            .select();
+
+          if (insertError) {
+            console.error('Insert role_functions error:', insertError);
+            throw insertError;
+          }
+          console.log('Inserted role_functions:', insertData);
         }
       }
 
@@ -192,11 +211,11 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
         description: "Role updated successfully",
       });
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error);
       toast({
         title: "Error",
-        description: "Failed to update role",
+        description: error?.message || "Failed to update role",
         variant: "destructive",
       });
     } finally {

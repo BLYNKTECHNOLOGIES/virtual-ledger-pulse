@@ -4351,14 +4351,25 @@ export type Database = {
       }
     }
     Functions: {
-      admin_reset_user_password: {
-        Args: { new_password: string; user_email: string }
-        Returns: boolean
-      }
-      approve_registration: {
-        Args: { registration_id: string }
-        Returns: boolean
-      }
+      admin_reset_user_password:
+        | {
+            Args: { p_new_password: string; p_user_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: { new_password: string; user_email: string }
+            Returns: boolean
+          }
+      approve_registration:
+        | {
+            Args: {
+              p_approved_by: string
+              p_registration_id: string
+              p_role_id: string
+            }
+            Returns: string
+          }
+        | { Args: { registration_id: string }; Returns: boolean }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean
@@ -4619,10 +4630,30 @@ export type Database = {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
-      reject_registration: {
-        Args: { reason?: string; registration_id: string }
-        Returns: boolean
+      register_user_request: {
+        Args: {
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_password: string
+          p_phone: string
+          p_username: string
+        }
+        Returns: string
       }
+      reject_registration:
+        | {
+            Args: {
+              p_reason?: string
+              p_registration_id: string
+              p_rejected_by: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: { reason?: string; registration_id: string }
+            Returns: boolean
+          }
       sync_existing_payment_methods_with_bank_status: {
         Args: never
         Returns: undefined

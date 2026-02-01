@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings } from "lucide-react";
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
 import { EditUserDialog } from "@/components/user-management/EditUserDialog";
 import { EditRoleDialog } from "@/components/user-management/EditRoleDialog";
 import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
+import { PendingRegistrationsTab } from "@/components/user-management/PendingRegistrationsTab";
+import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +45,7 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<DatabaseUser | null>(null);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [viewingRoleUsers, setViewingRoleUsers] = useState<Role | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<DatabaseUser | null>(null);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
 
@@ -340,7 +343,11 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Pending Approvals
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               All Users
@@ -354,6 +361,13 @@ export default function UserManagement() {
               User Settings
             </TabsTrigger>
           </TabsList>
+
+          {/* Pending Registrations Tab */}
+          <TabsContent value="pending" className="space-y-4">
+            <PermissionGate permissions={['user_management_manage']}>
+              <PendingRegistrationsTab />
+            </PermissionGate>
+          </TabsContent>
 
           {/* All Users Tab */}
           <TabsContent value="users" className="space-y-4">
@@ -437,8 +451,18 @@ export default function UserManagement() {
                                   <Button
                                     variant="outline"
                                     size="sm"
+                                    onClick={() => setResetPasswordUser(user)}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Key className="h-3 w-3" />
+                                    Reset
+                                  </Button>
+                                  
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => handleDeleteUser(user.id)}
-                                    className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="flex items-center gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   >
                                     <Trash2 className="h-3 w-3" />
                                     Delete
@@ -671,6 +695,17 @@ export default function UserManagement() {
         <RoleUsersDialog
           role={viewingRoleUsers}
           onClose={() => setViewingRoleUsers(null)}
+        />
+      )}
+
+      {resetPasswordUser && (
+        <ResetPasswordDialog
+          open={!!resetPasswordUser}
+          onOpenChange={(open) => !open && setResetPasswordUser(null)}
+          userId={resetPasswordUser.id}
+          userName={resetPasswordUser.first_name && resetPasswordUser.last_name 
+            ? `${resetPasswordUser.first_name} ${resetPasswordUser.last_name}` 
+            : resetPasswordUser.username}
         />
       )}
     </div>

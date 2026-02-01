@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BuyOrder, BuyOrderStatus, COMMON_BANKS, PanType, calculatePayout } from '@/lib/buy-order-types';
+import { BuyOrder, BuyOrderStatus, COMMON_BANKS, PanType, calculatePayout, STATUS_ORDER } from '@/lib/buy-order-types';
 import { validateIFSC, formatIFSCInput } from '@/lib/buy-order-helpers';
 import { setPanTypeInNotes } from '@/lib/pan-notes';
 import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
@@ -74,7 +74,17 @@ export function CollectFieldsDialog({
 
     setLoading(true);
     try {
-      const updateData: Record<string, any> = { order_status: targetStatus };
+      // STATE PROGRESSION GUARD: Only advance status forward, never revert
+      const currentPosition = STATUS_ORDER.indexOf(order.order_status as BuyOrderStatus);
+      const targetPosition = STATUS_ORDER.indexOf(targetStatus);
+      const shouldUpdateStatus = targetPosition > currentPosition || currentPosition === -1;
+
+      const updateData: Record<string, any> = {};
+      
+      // Only update status if moving forward (prevents reverting from added_to_bank to pan_collected)
+      if (shouldUpdateStatus) {
+        updateData.order_status = targetStatus;
+      }
       
       if (collectType === 'banking') {
         if (order.payment_method_type === 'UPI') {

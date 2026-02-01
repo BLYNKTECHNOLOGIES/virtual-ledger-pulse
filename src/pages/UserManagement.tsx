@@ -58,22 +58,13 @@ const permissionMapping: Record<string, string> = {
   'view_ems': 'ems_view',
 };
 
-// Valid permission IDs
-const validPermissionIds = new Set([
-  'dashboard_view', 'sales_view', 'sales_manage', 'purchase_view', 'purchase_manage',
-  'bams_view', 'bams_manage', 'clients_view', 'clients_manage', 'leads_view', 'leads_manage',
-  'user_management_view', 'user_management_manage', 'hrms_view', 'hrms_manage',
-  'payroll_view', 'payroll_manage', 'compliance_view', 'compliance_manage',
-  'stock_view', 'stock_manage', 'accounting_view', 'accounting_manage',
-  'video_kyc_view', 'video_kyc_manage', 'kyc_approvals_view', 'kyc_approvals_manage',
-  'statistics_view', 'statistics_manage', 'ems_view', 'ems_manage',
-]);
-
 // Normalize and deduplicate permissions array
 const normalizePermissions = (perms: string[]): string[] => {
   const normalized = perms.map(p => permissionMapping[p] || p);
-  const uniquePerms = [...new Set(normalized)].filter(p => validPermissionIds.has(p));
-  return uniquePerms;
+  // IMPORTANT: do NOT filter unknown/legacy permissions.
+  // This project historically stored multiple permission formats in app_permission.
+  // Filtering makes the UI appear fine but would DELETE legacy permissions on save.
+  return [...new Set(normalized)];
 };
 
 // Format permission for display

@@ -96,11 +96,11 @@ const normalizePermission = (perm: string): string => {
 
 // Normalize and deduplicate permissions array
 const normalizePermissions = (perms: string[]): string[] => {
+  // IMPORTANT: do NOT filter out legacy permissions here.
+  // This project has historic permissions stored in the app_permission enum.
+  // If we filter them away, saving a role will unintentionally DELETE those permissions.
   const normalized = perms.map(normalizePermission);
-  // Deduplicate - only keep permissions that exist in availablePermissions
-  const validIds = new Set(availablePermissions.map(p => p.id));
-  const uniquePerms = [...new Set(normalized)].filter(p => validIds.has(p));
-  return uniquePerms;
+  return [...new Set(normalized)];
 };
 
 export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
@@ -118,7 +118,10 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
 
   // Check if role has purchase permission
   const hasPurchasePermission = formData.permissions.some(p => 
-    p === 'purchase_view' || p === 'purchase_manage'
+    // New format
+    p === 'purchase_view' || p === 'purchase_manage' ||
+    // Legacy format
+    p === 'view_purchase' || p === 'manage_purchase'
   );
 
   // Get selected purchase functions

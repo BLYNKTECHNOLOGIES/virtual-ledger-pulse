@@ -40,6 +40,20 @@ export function usePurchaseFunctions() {
         return;
       }
 
+      // Some legacy/demo accounts may have non-UUID ids (e.g. "demo-admin-id").
+      // The RPC expects UUID and will throw (22P02), which can break unrelated UIs.
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+      if (!isUuid) {
+        // Treat as combined mode (no restrictions) and stop.
+        setState({
+          isPurchaseCreator: true,
+          isPayer: true,
+          isCombined: true,
+          isLoading: false,
+        });
+        return;
+      }
+
       try {
         // Fetch functions from the user's role via the new role_functions system
         const { data, error } = await supabase

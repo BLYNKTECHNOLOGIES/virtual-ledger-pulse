@@ -4952,6 +4952,8 @@ export type Database = {
         | "kyc_approvals_manage"
         | "statistics_view"
         | "statistics_manage"
+        | "ems_view"
+        | "ems_manage"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
     }
@@ -5157,6 +5159,8 @@ export const Constants = {
         "kyc_approvals_manage",
         "statistics_view",
         "statistics_manage",
+        "ems_view",
+        "ems_manage",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

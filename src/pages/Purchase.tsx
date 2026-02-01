@@ -19,6 +19,7 @@ import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseE
 import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 
 export default function Purchase() {
   const navigate = useNavigate();
@@ -28,6 +29,9 @@ export default function Purchase() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
+
+  // Purchase function checks for role-based visibility
+  const { canCreateOrders, isLoading: purchaseFunctionsLoading } = usePurchaseFunctions();
 
   const handleRefreshData = () => {
     // This will trigger a refetch of the summary data
@@ -112,12 +116,17 @@ export default function Purchase() {
                 <Download className="h-4 w-4 mr-1 md:mr-2" />
                 <span className="hidden sm:inline">Export CSV</span>
               </Button>
+              {/* Only show create buttons if user has purchase_manage AND canCreateOrders (Purchase Creator or Combined) */}
               <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
-                <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-                <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0">
-                  <Plus className="h-4 w-4 mr-1" />
-                  <span className="whitespace-nowrap">New Purchase Stock</span>
-                </Button>
+                {canCreateOrders && (
+                  <>
+                    <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
+                    <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0">
+                      <Plus className="h-4 w-4 mr-1" />
+                      <span className="whitespace-nowrap">New Purchase Stock</span>
+                    </Button>
+                  </>
+                )}
               </PermissionGate>
             </div>
           </div>

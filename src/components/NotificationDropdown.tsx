@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,7 +6,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle } from "lucide-react";
+import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle, BellOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNotificationMute } from "@/hooks/useNotificationMute";
@@ -15,6 +14,7 @@ import { useNotifications, GlobalNotification } from "@/contexts/NotificationCon
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 function getNotificationIcon(type: GlobalNotification['type']) {
   switch (type) {
@@ -31,6 +31,7 @@ function getNotificationIcon(type: GlobalNotification['type']) {
 
 export function NotificationDropdown() {
   const { isMuted, toggleMute } = useNotificationMute();
+  const { toast } = useToast();
   const { 
     notifications, 
     unreadCount, 
@@ -43,11 +44,25 @@ export function NotificationDropdown() {
     window.location.reload();
   };
 
+  const handleToggleMute = () => {
+    toggleMute();
+    toast({
+      title: isMuted ? "Notifications Unmuted" : "Notifications Muted",
+      description: isMuted 
+        ? "You will now hear notification sounds" 
+        : "Notification sounds have been muted",
+    });
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="relative">
-          <Bell className={cn("h-4 w-4", unreadCount > 0 && "animate-pulse")} />
+          {isMuted ? (
+            <BellOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Bell className={cn("h-4 w-4", unreadCount > 0 && "animate-pulse")} />
+          )}
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
@@ -56,11 +71,25 @@ export function NotificationDropdown() {
               {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
+          {/* Muted indicator */}
+          {isMuted && (
+            <div className="absolute -bottom-1 -right-1 h-3 w-3 bg-muted-foreground rounded-full flex items-center justify-center">
+              <VolumeX className="h-2 w-2 text-background" />
+            </div>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-96">
         <div className="p-4 border-b flex items-center justify-between">
-          <h3 className="font-semibold">Notifications</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">Notifications</h3>
+            {isMuted && (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <VolumeX className="h-3 w-3" />
+                Muted
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-1">
             {notifications.length > 0 && (
               <>
@@ -135,16 +164,16 @@ export function NotificationDropdown() {
         <DropdownMenuSeparator />
         
         <div className="p-2">
-          <DropdownMenuItem onClick={toggleMute}>
+          <DropdownMenuItem onClick={handleToggleMute}>
             {isMuted ? (
               <>
-                <VolumeX className="h-4 w-4 mr-2 text-destructive" />
-                <span>Unmute Notifications</span>
+                <Volume2 className="h-4 w-4 mr-2 text-green-500" />
+                <span>Unmute Sounds</span>
               </>
             ) : (
               <>
-                <Volume2 className="h-4 w-4 mr-2" />
-                <span>Mute Notifications</span>
+                <VolumeX className="h-4 w-4 mr-2 text-destructive" />
+                <span>Mute Sounds</span>
               </>
             )}
           </DropdownMenuItem>

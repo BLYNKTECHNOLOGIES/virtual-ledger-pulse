@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, UserPlus } from 'lucide-react';
 import { ForgotPasswordDialog } from './ForgotPasswordDialog';
+import { RegistrationDialog } from './RegistrationDialog';
 
 interface LoginProps {
   onLogin: (credentials: { email: string; password: string }) => Promise<boolean>;
@@ -17,6 +18,7 @@ export function Login({ onLogin }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +105,7 @@ export function Login({ onLogin }: LoginProps) {
             </Button>
           </form>
           
-          <div className="mt-4 text-center">
+          <div className="mt-4 text-center space-y-2">
             <Button
               variant="ghost"
               type="button"
@@ -112,12 +114,30 @@ export function Login({ onLogin }: LoginProps) {
             >
               Forgot your password?
             </Button>
+            
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-sm text-muted-foreground">Don't have an account?</span>
+              <Button
+                variant="link"
+                type="button"
+                onClick={() => setShowRegistration(true)}
+                className="text-sm p-0 h-auto font-medium"
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Register Now
+              </Button>
+            </div>
           </div>
         </CardContent>
         
         <ForgotPasswordDialog
           open={showForgotPassword}
           onClose={() => setShowForgotPassword(false)}
+        />
+        
+        <RegistrationDialog
+          open={showRegistration}
+          onOpenChange={setShowRegistration}
         />
       </Card>
     </div>

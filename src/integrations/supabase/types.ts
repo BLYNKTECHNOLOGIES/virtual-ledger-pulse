@@ -4423,16 +4423,14 @@ export type Database = {
             Args: { new_password: string; user_email: string }
             Returns: boolean
           }
-      approve_registration:
-        | {
-            Args: {
-              p_approved_by: string
-              p_registration_id: string
-              p_role_id: string
-            }
-            Returns: string
-          }
-        | { Args: { registration_id: string }; Returns: boolean }
+      approve_registration: {
+        Args: {
+          p_approved_by?: string
+          p_registration_id: string
+          p_role_id: string
+        }
+        Returns: string
+      }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean

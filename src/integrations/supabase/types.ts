@@ -3386,6 +3386,42 @@ export type Database = {
           },
         ]
       }
+      role_functions: {
+        Row: {
+          created_at: string
+          function_id: string
+          id: string
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          function_id: string
+          id?: string
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          function_id?: string
+          id?: string
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_functions_function_id_fkey"
+            columns: ["function_id"]
+            isOneToOne: false
+            referencedRelation: "system_functions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_functions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
           created_at: string | null
@@ -3868,6 +3904,33 @@ export type Database = {
           state?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      system_functions: {
+        Row: {
+          created_at: string
+          description: string | null
+          function_key: string
+          function_name: string
+          id: string
+          module: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          function_key: string
+          function_name: string
+          id?: string
+          module: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          function_key?: string
+          function_name?: string
+          id?: string
+          module?: string
         }
         Relationships: []
       }
@@ -4604,6 +4667,14 @@ export type Database = {
               permission: Database["public"]["Enums"]["app_permission"]
             }[]
           }
+      get_user_role_functions: {
+        Args: { p_user_id: string }
+        Returns: {
+          function_key: string
+          function_name: string
+          module: string
+        }[]
+      }
       get_user_with_roles: {
         Args: { user_uuid: string }
         Returns: {
@@ -4787,6 +4858,10 @@ export type Database = {
             }
             Returns: boolean
           }
+      validate_role_purchase_functions: {
+        Args: { p_role_id: string }
+        Returns: boolean
+      }
       validate_user_credentials: {
         Args: { input_password: string; input_username: string }
         Returns: {

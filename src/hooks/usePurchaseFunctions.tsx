@@ -41,6 +41,44 @@ export function usePurchaseFunctions() {
       }
 
       try {
+        // Fetch functions from the user's role via the new role_functions system
+        const { data, error } = await supabase
+          .rpc('get_user_role_functions', { p_user_id: user.id });
+
+        if (error) {
+          console.error('Error fetching role functions:', error);
+          // Fallback to legacy direct user fields if RPC fails
+          await fetchLegacyFunctions();
+          return;
+        }
+
+        // Parse the function keys from the result
+        const functionKeys = (data || []).map((f: any) => f.function_key);
+        const isPurchaseCreator = functionKeys.includes('purchase_creator');
+        const isPayer = functionKeys.includes('payer');
+        const isCombined = isPurchaseCreator && isPayer;
+
+        setState({
+          isPurchaseCreator,
+          isPayer,
+          isCombined,
+          isLoading: false,
+        });
+      } catch (err) {
+        console.error('Error in fetchFunctions:', err);
+        // Fallback to legacy
+        await fetchLegacyFunctions();
+      }
+    };
+
+    // Legacy fallback - read from users table directly (for backward compatibility)
+    const fetchLegacyFunctions = async () => {
+      if (!user?.id) {
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      try {
         const { data, error } = await supabase
           .from('users')
           .select('is_purchase_creator, is_payer')
@@ -48,7 +86,7 @@ export function usePurchaseFunctions() {
           .single();
 
         if (error) {
-          console.error('Error fetching purchase functions:', error);
+          console.error('Error fetching legacy purchase functions:', error);
           setState(prev => ({ ...prev, isLoading: false }));
           return;
         }
@@ -64,7 +102,7 @@ export function usePurchaseFunctions() {
           isLoading: false,
         });
       } catch (err) {
-        console.error('Error in fetchFunctions:', err);
+        console.error('Error in fetchLegacyFunctions:', err);
         setState(prev => ({ ...prev, isLoading: false }));
       }
     };

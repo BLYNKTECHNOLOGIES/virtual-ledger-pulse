@@ -456,7 +456,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
               onRecordPayment={() => handleRecordPayment(order)}
               alertState={needsAttention(order.id)}
               onMarkAttended={() => handleMarkAttended(order.id)}
-              onTriggerTimerAlert={(type, isUrgent) => triggerTimerAlert(order.id, type, order, isUrgent)}
+              onTriggerTimerAlert={(type, isUrgent, buzzerConfig) => triggerTimerAlert(order.id, type, order, isUrgent, buzzerConfig)}
               purchaseFunctions={purchaseFunctions}
             />
           ))}

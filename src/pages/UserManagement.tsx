@@ -37,6 +37,50 @@ interface OnlineUser {
   status: string;
 }
 
+// Map old permission format to new format (for backwards compatibility)
+const permissionMapping: Record<string, string> = {
+  'view_dashboard': 'dashboard_view',
+  'view_sales': 'sales_view',
+  'view_purchase': 'purchase_view',
+  'view_bams': 'bams_view',
+  'view_clients': 'clients_view',
+  'view_leads': 'leads_view',
+  'view_user_management': 'user_management_view',
+  'view_hrms': 'hrms_view',
+  'view_payroll': 'payroll_view',
+  'view_compliance': 'compliance_view',
+  'view_stock': 'stock_view',
+  'view_stock_management': 'stock_view',
+  'view_accounting': 'accounting_view',
+  'view_video_kyc': 'video_kyc_view',
+  'view_kyc_approvals': 'kyc_approvals_view',
+  'view_statistics': 'statistics_view',
+  'view_ems': 'ems_view',
+};
+
+// Valid permission IDs
+const validPermissionIds = new Set([
+  'dashboard_view', 'sales_view', 'sales_manage', 'purchase_view', 'purchase_manage',
+  'bams_view', 'bams_manage', 'clients_view', 'clients_manage', 'leads_view', 'leads_manage',
+  'user_management_view', 'user_management_manage', 'hrms_view', 'hrms_manage',
+  'payroll_view', 'payroll_manage', 'compliance_view', 'compliance_manage',
+  'stock_view', 'stock_manage', 'accounting_view', 'accounting_manage',
+  'video_kyc_view', 'video_kyc_manage', 'kyc_approvals_view', 'kyc_approvals_manage',
+  'statistics_view', 'statistics_manage', 'ems_view', 'ems_manage',
+]);
+
+// Normalize and deduplicate permissions array
+const normalizePermissions = (perms: string[]): string[] => {
+  const normalized = perms.map(p => permissionMapping[p] || p);
+  const uniquePerms = [...new Set(normalized)].filter(p => validPermissionIds.has(p));
+  return uniquePerms;
+};
+
+// Format permission for display
+const formatPermissionDisplay = (perm: string): string => {
+  return perm.replace(/_/g, ' ');
+};
+
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
@@ -98,10 +142,11 @@ export default function UserManagement() {
         userCountMap.set(userRole.role_id, currentCount + 1);
       });
 
-      // Format roles with correct user counts and permissions
+      // Format roles with correct user counts and normalized permissions
       const rolesWithCount = (rolesData || []).map((role) => {
-        // Extract permissions from the nested structure
-        const permissions = role.role_permissions?.map((rp: any) => rp.permission) || [];
+        // Extract permissions from the nested structure and normalize them
+        const rawPermissions = role.role_permissions?.map((rp: any) => rp.permission) || [];
+        const permissions = normalizePermissions(rawPermissions);
 
         return {
           id: role.id,
@@ -533,11 +578,11 @@ export default function UserManagement() {
                                   <p className="text-sm text-gray-600">{role.description}</p>
                                   
                                   <div className="space-y-2">
-                                    <p className="text-xs font-medium text-gray-700">Permissions:</p>
+                                    <p className="text-xs font-medium text-muted-foreground">Permissions:</p>
                                     <div className="flex flex-wrap gap-1">
                                       {role.permissions.slice(0, 3).map((permission) => (
                                         <Badge key={permission} variant="outline" className="text-xs">
-                                          {permission.replace('_', ' ')}
+                                          {formatPermissionDisplay(permission)}
                                         </Badge>
                                       ))}
                                       {role.permissions.length > 3 && (

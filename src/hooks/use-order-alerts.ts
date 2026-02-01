@@ -67,6 +67,12 @@ function getAudioContext(): AudioContext {
   if (!audioContext) {
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
   }
+  // Resume audio context if suspended (happens when tab is inactive)
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => {
+      // Ignore - may fail if user hasn't interacted yet
+    });
+  }
   return audioContext;
 }
 
@@ -74,6 +80,14 @@ function getAudioContext(): AudioContext {
 function playTone(frequency: number, duration: number, delay: number = 0, volume: number = 0.7) {
   try {
     const ctx = getAudioContext();
+    
+    // Ensure audio context is running - critical for background tabs
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {
+        // If resume fails, try to play anyway
+      });
+    }
+    
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
     

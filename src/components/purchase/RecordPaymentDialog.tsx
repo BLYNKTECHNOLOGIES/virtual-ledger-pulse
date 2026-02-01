@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { BuyOrder, calculatePayout } from '@/lib/buy-order-types';
-import { getEffectivePanType } from '@/lib/buy-order-helpers';
+import { getEffectivePanType, hasTdsTypeSelected } from '@/lib/buy-order-helpers';
 import { getBuyOrderGrossAmount } from '@/lib/buy-order-amounts';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -141,6 +141,16 @@ export function RecordPaymentDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!order) return;
+
+    // Enforce: Payment cannot be recorded before TDS details exist.
+    if (!hasTdsTypeSelected(order)) {
+      toast({
+        title: 'TDS Required',
+        description: 'Please collect TDS/PAN details before recording payment.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const amount = parseFloat(amountPaid);
     if (isNaN(amount) || amount <= 0) {

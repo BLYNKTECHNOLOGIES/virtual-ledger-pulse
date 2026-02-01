@@ -135,6 +135,11 @@ export function BuyOrderCard({
     const staticNext = statusConfig.nextStatus;
     if (!staticNext) return null;
 
+    // Payment (Paid) must not be allowed before TDS details exist.
+    if (staticNext === 'paid' && !tdsSelected) {
+      return null;
+    }
+
     // Role-based restrictions for Payer-only: cannot advance from 'new' to banking_collected
     // They should see "Waiting for bank details" instead
     if (pf.showWaitingForBanking && !bankingCollected) {
@@ -143,16 +148,10 @@ export function BuyOrderCard({
       }
     }
 
-    // Role-based restrictions for Payer-only: cannot collect PAN
-    // They should see "Collecting PAN" instead
-    if (pf.showWaitingForPan && !tdsSelected) {
-      // If we're on banking_collected status and PAN not yet collected, payer cannot proceed
-      if (currentStatus === 'banking_collected') {
-        return null; // Payer cannot collect PAN
-      }
-      // If we're on 'new' with banking already collected but no TDS, payer still can't collect PAN
-      if (currentStatus === 'new' && bankingCollected) {
-        return null; // Payer cannot collect PAN
+    // Payer-only cannot collect PAN, but MUST be able to Add to Bank as soon as banking is collected.
+    if (pf.showWaitingForPan && !tdsSelected && bankingCollected && pf.canAddToBank) {
+      if (currentStatus === 'new' || currentStatus === 'banking_collected') {
+        return 'added_to_bank';
       }
     }
 
@@ -175,8 +174,9 @@ export function BuyOrderCard({
       return 'added_to_bank';
     }
 
-    // From 'banking_collected' status: Payer cannot proceed to pan_collected
-    if (currentStatus === 'banking_collected' && !pf.canCollectPan) {
+    // From 'banking_collected' status: if PAN not collected, only allow if role can collect PAN.
+    // (Payer-only path handled above to go straight to added_to_bank.)
+    if (currentStatus === 'banking_collected' && !pf.canCollectPan && !tdsSelected) {
       return null;
     }
 
@@ -216,8 +216,12 @@ export function BuyOrderCard({
   };
   const tdsLabel = getTdsLabel();
 
-  const needsBlink = alertState?.needsAttention;
   const blinkType = alertState?.alertType;
+  const needsBlink = Boolean(
+    alertState?.needsAttention &&
+      blinkType &&
+      pf.isAlertRelevant(blinkType, currentStatus)
+  );
   const hasActiveTimer = currentStatus === 'added_to_bank' && order.timer_end_at;
 
   const formatAmount = (amount: number) => {
@@ -249,6 +253,8 @@ export function BuyOrderCard({
     if (newStatus === 'paid') {
       // Only payers can record payment
       if (!pf.canRecordPayment) return;
+      // Payment must not be recorded before TDS exists.
+      if (!tdsSelected) return;
       onRecordPayment();
       return;
     }
@@ -260,7 +266,7 @@ export function BuyOrderCard({
     
     if (missing.type === 'timer') {
       // Pass showPayNow=true to allow instant payment option
-      onSetTimer(effectiveStatus, true);
+      onSetTimer(effectiveStatus, tdsSelected);
     } else if (missing.type === 'pan') {
       onCollectFields(effectiveStatus, missing.type, missing.fields);
     } else if (missing.type && missing.fields.length > 0) {
@@ -497,7 +503,7 @@ export function BuyOrderCard({
             )}
 
             {/* Attended Button */}
-            {needsBlink && onMarkAttended && (
+            {needsBlink && onMarkAttended && blinkType && !['payment_done', 'banking_collected'].includes(blinkType) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -556,6 +562,8 @@ export function BuyOrderCard({
                     {STATUS_ORDER.map((status) => {
                       // Hide 'paid' option for creators who can't record payment
                       if (status === 'paid' && !pf.canRecordPayment) return null;
+                      // Don't allow paying before TDS details exist
+                      if (status === 'paid' && !tdsSelected) return null;
                       // Hide 'pan_collected' option for payers who can't collect PAN
                       if (status === 'pan_collected' && !pf.canCollectPan) return null;
                       // Hide 'added_to_bank' option for creators who can't add to bank

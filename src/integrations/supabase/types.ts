@@ -4856,6 +4856,10 @@ export type Database = {
         }
         Returns: Json
       }
+      user_has_function: {
+        Args: { _function_key: string; _user_id: string }
+        Returns: boolean
+      }
       user_has_permission:
         | {
             Args: {

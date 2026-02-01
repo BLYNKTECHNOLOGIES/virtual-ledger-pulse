@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { isUuid } from "@/utils/isUuid";
 import {
   UserPlus,
   Check,
@@ -108,7 +109,9 @@ export function PendingRegistrationsTab() {
       const { data, error } = await supabase.rpc("approve_registration", {
         p_registration_id: registrationId,
         p_role_id: roleId,
-        p_approved_by: user?.id || null,
+        // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
+        // Passing a non-uuid breaks the RPC call.
+        p_approved_by: isUuid(user?.id) ? user.id : null,
       });
 
       if (error) throw error;
@@ -144,7 +147,9 @@ export function PendingRegistrationsTab() {
     }) => {
       const { data, error } = await supabase.rpc("reject_registration", {
         p_registration_id: registrationId,
-        p_rejected_by: user?.id || null,
+        // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
+        // Passing a non-uuid breaks the RPC call.
+        p_rejected_by: isUuid(user?.id) ? user.id : null,
         p_reason: reason || null,
       });
 

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, Eye, EyeOff, Mail, Phone, User } from "lucide-react";
+import { UserPlus, Eye, EyeOff, Mail, Phone, User, CheckCircle2 } from "lucide-react";
 
 interface RegistrationDialogProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function RegistrationDialog({ open, onOpenChange }: RegistrationDialogPro
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -132,19 +133,15 @@ export function RegistrationDialog({ open, onOpenChange }: RegistrationDialogPro
         p_last_name: formData.last_name.trim(),
         p_username: formData.username.trim(),
         p_email: formData.email.trim().toLowerCase(),
-        p_phone: formData.phone.trim() || null,
+        p_phone: formData.phone.trim() || "",
         p_password: formData.password,
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Registration Submitted",
-        description: "Your registration request has been submitted. An administrator will review and approve your account.",
-      });
-
+      // Show success acknowledgment
+      setShowSuccess(true);
       resetForm();
-      onOpenChange(false);
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({
@@ -156,6 +153,35 @@ export function RegistrationDialog({ open, onOpenChange }: RegistrationDialogPro
       setIsLoading(false);
     }
   };
+
+  const handleCloseSuccess = () => {
+    setShowSuccess(false);
+    onOpenChange(false);
+  };
+
+  // Success acknowledgment dialog
+  if (showSuccess) {
+    return (
+      <Dialog open={open} onOpenChange={handleCloseSuccess}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="mb-4 rounded-full bg-primary/10 p-3">
+              <CheckCircle2 className="h-12 w-12 text-primary" />
+            </div>
+            <DialogTitle className="mb-2 text-xl">Registration Submitted!</DialogTitle>
+            <DialogDescription className="mb-6">
+              Your registration request has been submitted successfully. 
+              An administrator will review and approve your account. 
+              You will be able to log in once your account is approved.
+            </DialogDescription>
+            <Button onClick={handleCloseSuccess} className="w-full max-w-xs">
+              Got it, thanks!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

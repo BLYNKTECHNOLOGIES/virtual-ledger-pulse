@@ -1,13 +1,12 @@
+# Implementation Complete: Role-Based Purchase Functions
 
-# Updated Implementation Plan: Role-Based Purchase Functions
+## Status: ✅ Implemented
 
-## Correction Applied
-
-**Bank Timer 2 min (Payer)**: The buzzer plays **for 10 seconds only** - this is a single buzzer with a 10-second duration cutoff, NOT a repeating buzzer every 10 seconds.
+All tasks have been completed successfully.
 
 ---
 
-## Updated Buzzer Relevance Matrix
+## Buzzer Relevance Matrix (Implemented)
 
 | Event | Purchase Creator | Payer | Combined |
 |-------|-----------------|-------|----------|
@@ -26,93 +25,60 @@
 
 ---
 
-## Buzzer Intensity Types
+## Files Created/Modified
 
-The implementation will support three buzzer intensity modes:
-
-1. **Single** - Plays once, stops immediately after
-2. **Continuous** - Repeats until attended (for Creator's Order 2 min alert)
-3. **Duration-limited** - Plays for a specific duration then auto-stops (for Payer's Bank Timer 2 min - 10 seconds)
-
----
-
-## Technical Implementation
-
-### `src/hooks/usePurchaseFunctions.tsx`
-
-The `getBuzzerIntensity()` function will return:
-
-```typescript
-type BuzzerIntensity = 
-  | { type: 'single' }
-  | { type: 'continuous' }
-  | { type: 'duration'; durationMs: number };
-
-// For Payer's Bank Timer 2 min:
-{ type: 'duration', durationMs: 10000 } // 10 seconds
-```
-
-### Alert System Integration
-
-When triggering the buzzer for Bank Timer 2 min (Payer role):
-- Start the buzzer/alarm
-- Set a timeout for 10 seconds
-- After 10 seconds, automatically stop the buzzer
-- Buzzer can also be stopped earlier if user clicks "Attended" or notification
+| File | Action | Status |
+|------|--------|--------|
+| `src/types/auth.ts` | Edit | ✅ Added `is_purchase_creator` and `is_payer` fields |
+| `src/hooks/usePurchaseFunctions.tsx` | Create | ✅ New hook with role context and buzzer intensity logic |
+| `src/hooks/useUsers.tsx` | Edit | ✅ Fetch/update purchase function fields |
+| `src/hooks/use-order-alerts.ts` | Edit | ✅ Added duration-limited buzzer support & new alert types |
+| `src/components/user-management/EditUserDialog.tsx` | Edit | ✅ Added Purchase Functions checkboxes |
+| `src/components/purchase/BuyOrderCard.tsx` | Edit | ✅ Role-based visibility for actions |
+| `src/components/purchase/BuyOrdersTab.tsx` | Edit | ✅ Pass role context |
+| `src/components/purchase/BuyOrderAlertWatcher.tsx` | Edit | ✅ Role-based alert filtering |
+| `src/components/purchase/ReviewDialog.tsx` | Create | ✅ Payer review submission dialog |
+| `src/components/purchase/ReviewIndicator.tsx` | Create | ✅ Creator review notification badge |
+| `src/lib/alert-notifications.ts` | Edit | ✅ Added review notification type |
 
 ---
 
-## Files to Create/Modify
+## Key Behaviors
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/types/auth.ts` | Edit | Add `is_purchase_creator` and `is_payer` fields |
-| `src/hooks/usePurchaseFunctions.tsx` | Create | New hook with role context and buzzer intensity logic |
-| `src/hooks/useUsers.tsx` | Edit | Fetch/update purchase function fields |
-| `src/hooks/use-order-alerts.ts` | Edit | Add duration-limited buzzer support |
-| `src/components/user-management/EditUserDialog.tsx` | Edit | Add Purchase Functions checkboxes |
-| `src/components/purchase/BuyOrderCard.tsx` | Edit | Role-based visibility for actions |
-| `src/components/purchase/BuyOrdersTab.tsx` | Edit | Pass role context |
-| `src/components/purchase/BuyOrderAlertWatcher.tsx` | Edit | Role-based alert filtering with duration support |
-| `src/components/purchase/ReviewDialog.tsx` | Create | Payer review submission dialog |
-| `src/components/purchase/ReviewIndicator.tsx` | Create | Creator review notification badge |
-| `src/lib/alert-notifications.ts` | Edit | Add review notification type |
+### Combined Mode (Both Functions Enabled)
+- No role-based separation applied
+- Current existing workflow applies exactly as before
+- All alerts and actions available
 
----
+### Purchase Creator Only
+- Can create orders
+- Can collect TDS/payment details
+- Cannot collect banking details
+- Cannot add to bank
+- Cannot record payment
+- Sees order expiry timers and buzzers (5 min single, 2 min continuous)
+- Gets buzzed for payment completion (subtle)
+- Can see review messages from Payer
 
-## Timer & Status Visibility (Unchanged)
+### Payer Only
+- Cannot collect banking details (shows "Waiting for bank details")
+- Can add to bank when banking is collected
+- Can record payments
+- Can submit reviews to Creator
+- Gets buzzed for new orders, banking collected, bank timer alerts
+- Bank timer 2 min buzzer plays for 10 seconds only then auto-stops
 
-Both roles always see:
+### Shared Visibility (Both Roles)
 - Order expiry timer display
-- Added to bank timer display  
-- Order Expired status
-- Order Completed status
-- Order Cancelled status
-
-Only the buzzers/attended buttons are role-specific.
+- Bank added timer display
+- Order Expired/Completed/Cancelled status
 
 ---
 
-## Implementation Order
+## User Management
 
-1. Update `src/types/auth.ts` - Add type definitions
-2. Create `src/hooks/usePurchaseFunctions.tsx` - Core hook with duration-limited buzzer support
-3. Update `src/hooks/useUsers.tsx` - Fetch/update purchase functions
-4. Update `src/components/user-management/EditUserDialog.tsx` - Add checkboxes
-5. Update `src/hooks/use-order-alerts.ts` - Add alert types and duration-limited intensity
-6. Update `src/lib/alert-notifications.ts` - Add alert details
-7. Create `src/components/purchase/ReviewDialog.tsx` - Review submission
-8. Create `src/components/purchase/ReviewIndicator.tsx` - Review display
-9. Update `src/components/purchase/BuyOrderCard.tsx` - Role-based UI
-10. Update `src/components/purchase/BuyOrdersTab.tsx` - Integration
-11. Update `src/components/purchase/BuyOrderAlertWatcher.tsx` - Role-based alerts with auto-stop
+Purchase functions can be enabled in User Management → Edit User:
+- **Purchase Creator** checkbox: Creates orders, collects TDS/payment details
+- **Payer** checkbox: Handles bank additions and payments
 
----
-
-## Technical Notes
-
-- Combined mode (both functions enabled) bypasses all role-based restrictions for backward compatibility
-- Timers are always visible to both roles - only buzzers are role-specific
-- Terminal statuses (Completed, Cancelled, Expired) are visible to all roles
-- Duration-limited buzzer uses `setTimeout` to auto-stop after 10 seconds
-- User can still manually stop buzzer early via "Attended" or notification click
+If both are enabled, the system uses combined mode (current full workflow).

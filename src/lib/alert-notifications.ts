@@ -58,6 +58,41 @@ export function getAlertDetails(alertType: AlertType, orderInfo: OrderAlertInfo)
         icon: '⚠️',
         type: 'error',
       };
+    case 'banking_collected':
+      return {
+        title: '🏦 Banking Details Collected',
+        description: `Order #${orderLabel}${supplierLabel} - Banking details have been collected. Ready for bank addition.`,
+        icon: '🏦',
+        type: 'info',
+      };
+    case 'payment_done':
+      return {
+        title: '💰 Payment Completed',
+        description: `Order #${orderLabel}${supplierLabel}${amountLabel} - Payment has been recorded.`,
+        icon: '💰',
+        type: 'success',
+      };
+    case 'order_expired':
+      return {
+        title: '⌛ Order Expired',
+        description: `Order #${orderLabel}${supplierLabel} has expired.`,
+        icon: '⌛',
+        type: 'error',
+      };
+    case 'order_cancelled':
+      return {
+        title: '❌ Order Cancelled',
+        description: `Order #${orderLabel}${supplierLabel} has been cancelled.`,
+        icon: '❌',
+        type: 'error',
+      };
+    case 'review_message':
+      return {
+        title: '💬 New Review Message',
+        description: `Order #${orderLabel} - You have a new review message from the Payer.`,
+        icon: '💬',
+        type: 'info',
+      };
     default:
       return {
         title: '🔔 Order Alert',

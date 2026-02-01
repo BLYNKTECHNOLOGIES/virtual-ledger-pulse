@@ -264,22 +264,24 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+        <Button className="flex items-center gap-2 bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-700">
           <Plus className="h-4 w-4" />
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4 border-b">
+          <DialogTitle className="text-xl font-bold text-foreground">
             Add Dashboard Widget
           </DialogTitle>
-          <p className="text-gray-600 mt-2">Choose from our collection of widgets to customize your dashboard</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Choose from our collection of widgets to customize your dashboard
+          </p>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto py-4 space-y-5">
           {/* Category Filter */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap px-1">
             {categories.map((category) => (
               <Button
                 key={category}
@@ -287,8 +289,8 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
                 size="sm"
                 onClick={() => setSelectedCategory(category)}
                 className={selectedCategory === category ? 
-                  "bg-gradient-to-r from-blue-600 to-purple-600 text-white" : 
-                  "hover:bg-blue-50"
+                  "bg-primary text-primary-foreground" : 
+                  "hover:bg-accent"
                 }
               >
                 {category}
@@ -296,43 +298,48 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
             ))}
           </div>
 
-          {/* Widget Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Widget Grid - 3 columns max for better readability */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-1">
             {filteredWidgets.map((widget) => {
               const IconComponent = widget.icon;
               return (
                 <Card 
                   key={widget.id} 
-                  className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:scale-105 border-0 shadow-sm hover:shadow-blue-100"
+                  className="group border border-border bg-card hover:shadow-md transition-all duration-200 hover:border-primary/30"
                 >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                          <IconComponent className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-sm font-semibold text-gray-900">{widget.name}</CardTitle>
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2.5 bg-primary/10 rounded-lg flex-shrink-0">
+                        <IconComponent className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base font-semibold text-card-foreground leading-tight">
+                          {widget.name}
+                        </CardTitle>
+                        <div className="flex items-center gap-2 mt-1.5">
                           <Badge 
                             variant="outline" 
-                            className={`text-xs mt-1 ${getCategoryColor(widget.category)}`}
+                            className={`text-xs px-2 py-0.5 ${getCategoryColor(widget.category)}`}
                           >
                             {widget.category}
                           </Badge>
+                          <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground">
+                            {widget.size}
+                          </Badge>
                         </div>
                       </div>
-                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
-                        {widget.size}
-                      </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{widget.description}</p>
+                  <CardContent className="pt-2 pb-4 px-4">
+                    <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                      {widget.description}
+                    </p>
                     <Button
                       size="sm"
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-sm"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                       onClick={() => handleAddWidget(widget)}
                     >
+                      <Plus className="h-4 w-4 mr-1.5" />
                       Add Widget
                     </Button>
                   </CardContent>
@@ -342,17 +349,17 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           </div>
 
           {filteredWidgets.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package className="h-8 w-8 text-gray-400" />
+            <div className="text-center py-12 px-4">
+              <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                <Package className="h-7 w-7 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-base font-semibold text-foreground mb-1">
                 {existingWidgets.length === availableWidgets.length 
                   ? "All widgets added!" 
                   : "No widgets found"
                 }
               </h3>
-              <p className="text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 {existingWidgets.length === availableWidgets.length 
                   ? "You've added all available widgets to your dashboard"
                   : "Try selecting a different category to see more widgets"

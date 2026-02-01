@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingCart, Plus } from "lucide-react";
+import { ShoppingCart, Wallet, Info } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -34,24 +37,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     price_per_unit: '',
     total_amount: '',
     contact_number: '',
-    status: 'COMPLETED',
     deduction_bank_account_id: '',
     credit_wallet_id: '',
-    platform_fees: ''
-  });
-
-  // Fetch purchase payment methods
-  const { data: paymentMethods } = useQuery({
-    queryKey: ['purchase-payment-methods'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_payment_methods')
-        .select('*')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      return data;
-    }
+    tds_option: 'none' as 'none' | '1%' | '20%',
+    pan_number: '',
+    fee_percentage: '',
+    is_off_market: false
   });
 
   // Fetch bank accounts
@@ -72,29 +63,23 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const { data: products, isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      // Stock syncing is handled by database triggers automatically
-      console.log('🔄 ManualPurchase: Fetching products...');
       const { data, error } = await supabase
         .from('products')
         .select('*');
       
-      if (error) {
-        console.error('❌ ManualPurchase: Products fetch error:', error);
-        throw error;
-      }
-      console.log('✅ ManualPurchase: Products fetched:', data);
+      if (error) throw error;
       return data;
     },
     staleTime: 0,
   });
 
-  // Fetch active wallets
+  // Fetch active wallets with detailed info
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets-with-details'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wallets')
-        .select('*')
+        .select('id, wallet_name, wallet_type, chain_name, current_balance, fee_percentage, is_fee_enabled, is_active')
         .eq('is_active', true)
         .order('wallet_name');
       
@@ -103,29 +88,75 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     }
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  // Selected product
+  const selectedProduct = useMemo(() => 
+    products?.find(p => p.id === formData.product_id),
+    [products, formData.product_id]
+  );
+
+  // Selected wallet
+  const selectedWallet = useMemo(() => 
+    wallets?.find(w => w.id === formData.credit_wallet_id),
+    [wallets, formData.credit_wallet_id]
+  );
+
+  // Calculate TDS amount
+  const tdsCalculation = useMemo(() => {
+    const totalAmount = parseFloat(formData.total_amount) || 0;
+    let tdsRate = 0;
+    
+    if (formData.tds_option === '1%') tdsRate = 1;
+    else if (formData.tds_option === '20%') tdsRate = 20;
+    
+    const tdsAmount = totalAmount * (tdsRate / 100);
+    const netPayable = totalAmount - tdsAmount;
+    
+    return { tdsRate, tdsAmount, netPayable };
+  }, [formData.total_amount, formData.tds_option]);
+
+  // Calculate platform fee amount
+  const feeCalculation = useMemo(() => {
+    const quantity = parseFloat(formData.quantity) || 0;
+    const feePercentage = parseFloat(formData.fee_percentage) || 0;
+    
+    if (formData.is_off_market || feePercentage <= 0) {
+      return { feeAmount: 0, netCredit: quantity };
+    }
+    
+    const feeAmount = quantity * (feePercentage / 100);
+    const netCredit = quantity - feeAmount;
+    
+    return { feeAmount, netCredit };
+  }, [formData.quantity, formData.fee_percentage, formData.is_off_market]);
+
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Bidirectional auto-calculation
+      // Bidirectional auto-calculation for amounts
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
-        const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(updated.quantity) || 0;
-        const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
-        const total = field === 'total_amount' ? parseFloat(value) || 0 : parseFloat(updated.total_amount) || 0;
+        const qty = field === 'quantity' ? parseFloat(value as string) || 0 : parseFloat(updated.quantity) || 0;
+        const price = field === 'price_per_unit' ? parseFloat(value as string) || 0 : parseFloat(updated.price_per_unit) || 0;
+        const total = field === 'total_amount' ? parseFloat(value as string) || 0 : parseFloat(updated.total_amount) || 0;
         
         if (field === 'quantity' && price > 0) {
-          // User changed quantity - calculate total
           updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
-          // User changed price - recalculate based on what exists
           if (qty > 0) {
             updated.total_amount = (qty * price).toFixed(2);
           } else if (total > 0 && price > 0) {
             updated.quantity = (total / price).toFixed(4);
           }
         } else if (field === 'total_amount' && price > 0) {
-          // User changed total - calculate quantity
           updated.quantity = (total / price).toFixed(4);
+        }
+      }
+
+      // Auto-populate wallet fee percentage when wallet is selected
+      if (field === 'credit_wallet_id' && value) {
+        const wallet = wallets?.find(w => w.id === value);
+        if (wallet?.is_fee_enabled && wallet?.fee_percentage) {
+          updated.fee_percentage = wallet.fee_percentage.toString();
         }
       }
       
@@ -135,25 +166,16 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const generateOrderNumber = () => {
     const timestamp = Date.now();
-    return `PUR-${timestamp}`;
+    return `MPE-${timestamp}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🚀 ManualPurchase: handleSubmit called with formData:', formData);
-    console.log('🔍 ManualPurchase: Form validation check starting...');
     setLoading(true);
 
     try {
       // Validate required fields
       if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id) {
-        console.log('❌ ManualPurchase: Validation failed:', {
-          supplier_name: !!formData.supplier_name,
-          quantity: !!formData.quantity,
-          price_per_unit: !!formData.price_per_unit,
-          product_id: !!formData.product_id,
-          deduction_bank_account_id: !!formData.deduction_bank_account_id
-        });
         toast({
           title: "Error",
           description: "Please fill in all required fields including supplier name, product, quantity, price per unit, and bank account for deduction",
@@ -163,27 +185,19 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         return;
       }
 
-      // Validate that fees don't exceed quantity
-      if (formData.platform_fees && parseFloat(formData.platform_fees) > 0) {
-        const fees = parseFloat(formData.platform_fees);
-        const quantity = parseFloat(formData.quantity) || 0;
-        if (fees >= quantity) {
-          toast({
-            title: "Error",
-            description: "Platform fees cannot be equal to or greater than quantity",
-            variant: "destructive"
-          });
-          setLoading(false);
-          return;
-        }
+      // Validate PAN for 1% TDS
+      if (formData.tds_option === '1%' && (!formData.pan_number || formData.pan_number.trim() === '')) {
+        toast({
+          title: "Error",
+          description: "PAN number is required for 1% TDS deduction",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
       }
 
       // Validate wallet selection for USDT products
-      const selectedProduct = products?.find(p => p.id === formData.product_id);
-      console.log('🔍 ManualPurchase: Selected product:', selectedProduct);
-      
       if (selectedProduct?.code === 'USDT' && !formData.credit_wallet_id) {
-        console.log('❌ ManualPurchase: USDT product requires wallet selection');
         toast({
           title: "Error", 
           description: "Please select a wallet to credit the purchased USDT",
@@ -203,31 +217,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           formData.contact_number || undefined
         );
         if (newClient) {
-          console.log('✅ New seller client created:', newClient);
-          // Invalidate clients query to refresh the list
           queryClient.invalidateQueries({ queryKey: ['clients'] });
           queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
         }
       }
 
-      console.log('📝 ManualPurchase: Creating purchase order with params:', {
-        orderNumber,
-        supplier_name: formData.supplier_name,
-        order_date: formData.order_date,
-        description: formData.description,
-        total_amount: totalAmount,
-        contact_number: formData.contact_number,
-        status: formData.status,
-        bank_account_id: formData.deduction_bank_account_id,
-        product_id: formData.product_id,
-        quantity: parseFloat(formData.quantity),
-        unit_price: parseFloat(formData.price_per_unit),
-        credit_wallet_id: formData.credit_wallet_id
-      });
-
-      // Use the enhanced function that handles platform fees
+      // Call the enhanced function with TDS and fee support
       const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_with_fees',
+        'create_manual_purchase_complete_v2',
         {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
@@ -240,23 +237,29 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_description: formData.description || '',
           p_contact_number: formData.contact_number || null,
           p_credit_wallet_id: formData.credit_wallet_id || null,
-          p_platform_fees: formData.platform_fees ? parseFloat(formData.platform_fees) : null,
-          p_platform_fees_wallet_id: null
+          p_tds_option: formData.tds_option,
+          p_pan_number: formData.pan_number || null,
+          p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : null,
+          p_is_off_market: formData.is_off_market
         }
       );
 
-      console.log('📡 ManualPurchase: RPC function response:', { result, functionError });
-
       if (functionError) {
-        console.error('❌ ManualPurchase: Purchase order creation failed:', functionError);
         throw functionError;
       }
 
-      console.log('✅ ManualPurchase: Purchase order created successfully with ID:', result);
+      // Build success message with details
+      let successMessage = `Purchase order ${orderNumber} created successfully!`;
+      if (tdsCalculation.tdsRate > 0) {
+        successMessage += ` TDS of ₹${tdsCalculation.tdsAmount.toFixed(2)} (${tdsCalculation.tdsRate}%) recorded.`;
+      }
+      if (feeCalculation.feeAmount > 0 && !formData.is_off_market) {
+        successMessage += ` Platform fee of ${feeCalculation.feeAmount.toFixed(4)} USDT applied.`;
+      }
 
       toast({
         title: "Success",
-        description: `Purchase order ${orderNumber} created successfully! Stock updated and bank balance deducted.`
+        description: successMessage
       });
 
       // Reset form
@@ -270,19 +273,28 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         price_per_unit: '',
         total_amount: '',
         contact_number: '',
-        status: 'COMPLETED',
         deduction_bank_account_id: '',
         credit_wallet_id: '',
-        platform_fees: ''
+        tds_option: 'none',
+        pan_number: '',
+        fee_percentage: '',
+        is_off_market: false
       });
       setSelectedClientId('');
       setIsNewClient(false);
 
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['tds-records'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+
       setOpen(false);
       onSuccess?.();
 
-    } catch (error) {
-      console.error('❌ ManualPurchase: Error creating purchase order:', error);
+    } catch (error: any) {
+      console.error('ManualPurchase: Error creating purchase order:', error);
       toast({
         title: "Error",
         description: `Failed to create purchase order: ${error.message || 'Unknown error'}`,
@@ -308,11 +320,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             Manual Purchase Entry
           </DialogTitle>
           <DialogDescription>
-            Create a new purchase order manually
+            Direct ledger entry — bypasses all workflow, timers, and notifications
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Order Details */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="order_number">Order Number</Label>
@@ -320,7 +333,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 id="order_number"
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
-                placeholder="Enter order number (optional)"
+                placeholder="Auto-generated if empty"
               />
             </div>
 
@@ -335,6 +348,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
+          {/* Supplier */}
           <div className="space-y-2">
             <SupplierAutocomplete
               value={formData.supplier_name}
@@ -349,6 +363,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             />
           </div>
 
+          {/* Product Selection */}
           <div className="space-y-2">
             <Label htmlFor="product_id">Product *</Label>
             <Select 
@@ -376,6 +391,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </Select>
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -383,17 +399,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Enter purchase description"
-              rows={3}
+              rows={2}
             />
           </div>
 
+          {/* Quantity & Pricing */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="quantity">Quantity *</Label>
               <Input
                 id="quantity"
                 type="number"
-                step="0.01"
+                step="0.0001"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
                 placeholder="0.00"
@@ -402,7 +419,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price_per_unit">Price per Unit *</Label>
+              <Label htmlFor="price_per_unit">Price per Unit (₹) *</Label>
               <Input
                 id="price_per_unit"
                 type="number"
@@ -415,7 +432,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="total_amount">Total Amount</Label>
+              <Label htmlFor="total_amount">Total Amount (₹)</Label>
               <Input
                 id="total_amount"
                 type="number"
@@ -427,8 +444,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
+          {/* Bank Account Selection */}
           <div className="space-y-2">
-            <Label htmlFor="deduction_bank_account_id">Deduct Amount from Bank Account *</Label>
+            <Label htmlFor="deduction_bank_account_id">Deduct from Bank Account *</Label>
             <Select 
               value={formData.deduction_bank_account_id} 
               onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
@@ -439,54 +457,182 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <SelectContent className="bg-white z-50">
                 {bankAccounts?.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
-                    {account.bank_name} - {account.account_name} (₹{account.balance})
+                    {account.bank_name} - {account.account_name} (₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Show wallet selection for USDT products */}
-          {products?.find(p => p.id === formData.product_id)?.code === 'USDT' && (
-            <div className="space-y-2">
-              <Label htmlFor="credit_wallet_id">Credit to Wallet *</Label>
+          {/* TDS Section */}
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">TDS Deduction</Label>
+                <Badge variant="outline" className="text-xs">Tax</Badge>
+              </div>
+              
               <Select 
-                value={formData.credit_wallet_id} 
-                onValueChange={(value) => handleInputChange('credit_wallet_id', value)}
+                value={formData.tds_option} 
+                onValueChange={(value) => handleInputChange('tds_option', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select wallet to credit purchased USDT" />
+                  <SelectValue placeholder="Select TDS option" />
                 </SelectTrigger>
                 <SelectContent className="bg-white z-50">
-                  {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
-                    <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} - {wallet.wallet_type} (₹{wallet.current_balance})
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="none">No TDS</SelectItem>
+                  <SelectItem value="1%">1% TDS (Requires PAN)</SelectItem>
+                  <SelectItem value="20%">20% TDS (No PAN Required)</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+
+              {formData.tds_option === '1%' && (
+                <div className="space-y-2">
+                  <Label htmlFor="pan_number">PAN Number *</Label>
+                  <Input
+                    id="pan_number"
+                    value={formData.pan_number}
+                    onChange={(e) => handleInputChange('pan_number', e.target.value.toUpperCase())}
+                    placeholder="ABCDE1234F"
+                    maxLength={10}
+                    className="uppercase"
+                  />
+                </div>
+              )}
+
+              {tdsCalculation.tdsRate > 0 && parseFloat(formData.total_amount) > 0 && (
+                <div className="text-sm bg-white p-2 rounded border">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">TDS Amount ({tdsCalculation.tdsRate}%):</span>
+                    <span className="font-medium text-amber-600">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-muted-foreground">Net Payable:</span>
+                    <span className="font-semibold text-green-600">₹{tdsCalculation.netPayable.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Wallet Selection for USDT Products */}
+          {selectedProduct?.code === 'USDT' && (
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-blue-600" />
+                  <Label className="font-medium">Credit to Wallet *</Label>
+                </div>
+                
+                <Select 
+                  value={formData.credit_wallet_id} 
+                  onValueChange={(value) => handleInputChange('credit_wallet_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select wallet to credit purchased USDT" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white z-50">
+                    {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                      <SelectItem key={wallet.id} value={wallet.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{wallet.wallet_name}</span>
+                          {wallet.chain_name && (
+                            <Badge variant="secondary" className="text-xs">{wallet.chain_name}</Badge>
+                          )}
+                          <span className="text-muted-foreground">
+                            ({wallet.current_balance?.toFixed(4) || '0'} USDT)
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Selected Wallet Details */}
+                {selectedWallet && (
+                  <div className="text-sm bg-white p-3 rounded border space-y-2">
+                    <div className="font-medium text-blue-700">{selectedWallet.wallet_name}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Type:</span>
+                        <span className="ml-1">{selectedWallet.wallet_type}</span>
+                      </div>
+                      {selectedWallet.chain_name && (
+                        <div>
+                          <span className="text-muted-foreground">Chain:</span>
+                          <span className="ml-1">{selectedWallet.chain_name}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-muted-foreground">Balance:</span>
+                        <span className="ml-1 font-medium">{selectedWallet.current_balance?.toFixed(4) || '0'} USDT</span>
+                      </div>
+                      {selectedWallet.is_fee_enabled && (
+                        <div>
+                          <span className="text-muted-foreground">Default Fee:</span>
+                          <span className="ml-1">{selectedWallet.fee_percentage}%</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Platform Fee Section */}
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label>Off Market</Label>
+                      <Info className="w-3 h-3 text-muted-foreground" />
+                    </div>
+                    <Switch
+                      checked={formData.is_off_market}
+                      onCheckedChange={(checked) => handleInputChange('is_off_market', checked)}
+                    />
+                  </div>
+                  
+                  {!formData.is_off_market && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="fee_percentage">Platform Fee (%)</Label>
+                        <Input
+                          id="fee_percentage"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={formData.fee_percentage}
+                          onChange={(e) => handleInputChange('fee_percentage', e.target.value)}
+                          placeholder="Enter fee percentage"
+                        />
+                      </div>
+
+                      {feeCalculation.feeAmount > 0 && parseFloat(formData.quantity) > 0 && (
+                        <div className="text-sm bg-white p-2 rounded border">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Fee Amount:</span>
+                            <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-muted-foreground">Net Credit to Wallet:</span>
+                            <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} USDT</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  {formData.is_off_market && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Off Market: No platform fees will be applied
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Platform Fees Section - Only show for USDT products */}
-          {products?.find(p => p.id === formData.product_id)?.code === 'USDT' && (
-            <div className="space-y-2">
-              <Label htmlFor="platform_fees">Platform Fees (USDT)</Label>
-              <Input
-                id="platform_fees"
-                type="number"
-                step="0.01"
-                value={formData.platform_fees}
-                onChange={(e) => handleInputChange('platform_fees', e.target.value)}
-                placeholder="Enter platform fees"
-                min="0"
-              />
-              <div className="text-xs text-muted-foreground mt-1">
-                Fees will be deducted from the credit quantity (Credited = Quantity - Fees)
-              </div>
-            </div>
-          )}
-
+          {/* Contact Number */}
           <div className="space-y-2">
             <Label htmlFor="contact_number">Contact Number</Label>
             <Input
@@ -497,23 +643,50 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select 
-              value={formData.status} 
-              onValueChange={(value) => handleInputChange('status', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white z-50">
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Summary Card */}
+          {parseFloat(formData.total_amount) > 0 && (
+            <Card className="bg-muted/50">
+              <CardContent className="pt-4">
+                <div className="text-sm font-medium mb-2">Transaction Summary</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Order Amount:</span>
+                    <span>₹{parseFloat(formData.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {tdsCalculation.tdsRate > 0 && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>TDS Deducted ({tdsCalculation.tdsRate}%):</span>
+                      <span>-₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                    <span>Bank Deduction:</span>
+                    <span className="text-destructive">-₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {selectedProduct?.code === 'USDT' && (
+                    <>
+                      <div className="flex justify-between pt-2 border-t mt-2">
+                        <span className="text-muted-foreground">Quantity Purchased:</span>
+                        <span>{parseFloat(formData.quantity || '0').toFixed(4)} USDT</span>
+                      </div>
+                      {!formData.is_off_market && feeCalculation.feeAmount > 0 && (
+                        <div className="flex justify-between text-orange-600">
+                          <span>Platform Fee:</span>
+                          <span>-{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold text-green-600">
+                        <span>Wallet Credit:</span>
+                        <span>+{feeCalculation.netCredit.toFixed(4)} USDT</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
+          {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4">
             <Button 
               type="button" 
@@ -524,7 +697,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Purchase Order"}
+              {loading ? "Creating..." : "Create Manual Entry"}
             </Button>
           </div>
         </form>

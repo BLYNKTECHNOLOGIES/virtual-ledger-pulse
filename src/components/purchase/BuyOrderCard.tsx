@@ -50,6 +50,7 @@ interface PurchaseFunctionContext {
   showWaitingForPan: boolean;
   canSubmitReview: boolean;
   canSeeReviews: boolean;
+  canCompleteOrder: boolean;
 }
 
 interface BuyOrderCardProps {
@@ -62,7 +63,7 @@ interface BuyOrderCardProps {
   onRecordPayment: () => void;
   alertState?: { needsAttention: boolean; alertType: AlertType | null } | null;
   onMarkAttended?: () => void;
-  onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer') => void;
+  onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer', isUrgent: boolean) => void;
   purchaseFunctions?: PurchaseFunctionContext;
 }
 
@@ -97,6 +98,7 @@ export function BuyOrderCard({
     showWaitingForPan: false,
     canSubmitReview: false,
     canSeeReviews: false,
+    canCompleteOrder: true,
   };
 
   // Handle focus highlight animation
@@ -312,7 +314,7 @@ export function BuyOrderCard({
                 <OrderExpiryTimer
                   orderExpiresAt={order.order_expires_at}
                   orderId={order.id}
-                  onTriggerAlert={onTriggerTimerAlert ? () => onTriggerTimerAlert('order_timer') : undefined}
+                  onTriggerAlert={onTriggerTimerAlert ? (isUrgent: boolean) => onTriggerTimerAlert('order_timer', isUrgent) : undefined}
                 />
               )}
               <span className="font-mono font-semibold text-lg">{order.order_number}</span>
@@ -353,7 +355,7 @@ export function BuyOrderCard({
                 <OrderTimer 
                   timerEndAt={order.timer_end_at} 
                   orderId={order.id}
-                  onTriggerAlert={onTriggerTimerAlert ? () => onTriggerTimerAlert('payment_timer') : undefined}
+                  onTriggerAlert={onTriggerTimerAlert ? (isUrgent: boolean) => onTriggerTimerAlert('payment_timer', isUrgent) : undefined}
                 />
               )}
             </div>
@@ -533,7 +535,7 @@ export function BuyOrderCard({
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Order
                 </DropdownMenuItem>
-                {currentStatus !== 'completed' && currentStatus !== 'cancelled' && (
+              {currentStatus !== 'completed' && currentStatus !== 'cancelled' && (
                   <>
                     <DropdownMenuSeparator />
                     {STATUS_ORDER.map((status) => {
@@ -543,6 +545,8 @@ export function BuyOrderCard({
                       if (status === 'pan_collected' && !pf.canCollectPan) return null;
                       // Hide 'added_to_bank' option for creators who can't add to bank
                       if (status === 'added_to_bank' && !pf.canAddToBank) return null;
+                      // Hide 'completed' option for Payers - they can NOT complete orders
+                      if (status === 'completed' && !pf.canCompleteOrder) return null;
                       
                       return (
                         <DropdownMenuItem

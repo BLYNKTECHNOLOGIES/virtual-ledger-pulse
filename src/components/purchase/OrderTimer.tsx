@@ -7,7 +7,7 @@ interface OrderTimerProps {
   timerEndAt: string | null;
   orderId: string;
   className?: string;
-  onTriggerAlert?: () => void;
+  onTriggerAlert?: (isUrgent: boolean) => void;
 }
 
 export function OrderTimer({ timerEndAt, orderId, className, onTriggerAlert }: OrderTimerProps) {
@@ -36,23 +36,23 @@ export function OrderTimer({ timerEndAt, orderId, className, onTriggerAlert }: O
         if (!expiredAlertedRef.current.has(orderId)) {
           expiredAlertedRef.current.add(orderId);
           if (onTriggerAlert) {
-            onTriggerAlert();
+            onTriggerAlert(true); // Urgent (expired)
           }
         }
-      } else if (remaining <= 60) {
+      } else if (remaining <= 120) { // 2 minutes = urgent/continuous
         setAlertState('critical');
         if (!oneMinAlertedRef.current.has(orderId)) {
           oneMinAlertedRef.current.add(orderId);
           if (onTriggerAlert) {
-            onTriggerAlert();
+            onTriggerAlert(true); // Urgent = continuous alarm
           }
         }
-      } else if (remaining <= 300) {
+      } else if (remaining <= 300) { // 5 minutes = warning/single beep
         setAlertState('warning');
         if (!fiveMinAlertedRef.current.has(orderId)) {
           fiveMinAlertedRef.current.add(orderId);
           if (onTriggerAlert) {
-            onTriggerAlert();
+            onTriggerAlert(false); // Not urgent = single beep only
           }
         }
       } else {
@@ -115,7 +115,7 @@ interface OrderExpiryTimerProps {
   orderExpiresAt: string | null;
   orderId: string;
   className?: string;
-  onTriggerAlert?: () => void;
+  onTriggerAlert?: (isUrgent: boolean) => void;
 }
 
 export function OrderExpiryTimer({ orderExpiresAt, orderId, className, onTriggerAlert }: OrderExpiryTimerProps) {
@@ -141,16 +141,22 @@ export function OrderExpiryTimer({ orderExpiresAt, orderId, className, onTrigger
         setAlertState('expired');
         if (!alertedRef.current.has(`${orderId}-expired`)) {
           alertedRef.current.add(`${orderId}-expired`);
-          onTriggerAlert?.();
+          onTriggerAlert?.(true); // Urgent
         }
-      } else if (remaining <= 300) { // 5 minutes
+      } else if (remaining <= 120) { // 2 minutes = critical/continuous
         setAlertState('critical');
         if (!alertedRef.current.has(`${orderId}-critical`)) {
           alertedRef.current.add(`${orderId}-critical`);
-          onTriggerAlert?.();
+          onTriggerAlert?.(true); // Urgent = continuous
+        }
+      } else if (remaining <= 300) { // 5 minutes = warning/single beep
+        setAlertState('warning');
+        if (!alertedRef.current.has(`${orderId}-warning`)) {
+          alertedRef.current.add(`${orderId}-warning`);
+          onTriggerAlert?.(false); // Not urgent = single beep only
         }
       } else if (remaining <= 600) { // 10 minutes
-        setAlertState('warning');
+        setAlertState('normal');
       } else {
         setAlertState('normal');
       }
@@ -183,7 +189,7 @@ export function OrderExpiryTimer({ orderExpiresAt, orderId, className, onTrigger
       case 'critical':
         return 'bg-red-100 text-red-700 border-red-200 animate-pulse';
       case 'warning':
-        return 'bg-orange-100 text-orange-700 border-orange-200';
+        return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
     }

@@ -68,12 +68,48 @@ const availablePermissions = [
   { id: "ems_manage", name: "EMS Manage", description: "Manage Employee Management System" },
 ];
 
+// Map old permission format to new format (for backwards compatibility)
+const permissionMapping: Record<string, string> = {
+  'view_dashboard': 'dashboard_view',
+  'view_sales': 'sales_view',
+  'view_purchase': 'purchase_view',
+  'view_bams': 'bams_view',
+  'view_clients': 'clients_view',
+  'view_leads': 'leads_view',
+  'view_user_management': 'user_management_view',
+  'view_hrms': 'hrms_view',
+  'view_payroll': 'payroll_view',
+  'view_compliance': 'compliance_view',
+  'view_stock': 'stock_view',
+  'view_stock_management': 'stock_view',
+  'view_accounting': 'accounting_view',
+  'view_video_kyc': 'video_kyc_view',
+  'view_kyc_approvals': 'kyc_approvals_view',
+  'view_statistics': 'statistics_view',
+  'view_ems': 'ems_view',
+};
+
+// Normalize permission to standard format
+const normalizePermission = (perm: string): string => {
+  return permissionMapping[perm] || perm;
+};
+
+// Normalize and deduplicate permissions array
+const normalizePermissions = (perms: string[]): string[] => {
+  const normalized = perms.map(normalizePermission);
+  // Deduplicate - only keep permissions that exist in availablePermissions
+  const validIds = new Set(availablePermissions.map(p => p.id));
+  const uniquePerms = [...new Set(normalized)].filter(p => validIds.has(p));
+  return uniquePerms;
+};
+
 export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
-  const [formData, setFormData] = useState({
+  // Normalize permissions on initial load to handle legacy formats
+  const [formData, setFormData] = useState(() => ({
     name: role.name,
     description: role.description,
-    permissions: role.permissions
-  });
+    permissions: normalizePermissions(role.permissions)
+  }));
   const [systemFunctions, setSystemFunctions] = useState<SystemFunction[]>([]);
   const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,10 +131,11 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
   const isPurchaseValid = !hasPurchasePermission || selectedPurchaseFunctions.length > 0;
 
   useEffect(() => {
+    // Normalize permissions when role changes
     setFormData({
       name: role.name,
       description: role.description,
-      permissions: role.permissions
+      permissions: normalizePermissions(role.permissions)
     });
     fetchFunctions();
   }, [role]);
@@ -314,7 +351,7 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                 <div className="flex flex-wrap gap-1 mt-1">
                   {formData.permissions.map((perm) => (
                     <Badge key={perm} variant="secondary" className="text-xs">
-                      {perm}
+                      {perm.replace(/_/g, ' ')}
                     </Badge>
                   ))}
                 </div>

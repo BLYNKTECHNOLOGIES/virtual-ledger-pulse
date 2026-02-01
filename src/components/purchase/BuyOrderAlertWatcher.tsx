@@ -7,6 +7,7 @@ import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { showOrderAlertNotification, createGlobalNotification } from "@/lib/alert-notifications";
 import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
+import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 
 /**
  * Runs buy-order alert detection globally (even when user is on other pages)
@@ -24,6 +25,9 @@ export function BuyOrderAlertWatcher() {
     processOrderChanges,
     cleanupAttendedOrders,
   } = useOrderAlertsContext();
+
+  // Get purchase function context for role-based alert filtering
+  const { isAlertRelevant, isCombined, isPurchaseCreator, isPayer } = usePurchaseFunctions();
 
   const { data: orders } = useQuery({
     queryKey: ["buy_orders_alerts"],
@@ -111,6 +115,11 @@ export function BuyOrderAlertWatcher() {
       const alertState = needsAttention(order.id);
       if (!alertState?.needsAttention || !alertState.alertType) return;
 
+      // Role-based filtering: skip alerts that aren't relevant to this user
+      if (!isAlertRelevant(alertState.alertType, order.order_status)) {
+        return;
+      }
+
       const notificationKey = `${order.id}-${alertState.alertType}-${alertState.lastAlertTime}`;
       if (notifiedRef.current.has(notificationKey)) return;
       notifiedRef.current.add(notificationKey);
@@ -126,7 +135,7 @@ export function BuyOrderAlertWatcher() {
       showOrderAlertNotification(orderInfo, handleNavigate);
       addNotification(createGlobalNotification(orderInfo));
     });
-  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, addNotification, handleNavigate]);
+  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, addNotification, handleNavigate, isAlertRelevant]);
 
   return null;
 }

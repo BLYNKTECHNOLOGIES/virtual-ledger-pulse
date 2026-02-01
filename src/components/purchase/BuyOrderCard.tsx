@@ -19,7 +19,9 @@ import {
   Eye,
   Bell,
   Wallet,
-  MapPin
+  MapPin,
+  MessageSquare,
+  AlertCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -31,8 +33,22 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { OrderTimer, OrderExpiryTimer } from './OrderTimer';
+import { ReviewDialog } from './ReviewDialog';
+import { ReviewIndicator } from './ReviewIndicator';
 import type { AlertType } from '@/hooks/use-order-alerts';
 import { useIsOrderFocused } from '@/contexts/OrderFocusContext';
+
+interface PurchaseFunctionContext {
+  isCombined: boolean;
+  isPurchaseCreator: boolean;
+  isPayer: boolean;
+  canCollectBanking: boolean;
+  canAddToBank: boolean;
+  canRecordPayment: boolean;
+  showWaitingForBanking: boolean;
+  canSubmitReview: boolean;
+  canSeeReviews: boolean;
+}
 
 interface BuyOrderCardProps {
   order: BuyOrder;
@@ -45,6 +61,7 @@ interface BuyOrderCardProps {
   alertState?: { needsAttention: boolean; alertType: AlertType | null } | null;
   onMarkAttended?: () => void;
   onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer') => void;
+  purchaseFunctions?: PurchaseFunctionContext;
 }
 
 export function BuyOrderCard({ 
@@ -57,11 +74,26 @@ export function BuyOrderCard({
   onRecordPayment,
   alertState,
   onMarkAttended,
-  onTriggerTimerAlert
+  onTriggerTimerAlert,
+  purchaseFunctions
 }: BuyOrderCardProps) {
   const currentStatus = order.order_status || 'new';
   const isFocused = useIsOrderFocused(order.id);
   const [showFocusHighlight, setShowFocusHighlight] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+
+  // Default to combined mode if no context provided (backward compatibility)
+  const pf = purchaseFunctions || {
+    isCombined: true,
+    isPurchaseCreator: true,
+    isPayer: true,
+    canCollectBanking: true,
+    canAddToBank: true,
+    canRecordPayment: true,
+    showWaitingForBanking: false,
+    canSubmitReview: false,
+    canSeeReviews: false,
+  };
 
   // Handle focus highlight animation
   useEffect(() => {
@@ -87,14 +119,25 @@ export function BuyOrderCard({
   const tdsSelected = hasTdsTypeSelected(order);
 
   // Calculate the ACTUAL next status, skipping steps where data is already provided
+  // Also respects role-based restrictions
   const computeNextStatus = (): BuyOrderStatus | null => {
     const staticNext = statusConfig.nextStatus;
     if (!staticNext) return null;
+
+    // Role-based restrictions for Payer-only: cannot advance from 'new' to banking_collected
+    // They should see "Waiting for bank details" instead
+    if (pf.showWaitingForBanking && !bankingCollected) {
+      if (currentStatus === 'new') {
+        return null; // Payer cannot collect banking
+      }
+    }
 
     // From 'new' status: skip banking_collected if banking already provided
     if (currentStatus === 'new' && bankingCollected) {
       // If TDS is also already selected, skip to added_to_bank
       if (tdsSelected) {
+        // Check if payer can add to bank
+        if (!pf.canAddToBank) return null;
         return 'added_to_bank';
       }
       return 'pan_collected';
@@ -102,7 +145,13 @@ export function BuyOrderCard({
 
     // From 'banking_collected' status: skip pan_collected if TDS already selected
     if (currentStatus === 'banking_collected' && tdsSelected) {
+      if (!pf.canAddToBank) return null;
       return 'added_to_bank';
+    }
+
+    // Role-based: Purchase Creator cannot advance to 'added_to_bank'
+    if (staticNext === 'added_to_bank' && !pf.canAddToBank) {
+      return null;
     }
 
     return staticNext;
@@ -355,7 +404,33 @@ export function BuyOrderCard({
           </div>
 
           {/* Right Section - Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Review Indicator for Purchase Creator */}
+            {pf.canSeeReviews && (
+              <ReviewIndicator orderId={order.id} />
+            )}
+
+            {/* Review Button for Payer */}
+            {pf.canSubmitReview && !['completed', 'cancelled'].includes(currentStatus) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowReviewDialog(true)}
+                className="gap-1"
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span className="hidden sm:inline">Review</span>
+              </Button>
+            )}
+
+            {/* Waiting for Banking indicator for Payer-only */}
+            {pf.showWaitingForBanking && !bankingCollected && currentStatus === 'new' && (
+              <Badge variant="outline" className="text-xs border-muted-foreground/50">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Waiting for bank details
+              </Badge>
+            )}
+
             {/* Attended Button */}
             {needsBlink && onMarkAttended && (
               <Button
@@ -484,6 +559,14 @@ export function BuyOrderCard({
           </div>
         </div>
       </CardContent>
+
+      {/* Review Dialog for Payer */}
+      <ReviewDialog
+        open={showReviewDialog}
+        onOpenChange={setShowReviewDialog}
+        orderId={order.id}
+        orderNumber={order.order_number}
+      />
     </Card>
   );
 }

@@ -46,6 +46,8 @@ export function useUsers() {
           updated_at,
           password_hash,
           role_id,
+          is_purchase_creator,
+          is_payer,
           user_roles(
             roles(
               id,
@@ -249,6 +251,8 @@ export function useUsers() {
     phone?: string;
     status?: ValidStatus;
     role_id?: string;
+    is_purchase_creator?: boolean;
+    is_payer?: boolean;
   }) => {
     try {
       // Check if user is authenticated
@@ -272,6 +276,8 @@ export function useUsers() {
           phone: userData.phone,
           status: userData.status,
           role_id: userData.role_id,
+          is_purchase_creator: userData.is_purchase_creator,
+          is_payer: userData.is_payer,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);

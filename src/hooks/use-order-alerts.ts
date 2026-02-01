@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { isNotificationMuted } from './useNotificationMute';
 
-export type AlertType = 'new_order' | 'info_update' | 'payment_timer' | 'order_timer';
+export type AlertType = 'new_order' | 'info_update' | 'payment_timer' | 'order_timer' | 'banking_collected' | 'payment_done' | 'order_expired' | 'order_cancelled' | 'review_message';
+
+export type BuzzerMode = 'single' | 'single_subtle' | 'continuous' | 'duration';
 
 interface OrderAlertState {
   needsAttention: boolean;
@@ -53,7 +55,8 @@ function saveAttendedOrders(state: AttendedState) {
 
 // Audio context for alerts
 let audioContext: AudioContext | null = null;
-let activeAlarms: Map<string, { intervalId: number }> = new Map();
+let activeAlarms: Map<string, { intervalId: number; timeoutId?: number }> = new Map();
+let durationTimeouts: Map<string, number> = new Map();
 
 function getAudioContext(): AudioContext {
   if (!audioContext) {
@@ -86,34 +89,54 @@ function playTone(frequency: number, duration: number, delay: number = 0, volume
   }
 }
 
-// Play alert sound once
-export function playAlertSound(type: AlertType) {
+// Play alert sound once with optional volume for subtle mode
+export function playAlertSound(type: AlertType, isSubtle: boolean = false) {
   // Check if notifications are muted for current user
   if (isNotificationMuted()) return;
+  
+  const volume = isSubtle ? 0.4 : 0.8;
   
   try {
     switch (type) {
       case 'new_order':
-        playTone(1200, 0.15, 0, 0.8);
-        playTone(1500, 0.15, 0.2, 0.8);
-        playTone(1800, 0.25, 0.4, 0.9);
+        playTone(1200, 0.15, 0, volume);
+        playTone(1500, 0.15, 0.2, volume);
+        playTone(1800, 0.25, 0.4, volume + 0.1);
         break;
       case 'info_update':
-        playTone(1000, 0.15, 0, 0.7);
-        playTone(1300, 0.2, 0.2, 0.8);
+        playTone(1000, 0.15, 0, volume - 0.1);
+        playTone(1300, 0.2, 0.2, volume);
         break;
       case 'payment_timer':
-        playTone(1600, 0.1, 0, 0.9);
-        playTone(1600, 0.1, 0.15, 0.9);
-        playTone(1800, 0.1, 0.3, 0.9);
-        playTone(1800, 0.1, 0.45, 0.9);
+        playTone(1600, 0.1, 0, volume + 0.1);
+        playTone(1600, 0.1, 0.15, volume + 0.1);
+        playTone(1800, 0.1, 0.3, volume + 0.1);
+        playTone(1800, 0.1, 0.45, volume + 0.1);
         playTone(2000, 0.15, 0.6, 1.0);
         break;
       case 'order_timer':
-        playTone(900, 0.2, 0, 0.8);
-        playTone(700, 0.2, 0.25, 0.8);
-        playTone(900, 0.2, 0.5, 0.9);
-        playTone(700, 0.25, 0.75, 0.9);
+        playTone(900, 0.2, 0, volume);
+        playTone(700, 0.2, 0.25, volume);
+        playTone(900, 0.2, 0.5, volume + 0.1);
+        playTone(700, 0.25, 0.75, volume + 0.1);
+        break;
+      case 'banking_collected':
+        playTone(1100, 0.15, 0, volume);
+        playTone(1400, 0.2, 0.2, volume);
+        break;
+      case 'payment_done':
+        playTone(1300, 0.12, 0, volume - 0.2);
+        playTone(1500, 0.15, 0.15, volume - 0.1);
+        break;
+      case 'order_expired':
+      case 'order_cancelled':
+        playTone(800, 0.2, 0, volume);
+        playTone(600, 0.25, 0.25, volume);
+        break;
+      case 'review_message':
+        playTone(1400, 0.1, 0, volume);
+        playTone(1600, 0.15, 0.15, volume);
+        playTone(1800, 0.1, 0.3, volume);
         break;
     }
   } catch (e) {
@@ -122,7 +145,7 @@ export function playAlertSound(type: AlertType) {
 }
 
 // Start continuous alarm for an order
-export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'order_timer') {
+export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'order_timer', durationMs?: number) {
   if (activeAlarms.has(orderId)) return;
 
   const playAlarm = () => {
@@ -144,7 +167,17 @@ export function startContinuousAlarm(orderId: string, type: 'payment_timer' | 'o
 
   playAlarm();
   const intervalId = window.setInterval(playAlarm, 1500);
-  activeAlarms.set(orderId, { intervalId });
+  
+  // If durationMs is specified, auto-stop after that duration
+  let timeoutId: number | undefined;
+  if (durationMs && durationMs > 0) {
+    timeoutId = window.setTimeout(() => {
+      stopContinuousAlarm(orderId);
+    }, durationMs);
+    durationTimeouts.set(orderId, timeoutId);
+  }
+  
+  activeAlarms.set(orderId, { intervalId, timeoutId });
 }
 
 // Stop continuous alarm for an order
@@ -152,7 +185,17 @@ export function stopContinuousAlarm(orderId: string) {
   const alarm = activeAlarms.get(orderId);
   if (alarm) {
     clearInterval(alarm.intervalId);
+    if (alarm.timeoutId) {
+      clearTimeout(alarm.timeoutId);
+    }
     activeAlarms.delete(orderId);
+  }
+  
+  // Also clear any pending duration timeout
+  const durationTimeout = durationTimeouts.get(orderId);
+  if (durationTimeout) {
+    clearTimeout(durationTimeout);
+    durationTimeouts.delete(orderId);
   }
 }
 
@@ -160,8 +203,16 @@ export function stopContinuousAlarm(orderId: string) {
 export function stopAllAlarms() {
   activeAlarms.forEach((alarm) => {
     clearInterval(alarm.intervalId);
+    if (alarm.timeoutId) {
+      clearTimeout(alarm.timeoutId);
+    }
   });
   activeAlarms.clear();
+  
+  durationTimeouts.forEach((timeoutId) => {
+    clearTimeout(timeoutId);
+  });
+  durationTimeouts.clear();
 }
 
 // Previous order hashes storage

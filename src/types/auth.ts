@@ -54,6 +54,9 @@ export interface DatabaseUser {
     name: string;
     description?: string;
   };
+  // Purchase function flags
+  is_purchase_creator?: boolean;
+  is_payer?: boolean;
 }
 
 export interface AuthContextType {

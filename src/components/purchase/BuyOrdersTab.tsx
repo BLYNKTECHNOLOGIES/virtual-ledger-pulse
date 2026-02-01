@@ -15,6 +15,7 @@ import { stopContinuousAlarm } from "@/hooks/use-order-alerts";
 import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
+import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -43,6 +44,9 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
 
   // Alert hooks (shared globally via provider)
   const { markAttended, needsAttention, triggerTimerAlert } = useOrderAlertsContext();
+
+  // Purchase function context for role-based visibility
+  const purchaseFunctions = usePurchaseFunctions();
 
   // Fetch purchase orders with buy order workflow status
   const { data: orders, isLoading, refetch } = useQuery({
@@ -430,6 +434,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
               alertState={needsAttention(order.id)}
               onMarkAttended={() => handleMarkAttended(order.id)}
               onTriggerTimerAlert={(type) => triggerTimerAlert(order.id, type)}
+              purchaseFunctions={purchaseFunctions}
             />
           ))}
         </div>

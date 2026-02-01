@@ -2858,6 +2858,61 @@ export type Database = {
           },
         ]
       }
+      purchase_order_reviews: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_read: boolean
+          message: string
+          purchase_order_id: string
+          read_at: string | null
+          read_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_read?: boolean
+          message: string
+          purchase_order_id: string
+          read_at?: string | null
+          read_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string
+          purchase_order_id?: string
+          read_at?: string | null
+          read_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_reviews_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_reviews_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_reviews_read_by_fkey"
+            columns: ["read_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_status_history: {
         Row: {
           changed_at: string
@@ -4054,6 +4109,8 @@ export type Database = {
           failed_login_attempts: number | null
           first_name: string | null
           id: string
+          is_payer: boolean
+          is_purchase_creator: boolean
           last_activity: string | null
           last_login: string | null
           last_name: string | null
@@ -4073,6 +4130,8 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           id?: string
+          is_payer?: boolean
+          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
@@ -4092,6 +4151,8 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           id?: string
+          is_payer?: boolean
+          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null

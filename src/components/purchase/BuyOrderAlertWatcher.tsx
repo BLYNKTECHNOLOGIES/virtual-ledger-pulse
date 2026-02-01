@@ -7,8 +7,8 @@ import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { showOrderAlertNotification, createGlobalNotification } from "@/lib/alert-notifications";
 import { getBuyOrderGrossAmount } from "@/lib/buy-order-amounts";
-import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
-import { playAlertSound, startContinuousAlarm, stopContinuousAlarm } from "@/hooks/use-order-alerts";
+import { usePurchaseFunctions, type PurchaseAlertType } from "@/hooks/usePurchaseFunctions";
+import { playAlertSound, startContinuousAlarm, stopContinuousAlarm, generateOrderDataHash, type AlertType } from "@/hooks/use-order-alerts";
 
 // Persist initial load state across component remounts (tab switches)
 const INITIAL_LOAD_KEY = 'buy_order_watcher_initialized';
@@ -29,14 +29,39 @@ function setWasInitialized() {
   }
 }
 
+// Track previous order states for real-time change detection
+const REALTIME_PREV_KEY = 'buy_order_realtime_prev_v1';
+
+function getRealtimePreviousState(): Record<string, string> {
+  try {
+    const stored = localStorage.getItem(REALTIME_PREV_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRealtimePreviousState(state: Record<string, string>) {
+  try {
+    localStorage.setItem(REALTIME_PREV_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore
+  }
+}
+
 /**
  * Runs buy-order alert detection globally (even when user is on other pages)
  * so the header bell always shows the exact reason for the buzzer.
  * Also sets up real-time subscriptions for live updates.
+ * 
+ * CRITICAL: Notifications are triggered directly from real-time subscription
+ * callbacks, NOT from React Query refetch effects. This ensures immediate
+ * delivery even when the browser tab is inactive or minimized.
  */
 export function BuyOrderAlertWatcher() {
   const wasAlreadyInitializedRef = useRef(getWasInitialized());
   const notifiedRef = useRef<Set<string>>(new Set());
+  const realtimePrevRef = useRef<Record<string, string>>(getRealtimePreviousState());
   const queryClient = useQueryClient();
   const { addNotification, lastOrderNavigation, lastAttendedOrders, notificationsResetSignal } = useNotifications();
   const { focusOrder } = useOrderFocus();
@@ -49,7 +74,24 @@ export function BuyOrderAlertWatcher() {
   } = useOrderAlertsContext();
 
   // Get purchase function context for role-based alert filtering
-  const { isAlertRelevant, getBuzzerIntensity, isCombined, isPurchaseCreator, isPayer } = usePurchaseFunctions();
+  const purchaseFunctionsRef = useRef(usePurchaseFunctions());
+  const pf = usePurchaseFunctions();
+  
+  // Keep ref updated with latest values for use in real-time callback
+  useEffect(() => {
+    purchaseFunctionsRef.current = pf;
+  }, [pf]);
+
+  // Store callbacks in refs for stable access in real-time handler
+  const addNotificationRef = useRef(addNotification);
+  const focusOrderRef = useRef(focusOrder);
+  const markAttendedRef = useRef(markAttended);
+  
+  useEffect(() => {
+    addNotificationRef.current = addNotification;
+    focusOrderRef.current = focusOrder;
+    markAttendedRef.current = markAttended;
+  }, [addNotification, focusOrder, markAttended]);
 
   const { data: orders } = useQuery({
     queryKey: ["buy_orders_alerts"],
@@ -87,13 +129,148 @@ export function BuyOrderAlertWatcher() {
       return (data || []) as BuyOrder[];
     },
     staleTime: 10000,
-    refetchInterval: 30000, // Reduce polling since we have real-time now
+    refetchInterval: 30000,
   });
 
-  // Set up real-time subscription for purchase_orders
+  /**
+   * CRITICAL: Real-time subscription that triggers notifications IMMEDIATELY
+   * when database changes occur, regardless of tab focus state.
+   * 
+   * This is the primary notification triggering mechanism for real-time delivery.
+   */
   useEffect(() => {
+    const handleRealtimeChange = async (payload: any) => {
+      const { eventType, new: newRecord, old: oldRecord } = payload;
+      
+      // Immediately invalidate queries so UI updates when tab becomes active
+      queryClient.invalidateQueries({ queryKey: ['buy_orders_alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
+      
+      // Skip if no order_status (not a buy order)
+      if (!newRecord?.order_status) return;
+      
+      const orderId = newRecord.id;
+      const orderStatus = newRecord.order_status;
+      const pf = purchaseFunctionsRef.current;
+      
+      // Get previous state for this order
+      const prevHash = realtimePrevRef.current[orderId];
+      const currentHash = generateOrderDataHash(newRecord);
+      
+      // Skip if order data hasn't actually changed
+      if (prevHash === currentHash) return;
+      
+      // Update stored previous state
+      realtimePrevRef.current[orderId] = currentHash;
+      saveRealtimePreviousState(realtimePrevRef.current);
+      
+      // Determine alert type based on change
+      let alertType: PurchaseAlertType | null = null;
+      
+      // Check for terminal states - no alerts for these
+      const isTerminal = orderStatus === 'completed' || orderStatus === 'cancelled';
+      if (isTerminal) {
+        stopContinuousAlarm(orderId);
+        return;
+      }
+      
+      // Parse previous data if available
+      let prev: any = null;
+      if (prevHash) {
+        try {
+          prev = JSON.parse(prevHash);
+        } catch {
+          prev = null;
+        }
+      }
+      
+      // Detect specific transitions
+      if (eventType === 'INSERT') {
+        alertType = 'new_order';
+      } else if (eventType === 'UPDATE') {
+        // Add to Bank is silent - no notification
+        if (prev?.order_status !== 'added_to_bank' && orderStatus === 'added_to_bank') {
+          return;
+        }
+        
+        // Payment done
+        if (prev?.order_status !== 'paid' && orderStatus === 'paid') {
+          alertType = 'payment_done';
+        }
+        // Banking collected
+        else if (!prev?.order_status || prev.order_status === 'new') {
+          const prevHadBank = Boolean(prev?.bank_account_name || prev?.bank_account_number || prev?.ifsc_code || prev?.upi_id);
+          const nowHasBank = Boolean(newRecord.bank_account_name || newRecord.bank_account_number || newRecord.ifsc_code || newRecord.upi_id);
+          if (!prevHadBank && nowHasBank) {
+            alertType = 'banking_collected';
+          }
+        }
+        
+        // Fallback to info_update if something changed but no specific type matched
+        if (!alertType && prevHash) {
+          alertType = 'info_update';
+        }
+      }
+      
+      if (!alertType) return;
+      
+      // Role-based filtering: check if this alert is relevant to current user
+      if (!pf.isAlertRelevant(alertType, orderStatus)) {
+        return;
+      }
+      
+      // Generate unique notification key to prevent duplicates
+      const notificationKey = `${orderId}-${alertType}-${Date.now()}`;
+      if (notifiedRef.current.has(notificationKey)) return;
+      notifiedRef.current.add(notificationKey);
+      
+      // Build order info for notification
+      const orderInfo = {
+        orderId: orderId,
+        orderNumber: newRecord.order_number,
+        supplierName: newRecord.supplier_name,
+        amount: getBuyOrderGrossAmount(newRecord as BuyOrder),
+        alertType: alertType as any,
+      };
+      
+      // Get buzzer intensity based on role
+      const buzzerIntensity = pf.getBuzzerIntensity(alertType, false);
+      
+      // Play sound immediately - this works even when tab is inactive
+      // because Web Audio API continues to run in background
+      if (buzzerIntensity.type === 'single') {
+        playAlertSound(alertType as any);
+      } else if (buzzerIntensity.type === 'single_subtle') {
+        playAlertSound(alertType as any, true);
+      } else if (buzzerIntensity.type === 'continuous') {
+        playAlertSound(alertType as any);
+        if (alertType === 'payment_timer' || alertType === 'order_timer') {
+          startContinuousAlarm(orderId, alertType as any, undefined, buzzerIntensity.repeatIntervalMs ?? 1500);
+        }
+      } else if (buzzerIntensity.type === 'duration') {
+        playAlertSound(alertType as any);
+        if (alertType === 'payment_timer' || alertType === 'order_timer') {
+          startContinuousAlarm(
+            orderId,
+            alertType as any,
+            buzzerIntensity.durationMs,
+            buzzerIntensity.repeatIntervalMs ?? 1500
+          );
+        }
+      }
+      
+      // Add notification to bell and show toast
+      if (buzzerIntensity.type !== 'none') {
+        const handleNavigate = (navOrderId: string) => {
+          focusOrderRef.current(navOrderId);
+        };
+        showOrderAlertNotification(orderInfo, handleNavigate);
+        addNotificationRef.current(createGlobalNotification(orderInfo));
+      }
+    };
+    
     const channel = supabase
-      .channel('purchase_orders_realtime')
+      .channel('purchase_orders_realtime_alerts')
       .on(
         'postgres_changes',
         {
@@ -101,11 +278,7 @@ export function BuyOrderAlertWatcher() {
           schema: 'public',
           table: 'purchase_orders',
         },
-        (payload) => {
-          // Invalidate and refetch on any change
-          queryClient.invalidateQueries({ queryKey: ['buy_orders_alerts'] });
-          queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
-        }
+        handleRealtimeChange
       )
       .subscribe();
 
@@ -138,7 +311,6 @@ export function BuyOrderAlertWatcher() {
     const orderIds = lastAttendedOrders.orderIds;
     orderIds.forEach((orderId) => {
       const order = orders?.find((o) => o.id === orderId);
-      // order can be undefined; markAttended still stops alarm and stores best-effort hash
       markAttended(orderId, order);
     });
   }, [lastAttendedOrders?.at, lastAttendedOrders?.orderIds, orders, markAttended]);
@@ -148,16 +320,19 @@ export function BuyOrderAlertWatcher() {
     notifiedRef.current = new Set();
   }, [notificationsResetSignal]);
 
+  /**
+   * Secondary effect: Process order data for timer alerts and UI state.
+   * This runs on query data changes (for timers that need continuous monitoring)
+   * but is NOT the primary notification trigger for real-time events.
+   */
   useEffect(() => {
     if (!orders) return;
 
-    // Use persistent flag to determine if this is truly the first load
     const isFirstLoad = !wasAlreadyInitializedRef.current;
     
-    // Update alert states based on latest data
+    // Update alert states based on latest data (for timers)
     processOrderChanges(orders, isFirstLoad);
     
-    // Mark as initialized after first processing
     if (isFirstLoad) {
       wasAlreadyInitializedRef.current = true;
       setWasInitialized();
@@ -165,14 +340,14 @@ export function BuyOrderAlertWatcher() {
     
     cleanupAttendedOrders(orders.map((o) => o.id));
 
-    // Emit toast + bell notifications for any active alert
+    // Process timer-based alerts (5-min, 2-min warnings)
+    // These still need to be checked periodically since they're time-based
     orders.forEach((order) => {
       const alertState = needsAttention(order.id);
       if (!alertState?.needsAttention || !alertState.alertType) return;
 
-      // Role-based filtering: skip alerts that aren't relevant to this user
-      if (!isAlertRelevant(alertState.alertType, order.order_status)) {
-        // Ensure we never leave an alarm running for irrelevant alerts.
+      // Role-based filtering
+      if (!pf.isAlertRelevant(alertState.alertType, order.order_status)) {
         stopContinuousAlarm(order.id);
         return;
       }
@@ -189,14 +364,11 @@ export function BuyOrderAlertWatcher() {
         alertType: alertState.alertType,
       };
 
-      // Get buzzer intensity for this alert type based on role.
-      // For timers, use urgent phase to get correct 5-min vs 2-min behavior.
-      const buzzerIntensity = getBuzzerIntensity(
+      const buzzerIntensity = pf.getBuzzerIntensity(
         alertState.alertType,
         Boolean((alertState as any).timerUrgent)
       );
       
-      // Role-correct sound behavior
       if (buzzerIntensity.type === 'single') {
         playAlertSound(alertState.alertType);
       } else if (buzzerIntensity.type === 'single_subtle') {
@@ -218,13 +390,12 @@ export function BuyOrderAlertWatcher() {
         }
       }
 
-      // Only show toast/bell if buzzer is not 'none'
       if (buzzerIntensity.type !== 'none') {
         showOrderAlertNotification(orderInfo, handleNavigate);
         addNotification(createGlobalNotification(orderInfo));
       }
     });
-  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, addNotification, handleNavigate, isAlertRelevant]);
+  }, [orders, processOrderChanges, cleanupAttendedOrders, needsAttention, addNotification, handleNavigate, pf]);
 
   return null;
 }

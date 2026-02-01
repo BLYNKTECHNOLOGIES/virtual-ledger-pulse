@@ -4712,19 +4712,14 @@ export type Database = {
         }
         Returns: string
       }
-      reject_registration:
-        | {
-            Args: {
-              p_reason?: string
-              p_registration_id: string
-              p_rejected_by: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: { reason?: string; registration_id: string }
-            Returns: boolean
-          }
+      reject_registration: {
+        Args: {
+          p_reason?: string
+          p_registration_id: string
+          p_rejected_by?: string
+        }
+        Returns: boolean
+      }
       sync_existing_payment_methods_with_bank_status: {
         Args: never
         Returns: undefined

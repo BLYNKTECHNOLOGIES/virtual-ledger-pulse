@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail, UserPlus } from 'lucide-react';
 import { ForgotPasswordDialog } from './ForgotPasswordDialog';
-import { RegistrationDialog } from './RegistrationDialog';
+import { RegistrationDialogV2 } from './RegistrationDialogV2';
 
 interface LoginProps {
   onLogin: (credentials: { email: string; password: string }) => Promise<boolean>;
@@ -135,7 +135,7 @@ export function Login({ onLogin }: LoginProps) {
           onClose={() => setShowForgotPassword(false)}
         />
         
-        <RegistrationDialog
+        <RegistrationDialogV2
           open={showRegistration}
           onOpenChange={setShowRegistration}
         />

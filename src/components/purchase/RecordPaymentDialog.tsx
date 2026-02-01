@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, CreditCard, Upload, Receipt, X, Image, Building2 } from 'lucide-react';
 import { recordActionTiming } from '@/lib/purchase-action-timing';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from '@/lib/system-action-logger';
 
 interface RecordPaymentDialogProps {
   open: boolean;
@@ -231,6 +232,15 @@ export function RecordPaymentDialog({
 
       // Record payment timing
       await recordActionTiming(order.id, 'payment_created', 'payer');
+      
+      // Log payment action
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_PAYMENT_RECORDED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: order.id,
+        module: Modules.PURCHASE,
+        metadata: { order_number: order.order_number, amount_paid: amount }
+      });
 
       // Update order status if fully paid
       if (isFullyPaid) {

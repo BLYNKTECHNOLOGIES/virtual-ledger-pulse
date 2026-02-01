@@ -15,6 +15,7 @@ import { createSellerClient } from "@/utils/clientIdGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -268,6 +269,22 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         const orderId = (result as Record<string, unknown>).purchase_order_id as string;
         await recordActionTiming(orderId, 'manual_entry_created', 'purchase_creator');
         await recordActionTiming(orderId, 'order_created', 'purchase_creator');
+        
+        // Log actions for audit trail
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_MANUAL_ENTRY_CREATED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: orderId,
+          module: Modules.PURCHASE,
+          metadata: { order_number: orderNumber }
+        });
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_ORDER_CREATED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: orderId,
+          module: Modules.PURCHASE,
+          metadata: { order_number: orderNumber, is_manual_entry: true }
+        });
       }
 
       // Build success message with details

@@ -17,6 +17,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -195,10 +196,25 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       if (error) throw error;
 
       // Record action timings for terminal states
+      const order = orders?.find(o => o.id === orderId);
       if (newStatus === 'completed') {
         await recordActionTiming(orderId, 'order_completed', 'payer');
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_ORDER_COMPLETED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: orderId,
+          module: Modules.PURCHASE,
+          metadata: { order_number: order?.order_number }
+        });
       } else if (newStatus === 'cancelled') {
         await recordActionTiming(orderId, 'order_cancelled', 'system');
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.PURCHASE_ORDER_CANCELLED,
+          entityType: EntityTypes.PURCHASE_ORDER,
+          entityId: orderId,
+          module: Modules.PURCHASE,
+          metadata: { order_number: order?.order_number }
+        });
       }
 
       // ONLY handle balance updates and fee deduction when COMPLETING (not cancelling)

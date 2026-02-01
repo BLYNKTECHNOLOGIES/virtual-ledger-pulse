@@ -16,6 +16,7 @@ import { getBuyOrderNetPayableAmount } from "@/lib/buy-order-amounts";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
+import { recordActionTiming } from "@/lib/purchase-action-timing";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -192,6 +193,13 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         .eq('id', orderId);
       
       if (error) throw error;
+
+      // Record action timings for terminal states
+      if (newStatus === 'completed') {
+        await recordActionTiming(orderId, 'order_completed', 'payer');
+      } else if (newStatus === 'cancelled') {
+        await recordActionTiming(orderId, 'order_cancelled', 'system');
+      }
 
       // ONLY handle balance updates and fee deduction when COMPLETING (not cancelling)
       if (newStatus === 'completed') {

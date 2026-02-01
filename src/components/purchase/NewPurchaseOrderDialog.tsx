@@ -16,6 +16,7 @@ import { createSellerClient } from "@/utils/clientIdGenerator";
 import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
 import { TrendingUp } from "lucide-react";
+import { recordActionTiming } from "@/lib/purchase-action-timing";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -372,6 +373,9 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
             });
         }
       }
+
+      // Record order creation timing
+      await recordActionTiming(purchaseOrder.id, 'order_created', 'purchase_creator', user?.id);
 
       return purchaseOrder;
     },

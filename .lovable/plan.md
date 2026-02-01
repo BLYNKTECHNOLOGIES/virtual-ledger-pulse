@@ -1,82 +1,86 @@
+# ✅ COMPLETED: Action Timing Storage for Purchase Workflow
 
-# Fix: Prevent State Revert When Providing TDS After Add to Bank
+## Implementation Summary
 
-## Problem Analysis
+Created a timing storage system to capture precise timestamps for all significant purchase workflow actions. This enables future turnaround time analysis without any current analytics computation.
 
-The current bug occurs in this sequence:
-1. Order is created (status: `new`)
-2. Bank details are provided (status: `banking_collected`)  
-3. Payer performs "Add to Bank" (status: `added_to_bank`, timer starts)
-4. Payment Creator clicks "Provide TDS" button
-5. **BUG**: CollectFieldsDialog sets `order_status: 'pan_collected'`, reverting the workflow
+---
 
-The root cause is in `CollectFieldsDialog.tsx` line 77:
+## Database Schema
+
+**Table: `purchase_action_timings`**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| order_id | uuid | FK to purchase_orders |
+| action_type | text | Type of action recorded |
+| actor_role | text | Role performing action (purchase_creator, payer, system) |
+| actor_user_id | uuid | Optional FK to users |
+| recorded_at | timestamptz | Server-side timestamp |
+| created_at | timestamptz | Record creation time |
+
+**Constraints:**
+- `UNIQUE (order_id, action_type)` - Prevents duplicate timestamps
+- `ON CONFLICT DO NOTHING` - Ensures immutability
+
+---
+
+## Action Types Tracked
+
+| Action Type | Trigger Location | Actor Role |
+|-------------|-----------------|------------|
+| `order_created` | NewPurchaseOrderDialog | purchase_creator |
+| `manual_entry_created` | ManualPurchaseEntryDialog | purchase_creator |
+| `banking_collected` | CollectFieldsDialog | purchase_creator |
+| `pan_collected` | CollectFieldsDialog | purchase_creator |
+| `added_to_bank` | SetTimerDialog | payer |
+| `payment_created` | RecordPaymentDialog | payer |
+| `payment_completed` | RecordPaymentDialog | payer |
+| `order_completed` | BuyOrdersTab | payer |
+| `order_cancelled` | BuyOrdersTab | system |
+
+---
+
+## Helper Module
+
+**File: `src/lib/purchase-action-timing.ts`**
+
 ```typescript
-const updateData: Record<string, any> = { order_status: targetStatus };
+// Main function - idempotent, non-blocking
+recordActionTiming(orderId, actionType, actorRole, actorUserId?)
+
+// Batch recording
+recordMultipleTimings(orderId, actions[])
+
+// Query for debugging
+getOrderTimings(orderId)
 ```
 
-When `targetStatus = 'pan_collected'` but the order is already at `added_to_bank`, the dialog blindly sets the status backwards.
+**Key Behaviors:**
+- Uses `upsert` with `ignoreDuplicates: true` for immutability
+- Silently fails to avoid blocking workflows
+- Logs warnings for debugging
 
 ---
 
-## Solution
+## Files Modified
 
-Implement a **state progression guard** in `CollectFieldsDialog.tsx` that:
-
-1. Checks the current order status before updating
-2. Only advances status forward, never backward
-3. For PAN collection specifically: if order is already at/past `added_to_bank`, **preserve the current status** and only update TDS/PAN data fields
-
-### Code Changes
-
-**File: `src/components/purchase/CollectFieldsDialog.tsx`**
-
-1. Import `STATUS_ORDER` from buy-order-types to compare status positions
-2. In `handleSubmit`:
-   - Get the current status position in the workflow
-   - Get the target status position
-   - Only include `order_status` in update if `targetPosition > currentPosition`
-   - For TDS updates after Add to Bank: update only the data fields (pan_number, tds_applied, etc.)
+| File | Changes |
+|------|---------|
+| `src/lib/purchase-action-timing.ts` | NEW - Helper module |
+| `src/components/purchase/CollectFieldsDialog.tsx` | Records banking_collected, pan_collected |
+| `src/components/purchase/SetTimerDialog.tsx` | Records added_to_bank |
+| `src/components/purchase/RecordPaymentDialog.tsx` | Records payment_created, payment_completed |
+| `src/components/purchase/NewPurchaseOrderDialog.tsx` | Records order_created |
+| `src/components/purchase/ManualPurchaseEntryDialog.tsx` | Records manual_entry_created, order_created |
+| `src/components/purchase/BuyOrdersTab.tsx` | Records order_completed, order_cancelled |
 
 ---
 
-## Technical Implementation
+## Data Integrity Guarantees
 
-```typescript
-// Before the update, determine if status should change
-const currentPosition = STATUS_ORDER.indexOf(order.order_status as BuyOrderStatus);
-const targetPosition = STATUS_ORDER.indexOf(targetStatus);
-
-// Only include status if moving forward OR if not yet in the workflow
-const shouldUpdateStatus = targetPosition > currentPosition || currentPosition === -1;
-
-const updateData: Record<string, any> = {};
-
-// CRITICAL: Only advance status, never revert
-if (shouldUpdateStatus) {
-  updateData.order_status = targetStatus;
-}
-
-// Continue with field updates (banking or pan data)...
-```
-
----
-
-## Verification Checklist
-
-After this fix:
-- Providing TDS before Add to Bank moves status to `pan_collected` (forward movement)
-- Providing TDS after Add to Bank **keeps** status at `added_to_bank` (no revert)
-- TDS/PAN data fields are always saved regardless of status change
-- Add to Bank timer is unaffected by TDS updates
-- Order can correctly progress to "Paid" once TDS is provided
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/purchase/CollectFieldsDialog.tsx` | Add state guard to prevent backward status transitions |
-
-This is a surgical fix that does not alter role permissions, timer logic, or workflow order - it only prevents the specific bug of status regression when collecting PAN data after Add to Bank.
+✅ **Immutable** - Once recorded, timestamps cannot be overwritten
+✅ **Idempotent** - Multiple calls for same action are safe
+✅ **Non-blocking** - Errors don't disrupt main workflows
+✅ **Survives refresh** - Persisted to database immediately
+✅ **No duplication** - Unique constraint prevents duplicates

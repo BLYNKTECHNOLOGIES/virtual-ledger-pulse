@@ -14,6 +14,7 @@ import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { recordActionTiming } from "@/lib/purchase-action-timing";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -260,6 +261,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       if (functionError) {
         throw functionError;
+      }
+
+      // Record timing for manual entry - result contains the purchase order id
+      if (result && typeof result === 'object' && 'purchase_order_id' in (result as Record<string, unknown>)) {
+        const orderId = (result as Record<string, unknown>).purchase_order_id as string;
+        await recordActionTiming(orderId, 'manual_entry_created', 'purchase_creator');
+        await recordActionTiming(orderId, 'order_created', 'purchase_creator');
       }
 
       // Build success message with details

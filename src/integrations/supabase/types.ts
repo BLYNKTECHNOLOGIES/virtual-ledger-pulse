@@ -2762,6 +2762,51 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_action_timings: {
+        Row: {
+          action_type: string
+          actor_role: string
+          actor_user_id: string | null
+          created_at: string
+          id: string
+          order_id: string
+          recorded_at: string
+        }
+        Insert: {
+          action_type: string
+          actor_role?: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          recorded_at?: string
+        }
+        Update: {
+          action_type?: string
+          actor_role?: string
+          actor_user_id?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_action_timings_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_action_timings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_items: {
         Row: {
           created_at: string | null

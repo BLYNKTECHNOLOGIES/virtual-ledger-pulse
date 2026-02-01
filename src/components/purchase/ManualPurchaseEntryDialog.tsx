@@ -171,11 +171,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 ManualPurchase: Submit clicked, formData:', formData);
     setLoading(true);
 
     try {
       // Validate required fields
       if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id) {
+        console.log('❌ Validation failed - missing required fields');
         toast({
           title: "Error",
           description: "Please fill in all required fields including supplier name, product, quantity, price per unit, and bank account for deduction",
@@ -187,6 +189,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       // Validate PAN for 1% TDS
       if (formData.tds_option === '1%' && (!formData.pan_number || formData.pan_number.trim() === '')) {
+        console.log('❌ Validation failed - PAN required for 1% TDS');
         toast({
           title: "Error",
           description: "PAN number is required for 1% TDS deduction",
@@ -198,6 +201,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       // Validate wallet selection for USDT products
       if (selectedProduct?.code === 'USDT' && !formData.credit_wallet_id) {
+        console.log('❌ Validation failed - wallet required for USDT');
         toast({
           title: "Error", 
           description: "Please select a wallet to credit the purchased USDT",
@@ -209,40 +213,50 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       const orderNumber = formData.order_number || generateOrderNumber();
       const totalAmount = parseFloat(formData.total_amount) || 0;
+      console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
 
       // Auto-create seller client if new
       if (isNewClient && formData.supplier_name.trim()) {
+        console.log('🆕 Creating new seller client...');
         const newClient = await createSellerClient(
           formData.supplier_name.trim(),
           formData.contact_number || undefined
         );
         if (newClient) {
+          console.log('✅ New seller client created');
           queryClient.invalidateQueries({ queryKey: ['clients'] });
           queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
         }
       }
 
+      // Prepare RPC parameters
+      const rpcParams = {
+        p_order_number: orderNumber,
+        p_supplier_name: formData.supplier_name,
+        p_order_date: formData.order_date,
+        p_total_amount: totalAmount,
+        p_product_id: formData.product_id,
+        p_quantity: parseFloat(formData.quantity),
+        p_unit_price: parseFloat(formData.price_per_unit),
+        p_bank_account_id: formData.deduction_bank_account_id,
+        p_description: formData.description || '',
+        p_contact_number: formData.contact_number || undefined,
+        p_credit_wallet_id: formData.credit_wallet_id || undefined,
+        p_tds_option: formData.tds_option,
+        p_pan_number: formData.pan_number || undefined,
+        p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
+        p_is_off_market: formData.is_off_market
+      };
+      
+      console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);
+
       // Call the enhanced function with TDS and fee support
       const { data: result, error: functionError } = await supabase.rpc(
         'create_manual_purchase_complete_v2',
-        {
-          p_order_number: orderNumber,
-          p_supplier_name: formData.supplier_name,
-          p_order_date: formData.order_date,
-          p_total_amount: totalAmount,
-          p_product_id: formData.product_id,
-          p_quantity: parseFloat(formData.quantity),
-          p_unit_price: parseFloat(formData.price_per_unit),
-          p_bank_account_id: formData.deduction_bank_account_id,
-          p_description: formData.description || '',
-          p_contact_number: formData.contact_number || null,
-          p_credit_wallet_id: formData.credit_wallet_id || null,
-          p_tds_option: formData.tds_option,
-          p_pan_number: formData.pan_number || null,
-          p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : null,
-          p_is_off_market: formData.is_off_market
-        }
+        rpcParams
       );
+
+      console.log('📡 RPC response:', { result, functionError });
 
       if (functionError) {
         throw functionError;

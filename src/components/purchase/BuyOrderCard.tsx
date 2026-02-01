@@ -43,9 +43,11 @@ interface PurchaseFunctionContext {
   isPurchaseCreator: boolean;
   isPayer: boolean;
   canCollectBanking: boolean;
+  canCollectPan: boolean;
   canAddToBank: boolean;
   canRecordPayment: boolean;
   showWaitingForBanking: boolean;
+  showWaitingForPan: boolean;
   canSubmitReview: boolean;
   canSeeReviews: boolean;
 }
@@ -88,9 +90,11 @@ export function BuyOrderCard({
     isPurchaseCreator: true,
     isPayer: true,
     canCollectBanking: true,
+    canCollectPan: true,
     canAddToBank: true,
     canRecordPayment: true,
     showWaitingForBanking: false,
+    showWaitingForPan: false,
     canSubmitReview: false,
     canSeeReviews: false,
   };
@@ -132,6 +136,19 @@ export function BuyOrderCard({
       }
     }
 
+    // Role-based restrictions for Payer-only: cannot collect PAN
+    // They should see "Collecting PAN" instead
+    if (pf.showWaitingForPan && !tdsSelected) {
+      // If we're on banking_collected status and PAN not yet collected, payer cannot proceed
+      if (currentStatus === 'banking_collected') {
+        return null; // Payer cannot collect PAN
+      }
+      // If we're on 'new' with banking already collected but no TDS, payer still can't collect PAN
+      if (currentStatus === 'new' && bankingCollected) {
+        return null; // Payer cannot collect PAN
+      }
+    }
+
     // From 'new' status: skip banking_collected if banking already provided
     if (currentStatus === 'new' && bankingCollected) {
       // If TDS is also already selected, skip to added_to_bank
@@ -140,6 +157,8 @@ export function BuyOrderCard({
         if (!pf.canAddToBank) return null;
         return 'added_to_bank';
       }
+      // Payer cannot collect PAN
+      if (!pf.canCollectPan) return null;
       return 'pan_collected';
     }
 
@@ -147,6 +166,11 @@ export function BuyOrderCard({
     if (currentStatus === 'banking_collected' && tdsSelected) {
       if (!pf.canAddToBank) return null;
       return 'added_to_bank';
+    }
+
+    // From 'banking_collected' status: Payer cannot proceed to pan_collected
+    if (currentStatus === 'banking_collected' && !pf.canCollectPan) {
+      return null;
     }
 
     // Role-based: Purchase Creator cannot advance to 'added_to_bank'
@@ -428,6 +452,15 @@ export function BuyOrderCard({
               <Badge variant="outline" className="text-xs border-muted-foreground/50">
                 <AlertCircle className="h-3 w-3 mr-1" />
                 Waiting for bank details
+              </Badge>
+            )}
+
+            {/* Collecting PAN indicator for Payer-only */}
+            {pf.showWaitingForPan && !tdsSelected && bankingCollected && 
+             (currentStatus === 'new' || currentStatus === 'banking_collected') && (
+              <Badge variant="outline" className="text-xs border-indigo-300 text-indigo-600 bg-indigo-50">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Collecting PAN
               </Badge>
             )}
 

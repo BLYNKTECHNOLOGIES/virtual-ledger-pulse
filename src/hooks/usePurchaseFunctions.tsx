@@ -250,6 +250,12 @@ export function usePurchaseFunctions() {
     return state.isCombined;
   }, [state.isCombined]);
 
+  const canCollectPan = useMemo(() => {
+    // Only Purchase Creator and combined mode can collect PAN
+    // Payer-only cannot collect PAN
+    return state.isCombined || state.isPurchaseCreator;
+  }, [state.isCombined, state.isPurchaseCreator]);
+
   const canAddToBank = useMemo(() => {
     return state.isCombined || state.isPayer;
   }, [state.isCombined, state.isPayer]);
@@ -260,6 +266,11 @@ export function usePurchaseFunctions() {
 
   const showWaitingForBanking = useMemo(() => {
     // Payer-only shows "Waiting for bank details" when banking not collected
+    return state.isPayer && !state.isPurchaseCreator;
+  }, [state.isPayer, state.isPurchaseCreator]);
+
+  const showWaitingForPan = useMemo(() => {
+    // Payer-only shows "Collecting PAN" when PAN not collected
     return state.isPayer && !state.isPurchaseCreator;
   }, [state.isPayer, state.isPurchaseCreator]);
 
@@ -279,9 +290,11 @@ export function usePurchaseFunctions() {
     getBuzzerIntensity,
     canCreateOrders,
     canCollectBanking,
+    canCollectPan,
     canAddToBank,
     canRecordPayment,
     showWaitingForBanking,
+    showWaitingForPan,
     canSubmitReview,
     canSeeReviews,
   };

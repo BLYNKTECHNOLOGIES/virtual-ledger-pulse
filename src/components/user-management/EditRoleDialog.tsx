@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { AlertTriangle } from "lucide-react";
 
 interface Role {
   id: string;
@@ -14,6 +17,14 @@ interface Role {
   description: string;
   permissions: string[];
   user_count: number;
+}
+
+interface SystemFunction {
+  id: string;
+  function_key: string;
+  function_name: string;
+  description: string;
+  module: string;
 }
 
 interface EditRoleDialogProps {
@@ -63,8 +74,25 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
     description: role.description,
     permissions: role.permissions
   });
+  const [systemFunctions, setSystemFunctions] = useState<SystemFunction[]>([]);
+  const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingFunctions, setIsLoadingFunctions] = useState(true);
   const { toast } = useToast();
+
+  // Check if role has purchase permission
+  const hasPurchasePermission = formData.permissions.some(p => 
+    p === 'purchase_view' || p === 'purchase_manage'
+  );
+
+  // Get selected purchase functions
+  const purchaseFunctions = systemFunctions.filter(f => f.module === 'purchase');
+  const selectedPurchaseFunctions = selectedFunctions.filter(fKey => 
+    purchaseFunctions.some(pf => pf.function_key === fKey)
+  );
+
+  // Validation: if has purchase permission, must have at least one purchase function
+  const isPurchaseValid = !hasPurchasePermission || selectedPurchaseFunctions.length > 0;
 
   useEffect(() => {
     setFormData({
@@ -72,29 +100,98 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
       description: role.description,
       permissions: role.permissions
     });
+    fetchFunctions();
   }, [role]);
+
+  const fetchFunctions = async () => {
+    setIsLoadingFunctions(true);
+    try {
+      // Fetch all system functions
+      const { data: funcsData, error: funcsError } = await supabase
+        .from('system_functions')
+        .select('*')
+        .order('module');
+
+      if (funcsError) throw funcsError;
+      setSystemFunctions(funcsData || []);
+
+      // Fetch current role's functions
+      const { data: roleFuncsData, error: roleFuncsError } = await supabase
+        .from('role_functions')
+        .select('function_id, system_functions(function_key)')
+        .eq('role_id', role.id);
+
+      if (roleFuncsError) throw roleFuncsError;
+
+      const currentFunctionKeys = (roleFuncsData || [])
+        .map((rf: any) => rf.system_functions?.function_key)
+        .filter(Boolean);
+      
+      setSelectedFunctions(currentFunctionKeys);
+    } catch (error) {
+      console.error('Error fetching functions:', error);
+    } finally {
+      setIsLoadingFunctions(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate purchase functions
+    if (!isPurchaseValid) {
+      toast({
+        title: "Validation Error",
+        description: "If a role has Purchase Tab permission, it must have at least one purchase function (Purchase Creator or Payer).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      console.log('Updating role with data:', formData);
+      // First save permissions
       const result = await onSave(role.id, formData);
       
-      if (result?.success !== false) {
-        toast({
-          title: "Success",
-          description: "Role updated successfully",
-        });
-        onClose();
-      } else {
+      if (result?.success === false) {
         toast({
           title: "Error",
           description: result?.error?.message || "Failed to update role",
           variant: "destructive",
         });
+        return;
       }
+
+      // Then update functions
+      // Delete existing role_functions
+      const { error: deleteError } = await supabase
+        .from('role_functions')
+        .delete()
+        .eq('role_id', role.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new role_functions
+      if (selectedFunctions.length > 0) {
+        const functionIds = systemFunctions
+          .filter(f => selectedFunctions.includes(f.function_key))
+          .map(f => ({ role_id: role.id, function_id: f.id }));
+
+        if (functionIds.length > 0) {
+          const { error: insertError } = await supabase
+            .from('role_functions')
+            .insert(functionIds);
+
+          if (insertError) throw insertError;
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Role updated successfully",
+      });
+      onClose();
     } catch (error) {
       console.error('Error updating role:', error);
       toast({
@@ -116,13 +213,30 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
     }));
   };
 
+  const handleFunctionChange = (functionKey: string, checked: boolean) => {
+    setSelectedFunctions(prev => 
+      checked 
+        ? [...prev, functionKey]
+        : prev.filter(f => f !== functionKey)
+    );
+  };
+
+  // Group functions by module
+  const functionsByModule = systemFunctions.reduce((acc, func) => {
+    if (!acc[func.module]) {
+      acc[func.module] = [];
+    }
+    acc[func.module].push(func);
+    return acc;
+  }, {} as Record<string, SystemFunction[]>);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Role: {role.name}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Role Name</Label>
             <Input
@@ -141,15 +255,18 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Enter role description"
-              rows={3}
+              rows={2}
             />
           </div>
 
+          <Separator />
+
+          {/* System Permissions */}
           <div>
             <Label className="text-base font-medium">System Permissions</Label>
-            <p className="text-sm text-gray-600 mb-4">Select which permissions users with this role should have</p>
+            <p className="text-sm text-muted-foreground mb-4">Select which permissions users with this role should have</p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-48 overflow-y-auto border rounded-lg p-4">
               {availablePermissions.map((permission) => (
                 <div key={permission.id} className="flex items-start space-x-3">
                   <Checkbox
@@ -157,10 +274,10 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                     checked={formData.permissions.includes(permission.id)}
                     onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
                   />
-                  <div className="grid gap-1.5 leading-none">
+                  <div className="grid gap-1 leading-none">
                     <Label
                       htmlFor={permission.id}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      className="text-sm font-medium leading-none cursor-pointer"
                     >
                       {permission.name}
                     </Label>
@@ -177,10 +294,78 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
                 <p className="text-sm font-medium">Selected permissions ({formData.permissions.length}):</p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {formData.permissions.map((perm) => (
-                    <span key={perm} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    <Badge key={perm} variant="secondary" className="text-xs">
                       {perm}
-                    </span>
+                    </Badge>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Module Functions */}
+          <div>
+            <Label className="text-base font-medium">Module Functions</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Assign specific functions within modules to this role
+            </p>
+
+            {isLoadingFunctions ? (
+              <div className="flex items-center justify-center h-20">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(functionsByModule).map(([module, funcs]) => (
+                  <div key={module} className="border rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <h4 className="font-medium capitalize">{module} Functions</h4>
+                      {module === 'purchase' && hasPurchasePermission && !isPurchaseValid && (
+                        <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Required
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {funcs.map((func) => (
+                        <div key={func.id} className="flex items-start space-x-3">
+                          <Checkbox
+                            id={`func-${func.id}`}
+                            checked={selectedFunctions.includes(func.function_key)}
+                            onCheckedChange={(checked) => handleFunctionChange(func.function_key, checked as boolean)}
+                          />
+                          <div className="grid gap-1 leading-none">
+                            <Label
+                              htmlFor={`func-${func.id}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                            >
+                              {func.function_name}
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              {func.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Purchase function validation warning */}
+            {hasPurchasePermission && !isPurchaseValid && (
+              <div className="mt-3 p-3 bg-destructive/10 border border-destructive/30 rounded-lg flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-destructive">Purchase Function Required</p>
+                  <p className="text-muted-foreground">
+                    This role has Purchase Tab permission. You must assign at least one purchase function 
+                    (Purchase Creator or Payer) before saving.
+                  </p>
                 </div>
               </div>
             )}
@@ -190,7 +375,7 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !isPurchaseValid}>
               {isLoading ? "Saving..." : "Save Changes"}
             </Button>
           </div>

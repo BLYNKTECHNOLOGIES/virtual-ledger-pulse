@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,8 +33,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     phone: user.phone || "",
     status: user.status,
     role_id: initialRoleId,
-    is_purchase_creator: user.is_purchase_creator ?? false,
-    is_payer: user.is_payer ?? false,
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +51,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         return;
       }
 
-      console.log('Fetched roles:', data);
       setRoles(data || []);
     };
 
@@ -70,8 +66,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       const submitData = {
         ...formData,
         role_id: formData.role_id === "no_role" ? "" : formData.role_id,
-        is_purchase_creator: formData.is_purchase_creator,
-        is_payer: formData.is_payer,
       };
       
       const result = await onSave(user.id, submitData);
@@ -191,6 +185,9 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              Functions are inherited from the assigned role. Edit the role to manage functions.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -205,46 +202,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
                 <SelectItem value="SUSPENDED">Suspended</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Purchase Functions Section */}
-          <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
-            <Label className="text-sm font-medium">Purchase Functions</Label>
-            <p className="text-xs text-muted-foreground">
-              Enable specific functions for this user in the Purchase terminal. If both are enabled, full workflow applies.
-            </p>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="is_purchase_creator"
-                  checked={formData.is_purchase_creator}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_purchase_creator: checked === true })}
-                />
-                <div className="grid gap-1 leading-none">
-                  <Label htmlFor="is_purchase_creator" className="text-sm font-medium cursor-pointer">
-                    Purchase Creator
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Creates orders, collects TDS/payment details. Cannot add to bank.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="is_payer"
-                  checked={formData.is_payer}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_payer: checked === true })}
-                />
-                <div className="grid gap-1 leading-none">
-                  <Label htmlFor="is_payer" className="text-sm font-medium cursor-pointer">
-                    Payer
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Handles bank additions and payments. Cannot collect details.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

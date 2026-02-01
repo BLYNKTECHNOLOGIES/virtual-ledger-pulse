@@ -278,7 +278,9 @@ export function useOrderAlerts() {
   }, [alertStates]);
 
   // Trigger alert for an order
-  const triggerAlert = useCallback((orderId: string, type: AlertType, currentDataHash: string) => {
+  // Note: For payment_timer at 5 min, we want single beep - not continuous
+  // Continuous only starts at 2 min mark
+  const triggerAlert = useCallback((orderId: string, type: AlertType, currentDataHash: string, isUrgent: boolean = false) => {
     setAlertStates(prev => {
       const newStates = new Map(prev);
       newStates.set(orderId, {
@@ -292,7 +294,8 @@ export function useOrderAlerts() {
     
     playAlertSound(type);
     
-    if (type === 'payment_timer' || type === 'order_timer') {
+    // Only start continuous alarm for URGENT (2 min) timer alerts, not 5 min
+    if ((type === 'payment_timer' || type === 'order_timer') && isUrgent) {
       if (!activeTimerAlarmsRef.current.has(orderId)) {
         activeTimerAlarmsRef.current.add(orderId);
         startContinuousAlarm(orderId, type);
@@ -301,7 +304,8 @@ export function useOrderAlerts() {
   }, []);
 
   // Trigger timer alert - but NOT for terminal/expired orders or already-attended orders
-  const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer', order?: any) => {
+  // isUrgent: true = 2 min mark (continuous), false = 5 min mark (single beep only)
+  const triggerTimerAlert = useCallback((orderId: string, type: 'payment_timer' | 'order_timer', order?: any, isUrgent: boolean = false) => {
     // If order is provided, check if it's in a terminal state
     if (order) {
       const orderStatus = order.order_status;
@@ -345,7 +349,11 @@ export function useOrderAlerts() {
       return newStates;
     });
     
-    if (!activeTimerAlarmsRef.current.has(orderId)) {
+    // Play single beep for 5 min mark
+    playAlertSound(type);
+    
+    // Only start continuous alarm for URGENT (2 min) timer alerts
+    if (isUrgent && !activeTimerAlarmsRef.current.has(orderId)) {
       activeTimerAlarmsRef.current.add(orderId);
       startContinuousAlarm(orderId, type);
     }

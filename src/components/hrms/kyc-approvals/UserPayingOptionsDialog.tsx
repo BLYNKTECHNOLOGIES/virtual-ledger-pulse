@@ -23,13 +23,18 @@ export function UserPayingOptionsDialog({
   const { toast } = useToast();
 
   const handleCancelled = () => {
+    // Call onStatusChange first - it uses the order data before dialog closes
     onStatusChange("ORDER_CANCELLED");
-    onOpenChange(false);
     
     toast({
       title: "Order Cancelled",
       description: "Order has been cancelled and moved to leads.",
     });
+    
+    // Close dialog AFTER the status change is triggered
+    setTimeout(() => {
+      onOpenChange(false);
+    }, 100);
   };
 
   const handlePaymentDone = () => {

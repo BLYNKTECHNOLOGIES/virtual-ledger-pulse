@@ -256,10 +256,10 @@ export function usePurchaseFunctions() {
   }, [state.isCombined, state.isPurchaseCreator]);
 
   const canCollectBanking = useMemo(() => {
-    // Only combined mode can collect banking
-    // Purchase Creator and Payer cannot collect banking individually
-    return state.isCombined;
-  }, [state.isCombined]);
+    // Purchase Creator and combined mode can collect banking
+    // Payer-only cannot collect banking
+    return state.isCombined || state.isPurchaseCreator;
+  }, [state.isCombined, state.isPurchaseCreator]);
 
   const canCollectPan = useMemo(() => {
     // Only Purchase Creator and combined mode can collect PAN

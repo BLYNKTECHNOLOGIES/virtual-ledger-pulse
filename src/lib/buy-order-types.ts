@@ -51,11 +51,12 @@ export interface BuyOrder {
   purchase_payment_method?: any;
   purchase_order_items?: any[];
   created_by_user?: any;
+  purchase_order_payments?: OrderPayment[];
 }
 
 export interface OrderPayment {
   id: string;
-  order_id: string;
+  order_id?: string;
   amount_paid: number;
   screenshot_url: string | null;
   notes: string | null;

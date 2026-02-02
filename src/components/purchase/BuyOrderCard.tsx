@@ -22,7 +22,8 @@ import {
   MapPin,
   MessageSquare,
   AlertCircle,
-  FileText
+  FileText,
+  Receipt
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -65,6 +66,7 @@ interface BuyOrderCardProps {
   onSetTimer: (targetStatus: BuyOrderStatus, showPayNow?: boolean) => void;
   onViewDetails: () => void;
   onRecordPayment: () => void;
+  onViewReceipts?: () => void;
   alertState?: { needsAttention: boolean; alertType: AlertType | null } | null;
   onMarkAttended?: () => void;
   onTriggerTimerAlert?: (type: 'payment_timer' | 'order_timer', isUrgent: boolean, buzzerConfig?: BuzzerIntensity) => void;
@@ -79,6 +81,7 @@ export function BuyOrderCard({
   onSetTimer, 
   onViewDetails, 
   onRecordPayment,
+  onViewReceipts,
   alertState,
   onMarkAttended,
   onTriggerTimerAlert,
@@ -604,6 +607,22 @@ export function BuyOrderCard({
               >
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">Attended</span>
+              </Button>
+            )}
+
+            {/* Payment Receipts Button - visible to Purchase Creator if any receipts exist */}
+            {order.purchase_order_payments && order.purchase_order_payments.length > 0 && onViewReceipts && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onViewReceipts}
+                className="gap-1"
+              >
+                <Receipt className="h-4 w-4 text-emerald-500" />
+                <span className="hidden sm:inline">Receipts</span>
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {order.purchase_order_payments.filter(p => p.screenshot_url).length}
+                </Badge>
               </Button>
             )}
 

@@ -156,17 +156,38 @@ export function BuyOrderCard({
       }
     }
 
-    // From 'new' status: skip banking_collected if banking already provided
-    if (currentStatus === 'new' && bankingCollected) {
-      // If TDS is also already selected, skip to added_to_bank
-      if (tdsSelected) {
-        // Check if payer can add to bank
+    // From 'new' status: check what's collected and determine next step
+    if (currentStatus === 'new') {
+      if (bankingCollected && tdsSelected) {
+        // Both collected - skip to added_to_bank
         if (!pf.canAddToBank) return null;
         return 'added_to_bank';
       }
-      // Payer cannot collect PAN
-      if (!pf.canCollectPan) return null;
-      return 'pan_collected';
+      if (bankingCollected && !tdsSelected) {
+        // Banking done, need PAN
+        if (!pf.canCollectPan) return null;
+        return 'pan_collected';
+      }
+      if (!bankingCollected && tdsSelected) {
+        // TDS done first, still need banking - allow banking collection
+        if (!pf.canCollectBanking) return null;
+        return 'banking_collected';
+      }
+      // Neither collected - follow normal flow (banking first)
+      if (!pf.canCollectBanking) return null;
+      return 'banking_collected';
+    }
+
+    // From 'pan_collected' status: need banking if not collected, otherwise add to bank
+    if (currentStatus === 'pan_collected') {
+      if (!bankingCollected) {
+        // Banking not yet collected - allow banking collection
+        if (!pf.canCollectBanking) return null;
+        return 'banking_collected';
+      }
+      // Banking already collected - proceed to add to bank
+      if (!pf.canAddToBank) return null;
+      return 'added_to_bank';
     }
 
     // From 'banking_collected' status: skip pan_collected if TDS already selected

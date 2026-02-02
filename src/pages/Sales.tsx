@@ -689,12 +689,21 @@ export default function Sales() {
               setSelectedOrderForCompletion(orderToUpdate);
             } else {
               // Handle other status changes (ORDER_CANCELLED)
-              if (orderToUpdate) {
-                updateOrderStatusMutation.mutate({
-                  orderId: orderToUpdate.id,
-                  status: status
-                });
+              if (!orderToUpdate) return;
+
+              if (status === "ORDER_CANCELLED") {
+                // IMPORTANT: Some legacy DB triggers currently break UPDATE on sales_orders
+                // with error: record "new" has no field "order_type".
+                // To keep business logic intact (reversal + cleanup), cancel this pending order
+                // using the existing reversal RPC (same behavior as normal deletion).
+                deleteSalesOrderMutation.mutate(orderToUpdate.id);
+                return;
               }
+
+              updateOrderStatusMutation.mutate({
+                orderId: orderToUpdate.id,
+                status: status
+              });
             }
           }}
           onAlternativeMethod={() => {

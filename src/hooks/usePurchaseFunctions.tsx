@@ -140,13 +140,16 @@ export function usePurchaseFunctions() {
     }
 
     // Purchase Creator relevance
-    // Creator should NOT receive: new_order, banking_collected, payment_timer (Add to Bank timer), payment_done
+    // Creator should receive: order_timer, review_message, payment_done (subtle notification)
+    // Creator should NOT receive: new_order, banking_collected, payment_timer (Add to Bank timer)
     if (isPurchaseCreator && !isPayer) {
       switch (alertType) {
         case 'order_timer':
           return true; // Order expiry timer (5 min single, 2 min continuous)
         case 'review_message':
           return true; // When payer sends a review
+        case 'payment_done':
+          return true; // Subtle notification when payer records payment
         // Creator must NOT receive these:
         case 'new_order':
         case 'info_update':
@@ -154,8 +157,6 @@ export function usePurchaseFunctions() {
         case 'payment_timer': // Add to Bank timer - Payer only
         case 'order_expired':
         case 'order_cancelled':
-          return false;
-        case 'payment_done':
           return false;
         default:
           return false;
@@ -213,7 +214,7 @@ export function usePurchaseFunctions() {
       return { type: 'single' };
     }
 
-    // Purchase Creator - only receives order_timer, payment_done, review_message
+    // Purchase Creator - receives order_timer, payment_done (subtle), review_message
     // Does NOT receive payment_timer (Add to Bank timer)
     if (isPurchaseCreator && !isPayer) {
       switch (alertType) {
@@ -222,6 +223,9 @@ export function usePurchaseFunctions() {
           return isUrgent ? { type: 'continuous', repeatIntervalMs: 10000 } : { type: 'single' };
         case 'review_message':
           return { type: 'single' };
+        case 'payment_done':
+          // Subtle notification sound for payment recorded by payer
+          return { type: 'single_subtle' };
         default:
           return { type: 'none' };
       }

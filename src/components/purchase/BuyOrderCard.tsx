@@ -574,8 +574,10 @@ export function BuyOrderCard({
               IMPORTANT: PAN/TDS collection must remain actionable for Purchase Creator,
               even if the Payer has already moved the order to "Added to Bank".
               This is independent from status progression.
+              HIDE this button when the primary nextStatus button already targets pan_collected
+              to avoid duplicate buttons.
             */}
-            {pf.canCollectPan && !tdsSelected && !['completed', 'cancelled'].includes(currentStatus) && (
+            {pf.canCollectPan && !tdsSelected && !['completed', 'cancelled'].includes(currentStatus) && nextStatus !== 'pan_collected' && (
               <Button
                 variant="outline"
                 size="sm"

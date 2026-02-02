@@ -202,7 +202,9 @@ export function BuyOrderAlertWatcher() {
           alertType = 'payment_done';
         }
         // Banking collected - check if banking details were just added
-        else if (orderStatus === 'new' || orderStatus === 'banking_collected') {
+        // This can happen at ANY status before completion/cancellation
+        // Must check regardless of current status (not just 'new' or 'banking_collected')
+        else {
           const prevHadBank = Boolean(prev?.bank_account_name || prev?.bank_account_number || prev?.ifsc_code || prev?.upi_id);
           const nowHasBank = Boolean(newRecord.bank_account_name || newRecord.bank_account_number || newRecord.ifsc_code || newRecord.upi_id);
           if (!prevHadBank && nowHasBank) {

@@ -269,8 +269,8 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0 pb-4 border-b">
+      <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle className="text-xl font-bold text-foreground">
             Add Dashboard Widget
           </DialogTitle>
@@ -279,9 +279,9 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           </p>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto py-4 space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {/* Category Filter */}
-          <div className="flex gap-2 flex-wrap px-1">
+          <div className="flex gap-2 flex-wrap mb-6">
             {categories.map((category) => (
               <Button
                 key={category}
@@ -298,48 +298,48 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
             ))}
           </div>
 
-          {/* Widget Grid - 3 columns max for better readability */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-1">
+          {/* Widget Grid - Fixed 3 columns for desktop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredWidgets.map((widget) => {
               const IconComponent = widget.icon;
               return (
                 <Card 
                   key={widget.id} 
-                  className="group border border-border bg-card hover:shadow-md transition-all duration-200 hover:border-primary/30"
+                  className="flex flex-col border border-border bg-card hover:shadow-md transition-all duration-200 hover:border-primary/30"
                 >
-                  <CardHeader className="pb-2 pt-4 px-4">
+                  <CardHeader className="pb-3 pt-4 px-4">
                     <div className="flex items-start gap-3">
                       <div className="p-2.5 bg-primary/10 rounded-lg flex-shrink-0">
                         <IconComponent className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base font-semibold text-card-foreground leading-tight">
+                        <CardTitle className="text-sm font-semibold text-card-foreground leading-tight mb-2">
                           {widget.name}
                         </CardTitle>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <Badge 
                             variant="outline" 
-                            className={`text-xs px-2 py-0.5 ${getCategoryColor(widget.category)}`}
+                            className={`text-[10px] px-1.5 py-0 h-5 ${getCategoryColor(widget.category)}`}
                           >
                             {widget.category}
                           </Badge>
-                          <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-muted text-muted-foreground">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-muted text-muted-foreground">
                             {widget.size}
                           </Badge>
                         </div>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-2 pb-4 px-4">
-                    <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                  <CardContent className="flex-1 flex flex-col pt-0 pb-4 px-4">
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed flex-1">
                       {widget.description}
                     </p>
                     <Button
                       size="sm"
-                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs"
                       onClick={() => handleAddWidget(widget)}
                     >
-                      <Plus className="h-4 w-4 mr-1.5" />
+                      <Plus className="h-3.5 w-3.5 mr-1" />
                       Add Widget
                     </Button>
                   </CardContent>

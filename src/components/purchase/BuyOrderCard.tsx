@@ -546,8 +546,10 @@ export function BuyOrderCard({
               IMPORTANT: Banking details collection must remain actionable independently.
               If PAN/TDS is collected first (or status is pan_collected) we must still allow
               collecting banking details (for Purchase Creator / Combined).
+              HIDE this button when the primary nextStatus button already targets banking_collected
+              to avoid duplicate buttons.
             */}
-            {pf.canCollectBanking && !bankingCollected && !['completed', 'cancelled'].includes(currentStatus) && (
+            {pf.canCollectBanking && !bankingCollected && !['completed', 'cancelled'].includes(currentStatus) && nextStatus !== 'banking_collected' && (
               <Button
                 variant="outline"
                 size="sm"

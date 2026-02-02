@@ -276,7 +276,8 @@ export function BuyOrderAlertWatcher() {
       }
     };
     
-    const channel = supabase
+    // Subscribe to purchase_orders changes
+    const ordersChannel = supabase
       .channel('purchase_orders_realtime_alerts')
       .on(
         'postgres_changes',
@@ -289,8 +290,88 @@ export function BuyOrderAlertWatcher() {
       )
       .subscribe();
 
+    // Subscribe to purchase_order_payments for payment_done alerts to Creator
+    const handlePaymentInsert = async (payload: any) => {
+      const { eventType, new: newRecord } = payload;
+      
+      // Only handle INSERT events for payments
+      if (eventType !== 'INSERT' || !newRecord) return;
+      
+      const orderId = newRecord.purchase_order_id;
+      if (!orderId) return;
+      
+      // Fetch the order to get details for notification
+      const { data: orderData } = await supabase
+        .from('purchase_orders')
+        .select('id, order_number, supplier_name, order_status')
+        .eq('id', orderId)
+        .single();
+      
+      if (!orderData || orderData.order_status === 'completed' || orderData.order_status === 'cancelled') {
+        return;
+      }
+      
+      const pf = purchaseFunctionsRef.current;
+      
+      // Only trigger for Purchase Creator role (not Payer who made the payment)
+      if (!pf.isAlertRelevant('payment_done', orderData.order_status)) {
+        return;
+      }
+      
+      // Generate unique notification key to prevent duplicates
+      const paymentId = newRecord.id;
+      const notificationKey = `payment-${paymentId}`;
+      if (notifiedRef.current.has(notificationKey)) return;
+      notifiedRef.current.add(notificationKey);
+      
+      // Invalidate queries so UI updates
+      queryClient.invalidateQueries({ queryKey: ['buy_orders_alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
+      
+      const orderInfo = {
+        orderId: orderId,
+        orderNumber: orderData.order_number,
+        supplierName: orderData.supplier_name,
+        amount: newRecord.amount_paid,
+        alertType: 'payment_done' as any,
+      };
+      
+      // Get buzzer intensity - should be single_subtle for Creator
+      const buzzerIntensity = pf.getBuzzerIntensity('payment_done', false);
+      
+      // Play subtle sound
+      if (buzzerIntensity.type === 'single') {
+        playAlertSound('payment_done');
+      } else if (buzzerIntensity.type === 'single_subtle') {
+        playAlertSound('payment_done', true);
+      }
+      
+      // Add notification to bell and show toast
+      if (buzzerIntensity.type !== 'none') {
+        const handleNavigate = (navOrderId: string) => {
+          focusOrderRef.current(navOrderId);
+        };
+        showOrderAlertNotification(orderInfo, handleNavigate);
+        addNotificationRef.current(createGlobalNotification(orderInfo));
+      }
+    };
+    
+    const paymentsChannel = supabase
+      .channel('purchase_payments_realtime_alerts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'purchase_order_payments',
+        },
+        handlePaymentInsert
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(paymentsChannel);
     };
   }, [queryClient]);
 

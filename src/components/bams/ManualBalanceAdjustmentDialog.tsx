@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 
 interface ManualBalanceAdjustmentDialogProps {
   open: boolean;
@@ -92,6 +92,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
       const refNumber = `ADJ-${Date.now()}`;
 
       // Create transaction entries for both accounts (contra entry)
+      const currentUserId = getCurrentUserId();
       const transactions = [
         {
           bank_account_id: formData.bank_account_id,
@@ -101,7 +102,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           description: `Manual Balance Adjustment: ${formData.reason}`,
           reference_number: refNumber,
           category: "ADJUSTMENT",
-          related_account_name: ADJUSTMENT_ACCOUNT_NAME
+          related_account_name: ADJUSTMENT_ACCOUNT_NAME,
+          created_by: currentUserId || null, // Persist user ID for audit trail
         },
         {
           bank_account_id: adjustmentAccountId,
@@ -111,7 +113,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           description: `Contra Entry - Adjustment for ${selectedAccount.account_name}: ${formData.reason}`,
           reference_number: refNumber,
           category: "ADJUSTMENT",
-          related_account_name: selectedAccount.account_name
+          related_account_name: selectedAccount.account_name,
+          created_by: currentUserId || null, // Persist user ID for audit trail
         }
       ];
 

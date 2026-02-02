@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PurchaseOrderDialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ interface PurchaseItem {
 
 export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   
   const [formData, setFormData] = useState({
@@ -193,6 +195,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
               description: `Stock Purchase - ${purchaseData.supplier_name} - Order #${purchaseData.order_number}`,
               reference_number: purchaseData.order_number,
               related_account_name: purchaseData.supplier_name,
+              created_by: user?.id || null, // Persist user ID for audit trail
             });
         }
       }

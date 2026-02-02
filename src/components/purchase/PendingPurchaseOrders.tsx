@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/sales/FileUpload";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
+import { getCurrentUserId } from "@/lib/system-action-logger";
 
 interface PaymentMethodOption {
   id: string;
@@ -231,6 +232,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
               description: `Stock Purchase - ${order.supplier_name} - Order #${order.order_number}`,
               reference_number: order.order_number,
               related_account_name: order.supplier_name,
+              created_by: getCurrentUserId() || null, // Persist user ID for audit trail
             });
           if (txError) {
             console.error('Failed to create bank transaction for purchase order', txError);

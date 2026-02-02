@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,10 +15,12 @@ import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
 import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Loader2 } from "lucide-react";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { useAuth } from "@/hooks/useAuth";
+import { BuyOrderStatus, PanType } from "@/lib/buy-order-types";
+import { setPanTypeInNotes } from "@/lib/pan-notes";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -210,7 +212,45 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       const orderExpiryMinutes = orderData.order_expiry_minutes || 55;
       const orderExpiresAt = new Date(Date.now() + orderExpiryMinutes * 60 * 1000).toISOString();
       
-      // Create purchase order
+      // Determine initial order_status based on data provided at creation
+      // This prevents prompting for PAN/Banking again if already provided
+      const hasBankingDetails = orderData.payment_method_type === 'UPI' 
+        ? !!orderData.upi_id 
+        : !!(orderData.bank_account_name && orderData.bank_account_number && orderData.ifsc_code);
+      
+      // Determine if TDS/PAN type is selected
+      const hasTdsSelected = orderData.tds_option !== '' && orderData.tds_option !== undefined;
+      
+      // Map TDS option to PanType for notes field
+      let panTypeMarker: PanType | null = null;
+      if (orderData.tds_option === 'TDS_1_PERCENT') {
+        panTypeMarker = 'pan_provided';
+      } else if (orderData.tds_option === 'TDS_20_PERCENT') {
+        panTypeMarker = 'pan_not_provided';
+      } else if (orderData.tds_option === 'NO_TDS') {
+        panTypeMarker = 'non_tds';
+      }
+      
+      // Build notes field with pan_type marker
+      let notesWithPanType = orderData.description || null;
+      if (panTypeMarker) {
+        notesWithPanType = setPanTypeInNotes(notesWithPanType, panTypeMarker);
+      }
+      
+      // Calculate initial order_status based on what's already provided
+      let initialOrderStatus: BuyOrderStatus = 'new';
+      if (hasBankingDetails && hasTdsSelected) {
+        // Both banking and TDS/PAN provided - ready for Add to Bank
+        initialOrderStatus = 'pan_collected';
+      } else if (hasBankingDetails) {
+        // Only banking provided
+        initialOrderStatus = 'banking_collected';
+      } else if (hasTdsSelected) {
+        // Only TDS selected (unusual but supported) - still need banking
+        initialOrderStatus = 'new';
+      }
+      
+      // Create purchase order with correct initial state
       const { data: purchaseOrder, error: orderError } = await supabase
         .from('purchase_orders')
         .insert({
@@ -218,6 +258,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           supplier_name: orderData.supplier_name,
           contact_number: orderData.contact_number,
           description: orderData.description,
+          notes: notesWithPanType, // Store TDS type marker in notes
           payment_method_type: orderData.payment_method_type,
           upi_id: orderData.upi_id,
           bank_account_number: orderData.bank_account_number,
@@ -235,6 +276,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           tax_amount: tdsAmount,
           order_date: orderData.order_date,
           order_expires_at: orderExpiresAt,
+          order_status: initialOrderStatus, // Set correct initial status!
           created_by: user?.id,
           status: 'PENDING'
         })
@@ -824,11 +866,27 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={createPurchaseOrderMutation.isPending}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={createPurchaseOrderMutation.isPending}>
-              {createPurchaseOrderMutation.isPending ? "Creating..." : "Create Purchase Order"}
+            <Button 
+              type="submit" 
+              disabled={createPurchaseOrderMutation.isPending}
+              className="min-w-[180px]"
+            >
+              {createPurchaseOrderMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Purchase Order"
+              )}
             </Button>
           </div>
         </form>

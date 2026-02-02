@@ -47,12 +47,14 @@ function ActorRow({ actor }: { actor: OrderActor }) {
           <span className="text-sm font-medium">{actor.actionLabel}</span>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-sm text-foreground font-mono">
+          {/* Username derived from User ID - primary display */}
+          <span className="text-sm text-foreground font-medium">
             {actor.actorName}
           </span>
+          {/* User ID shown as subtle secondary info for audit/traceability */}
           {actor.actorUserId && (
-            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
-              {actor.actorUserId.slice(0, 8)}...
+            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded" title={actor.actorUserId}>
+              ID: {actor.actorUserId.slice(0, 8)}
             </span>
           )}
         </div>

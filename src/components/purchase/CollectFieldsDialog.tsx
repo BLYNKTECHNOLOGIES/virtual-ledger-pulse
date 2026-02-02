@@ -150,13 +150,17 @@ export function CollectFieldsDialog({
       if (collectType === 'pan') {
         const payout = calculatePayout(orderAmount, panType);
         toast({
-          title: 'Details Collected',
-          description: `Payout: ₹${payout.payout.toLocaleString('en-IN')} (${payout.deductionPercent}% TDS deducted)`,
+          title: 'TDS/PAN Details Collected',
+          description: shouldUpdateStatus 
+            ? `Payout: ₹${payout.payout.toLocaleString('en-IN')} (${payout.deductionPercent}% TDS deducted)`
+            : `TDS details updated. Payout: ₹${payout.payout.toLocaleString('en-IN')} (${payout.deductionPercent}% TDS). Order ready for payment.`,
         });
       } else {
         toast({
-          title: 'Details Collected',
-          description: `Order updated and moved to ${targetStatus.replace('_', ' ')}`,
+          title: 'Banking Details Collected',
+          description: shouldUpdateStatus 
+            ? `Order updated and moved to ${targetStatus.replace('_', ' ')}`
+            : `Banking details updated successfully.`,
         });
       }
 

@@ -543,6 +543,27 @@ export function BuyOrderCard({
             )}
 
             {/*
+              IMPORTANT: Banking details collection must remain actionable independently.
+              If PAN/TDS is collected first (or status is pan_collected) we must still allow
+              collecting banking details (for Purchase Creator / Combined).
+            */}
+            {pf.canCollectBanking && !bankingCollected && !['completed', 'cancelled'].includes(currentStatus) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusChange('banking_collected')}
+                className="gap-1"
+              >
+                {order.payment_method_type === 'UPI' ? (
+                  <CreditCard className="h-4 w-4" />
+                ) : (
+                  <Banknote className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Provide Bank Details</span>
+              </Button>
+            )}
+
+            {/*
               IMPORTANT: PAN/TDS collection must remain actionable for Purchase Creator,
               even if the Payer has already moved the order to "Added to Bank".
               This is independent from status progression.

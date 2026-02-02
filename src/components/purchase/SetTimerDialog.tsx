@@ -292,12 +292,6 @@ export function SetTimerDialog({
             />
           </div>
 
-          <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span>🔔</span>
-              <span>Alerts will trigger at 5 min and 1 min before timer ends</span>
-            </div>
-          </div>
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button

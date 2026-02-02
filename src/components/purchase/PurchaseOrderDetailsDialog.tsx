@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
 import { Download, Printer, Receipt, ExternalLink, ImageIcon } from "lucide-react";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
+import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCard";
 import { cn } from "@/lib/utils";
 
 interface PurchaseOrderDetailsDialogProps {
@@ -226,12 +227,21 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             </div>
           )}
 
-          {/* Activity Timeline for closed orders */}
-          {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED') && (
-            <ActivityTimeline 
-              entityId={order.id} 
-              entityType="purchase_order"
-            />
+          {/* Transaction Actors - Shown prominently for closed orders */}
+          {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED' ||
+            order.order_status === 'completed' || order.order_status === 'cancelled') && (
+            <>
+              <TransactionActorsCard 
+                orderId={order.id} 
+                orderStatus={order.status || order.order_status}
+              />
+              
+              <ActivityTimeline 
+                entityId={order.id} 
+                entityType="purchase_order"
+                title="Full Activity Log"
+              />
+            </>
           )}
 
           <div className="flex gap-3 pt-4 border-t">

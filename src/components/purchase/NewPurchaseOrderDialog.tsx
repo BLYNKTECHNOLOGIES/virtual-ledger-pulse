@@ -17,7 +17,8 @@ import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
 import { TrendingUp } from "lucide-react";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { useAuth } from "@/hooks/useAuth";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ interface ProductItem {
 
 export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
@@ -330,6 +332,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
               description: `Stock Purchase - ${orderData.supplier_name} - Order #${orderData.order_number}`,
               reference_number: orderData.order_number,
               related_account_name: orderData.supplier_name,
+              created_by: user?.id || getCurrentUserId() || null, // Persist user ID for audit trail
             });
         }
       } catch (txErr) {

@@ -18,7 +18,7 @@ import { useNotifications } from "@/contexts/NotificationContext";
 import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -324,6 +324,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
                   description: `Buy Order - ${order.supplier_name} - Order #${order.order_number}`,
                   reference_number: order.order_number,
                   related_account_name: order.supplier_name,
+                  created_by: getCurrentUserId() || null, // Persist user ID for audit trail
                 });
             }
           }

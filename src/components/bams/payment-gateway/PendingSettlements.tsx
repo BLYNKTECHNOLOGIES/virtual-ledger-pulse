@@ -13,6 +13,7 @@ import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckC
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PendingSale {
   id: string;
@@ -83,6 +84,7 @@ export function PendingSettlements() {
   const [settlingIndividualId, setSettlingIndividualId] = useState<string | null>(null);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchPendingSettlements();
@@ -310,7 +312,8 @@ export function PendingSettlements() {
         description: `Payment Gateway Settlement - ${saleIds.length} sale(s)${mdrDeduction > 0 ? ` (MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
         transaction_date: new Date().toISOString().split('T')[0],
         category: 'Payment Gateway Settlement',
-        reference_number: settlementBatchId
+        reference_number: settlementBatchId,
+        created_by: user?.id || null, // Persist user ID for audit trail
       });
 
     if (transactionError) throw transactionError;

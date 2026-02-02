@@ -26,7 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, CreditCard, Upload, Receipt, X, Image, Building2 } from 'lucide-react';
 import { recordActionTiming } from '@/lib/purchase-action-timing';
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from '@/lib/system-action-logger';
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from '@/lib/system-action-logger';
+import { useAuth } from '@/hooks/useAuth';
 
 interface RecordPaymentDialogProps {
   open: boolean;
@@ -50,6 +51,7 @@ export function RecordPaymentDialog({
   const [notes, setNotes] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Fetch active bank accounts
   const { data: bankAccounts } = useQuery({
@@ -203,6 +205,7 @@ export function RecordPaymentDialog({
       if (paymentError) throw paymentError;
 
       // Create bank EXPENSE transaction to deduct from bank balance
+      // Include created_by (user ID) for audit trail
       const { error: bankTxError } = await supabase
         .from('bank_transactions')
         .insert({
@@ -214,6 +217,7 @@ export function RecordPaymentDialog({
           description: `Buy Order Payment - ${order.supplier_name || 'Unknown'} - Order #${order.order_number}`,
           reference_number: order.order_number,
           related_account_name: order.supplier_name || null,
+          created_by: user?.id || getCurrentUserId() || null, // Persist user ID for audit
         });
 
       if (bankTxError) throw bankTxError;

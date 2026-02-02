@@ -160,14 +160,28 @@ export async function logAction(params: LogActionParams): Promise<void> {
 }
 
 /**
- * Helper to get current user ID from localStorage session
+ * Helper to get current user ID from localStorage session.
+ * The session structure is: { user: { id, username, ... }, timestamp, expiresIn }
+ * This function extracts user.id as the source of truth for action attribution.
  */
 export function getCurrentUserId(): string | null {
   try {
     const sessionStr = localStorage.getItem('userSession');
     if (sessionStr) {
       const session = JSON.parse(sessionStr);
-      return session?.id || null;
+      // Session structure: { user: { id, username, ... }, timestamp, expiresIn }
+      const userId = session?.user?.id || session?.id || null;
+      
+      // Validate it's a proper UUID (not demo-admin-id or similar non-UUID values)
+      if (userId && userId !== 'demo-admin-id' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+        return userId;
+      }
+      
+      // For demo admin, try to resolve from users table by email
+      if (userId === 'demo-admin-id') {
+        console.warn('[SystemActionLogger] Demo admin detected - user ID not valid for production tracking');
+        return null;
+      }
     }
   } catch (err) {
     console.error('[SystemActionLogger] Failed to get current user ID:', err);

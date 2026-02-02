@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TransferFormProps {
   bankAccounts: any[];
@@ -21,6 +22,7 @@ interface TransferFormProps {
 
 export function TransferForm({ bankAccounts }: TransferFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     fromAccountId: "",
@@ -61,7 +63,8 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
           description: transferData.description || `Transfer to ${toAccount.account_name}`,
           transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
           reference_number: `TRF-OUT-${Date.now()}`,
-          related_account_name: toAccount.account_name
+          related_account_name: toAccount.account_name,
+          created_by: user?.id || null, // Persist user ID for audit trail
         })
         .select()
         .single();
@@ -79,7 +82,8 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
           transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
           reference_number: `TRF-IN-${Date.now()}`,
           related_account_name: fromAccount.account_name,
-          related_transaction_id: transferOutData.id
+          related_transaction_id: transferOutData.id,
+          created_by: user?.id || null, // Persist user ID for audit trail
         })
         .select()
         .single();

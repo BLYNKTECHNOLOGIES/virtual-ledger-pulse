@@ -1,4 +1,4 @@
-import { BuyOrder, PanType } from './buy-order-types';
+import { BuyOrder, BuyOrderStatus, PanType, STATUS_ORDER } from './buy-order-types';
 import { parsePanTypeFromNotes } from './pan-notes';
 
 // Check if banking details are collected
@@ -48,10 +48,21 @@ export function getEffectiveCompletedSteps(order: BuyOrder): {
 }
 
 // Check what fields are missing for a status transition
+// IMPORTANT: This function respects the state progression guard.
+// Once an order is in 'added_to_bank' or later, PAN collection should NOT
+// return a 'timer' type which would re-trigger the Add to Bank flow.
 export function getMissingFieldsForStatus(
   order: BuyOrder,
   targetStatus: string
 ): { type: 'banking' | 'pan' | 'timer' | null; fields: string[] } {
+  const currentStatusIndex = STATUS_ORDER.indexOf(order.order_status as BuyOrderStatus);
+  const addedToBankIndex = STATUS_ORDER.indexOf('added_to_bank');
+  
+  // STATE GUARD: If order is already at 'added_to_bank' or beyond,
+  // do NOT return timer type for any subsequent data collection.
+  // This prevents workflow regression.
+  const isAtOrPastAddedToBank = currentStatusIndex >= addedToBankIndex;
+
   if (targetStatus === 'banking_collected') {
     // If banking details already provided, skip this step entirely
     if (hasBankingDetails(order)) {
@@ -82,7 +93,12 @@ export function getMissingFieldsForStatus(
   }
 
   // For added_to_bank, we need to set a timer
+  // BUT: Only if we're not already at or past 'added_to_bank'
   if (targetStatus === 'added_to_bank') {
+    // If already at or past added_to_bank, don't show timer dialog again
+    if (isAtOrPastAddedToBank) {
+      return { type: null, fields: [] };
+    }
     return { type: 'timer', fields: [] };
   }
 

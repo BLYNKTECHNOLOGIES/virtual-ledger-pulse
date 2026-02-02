@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUserId } from '@/lib/system-action-logger';
 
 /**
  * Action types for purchase workflow timing capture
@@ -28,11 +29,12 @@ export type ActorRole = 'purchase_creator' | 'payer' | 'system';
  * - Immutable: Uses INSERT with ON CONFLICT DO NOTHING to prevent overwrites
  * - Idempotent: Safe to call multiple times; only first call records the timestamp
  * - Non-blocking: Errors are logged but don't throw to avoid disrupting workflows
+ * - Auto-resolves user ID: If actorUserId is not provided, attempts to get current user from session
  * 
  * @param orderId - The purchase order UUID
  * @param actionType - The type of action being recorded
  * @param actorRole - The role performing the action
- * @param actorUserId - Optional user ID of the actor
+ * @param actorUserId - Optional user ID of the actor (auto-resolved if not provided)
  */
 export async function recordActionTiming(
   orderId: string,
@@ -47,6 +49,12 @@ export async function recordActionTiming(
       return;
     }
 
+    // Auto-resolve user ID if not provided (except for system actions)
+    let resolvedUserId = actorUserId;
+    if (!resolvedUserId && actorRole !== 'system') {
+      resolvedUserId = getCurrentUserId() || undefined;
+    }
+
     // Use upsert with ignoreDuplicates to ensure immutability
     // The unique constraint on (order_id, action_type) prevents duplicates
     const { error } = await supabase
@@ -56,7 +64,7 @@ export async function recordActionTiming(
           order_id: orderId,
           action_type: actionType,
           actor_role: actorRole,
-          actor_user_id: actorUserId || null,
+          actor_user_id: resolvedUserId || null,
           recorded_at: new Date().toISOString(),
         },
         {
@@ -92,12 +100,15 @@ export async function recordMultipleTimings(
 ): Promise<void> {
   if (!orderId || !actions.length) return;
 
+  // Auto-resolve user ID for all non-system actions that don't have one
+  const currentUserId = getCurrentUserId();
+
   try {
     const records = actions.map(({ actionType, actorRole, actorUserId }) => ({
       order_id: orderId,
       action_type: actionType,
       actor_role: actorRole,
-      actor_user_id: actorUserId || null,
+      actor_user_id: actorUserId || (actorRole !== 'system' ? currentUserId : null) || null,
       recorded_at: new Date().toISOString(),
     }));
 

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, Globe, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Building, UserCheck, Clock } from "lucide-react";
+import { Plus, BarChart3, Users, Package, DollarSign, TrendingUp, Calendar, FileText, Activity, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, Globe, TrendingDown, ArrowUpRight, Wallet, Building, UserCheck, Clock } from "lucide-react";
 
 interface WidgetType {
   id: string;
@@ -223,6 +223,14 @@ const availableWidgets: WidgetType[] = [
     name: 'Expense Trends',
     description: 'Expense patterns',
     icon: TrendingDown,
+    category: 'Financial',
+    size: 'medium'
+  },
+  {
+    id: 'bank-balance-filter',
+    name: 'Bank Balance Filter',
+    description: 'View combined balance of selected active bank accounts',
+    icon: Building,
     category: 'Financial',
     size: 'medium'
   }

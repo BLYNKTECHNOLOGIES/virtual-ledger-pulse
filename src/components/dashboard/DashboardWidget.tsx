@@ -24,7 +24,6 @@ import {
   Globe,
   TrendingDown,
   ArrowUpRight,
-  ArrowDownRight,
   Wallet,
   Building,
   UserCheck,
@@ -38,6 +37,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { ExchangeChart } from "./ExchangeChart";
+import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
 
 interface Widget {
   id: string;
@@ -80,7 +80,8 @@ const iconMap = {
   'wallet-balance': Wallet,
   'payment-methods': CreditCard,
   'cash-flow': ArrowUpRight,
-  'expense-trends': TrendingDown
+  'expense-trends': TrendingDown,
+  'bank-balance-filter': Building
 };
 
 function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetProps) {
@@ -360,6 +361,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
             <Badge className="bg-green-100 text-green-800 mt-2">+2.1% vs last month</Badge>
           </div>
         );
+      
+      case 'bank-balance-filter':
+        return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;
       
       default:
         return (

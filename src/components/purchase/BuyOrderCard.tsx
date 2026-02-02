@@ -212,6 +212,11 @@ export function BuyOrderCard({
       return null;
     }
 
+    // Role-based: Payer cannot complete orders
+    if (staticNext === 'completed' && !pf.canCompleteOrder) {
+      return null;
+    }
+
     return staticNext;
   };
 

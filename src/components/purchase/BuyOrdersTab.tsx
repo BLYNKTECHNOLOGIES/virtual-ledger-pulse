@@ -9,6 +9,7 @@ import { SetTimerDialog } from "./SetTimerDialog";
 import { RecordPaymentDialog } from "./RecordPaymentDialog";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
+import { PaymentReceiptsDialog } from "./PaymentReceiptsDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BuyOrder, BuyOrderStatus } from "@/lib/buy-order-types";
 import { stopContinuousAlarm } from "@/hooks/use-order-alerts";
@@ -37,6 +38,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showReceiptsDialog, setShowReceiptsDialog] = useState(false);
 
   // Prevent SetTimerDialog close from clearing state when user clicks "Pay Now"
   const payNowTransitionRef = useRef(false);
@@ -50,7 +52,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
   // Purchase function context for role-based visibility
   const purchaseFunctions = usePurchaseFunctions();
 
-  // Fetch purchase orders with buy order workflow status
+  // Fetch purchase orders with buy order workflow status and payment receipts
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['buy_orders'],
     queryFn: async () => {
@@ -75,7 +77,15 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
             payment_limit,
             current_usage
           ),
-          created_by_user:users!created_by(username, first_name, last_name)
+          created_by_user:users!created_by(username, first_name, last_name),
+          purchase_order_payments (
+            id,
+            amount_paid,
+            screenshot_url,
+            notes,
+            created_at,
+            created_by
+          )
         `)
         .not('order_status', 'is', null)
         .order('created_at', { ascending: false });
@@ -86,7 +96,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     staleTime: 10000,
   });
 
-  // Set up real-time subscription for live updates
+  // Set up real-time subscription for live updates (orders and payments)
   useEffect(() => {
     const channel = supabase
       .channel('buy_orders_realtime')
@@ -99,6 +109,18 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         },
         () => {
           // Refetch on any change to get updated data
+          refetch();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'purchase_order_payments',
+        },
+        () => {
+          // Refetch when payments are added/updated to show receipts
           refetch();
         }
       )
@@ -410,6 +432,11 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setShowEditDialog(true);
   };
 
+  const handleViewReceipts = (order: BuyOrder) => {
+    setSelectedOrder(order);
+    setShowReceiptsDialog(true);
+  };
+
   const handleMarkAttended = (orderId: string) => {
     const order = orders?.find(o => o.id === orderId);
     markAttended(orderId, order);
@@ -423,6 +450,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setShowPaymentDialog(false);
     setShowDetailsDialog(false);
     setShowEditDialog(false);
+    setShowReceiptsDialog(false);
     refetch();
   };
 
@@ -434,6 +462,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
     setShowPaymentDialog(false);
     setShowDetailsDialog(false);
     setShowEditDialog(false);
+    setShowReceiptsDialog(false);
   };
 
   if (isLoading) {
@@ -478,6 +507,9 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
               onSetTimer={(targetStat, showPayNow) => handleSetTimer(order, targetStat, showPayNow)}
               onViewDetails={() => handleViewDetails(order)}
               onRecordPayment={() => handleRecordPayment(order)}
+              onViewReceipts={order.purchase_order_payments && order.purchase_order_payments.length > 0 
+                ? () => handleViewReceipts(order) 
+                : undefined}
               alertState={needsAttention(order.id)}
               onMarkAttended={() => handleMarkAttended(order.id)}
               onTriggerTimerAlert={(type, isUrgent, buzzerConfig) => triggerTimerAlert(order.id, type, order, isUrgent, buzzerConfig)}
@@ -530,6 +562,14 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
           else setShowEditDialog(open);
         }}
         order={selectedOrder}
+      />
+
+      {/* Payment Receipts Dialog */}
+      <PaymentReceiptsDialog
+        open={showReceiptsDialog}
+        onOpenChange={(open) => !open && closeAllDialogs()}
+        orderNumber={selectedOrder?.order_number || ''}
+        payments={selectedOrder?.purchase_order_payments || []}
       />
     </div>
   );

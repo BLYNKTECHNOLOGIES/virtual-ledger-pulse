@@ -43,12 +43,6 @@ const ACTION_LABELS: Record<string, string> = {
   'manual_entry_created': 'Manual Entry Created By',
 };
 
-// Role labels
-const ROLE_LABELS: Record<string, string> = {
-  'purchase_creator': 'Purchase Creator',
-  'payer': 'Payer',
-  'system': 'System',
-};
 
 /**
  * Hook to fetch actor ownership data for a purchase order.
@@ -84,33 +78,35 @@ export function useOrderActors(orderId: string | undefined) {
       // Get unique user IDs (filter out nulls)
       const userIds = [...new Set(timings.map(t => t.actor_user_id).filter(Boolean))] as string[];
 
-      // Fetch user details if we have user IDs
+      // Fetch user details (username) for all user IDs from User Management
       let userMap: Record<string, string> = {};
       if (userIds.length > 0) {
         const { data: users, error: usersError } = await supabase
           .from('users')
-          .select('id, username, first_name, last_name')
+          .select('id, username')
           .in('id', userIds);
 
         if (usersError) {
           console.error('[useOrderActors] Error fetching users:', usersError);
         }
 
+        // Map user_id to username - username is always the display value
         users?.forEach(user => {
-          const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
-          userMap[user.id] = fullName || user.username || 'Unknown User';
+          userMap[user.id] = user.username || 'Unknown User';
         });
       }
 
       // Transform timings to OrderActor format
+      // actorName = username derived from user_id (source of truth)
       const allActors: OrderActor[] = timings.map(timing => ({
         actionType: timing.action_type,
         actionLabel: ACTION_LABELS[timing.action_type] || timing.action_type,
         actorRole: timing.actor_role,
         actorUserId: timing.actor_user_id,
+        // Username is ALWAYS derived from user_id, never show role/function/designation
         actorName: timing.actor_user_id 
           ? (userMap[timing.actor_user_id] || 'Unknown User')
-          : (timing.actor_role === 'system' ? 'System' : ROLE_LABELS[timing.actor_role] || 'Unknown'),
+          : (timing.actor_role === 'system' ? 'System' : 'Unknown User'),
         recordedAt: timing.recorded_at,
         formattedTime: format(new Date(timing.recorded_at), 'dd MMM yyyy, HH:mm:ss'),
       }));

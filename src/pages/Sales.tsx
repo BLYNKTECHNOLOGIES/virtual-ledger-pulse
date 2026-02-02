@@ -680,18 +680,20 @@ export default function Sales() {
           clientName={selectedOrderForUserPaying?.client_name || ''}
           orderAmount={selectedOrderForUserPaying?.total_amount || 0}
           onStatusChange={(status) => {
+            // Capture the order reference immediately before any state changes
+            const orderToUpdate = selectedOrderForUserPaying;
+            
             if (status === "PAYMENT_DONE") {
               // Show completion form instead of directly updating status
               setSelectedOrderForUserPaying(null);
-              setSelectedOrderForCompletion(selectedOrderForUserPaying);
+              setSelectedOrderForCompletion(orderToUpdate);
             } else {
               // Handle other status changes (ORDER_CANCELLED)
-              if (selectedOrderForUserPaying) {
+              if (orderToUpdate) {
                 updateOrderStatusMutation.mutate({
-                  orderId: selectedOrderForUserPaying.id,
+                  orderId: orderToUpdate.id,
                   status: status
                 });
-                setSelectedOrderForUserPaying(null);
               }
             }
           }}

@@ -7,11 +7,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AlertCircle, UserPlus, Check } from "lucide-react";
 
+interface ClientBankDetails {
+  pan_card_number?: string | null;
+  linked_bank_accounts?: Array<{
+    account_name?: string;
+    account_number?: string;
+    bank_name?: string;
+    ifsc_code?: string;
+  }> | null;
+}
+
 interface SupplierAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
   onContactChange?: (contact: string) => void;
-  onClientSelect?: (clientId: string, clientName: string) => void;
+  onClientSelect?: (clientId: string, clientName: string, bankDetails?: ClientBankDetails) => void;
   onNewClient?: (isNew: boolean) => void;
   selectedClientId?: string;
 }
@@ -85,7 +95,12 @@ export function SupplierAutocomplete({
       onContactChange(client.phone);
     }
     if (onClientSelect) {
-      onClientSelect(client.id, client.name);
+      // Pass bank details along with client selection
+      const bankDetails: ClientBankDetails = {
+        pan_card_number: client.pan_card_number,
+        linked_bank_accounts: client.linked_bank_accounts,
+      };
+      onClientSelect(client.id, client.name, bankDetails);
     }
     setShowSuggestions(false);
     setIsNewClient(false);

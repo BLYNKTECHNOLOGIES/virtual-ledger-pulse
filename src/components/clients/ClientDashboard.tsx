@@ -341,21 +341,22 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Search className="h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search buyers by name or ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search buyers by name or ID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <ClientDirectoryFilters
+                      filters={buyerFilters}
+                      onFiltersChange={setBuyerFilters}
+                      availableRMs={availableRMs}
+                      clientType="buyers"
                     />
                   </div>
-                  <ClientDirectoryFilters
-                    filters={buyerFilters}
-                    onFiltersChange={setBuyerFilters}
-                    availableRMs={availableRMs}
-                    clientType="buyers"
-                  />
                 </CardContent>
               </Card>
 
@@ -459,21 +460,22 @@ export function ClientDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Search className="h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search sellers by name or ID..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search sellers by name or ID..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <ClientDirectoryFilters
+                      filters={sellerFilters}
+                      onFiltersChange={setSellerFilters}
+                      availableRMs={availableRMs}
+                      clientType="sellers"
                     />
                   </div>
-                  <ClientDirectoryFilters
-                    filters={sellerFilters}
-                    onFiltersChange={setSellerFilters}
-                    availableRMs={availableRMs}
-                    clientType="sellers"
-                  />
                 </CardContent>
               </Card>
 

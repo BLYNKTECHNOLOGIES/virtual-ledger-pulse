@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+
+export type VolumeTrend = 'growing' | 'stable' | 'declining' | 'dropping' | 'new';
 
 export interface ClientOrderData {
   clientId: string;
@@ -24,6 +26,59 @@ export interface ClientOrderData {
   totalTransactionValue: number;
   lastOrderDate: string | null;
   daysSinceLastOrder: number | null;
+  
+  // Volume trend metrics - 10-day comparison
+  last10DaysSalesValue: number;
+  prev10DaysSalesValue: number;
+  last10DaysPurchaseValue: number;
+  prev10DaysPurchaseValue: number;
+  
+  // Volume trend metrics - Month comparison
+  currentMonthSalesValue: number;
+  previousMonthSalesValue: number;
+  currentMonthPurchaseValue: number;
+  previousMonthPurchaseValue: number;
+  
+  // Computed volume trends (for sales/buyers)
+  salesVolumeTrend10Day: VolumeTrend;
+  salesVolumeChange10Day: number | null;
+  salesVolumeTrendMonth: VolumeTrend;
+  salesVolumeChangeMonth: number | null;
+  
+  // Computed volume trends (for purchases/sellers)
+  purchaseVolumeTrend10Day: VolumeTrend;
+  purchaseVolumeChange10Day: number | null;
+  purchaseVolumeTrendMonth: VolumeTrend;
+  purchaseVolumeChangeMonth: number | null;
+}
+
+function calculateVolumeTrend(current: number, previous: number): { trend: VolumeTrend; changePercent: number | null } {
+  // No previous data = new client
+  if (previous === 0 && current === 0) {
+    return { trend: 'new', changePercent: null };
+  }
+  
+  // Had no previous activity but has current = growing from zero
+  if (previous === 0 && current > 0) {
+    return { trend: 'growing', changePercent: null };
+  }
+  
+  // Had activity before but none now = dropping
+  if (previous > 0 && current === 0) {
+    return { trend: 'dropping', changePercent: -100 };
+  }
+  
+  const changePercent = ((current - previous) / previous) * 100;
+  
+  if (changePercent > 10) {
+    return { trend: 'growing', changePercent };
+  } else if (changePercent >= -10) {
+    return { trend: 'stable', changePercent };
+  } else if (changePercent >= -30) {
+    return { trend: 'declining', changePercent };
+  } else {
+    return { trend: 'dropping', changePercent };
+  }
 }
 
 export function useClientTypeFromOrders(clients: any[] | undefined) {
@@ -60,6 +115,13 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
       if (purchaseError) throw purchaseError;
 
       const today = new Date();
+      
+      // Date boundaries for period comparisons
+      const last10Days = subDays(today, 10);
+      const prev10DaysStart = subDays(today, 20);
+      const currentMonthStart = startOfMonth(today);
+      const previousMonthStart = startOfMonth(subMonths(today, 1));
+      const previousMonthEnd = endOfMonth(subMonths(today, 1));
 
       // Count orders and calculate metrics for each client
       for (const client of clientIdentifiers) {
@@ -126,6 +188,66 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
           ? differenceInDays(today, new Date(lastOrderDate))
           : null;
 
+        // Calculate 10-day period values for sales
+        const last10DaysSalesValue = clientSalesOrders
+          .filter(o => o.order_date && new Date(o.order_date) >= last10Days)
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+        
+        const prev10DaysSalesValue = clientSalesOrders
+          .filter(o => {
+            if (!o.order_date) return false;
+            const date = new Date(o.order_date);
+            return date >= prev10DaysStart && date < last10Days;
+          })
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+
+        // Calculate 10-day period values for purchases
+        const last10DaysPurchaseValue = clientPurchaseOrders
+          .filter(o => o.order_date && new Date(o.order_date) >= last10Days)
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+        
+        const prev10DaysPurchaseValue = clientPurchaseOrders
+          .filter(o => {
+            if (!o.order_date) return false;
+            const date = new Date(o.order_date);
+            return date >= prev10DaysStart && date < last10Days;
+          })
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+
+        // Calculate month period values for sales
+        const currentMonthSalesValue = clientSalesOrders
+          .filter(o => o.order_date && new Date(o.order_date) >= currentMonthStart)
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+        
+        const previousMonthSalesValue = clientSalesOrders
+          .filter(o => {
+            if (!o.order_date) return false;
+            const date = new Date(o.order_date);
+            return date >= previousMonthStart && date <= previousMonthEnd;
+          })
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+
+        // Calculate month period values for purchases
+        const currentMonthPurchaseValue = clientPurchaseOrders
+          .filter(o => o.order_date && new Date(o.order_date) >= currentMonthStart)
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+        
+        const previousMonthPurchaseValue = clientPurchaseOrders
+          .filter(o => {
+            if (!o.order_date) return false;
+            const date = new Date(o.order_date);
+            return date >= previousMonthStart && date <= previousMonthEnd;
+          })
+          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+
+        // Calculate volume trends for sales
+        const sales10DayTrend = calculateVolumeTrend(last10DaysSalesValue, prev10DaysSalesValue);
+        const salesMonthTrend = calculateVolumeTrend(currentMonthSalesValue, previousMonthSalesValue);
+        
+        // Calculate volume trends for purchases
+        const purchase10DayTrend = calculateVolumeTrend(last10DaysPurchaseValue, prev10DaysPurchaseValue);
+        const purchaseMonthTrend = calculateVolumeTrend(currentMonthPurchaseValue, previousMonthPurchaseValue);
+
         const isBuyer = salesCount > 0;
         const isSeller = purchaseCount > 0;
         const isComposite = isBuyer && isSeller;
@@ -160,7 +282,27 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
           totalOrderCount,
           totalTransactionValue,
           lastOrderDate,
-          daysSinceLastOrder
+          daysSinceLastOrder,
+          // 10-day period values
+          last10DaysSalesValue,
+          prev10DaysSalesValue,
+          last10DaysPurchaseValue,
+          prev10DaysPurchaseValue,
+          // Month period values
+          currentMonthSalesValue,
+          previousMonthSalesValue,
+          currentMonthPurchaseValue,
+          previousMonthPurchaseValue,
+          // Sales volume trends
+          salesVolumeTrend10Day: sales10DayTrend.trend,
+          salesVolumeChange10Day: sales10DayTrend.changePercent,
+          salesVolumeTrendMonth: salesMonthTrend.trend,
+          salesVolumeChangeMonth: salesMonthTrend.changePercent,
+          // Purchase volume trends
+          purchaseVolumeTrend10Day: purchase10DayTrend.trend,
+          purchaseVolumeChange10Day: purchase10DayTrend.changePercent,
+          purchaseVolumeTrendMonth: purchaseMonthTrend.trend,
+          purchaseVolumeChangeMonth: purchaseMonthTrend.changePercent,
         });
       }
 

@@ -13,9 +13,10 @@ import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
 import { SellerOnboardingApprovals } from "./SellerOnboardingApprovals";
 import { PermissionGate } from "@/components/PermissionGate";
-import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData } from "@/hooks/useClientTypeFromOrders";
+import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData, VolumeTrend } from "@/hooks/useClientTypeFromOrders";
 import { ClientDirectoryFilters, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
-import { format } from "date-fns";
+import { VolumeTrendBadge } from "./VolumeTrendBadge";
+import { format, differenceInDays } from "date-fns";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,6 +64,41 @@ export function ClientDashboard() {
     if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
     if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-gray-100 text-gray-800' };
     return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
+  };
+
+  // Get volume trend and change based on period and client type
+  const getVolumeTrendInfo = (
+    orderInfo: ClientOrderData | undefined, 
+    isBuyerDirectory: boolean, 
+    period: '10-day' | 'month'
+  ): { trend: VolumeTrend; changePercent: number | null } => {
+    if (!orderInfo) {
+      return { trend: 'new', changePercent: null };
+    }
+    
+    if (isBuyerDirectory) {
+      if (period === '10-day') {
+        return { trend: orderInfo.salesVolumeTrend10Day, changePercent: orderInfo.salesVolumeChange10Day };
+      } else {
+        return { trend: orderInfo.salesVolumeTrendMonth, changePercent: orderInfo.salesVolumeChangeMonth };
+      }
+    } else {
+      if (period === '10-day') {
+        return { trend: orderInfo.purchaseVolumeTrend10Day, changePercent: orderInfo.purchaseVolumeChange10Day };
+      } else {
+        return { trend: orderInfo.purchaseVolumeTrendMonth, changePercent: orderInfo.purchaseVolumeChangeMonth };
+      }
+    }
+  };
+
+  // Calculate days since onboarding
+  const getDaysSinceOnboarding = (client: any): number => {
+    if (!client.date_of_onboarding) return 0;
+    try {
+      return differenceInDays(new Date(), new Date(client.date_of_onboarding));
+    } catch {
+      return 0;
+    }
   };
 
   // Apply filters to a client
@@ -150,6 +186,29 @@ export function ClientDashboard() {
       const status = getClientActivityStatus(daysSinceLastOrder ?? null, totalOrders);
       if (!filters.clientStatus.includes(status)) return false;
     }
+
+    // Volume trend filter
+    if (filters.volumeTrends.length > 0) {
+      const { trend } = getVolumeTrendInfo(orderInfo, isBuyerDirectory, filters.volumePeriod);
+      if (!filters.volumeTrends.includes(trend)) return false;
+    }
+
+    // Volume change % filter
+    if (filters.volumeChangeMin || filters.volumeChangeMax) {
+      const { changePercent } = getVolumeTrendInfo(orderInfo, isBuyerDirectory, filters.volumePeriod);
+      if (changePercent === null) {
+        // If no change percent (new client), only include if they're filtering for new
+        if (!filters.volumeTrends.includes('new')) return false;
+      } else {
+        if (filters.volumeChangeMin && changePercent < parseFloat(filters.volumeChangeMin)) return false;
+        if (filters.volumeChangeMax && changePercent > parseFloat(filters.volumeChangeMax)) return false;
+      }
+    }
+
+    // Client age (days since onboarding) filter
+    const daysSinceOnboarding = getDaysSinceOnboarding(client);
+    if (filters.clientAgeMin && daysSinceOnboarding < parseInt(filters.clientAgeMin)) return false;
+    if (filters.clientAgeMax && daysSinceOnboarding > parseInt(filters.clientAgeMax)) return false;
 
     return true;
   };
@@ -319,6 +378,7 @@ export function ClientDashboard() {
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
@@ -332,6 +392,7 @@ export function ClientDashboard() {
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
                         const orderInfo = clientOrderCounts?.get(client.id);
                         const totalOrders = orderInfo?.salesOrderCount || 0;
+                        const { trend, changePercent } = getVolumeTrendInfo(orderInfo, true, buyerFilters.volumePeriod);
                         
                         return (
                           <tr 
@@ -345,6 +406,9 @@ export function ClientDashboard() {
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
                             <td className="py-3 px-4">{totalOrders}</td>
                             <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
+                            <td className="py-3 px-4">
+                              <VolumeTrendBadge trend={trend} changePercent={changePercent} />
+                            </td>
                             <td className="py-3 px-4">
                               {getActivityStatusBadge(orderInfo?.daysSinceLastSalesOrder, totalOrders)}
                             </td>
@@ -432,6 +496,7 @@ export function ClientDashboard() {
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
@@ -445,6 +510,7 @@ export function ClientDashboard() {
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
                         const orderInfo = clientOrderCounts?.get(client.id);
                         const totalOrders = orderInfo?.purchaseOrderCount || 0;
+                        const { trend, changePercent } = getVolumeTrendInfo(orderInfo, false, sellerFilters.volumePeriod);
                         
                         return (
                           <tr 
@@ -458,6 +524,9 @@ export function ClientDashboard() {
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
                             <td className="py-3 px-4">{totalOrders}</td>
                             <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastPurchaseOrderDate)}</td>
+                            <td className="py-3 px-4">
+                              <VolumeTrendBadge trend={trend} changePercent={changePercent} />
+                            </td>
                             <td className="py-3 px-4">
                               {getActivityStatusBadge(orderInfo?.daysSinceLastPurchaseOrder, totalOrders)}
                             </td>

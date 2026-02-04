@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, AlertTriangle, CheckCircle, Users, UserCheck, ShoppingCart } from "lucide-react";
+import { Plus, Search, Users, UserCheck, ShoppingCart } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
@@ -13,12 +13,16 @@ import { AddBuyerDialog } from "./AddBuyerDialog";
 import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
 import { SellerOnboardingApprovals } from "./SellerOnboardingApprovals";
 import { PermissionGate } from "@/components/PermissionGate";
-import { useClientTypeFromOrders } from "@/hooks/useClientTypeFromOrders";
+import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData } from "@/hooks/useClientTypeFromOrders";
+import { ClientDirectoryFilters, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
+import { format } from "date-fns";
 
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const [showAddBuyerDialog, setShowAddBuyerDialog] = useState(false);
+  const [buyerFilters, setBuyerFilters] = useState<ClientFilters>(defaultFilters);
+  const [sellerFilters, setSellerFilters] = useState<ClientFilters>(defaultFilters);
   const navigate = useNavigate();
 
   // Fetch clients
@@ -38,31 +42,158 @@ export function ClientDashboard() {
   // Get client types based on actual orders
   const { data: clientOrderCounts } = useClientTypeFromOrders(clients);
 
-  // Filter clients by type based on actual order history
-  // Buyer: has sales orders (they buy from us)
-  // Seller: has purchase orders (they sell to us)
-  // Composite: has both - appears in both directories
-  const filteredBuyers = clients?.filter(client => {
-    const orderInfo = clientOrderCounts?.get(client.id);
-    // Show as buyer if they have sales orders (isBuyer) or are composite
-    // Also show clients with no orders yet that were added as buyers (is_buyer flag)
-    const isBuyer = orderInfo?.isBuyer || orderInfo?.isComposite || 
-                    ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_buyer);
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
-    return isBuyer && matchesSearch;
-  });
+  // Get unique assigned RMs for filter dropdown
+  const availableRMs = useMemo(() => {
+    if (!clients) return ['Unassigned'];
+    const rms = new Set<string>();
+    clients.forEach(c => {
+      rms.add(c.assigned_operator || 'Unassigned');
+    });
+    return Array.from(rms).sort();
+  }, [clients]);
 
-  const filteredSellers = clients?.filter(client => {
-    const orderInfo = clientOrderCounts?.get(client.id);
-    // Show as seller if they have purchase orders (isSeller) or are composite
-    // Also show clients with no orders yet that were added as sellers (is_seller flag)
-    const isSeller = orderInfo?.isSeller || orderInfo?.isComposite ||
-                     ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_seller);
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
-    return isSeller && matchesSearch;
-  });
+  const getClientValueScore = (client: any) => {
+    const monthlyValue = client.current_month_used || 0;
+    const valueScore = monthlyValue * 0.03; // 3% of monthly purchase
+    return valueScore;
+  };
+
+  const getClientPriority = (valueScore: number) => {
+    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-purple-100 text-purple-800' };
+    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
+    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-gray-100 text-gray-800' };
+    return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
+  };
+
+  // Apply filters to a client
+  const applyFilters = (
+    client: any, 
+    orderInfo: ClientOrderData | undefined, 
+    filters: ClientFilters,
+    isBuyerDirectory: boolean
+  ): boolean => {
+    // Basic filters
+    if (filters.riskLevels.length > 0 && !filters.riskLevels.includes(client.risk_appetite)) {
+      return false;
+    }
+
+    if (filters.kycStatuses.length > 0 && !filters.kycStatuses.includes(client.kyc_status)) {
+      return false;
+    }
+
+    // Priority filter (calculated)
+    const valueScore = getClientValueScore(client);
+    const priority = getClientPriority(valueScore);
+    if (filters.priorities.length > 0 && !filters.priorities.includes(priority.tag)) {
+      return false;
+    }
+
+    // COSMOS Status filter
+    const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
+    if (filters.cosmosStatus === 'alert' && !cosmosAlert) return false;
+    if (filters.cosmosStatus === 'normal' && cosmosAlert) return false;
+
+    // State filter
+    if (filters.states.length > 0 && !filters.states.includes(client.state || '')) {
+      return false;
+    }
+
+    // Assigned RM filter
+    if (filters.assignedRMs.length > 0) {
+      const rm = client.assigned_operator || 'Unassigned';
+      if (!filters.assignedRMs.includes(rm)) return false;
+    }
+
+    // Amount range filters - use appropriate values based on directory type
+    const totalValue = isBuyerDirectory 
+      ? (orderInfo?.totalSalesValue || 0)
+      : (orderInfo?.totalPurchaseValue || 0);
+    
+    if (filters.totalValueMin && totalValue < parseFloat(filters.totalValueMin)) return false;
+    if (filters.totalValueMax && totalValue > parseFloat(filters.totalValueMax)) return false;
+
+    const avgOrder = isBuyerDirectory
+      ? (orderInfo?.averageSalesOrderValue || 0)
+      : (orderInfo?.averagePurchaseOrderValue || 0);
+    
+    if (filters.avgOrderMin && avgOrder < parseFloat(filters.avgOrderMin)) return false;
+    if (filters.avgOrderMax && avgOrder > parseFloat(filters.avgOrderMax)) return false;
+
+    // Monthly usage % filter
+    const monthlyLimit = client.monthly_limit || client.first_order_value * 2 || 1;
+    const usagePercent = ((client.current_month_used || 0) / monthlyLimit) * 100;
+    if (filters.monthlyUsageMin && usagePercent < parseFloat(filters.monthlyUsageMin)) return false;
+    if (filters.monthlyUsageMax && usagePercent > parseFloat(filters.monthlyUsageMax)) return false;
+
+    // Total orders filter
+    const totalOrders = isBuyerDirectory
+      ? (orderInfo?.salesOrderCount || 0)
+      : (orderInfo?.purchaseOrderCount || 0);
+    
+    if (filters.totalOrdersMin && totalOrders < parseInt(filters.totalOrdersMin)) return false;
+    if (filters.totalOrdersMax && totalOrders > parseInt(filters.totalOrdersMax)) return false;
+
+    // Days since last order filter
+    const daysSinceLastOrder = isBuyerDirectory
+      ? orderInfo?.daysSinceLastSalesOrder
+      : orderInfo?.daysSinceLastPurchaseOrder;
+
+    if (filters.daysSinceLastOrderMin && daysSinceLastOrder !== null && daysSinceLastOrder !== undefined) {
+      if (daysSinceLastOrder < parseInt(filters.daysSinceLastOrderMin)) return false;
+    }
+    if (filters.daysSinceLastOrderMax && daysSinceLastOrder !== null && daysSinceLastOrder !== undefined) {
+      if (daysSinceLastOrder > parseInt(filters.daysSinceLastOrderMax)) return false;
+    }
+
+    // Client status filter (15-day threshold for high-frequency business)
+    if (filters.clientStatus.length > 0) {
+      const status = getClientActivityStatus(daysSinceLastOrder ?? null, totalOrders);
+      if (!filters.clientStatus.includes(status)) return false;
+    }
+
+    return true;
+  };
+
+  // Filter clients by type based on actual order history
+  const filteredBuyers = useMemo(() => {
+    return clients?.filter(client => {
+      const orderInfo = clientOrderCounts?.get(client.id);
+      // Show as buyer if they have sales orders (isBuyer) or are composite
+      // Also show clients with no orders yet that were added as buyers (is_buyer flag)
+      const isBuyer = orderInfo?.isBuyer || orderInfo?.isComposite || 
+                      ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_buyer);
+      
+      if (!isBuyer) return false;
+
+      // Search filter
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // Apply advanced filters
+      return applyFilters(client, orderInfo, buyerFilters, true);
+    });
+  }, [clients, clientOrderCounts, searchTerm, buyerFilters]);
+
+  const filteredSellers = useMemo(() => {
+    return clients?.filter(client => {
+      const orderInfo = clientOrderCounts?.get(client.id);
+      // Show as seller if they have purchase orders (isSeller) or are composite
+      // Also show clients with no orders yet that were added as sellers (is_seller flag)
+      const isSeller = orderInfo?.isSeller || orderInfo?.isComposite ||
+                       ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_seller);
+      
+      if (!isSeller) return false;
+
+      // Search filter
+      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // Apply advanced filters
+      return applyFilters(client, orderInfo, sellerFilters, false);
+    });
+  }, [clients, clientOrderCounts, searchTerm, sellerFilters]);
 
   const getRiskBadge = (risk: string) => {
     const colors = {
@@ -83,17 +214,25 @@ export function ClientDashboard() {
     return <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{status}</Badge>;
   };
 
-  const getClientValueScore = (client: any) => {
-    const monthlyValue = client.current_month_used || 0;
-    const valueScore = monthlyValue * 0.03; // 3% of monthly purchase
-    return valueScore;
+  const getActivityStatusBadge = (daysSinceLastOrder: number | null | undefined, totalOrders: number) => {
+    const status = getClientActivityStatus(daysSinceLastOrder ?? null, totalOrders);
+    const statusConfig = {
+      'active': { label: 'Active', color: 'bg-green-100 text-green-800' },
+      'inactive': { label: 'Inactive', color: 'bg-yellow-100 text-yellow-800' },
+      'dormant': { label: 'Dormant', color: 'bg-red-100 text-red-800' },
+      'new': { label: 'New', color: 'bg-blue-100 text-blue-800' },
+    };
+    const config = statusConfig[status];
+    return <Badge className={config.color}>{config.label}</Badge>;
   };
 
-  const getClientPriority = (valueScore: number) => {
-    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-purple-100 text-purple-800' };
-    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
-    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-gray-100 text-gray-800' };
-    return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
+  const formatLastOrderDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-';
+    try {
+      return format(new Date(dateStr), 'dd MMM yyyy');
+    } catch {
+      return '-';
+    }
   };
 
   const handleClientClick = (clientId: string) => {
@@ -142,23 +281,32 @@ export function ClientDashboard() {
                     </PermissionGate>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Search className="h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search buyers by name or contact..."
+                      placeholder="Search buyers by name or ID..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="max-w-sm"
                     />
                   </div>
+                  <ClientDirectoryFilters
+                    filters={buyerFilters}
+                    onFiltersChange={setBuyerFilters}
+                    availableRMs={availableRMs}
+                    clientType="buyers"
+                  />
                 </CardContent>
               </Card>
 
               {/* Buyers List */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Existing Buyers</CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Existing Buyers</CardTitle>
+                    <Badge variant="outline">{filteredBuyers?.length || 0} results</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
                 <div className="overflow-x-auto">
@@ -171,8 +319,9 @@ export function ClientDashboard() {
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                       </tr>
                     </thead>
@@ -195,7 +344,10 @@ export function ClientDashboard() {
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
                             <td className="py-3 px-4">{totalOrders}</td>
-                            <td className="py-3 px-4">-</td>
+                            <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
+                            <td className="py-3 px-4">
+                              {getActivityStatusBadge(orderInfo?.daysSinceLastSalesOrder, totalOrders)}
+                            </td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="destructive">Alert</Badge>
@@ -215,7 +367,7 @@ export function ClientDashboard() {
                   
                   {filteredBuyers?.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No buyers found. Add your first buyer to get started.
+                      No buyers found matching your filters.
                     </div>
                   )}
                 </div>
@@ -242,23 +394,32 @@ export function ClientDashboard() {
                     </PermissionGate>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <Search className="h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Search sellers by name or contact..."
+                      placeholder="Search sellers by name or ID..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="max-w-sm"
                     />
                   </div>
+                  <ClientDirectoryFilters
+                    filters={sellerFilters}
+                    onFiltersChange={setSellerFilters}
+                    availableRMs={availableRMs}
+                    clientType="sellers"
+                  />
                 </CardContent>
               </Card>
 
               {/* Sellers List */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Existing Sellers</CardTitle>
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Existing Sellers</CardTitle>
+                    <Badge variant="outline">{filteredSellers?.length || 0} results</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
                 <div className="overflow-x-auto">
@@ -271,8 +432,9 @@ export function ClientDashboard() {
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
                       </tr>
                     </thead>
@@ -295,7 +457,10 @@ export function ClientDashboard() {
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
                             <td className="py-3 px-4">{totalOrders}</td>
-                            <td className="py-3 px-4">-</td>
+                            <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastPurchaseOrderDate)}</td>
+                            <td className="py-3 px-4">
+                              {getActivityStatusBadge(orderInfo?.daysSinceLastPurchaseOrder, totalOrders)}
+                            </td>
                             <td className="py-3 px-4">
                               {cosmosAlert ? (
                                 <Badge variant="destructive">Alert</Badge>
@@ -315,7 +480,7 @@ export function ClientDashboard() {
                   
                   {filteredSellers?.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
-                      No sellers found. Add your first seller to get started.
+                      No sellers found matching your filters.
                     </div>
                   )}
                 </div>

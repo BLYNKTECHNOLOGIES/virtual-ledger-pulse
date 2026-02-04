@@ -37,7 +37,8 @@ export function ExpensesIncomesTab() {
         .select(`
           *,
           bank_accounts!bank_account_id(account_name, bank_name),
-          created_by_user:users!created_by(username, first_name, last_name)
+          created_by_user:users!created_by(username, first_name, last_name),
+          clients!client_id(id, name, client_id)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
         .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")') // Exclude core trading operations
@@ -58,7 +59,8 @@ export function ExpensesIncomesTab() {
         display_type: t.transaction_type,
         display_description: t.description || '',
         display_reference: t.reference_number || '',
-        display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name
+        display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name,
+        display_client: t.clients?.name || null
       }));
 
       return formattedTransactions;
@@ -129,39 +131,44 @@ export function ExpensesIncomesTab() {
               {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-3 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gray-100 rounded-full">
+                    <div className="p-2 bg-muted rounded-full">
                       {getTransactionIcon(transaction.transaction_type)}
                     </div>
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">
                           {transaction.display_account || (transaction.bank_accounts?.account_name + ' - ' + transaction.bank_accounts?.bank_name)}
                         </span>
                         <Badge variant={getBadgeVariant(transaction.transaction_type)}>
                           {transaction.transaction_type}
                         </Badge>
+                        {transaction.display_client && (
+                          <Badge variant="outline" className="text-xs">
+                            Client: {transaction.display_client}
+                          </Badge>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}
                       </div>
                       {transaction.description && (
-                        <div className="text-sm text-gray-500">{transaction.description}</div>
+                        <div className="text-sm text-muted-foreground">{transaction.description}</div>
                       )}
                       {transaction.category && (
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs text-muted-foreground/70">
                           Category: {transaction.category}
                         </div>
                       )}
                       {transaction.reference_number && (
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs text-muted-foreground/70">
                           Ref: {transaction.reference_number}
                         </div>
                       )}
                       {transaction.created_by_user && (
-                        <div className="text-xs text-blue-600 font-medium">
+                        <div className="text-xs text-primary font-medium">
                           By: {transaction.created_by_user.first_name || transaction.created_by_user.username}
                         </div>
                       )}
@@ -172,7 +179,7 @@ export function ExpensesIncomesTab() {
                       {transaction.transaction_type === 'EXPENSE' ? '-' : '+'}
                       ₹{parseFloat(transaction.amount.toString()).toLocaleString()}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {format(new Date(transaction.created_at), "HH:mm")}
                     </div>
                   </div>

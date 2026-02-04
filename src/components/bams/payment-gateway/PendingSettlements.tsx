@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PendingSale {
   id: string;
@@ -85,6 +86,7 @@ export function PendingSettlements() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     fetchPendingSettlements();
@@ -302,21 +304,42 @@ export function PendingSettlements() {
 
     if (itemsError) throw itemsError;
 
-    // Create bank transaction for settlement (credit to bank account)
+    // Create bank transaction for settlement (credit to bank account - NET amount)
     const { error: transactionError } = await supabase
       .from('bank_transactions')
       .insert({
         bank_account_id: bankAccountId,
         transaction_type: 'INCOME',
         amount: settlementAmount,
-        description: `Payment Gateway Settlement - ${saleIds.length} sale(s)${mdrDeduction > 0 ? ` (MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
+        description: `Payment Gateway Settlement - ${saleIds.length} sale(s)${mdrDeduction > 0 ? ` (Net after MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
         transaction_date: new Date().toISOString().split('T')[0],
-        category: 'Payment Gateway Settlement',
+        category: 'Settlement',
         reference_number: settlementBatchId,
-        created_by: user?.id || null, // Persist user ID for audit trail
+        created_by: user?.id || null,
       });
 
     if (transactionError) throw transactionError;
+
+    // AUTO-CREATE EXPENSE ENTRY for MDR/Payment Gateway Fees if deducted
+    if (mdrDeduction > 0) {
+      const { error: mdrExpenseError } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: bankAccountId,
+          transaction_type: 'EXPENSE',
+          amount: mdrDeduction,
+          description: `MDR / Payment Gateway Fees - Settlement ${settlementBatchId} (${saleIds.length} transactions)`,
+          transaction_date: new Date().toISOString().split('T')[0],
+          category: 'MDR / payment gateway fees', // Fixed category from expense categories
+          reference_number: `MDR-${settlementBatchId}`,
+          created_by: user?.id || null,
+        });
+
+      if (mdrExpenseError) {
+        console.error('Failed to create MDR expense entry:', mdrExpenseError);
+        // Don't throw - settlement already completed, just log the error
+      }
+    }
 
     // Update pending settlements status
     const successfullySettledIds: string[] = [];
@@ -411,6 +434,11 @@ export function PendingSettlements() {
         description: `Settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}`,
       });
 
+      // Invalidate caches so expense entries appear in Expenses tab
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+
       fetchPendingSettlements();
     } catch (error) {
       console.error('Error settling payment:', error);
@@ -467,7 +495,7 @@ export function PendingSettlements() {
 
       toast({
         title: "Success",
-        description: `Successfully settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}`,
+        description: `Successfully settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}${mdrDeduction > 0 ? ` (MDR expense: ₹${mdrDeduction.toLocaleString()})` : ''}`,
       });
 
       // Reset form
@@ -477,6 +505,11 @@ export function PendingSettlements() {
       setMdrAmount("0");
       setIsDialogOpen(false);
       
+      // Invalidate caches so expense entries appear in Expenses tab
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+
       fetchPendingSettlements();
     } catch (error) {
       console.error('Error settling payments:', error);

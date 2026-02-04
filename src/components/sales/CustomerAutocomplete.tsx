@@ -200,7 +200,12 @@ export function CustomerAutocomplete({
                   </div>
                 </div>
               </HoverCardTrigger>
-              <HoverCardContent side="right" align="start" className="w-80 p-3">
+              <HoverCardContent 
+                side="right" 
+                align="start" 
+                className="w-80 p-3 z-[200] bg-popover border border-border shadow-xl"
+                sideOffset={8}
+              >
                 <ClientOrderPreview 
                   clientId={client.id}
                   clientName={client.name}

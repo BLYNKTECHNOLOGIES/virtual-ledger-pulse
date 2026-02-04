@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,6 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryLabel } from "@/data/expenseCategories";
 
 interface TransactionFormProps {
   bankAccounts: any[];
@@ -35,6 +36,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     referenceNumber: ""
   });
 
+  // Get categories based on transaction type
+  const categoryGroups = formData.transactionType === 'INCOME' 
+    ? INCOME_CATEGORIES 
+    : EXPENSE_CATEGORIES;
+
   const createTransactionMutation = useMutation({
     mutationFn: async (transactionData: typeof formData) => {
       const amount = parseFloat(transactionData.amount);
@@ -51,17 +57,22 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         }
       }
 
+      // Get category label for storage
+      const categoryLabel = transactionData.category 
+        ? getCategoryLabel(transactionData.category) 
+        : null;
+
       const { data, error } = await supabase
         .from('bank_transactions')
         .insert({
           bank_account_id: transactionData.bankAccountId,
           transaction_type: transactionData.transactionType,
           amount: amount,
-          category: transactionData.category || null,
+          category: categoryLabel, // Store the human-readable label
           description: transactionData.description || null,
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
-          created_by: user?.id || null, // Persist user ID for audit trail
+          created_by: user?.id || null,
         })
         .select()
         .single();
@@ -75,6 +86,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         description: "Transaction recorded successfully. Bank balance updated automatically.",
       });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_manual_only'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       setFormData({
@@ -120,6 +132,15 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     createTransactionMutation.mutate(formData);
   };
 
+  // Reset category when transaction type changes
+  const handleTransactionTypeChange = (value: string) => {
+    setFormData({
+      ...formData, 
+      transactionType: value,
+      category: "" // Reset category when type changes
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -144,7 +165,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
                 {bankAccounts?.map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
-                    <span className="text-sm text-gray-500 ml-2">
+                    <span className="text-sm text-muted-foreground ml-2">
                       (₹{parseFloat(account.balance.toString()).toLocaleString()})
                     </span>
                   </SelectItem>
@@ -155,7 +176,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
 
           <div>
             <Label htmlFor="transactionType">Transaction Type *</Label>
-            <Select value={formData.transactionType} onValueChange={(value) => setFormData({...formData, transactionType: value})}>
+            <Select value={formData.transactionType} onValueChange={handleTransactionTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
@@ -178,13 +199,28 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
           <div>
-            <Label htmlFor="category">Category</Label>
-            <Input
-              id="category"
-              placeholder="e.g., Office Supplies, Consultant Fee"
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value})}
-            />
+            <Label htmlFor="category">Category {formData.transactionType && "*"}</Label>
+            <Select 
+              value={formData.category} 
+              onValueChange={(value) => setFormData({...formData, category: value})}
+              disabled={!formData.transactionType}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={formData.transactionType ? "Select category" : "Select type first"} />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {categoryGroups.map((group) => (
+                  <SelectGroup key={group.group}>
+                    <SelectLabel className="font-semibold text-primary">{group.group}</SelectLabel>
+                    {group.categories.map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

@@ -53,6 +53,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [isOffMarket, setIsOffMarket] = useState(false);
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
+  const [isNewClient, setIsNewClient] = useState(false);
 
   // Fetch live USDT/INR rate
   const { data: usdtRateData } = useUSDTRate();
@@ -348,6 +350,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     setAttachmentUrls([]);
     setShowPaymentMethodAlert(false);
     setIsOffMarket(false);
+    setSelectedClientId(undefined);
+    setIsNewClient(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -475,10 +479,18 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                 </div>
 
                 <div>
-                  <Label htmlFor="client_name">Customer Name *</Label>
                   <CustomerAutocomplete
                     value={formData.client_name}
                     onChange={(value) => setFormData(prev => ({ ...prev, client_name: value }))}
+                    onClientSelect={(client) => {
+                      if (client) {
+                        setSelectedClientId(client.id);
+                      } else {
+                        setSelectedClientId(undefined);
+                      }
+                    }}
+                    onNewClient={(isNew) => setIsNewClient(isNew)}
+                    selectedClientId={selectedClientId}
                   />
                 </div>
 

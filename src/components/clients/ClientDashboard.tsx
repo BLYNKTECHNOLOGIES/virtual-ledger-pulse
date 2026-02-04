@@ -14,7 +14,7 @@ import { ClientOnboardingApprovals } from "./ClientOnboardingApprovals";
 import { SellerOnboardingApprovals } from "./SellerOnboardingApprovals";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData, VolumeTrend } from "@/hooks/useClientTypeFromOrders";
-import { ClientDirectoryFilters, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
+import { ClientDirectoryFilterButton, ClientDirectoryFilterPanel, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
 import { VolumeTrendBadge } from "./VolumeTrendBadge";
 import { format, differenceInDays } from "date-fns";
 
@@ -24,6 +24,8 @@ export function ClientDashboard() {
   const [showAddBuyerDialog, setShowAddBuyerDialog] = useState(false);
   const [buyerFilters, setBuyerFilters] = useState<ClientFilters>(defaultFilters);
   const [sellerFilters, setSellerFilters] = useState<ClientFilters>(defaultFilters);
+  const [buyerFiltersOpen, setBuyerFiltersOpen] = useState(false);
+  const [sellerFiltersOpen, setSellerFiltersOpen] = useState(false);
   const navigate = useNavigate();
 
   // Fetch clients
@@ -330,9 +332,9 @@ export function ClientDashboard() {
                     Buyers Directory
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
+                    <div className="flex items-center space-x-2 max-w-sm">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name or ID..."
@@ -340,13 +342,13 @@ export function ClientDashboard() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
-                    <ClientDirectoryFilters
+                    <div className="flex-1" />
+                    <ClientDirectoryFilterButton
                       filters={buyerFilters}
                       onFiltersChange={setBuyerFilters}
-                      availableRMs={availableRMs}
-                      clientType="buyers"
+                      isOpen={buyerFiltersOpen}
+                      onToggle={() => setBuyerFiltersOpen(!buyerFiltersOpen)}
                     />
-                    <div className="flex-1" />
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -354,6 +356,13 @@ export function ClientDashboard() {
                       </Button>
                     </PermissionGate>
                   </div>
+                  <ClientDirectoryFilterPanel
+                    filters={buyerFilters}
+                    onFiltersChange={setBuyerFilters}
+                    availableRMs={availableRMs}
+                    clientType="buyers"
+                    isOpen={buyerFiltersOpen}
+                  />
                 </CardContent>
               </Card>
 
@@ -446,9 +455,9 @@ export function ClientDashboard() {
                     Sellers Directory
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-0">
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
+                    <div className="flex items-center space-x-2 max-w-sm">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search sellers by name or ID..."
@@ -456,13 +465,13 @@ export function ClientDashboard() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
-                    <ClientDirectoryFilters
+                    <div className="flex-1" />
+                    <ClientDirectoryFilterButton
                       filters={sellerFilters}
                       onFiltersChange={setSellerFilters}
-                      availableRMs={availableRMs}
-                      clientType="sellers"
+                      isOpen={sellerFiltersOpen}
+                      onToggle={() => setSellerFiltersOpen(!sellerFiltersOpen)}
                     />
-                    <div className="flex-1" />
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -470,6 +479,13 @@ export function ClientDashboard() {
                       </Button>
                     </PermissionGate>
                   </div>
+                  <ClientDirectoryFilterPanel
+                    filters={sellerFilters}
+                    onFiltersChange={setSellerFilters}
+                    availableRMs={availableRMs}
+                    clientType="sellers"
+                    isOpen={sellerFiltersOpen}
+                  />
                 </CardContent>
               </Card>
 

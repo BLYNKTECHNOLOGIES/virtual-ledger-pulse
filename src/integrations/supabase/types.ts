@@ -4059,7 +4059,13 @@ export type Database = {
           financial_year: string
           id: string
           net_payable_amount: number
+          paid_at: string | null
+          paid_by: string | null
           pan_number: string
+          payment_bank_account_id: string | null
+          payment_batch_id: string | null
+          payment_reference: string | null
+          payment_status: string | null
           purchase_order_id: string | null
           tds_amount: number
           tds_certificate_number: string | null
@@ -4073,7 +4079,13 @@ export type Database = {
           financial_year: string
           id?: string
           net_payable_amount: number
+          paid_at?: string | null
+          paid_by?: string | null
           pan_number: string
+          payment_bank_account_id?: string | null
+          payment_batch_id?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           purchase_order_id?: string | null
           tds_amount: number
           tds_certificate_number?: string | null
@@ -4087,7 +4099,13 @@ export type Database = {
           financial_year?: string
           id?: string
           net_payable_amount?: number
+          paid_at?: string | null
+          paid_by?: string | null
           pan_number?: string
+          payment_bank_account_id?: string | null
+          payment_batch_id?: string | null
+          payment_reference?: string | null
+          payment_status?: string | null
           purchase_order_id?: string | null
           tds_amount?: number
           tds_certificate_number?: string | null
@@ -4096,6 +4114,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tds_records_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_records_payment_bank_account_id_fkey"
+            columns: ["payment_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_records_payment_bank_account_id_fkey"
+            columns: ["payment_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tds_records_purchase_order_id_fkey"
             columns: ["purchase_order_id"]

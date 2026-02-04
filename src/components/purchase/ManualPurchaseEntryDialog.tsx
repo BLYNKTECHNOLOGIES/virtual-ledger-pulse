@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
+  const [selectedClientBankDetails, setSelectedClientBankDetails] = useState<{
+    pan_card_number?: string | null;
+    linked_bank_accounts?: Array<{
+      account_name?: string;
+      account_number?: string;
+      bank_name?: string;
+      ifsc_code?: string;
+    }> | null;
+  } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -131,6 +140,21 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     
     return { feeAmount, netCredit };
   }, [formData.quantity, formData.fee_percentage, formData.is_off_market]);
+
+  // Auto-fill PAN when TDS option changes to 1% and existing client with PAN is selected
+  useEffect(() => {
+    if (
+      formData.tds_option === '1%' && 
+      selectedClientId && 
+      selectedClientBankDetails?.pan_card_number &&
+      !formData.pan_number // Only auto-fill if PAN field is empty
+    ) {
+      setFormData(prev => ({
+        ...prev,
+        pan_number: selectedClientBankDetails.pan_card_number || ''
+      }));
+    }
+  }, [formData.tds_option, selectedClientId, selectedClientBankDetails]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => {
@@ -322,6 +346,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       });
       setSelectedClientId('');
       setIsNewClient(false);
+      setSelectedClientBankDetails(null);
 
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -396,11 +421,22 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               value={formData.supplier_name}
               onChange={(value) => handleInputChange('supplier_name', value)}
               onContactChange={(contact) => handleInputChange('contact_number', contact)}
-              onClientSelect={(clientId, clientName) => {
+              onClientSelect={(clientId, clientName, bankDetails) => {
                 setSelectedClientId(clientId);
+                setSelectedClientBankDetails(bankDetails || null);
                 handleInputChange('supplier_name', clientName);
+                
+                // Auto-fill PAN if client has one and TDS is 1%
+                if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
+                  handleInputChange('pan_number', bankDetails.pan_card_number);
+                }
               }}
-              onNewClient={(isNew) => setIsNewClient(isNew)}
+              onNewClient={(isNew) => {
+                setIsNewClient(isNew);
+                if (isNew) {
+                  setSelectedClientBankDetails(null);
+                }
+              }}
               selectedClientId={selectedClientId}
             />
           </div>

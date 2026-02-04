@@ -921,6 +921,7 @@ export function PaymentMethodManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Type</TableHead>
+                  <TableHead>Nickname</TableHead>
                   <TableHead>Payment Details</TableHead>
                   <TableHead>Linked Bank Account</TableHead>
                   <TableHead>Risk Category</TableHead>
@@ -943,6 +944,11 @@ export function PaymentMethodManagement() {
                         )}
                         {method.type}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={method.nickname ? "font-medium" : "text-gray-400"}>
+                        {method.nickname || "NIL"}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {method.type === "UPI" ? (
@@ -1020,7 +1026,7 @@ export function PaymentMethodManagement() {
                 ))}
                 {paymentMethods?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                       No payment methods found. Add your first payment method to get started.
                     </TableCell>
                   </TableRow>

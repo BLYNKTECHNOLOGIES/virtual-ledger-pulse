@@ -125,7 +125,7 @@ const standaloneItems: SidebarGroupItem[] = [
   }
 ];
 
-// Grouped items with PIN protection
+// Grouped items (PIN protection removed - now using role-based access)
 const sidebarGroups: SidebarGroupConfig[] = [
   {
     id: "hr-management",
@@ -133,8 +133,6 @@ const sidebarGroups: SidebarGroupConfig[] = [
     icon: Users,
     color: "text-pink-600",
     bgColor: "bg-pink-100",
-    pinProtected: true,
-    pinCode: "07172525",
     children: [
       {
         id: "hrms",
@@ -171,8 +169,6 @@ const sidebarGroups: SidebarGroupConfig[] = [
     icon: BarChart3,
     color: "text-green-600",
     bgColor: "bg-green-100",
-    pinProtected: true,
-    pinCode: "07172525",
     children: [
       {
         id: "accounting",

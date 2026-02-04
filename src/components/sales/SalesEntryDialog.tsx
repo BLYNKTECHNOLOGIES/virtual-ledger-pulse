@@ -33,6 +33,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [formTouched, setFormTouched] = useState(false); // Track if user has started filling form
   const [isOffMarket, setIsOffMarket] = useState(false);
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
+  const [isNewClient, setIsNewClient] = useState(false);
 
   const [formData, setFormData] = useState({
     order_number: '', // User must enter this manually
@@ -285,6 +287,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       });
       setFormTouched(false);
       setIsOffMarket(false);
+      setSelectedClientId(undefined);
+      setIsNewClient(false);
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
@@ -438,6 +442,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <CustomerAutocomplete
                 value={formData.client_name}
                 onChange={(value) => handleInputChange('client_name', value)}
+                onPhoneChange={(phone) => handleInputChange('client_phone', phone)}
+                onClientSelect={(client) => {
+                  if (client) {
+                    setSelectedClientId(client.id);
+                  } else {
+                    setSelectedClientId(undefined);
+                  }
+                }}
+                onNewClient={(isNew) => setIsNewClient(isNew)}
+                selectedClientId={selectedClientId}
               />
             </div>
 

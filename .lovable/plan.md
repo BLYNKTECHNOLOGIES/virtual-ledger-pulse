@@ -1,390 +1,238 @@
 
 
-# System-Wide Action Audit Logging & Transaction Activity Visibility
+# Plan: Volume Drop Detection System & Client Age Filter
 
-## Executive Summary
-
-This plan implements a complete audit trail system that:
-1. Records every human-initiated action with user ID and timestamp across all modules
-2. Displays actor and timestamp details on closed transactions (completed, cancelled, expired)
-
----
-
-## Part A: Universal Action Logging
-
-### 1. Database Schema
-
-#### 1.1 Create Central `system_action_logs` Table
-
-A new table to capture all human-initiated actions across the platform:
-
-```text
-+---------------------------+--------------------------------------------+
-| Column                    | Description                                |
-+---------------------------+--------------------------------------------+
-| id                        | UUID primary key                           |
-| user_id                   | Actor's user ID (references users)         |
-| action_type               | Controlled action type string              |
-| entity_type               | Type of entity (purchase, sale, client...) |
-| entity_id                 | UUID of the affected entity                |
-| module                    | Module name (purchase, sales, stock...)    |
-| recorded_at               | Server-side timestamp                      |
-| metadata                  | Optional JSON for non-sensitive context    |
-| created_at                | Record creation timestamp                  |
-+---------------------------+--------------------------------------------+
-```
-
-**Key Constraints:**
-- RLS policy: Allow all authenticated operations (matches existing patterns)
-- Immutable: No UPDATE or DELETE policies
-- Unique constraint on `(entity_id, action_type)` to prevent duplicates
-
-#### 1.2 Defined Action Types
-
-Organized by module:
-
-**Purchase Module:**
-- `purchase.order_created`
-- `purchase.banking_collected`
-- `purchase.pan_collected`
-- `purchase.added_to_bank`
-- `purchase.payment_recorded`
-- `purchase.order_completed`
-- `purchase.order_cancelled`
-- `purchase.order_edited`
-
-**Sales Module:**
-- `sales.order_created`
-- `sales.order_completed`
-- `sales.order_cancelled`
-- `sales.order_edited`
-- `sales.manual_entry_created`
-
-**Stock Module:**
-- `stock.adjustment_created`
-- `stock.transfer_created`
-- `stock.wallet_adjusted`
-
-**Clients Module:**
-- `client.created`
-- `client.updated`
-- `client.kyc_approved`
-- `client.kyc_rejected`
-- `client.seller_approved`
-- `client.buyer_approved`
-
-**Banking (BAMS) Module:**
-- `bank.transaction_created`
-- `bank.transfer_completed`
-- `bank.account_created`
-- `bank.account_closed`
-
-**User Management:**
-- `user.created`
-- `user.updated`
-- `user.role_assigned`
-- `user.password_reset`
-- `user.status_changed`
-
-**Other Modules:**
-- `expense.created`
-- `employee.onboarded`
-- `employee.offboarded`
-
-### 2. Logging Utility Module
-
-Create `src/lib/system-action-logger.ts`:
-
-```typescript
-// Core function signature
-export async function logAction(params: {
-  userId: string;
-  actionType: string;
-  entityType: string;
-  entityId: string;
-  module: string;
-  metadata?: Record<string, any>;
-}): Promise<void>
-```
-
-**Key Behaviors:**
-- **Idempotent**: Uses `upsert` with `ignoreDuplicates: true` on `(entity_id, action_type)` to prevent duplicate logs
-- **Non-blocking**: Errors are logged but don't throw, preventing disruption to main workflows
-- **Server-side timestamp**: Uses `new Date().toISOString()` at time of execution
-- **Automatic user resolution**: Gets current user from localStorage session
-
-### 3. Integration Points by Module
-
-#### 3.1 Purchase Module (12 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `NewPurchaseOrderDialog.tsx` | `purchase.order_created` |
-| `ManualPurchaseEntryDialog.tsx` | `purchase.order_created`, `purchase.manual_entry_created` |
-| `CollectFieldsDialog.tsx` | `purchase.banking_collected`, `purchase.pan_collected` |
-| `SetTimerDialog.tsx` | `purchase.added_to_bank` |
-| `RecordPaymentDialog.tsx` | `purchase.payment_recorded` |
-| `BuyOrdersTab.tsx` | `purchase.order_completed`, `purchase.order_cancelled` |
-| `EditPurchaseOrderDialog.tsx` | `purchase.order_edited` |
-
-#### 3.2 Sales Module (8 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `SalesOrderDialog.tsx` | `sales.order_created` |
-| `StepBySalesFlow.tsx` | `sales.order_created` |
-| `SalesEntryDialog.tsx` | `sales.manual_entry_created` |
-| `OrderCompletionForm.tsx` | `sales.order_completed` |
-| `EditSalesOrderDialog.tsx` | `sales.order_edited` |
-| `Sales.tsx` (page) | `sales.order_cancelled` |
-
-#### 3.3 Stock Module (6 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `StockTransactionsTab.tsx` | `stock.adjustment_created`, `stock.transfer_created` |
-| `StockAdjustmentTab.tsx` | `stock.adjustment_created` |
-| `ManualWalletAdjustmentDialog.tsx` | `stock.wallet_adjusted` |
-| `EditWalletDialog.tsx` | `stock.wallet_edited` |
-| `AddProductDialog.tsx` | `stock.product_created` |
-
-#### 3.4 Client Module (5 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `AddClientDialog.tsx` | `client.created` |
-| `EditClientDetailsDialog.tsx` | `client.updated` |
-| `ClientOnboardingApprovals.tsx` | `client.buyer_approved`, `client.buyer_rejected` |
-| `SellerOnboardingApprovals.tsx` | `client.seller_approved`, `client.seller_rejected` |
-
-#### 3.5 Banking/BAMS Module (5 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `BankAccountManagement.tsx` | `bank.account_created` |
-| `CloseAccountDialog.tsx` | `bank.account_closed` |
-| `ExpensesIncomesTab.tsx` | `bank.transaction_created` |
-| `ContraEntriesTab.tsx` | `bank.transfer_completed` |
-| `ManualBalanceAdjustmentDialog.tsx` | `bank.balance_adjusted` |
-
-#### 3.6 User Management Module (4 files to modify)
-
-| File | Actions to Log |
-|------|----------------|
-| `AddUserDialog.tsx` | `user.created` |
-| `EditUserDialog.tsx` | `user.updated`, `user.role_assigned` |
-| `ResetPasswordDialog.tsx` | `user.password_reset` |
-| `PendingRegistrationsTab.tsx` | `user.approved`, `user.rejected` |
+## Overview
+Add two new powerful features to the Client Directory:
+1. **Volume Trend Indicator** - Visually identify clients whose trading volume has dropped over configurable periods (Month-on-Month or 10-day rolling windows)
+2. **Client Age Filter** - Filter clients based on how long they've been onboarded (useful for targeting established vs new clients)
 
 ---
 
-## Part B: Activity Timeline Display on Closed Transactions
+## Feature 1: Volume Drop Detection System
 
-### 1. Create Reusable Activity Timeline Component
+### Concept
+Compare a client's recent trading volume against their previous period to calculate a **Volume Change %**. Display this as a visual indicator in the table and allow filtering by trend direction.
 
-Create `src/components/ui/activity-timeline.tsx`:
+### Period Options
+| Period Type | Current Period | Previous Period | Use Case |
+|-------------|---------------|-----------------|----------|
+| 10-Day Rolling | Last 10 days | Previous 10 days (day 11-20) | High-frequency business tracking |
+| Month-on-Month | Current month | Previous month | Standard monthly comparison |
 
+### Volume Trend Categories
+| Category | Change % | Badge Color | Icon |
+|----------|----------|-------------|------|
+| Growing | > +10% | Green | TrendingUp |
+| Stable | -10% to +10% | Gray | Minus |
+| Declining | -10% to -30% | Yellow | TrendingDown |
+| Dropping | < -30% | Red | TrendingDown (bold) |
+| New | No previous data | Blue | Sparkles |
+
+### UI Implementation
+
+**Table Column** - Add a "Volume Trend" column showing:
+```
++------------------+
+| ▲ +25%           |  <- Green badge with up arrow
+| ▼ -45%           |  <- Red badge with down arrow  
+| ─ +3%            |  <- Gray badge with stable icon
+| ✦ New            |  <- Blue badge for new clients
++------------------+
+```
+
+**Filter Options**:
+- Period Selector: Dropdown to choose "10-Day" or "Month-on-Month"
+- Trend Filter: Multi-select for Growing/Stable/Declining/Dropping/New
+- Volume Change Range: Min-Max inputs for exact % range (e.g., find clients with -50% to -30% drop)
+
+---
+
+## Feature 2: Client Age Filter
+
+### Concept
+Filter clients based on `date_of_onboarding` field to identify:
+- Recently onboarded clients (for follow-up)
+- Established clients (for loyalty programs)
+- Long-term dormant clients (for win-back)
+
+### Filter UI
+```
+Client Age (Days Since Onboarding)
+Min [____] to Max [____] days
+```
+
+**Common Use Cases**:
+| Filter Setting | Purpose |
+|---------------|---------|
+| Min: 0, Max: 30 | New clients in first month |
+| Min: 90, Max: ∞ | Established clients (3+ months) |
+| Min: 180, Max: ∞ | Long-term clients (6+ months) |
+
+---
+
+## Technical Implementation
+
+### 1. Extend `useClientTypeFromOrders` Hook
+
+Add new fields to `ClientOrderData` interface:
 ```typescript
-interface ActivityTimelineProps {
-  entityId: string;
-  entityType: string;
-  showOnlyForStatuses?: string[];  // Only show for completed/cancelled/expired
+interface ClientOrderData {
+  // ... existing fields ...
+  
+  // Volume trend metrics
+  currentPeriodValue: number;      // Value in current period
+  previousPeriodValue: number;     // Value in previous period
+  volumeChangePercent: number | null;  // % change
+  volumeTrend: 'growing' | 'stable' | 'declining' | 'dropping' | 'new';
+  
+  // For 10-day comparison
+  last10DaysValue: number;
+  prev10DaysValue: number;
+  
+  // For month comparison  
+  currentMonthValue: number;
+  previousMonthValue: number;
 }
 ```
 
-**Features:**
-- Fetches logs from `system_action_logs` for the given entity
-- Displays in chronological order with actor name and timestamp
-- Read-only, clearly labeled
-- Human-readable action descriptions
-- Collapsible section to avoid cluttering UI
-
-### 2. Integration in Transaction Details Dialogs
-
-#### 2.1 Purchase Module
-
-**File: `PurchaseOrderDetailsDialog.tsx`**
-
-Add Activity Timeline section showing:
-- Order Created by [User] at [Timestamp]
-- Banking Details Collected by [User] at [Timestamp]
-- PAN/TDS Collected by [User] at [Timestamp]
-- Added to Bank by [User] at [Timestamp]
-- Payment Recorded by [User] at [Timestamp]
-- Order Completed/Cancelled by [User] at [Timestamp]
-
-#### 2.2 Sales Module
-
-**File: `SalesOrderDetailsDialog.tsx`**
-
-Add Activity Timeline section showing:
-- Sale Created by [User] at [Timestamp]
-- Order Completed by [User] at [Timestamp]
-
-#### 2.3 Stock Module
-
-**File: `StockTransactionsTab.tsx`**
-
-For completed transactions, show:
-- Transaction Created by [User] at [Timestamp]
-
-### 3. Data Fetching Hook
-
-Create `src/hooks/useActivityTimeline.ts`:
-
+Query modifications to fetch orders with dates for period-based aggregation:
 ```typescript
-export function useActivityTimeline(entityId: string, entityType: string) {
-  // Fetches and returns formatted activity logs
-  // Joins with users table to get actor names
-  // Returns loading state and data
+// Group orders by period
+const last10Days = subDays(today, 10);
+const prev10Days = subDays(today, 20);
+const currentMonthStart = startOfMonth(today);
+const previousMonthStart = startOfMonth(subMonths(today, 1));
+const previousMonthEnd = endOfMonth(subMonths(today, 1));
+
+// Calculate period values
+const last10DaysOrders = clientOrders.filter(o => 
+  new Date(o.order_date) >= last10Days
+);
+const prev10DaysOrders = clientOrders.filter(o => 
+  new Date(o.order_date) >= prev10Days && 
+  new Date(o.order_date) < last10Days
+);
+```
+
+### 2. Update `ClientFilters` Interface
+
+Add new filter fields:
+```typescript
+interface ClientFilters {
+  // ... existing fields ...
+  
+  // Volume trend filters
+  volumePeriod: '10-day' | 'month';
+  volumeTrends: string[];  // ['growing', 'stable', 'declining', 'dropping', 'new']
+  volumeChangeMin: string;
+  volumeChangeMax: string;
+  
+  // Client age filter
+  clientAgeMin: string;  // days since onboarding
+  clientAgeMax: string;
+}
+```
+
+### 3. Filter Panel UI Updates
+
+Add new section to `ClientDirectoryFilters.tsx`:
+
+```
++------------------------------------------------------------------+
+| VOLUME & ENGAGEMENT                                               |
++------------------------------------------------------------------+
+| Comparison Period: [10-Day ▼]                                     |
+|                                                                   |
+| Volume Trend: [▼ Select...] (Growing, Stable, Declining, etc.)   |
+|                                                                   |
+| Volume Change %: Min [___]% to Max [___]%                        |
++------------------------------------------------------------------+
+| CLIENT AGE                                                        |
++------------------------------------------------------------------+
+| Days Since Onboarding: Min [___] to Max [___] days               |
++------------------------------------------------------------------+
+```
+
+### 4. Table Column Addition
+
+Add "Trend" column to buyer/seller tables in `ClientDashboard.tsx`:
+```typescript
+<th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
+
+// In row rendering:
+<td className="py-3 px-4">
+  <VolumeTrendBadge 
+    changePercent={orderInfo?.volumeChangePercent} 
+    trend={orderInfo?.volumeTrend}
+  />
+</td>
+```
+
+### 5. Volume Trend Badge Component
+
+Create a reusable badge component:
+```typescript
+function VolumeTrendBadge({ changePercent, trend }) {
+  const config = {
+    growing: { icon: TrendingUp, color: 'bg-green-100 text-green-800', prefix: '+' },
+    stable: { icon: Minus, color: 'bg-gray-100 text-gray-600', prefix: '' },
+    declining: { icon: TrendingDown, color: 'bg-yellow-100 text-yellow-800', prefix: '' },
+    dropping: { icon: TrendingDown, color: 'bg-red-100 text-red-800', prefix: '' },
+    new: { icon: Sparkles, color: 'bg-blue-100 text-blue-800', prefix: '' },
+  };
+  
+  const { icon: Icon, color, prefix } = config[trend];
+  
+  return (
+    <Badge className={color}>
+      <Icon className="h-3 w-3 mr-1" />
+      {trend === 'new' ? 'New' : `${prefix}${changePercent?.toFixed(0)}%`}
+    </Badge>
+  );
 }
 ```
 
 ---
 
-## Technical Details
+## Re-Targeting Use Cases Enabled
 
-### Database Migration
-
-Create migration with:
-
-1. `system_action_logs` table
-2. RLS policies allowing:
-   - SELECT for all authenticated users
-   - INSERT for all authenticated users
-   - No UPDATE or DELETE
-3. Indexes on `entity_id`, `entity_type`, `user_id`
-
-### Logging Helper Pattern
-
-```typescript
-// Example usage in a component
-import { logAction } from '@/lib/system-action-logger';
-import { useAuth } from '@/hooks/useAuth';
-
-// After successful action
-await logAction({
-  userId: user?.id,
-  actionType: 'purchase.order_created',
-  entityType: 'purchase_order',
-  entityId: newOrderId,
-  module: 'purchase',
-  metadata: { order_number: orderNumber }
-});
-```
-
-### Activity Timeline Component
-
-```typescript
-// Compact timeline display
-<ActivityTimeline 
-  entityId={order.id}
-  entityType="purchase_order"
-  showOnlyForStatuses={['COMPLETED', 'CANCELLED']}
-/>
-```
-
----
-
-## Files to Create
-
-| Path | Description |
-|------|-------------|
-| `src/lib/system-action-logger.ts` | Central logging utility with `logAction()` function |
-| `src/components/ui/activity-timeline.tsx` | Reusable timeline display component |
-| `src/hooks/useActivityTimeline.ts` | Hook for fetching activity logs |
-| Migration SQL file | Creates `system_action_logs` table |
+| Scenario | Filter Configuration |
+|----------|---------------------|
+| Win back declining high-value clients | Volume Trend: Declining/Dropping + Total Value Min: 100000 |
+| Target established clients with drops | Client Age Min: 90 + Volume Change: -50% to -20% |
+| Engage new clients early | Client Age Max: 30 + Status: Active |
+| Identify at-risk VIPs | Priority: Platinum/Gold + Volume Trend: Declining |
+| Re-engage dormant veterans | Client Age Min: 180 + Status: Dormant |
+| High-frequency users slowing down | Total Orders Min: 20 + Volume Trend: Dropping |
 
 ---
 
 ## Files to Modify
 
-### Purchase Module (7 files)
-- `src/components/purchase/NewPurchaseOrderDialog.tsx`
-- `src/components/purchase/ManualPurchaseEntryDialog.tsx`
-- `src/components/purchase/CollectFieldsDialog.tsx`
-- `src/components/purchase/SetTimerDialog.tsx`
-- `src/components/purchase/RecordPaymentDialog.tsx`
-- `src/components/purchase/BuyOrdersTab.tsx`
-- `src/components/purchase/PurchaseOrderDetailsDialog.tsx`
-
-### Sales Module (5 files)
-- `src/components/sales/SalesOrderDialog.tsx`
-- `src/components/sales/StepBySalesFlow.tsx`
-- `src/components/sales/SalesEntryDialog.tsx`
-- `src/components/sales/EditSalesOrderDialog.tsx`
-- `src/components/sales/SalesOrderDetailsDialog.tsx`
-- `src/pages/Sales.tsx`
-
-### Stock Module (4 files)
-- `src/components/stock/StockTransactionsTab.tsx`
-- `src/components/stock/StockAdjustmentTab.tsx`
-- `src/components/stock/ManualWalletAdjustmentDialog.tsx`
-- `src/components/stock/AddProductDialog.tsx`
-
-### Client Module (4 files)
-- `src/components/clients/AddClientDialog.tsx`
-- `src/components/clients/EditClientDetailsDialog.tsx`
-- `src/components/clients/ClientOnboardingApprovals.tsx`
-- `src/components/clients/SellerOnboardingApprovals.tsx`
-
-### Banking/BAMS Module (5 files)
-- `src/components/bams/BankAccountManagement.tsx`
-- `src/components/bams/CloseAccountDialog.tsx`
-- `src/components/bams/journal/ExpensesIncomesTab.tsx`
-- `src/components/bams/journal/ContraEntriesTab.tsx`
-- `src/components/bams/ManualBalanceAdjustmentDialog.tsx`
-
-### User Management (4 files)
-- `src/components/user-management/AddUserDialog.tsx`
-- `src/components/user-management/EditUserDialog.tsx`
-- `src/components/user-management/ResetPasswordDialog.tsx`
-- `src/components/user-management/PendingRegistrationsTab.tsx`
+| File | Changes |
+|------|---------|
+| `src/hooks/useClientTypeFromOrders.tsx` | Add period-based volume calculations and trend detection |
+| `src/components/clients/ClientDirectoryFilters.tsx` | Add Volume Trend section with period selector, trend filter, change % range; Add Client Age range filter |
+| `src/components/clients/ClientDashboard.tsx` | Add "Trend" column to tables, update filter application logic, pass new filter state |
 
 ---
 
-## Implementation Order
+## Performance Considerations
 
-1. **Phase 1: Database & Core Infrastructure**
-   - Create migration for `system_action_logs` table
-   - Create `system-action-logger.ts` utility
-
-2. **Phase 2: Purchase Module** (Priority - Most complex)
-   - Add logging to all purchase dialogs
-   - Add Activity Timeline to PurchaseOrderDetailsDialog
-
-3. **Phase 3: Sales Module**
-   - Add logging to sales dialogs
-   - Add Activity Timeline to SalesOrderDetailsDialog
-
-4. **Phase 4: Stock Module**
-   - Add logging to stock transactions
-
-5. **Phase 5: Other Modules**
-   - Clients, Banking, User Management
-
-6. **Phase 6: Activity Timeline Component**
-   - Create reusable component
-   - Integrate into transaction detail views
+- All calculations happen client-side after initial data fetch
+- Period-based aggregation reuses already-fetched order data
+- Memoize trend calculations to avoid recomputation on every render
+- Volume period preference persisted in filter state (not localStorage, resets on page refresh)
 
 ---
 
-## Rules Enforced
+## Summary
 
-1. **No duplicate logs**: Unique constraint on `(entity_id, action_type)` with `ignoreDuplicates`
-2. **No overwrites**: Logs are immutable once created
-3. **No UI-triggered logs**: Only action execution creates logs
-4. **Server-side timestamps**: Precise recording at execution time
-5. **Non-blocking**: Logging failures don't disrupt main workflows
-6. **No business logic changes**: Pure data capture and display
-
----
-
-## Success Criteria
-
-- Every human action has User ID and Timestamp recorded
-- Every closed transaction shows who performed each major action and when
-- Works consistently across all modules
-- No behavioral changes introduced
-- Data is future-analytics ready
+This implementation provides:
+- **Visual Volume Trend Indicators** in directory tables with color-coded badges
+- **Flexible Period Comparison** (10-day for high-frequency tracking, monthly for standard)
+- **Custom Range Filters** for precise targeting by volume change percentage
+- **Client Age Filter** to segment by relationship duration
+- **Powerful Re-Targeting Combinations** for win-back campaigns
 

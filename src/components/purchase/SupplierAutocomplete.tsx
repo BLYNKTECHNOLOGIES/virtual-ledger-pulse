@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "@/hooks/useDebounce";
 import { AlertCircle, UserPlus, Check } from "lucide-react";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 
 interface ClientBankDetails {
   pan_card_number?: string | null;
@@ -37,6 +39,7 @@ export function SupplierAutocomplete({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [hasExactMatch, setHasExactMatch] = useState(false);
   const [isNewClient, setIsNewClient] = useState(false);
+  const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
   const debouncedValue = useDebounce(value, 300);
 
   const { data: clients } = useQuery({
@@ -127,31 +130,31 @@ export function SupplierAutocomplete({
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder="Enter seller name"
           required
-          className={hasExactMatch && !selectedClientId ? "border-amber-500 pr-10" : ""}
+          className={hasExactMatch && !selectedClientId ? "border-destructive pr-10" : ""}
         />
         {selectedClientId && (
-          <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+          <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
         )}
       </div>
       
       {/* Status indicators */}
       <div className="mt-1.5 flex items-center gap-2">
         {hasExactMatch && !selectedClientId && (
-          <div className="flex items-center gap-1.5 text-amber-600 text-sm">
+          <div className="flex items-center gap-1.5 text-destructive text-sm">
             <AlertCircle className="h-3.5 w-3.5" />
             <span>Client exists - please select from suggestions</span>
           </div>
         )}
         
         {isNewClient && !hasExactMatch && value.trim().length > 0 && (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
+          <Badge variant="outline" className="bg-accent text-accent-foreground flex items-center gap-1">
             <UserPlus className="h-3 w-3" />
             New seller will be created
           </Badge>
         )}
         
         {selectedClientId && (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center gap-1">
+          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 flex items-center gap-1">
             <Check className="h-3 w-3" />
             Existing client selected
           </Badge>
@@ -160,36 +163,56 @@ export function SupplierAutocomplete({
       
       {/* Suggestions dropdown */}
       {showSuggestions && filteredClients.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredClients.map((client) => (
-            <div
-              key={client.id}
-              className={`px-3 py-2 hover:bg-gray-100 cursor-pointer ${
-                client.id === selectedClientId ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleClientSelect(client)}
-            >
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{client.name}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {client.client_id}
-                </Badge>
-              </div>
-              <div className="text-sm text-gray-500 mt-0.5">
-                {client.phone && `Phone: ${client.phone}`}
-                {client.email && ` | Email: ${client.email}`}
-                {client.client_type && ` | Type: ${client.client_type}`}
-              </div>
-            </div>
+            <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
+              if (open) setHoveredClientId(client.id);
+            }}>
+              <HoverCardTrigger asChild>
+                <div
+                  className={`px-3 py-2 hover:bg-muted cursor-pointer ${
+                    client.id === selectedClientId ? 'bg-accent' : ''
+                  }`}
+                  onClick={() => handleClientSelect(client)}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{client.name}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {client.client_id}
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-0.5">
+                    {client.phone && `Phone: ${client.phone}`}
+                    {client.email && ` | Email: ${client.email}`}
+                    {client.client_type && ` | Type: ${client.client_type}`}
+                  </div>
+                </div>
+              </HoverCardTrigger>
+              <HoverCardContent side="right" align="start" className="w-80 p-3">
+                <ClientOrderPreview 
+                  clientId={client.id}
+                  clientName={client.name}
+                  clientData={{
+                    client_id: client.client_id,
+                    phone: client.phone,
+                    date_of_onboarding: client.date_of_onboarding,
+                    client_type: client.client_type,
+                    is_buyer: client.is_buyer,
+                    is_seller: client.is_seller
+                  }}
+                  isOpen={hoveredClientId === client.id}
+                />
+              </HoverCardContent>
+            </HoverCard>
           ))}
         </div>
       )}
       
       {/* No matches found */}
       {showSuggestions && value.trim().length > 0 && filteredClients.length === 0 && !hasExactMatch && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <UserPlus className="h-4 w-4 text-blue-500" />
+        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg p-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <UserPlus className="h-4 w-4 text-primary" />
             <span>No existing clients found. A new seller will be created on submission.</span>
           </div>
         </div>

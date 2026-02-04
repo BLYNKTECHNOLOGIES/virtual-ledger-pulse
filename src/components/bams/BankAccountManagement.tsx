@@ -221,9 +221,20 @@ export function BankAccountManagement() {
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
+      let errorMessage = error.message || "Failed to create bank account";
+      
+      // Handle unique constraint violations with user-friendly messages
+      if (error.message?.includes('bank_accounts_account_number_key') || 
+          error.message?.includes('duplicate key') && error.message?.includes('account_number')) {
+        errorMessage = "An account with this account number already exists. Please use a different account number.";
+      } else if (error.message?.includes('unique_account_name') || 
+                 error.message?.includes('duplicate key') && error.message?.includes('account_name')) {
+        errorMessage = "An account with this name already exists. Please use a different account name.";
+      }
+      
       toast({
-        title: "Error",
-        description: error.message || "Failed to create bank account",
+        title: "Error Creating Bank Account",
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -260,19 +271,25 @@ export function BankAccountManagement() {
       setEditingAccount(null);
     },
     onError: (error: any) => {
-      if (error.message.includes('cannot be negative')) {
-        toast({
-          title: "Invalid Balance",
-          description: "Bank account balance cannot be negative.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update bank account",
-          variant: "destructive"
-        });
+      let errorMessage = error.message || "Failed to update bank account";
+      let errorTitle = "Error Updating Bank Account";
+      
+      if (error.message?.includes('cannot be negative')) {
+        errorTitle = "Invalid Balance";
+        errorMessage = "Bank account balance cannot be negative.";
+      } else if (error.message?.includes('bank_accounts_account_number_key') || 
+                 error.message?.includes('duplicate key') && error.message?.includes('account_number')) {
+        errorMessage = "An account with this account number already exists. Please use a different account number.";
+      } else if (error.message?.includes('unique_account_name') || 
+                 error.message?.includes('duplicate key') && error.message?.includes('account_name')) {
+        errorMessage = "An account with this name already exists. Please use a different account name.";
       }
+      
+      toast({
+        title: errorTitle,
+        description: errorMessage,
+        variant: "destructive"
+      });
     }
   });
 

@@ -798,15 +798,6 @@ export function BankAccountManagement() {
                                   Edit
                                 </Button>
                                 <Button 
-                                  variant="secondary" 
-                                  size="sm" 
-                                  onClick={() => handleMarkDormant(account)}
-                                  className="flex items-center gap-1 bg-amber-100 text-amber-700 hover:bg-amber-200"
-                                >
-                                  <Moon className="h-3 w-3" />
-                                  Dormant
-                                </Button>
-                                <Button 
                                   variant="destructive" 
                                   size="sm" 
                                   onClick={() => handleCloseAccount(account)}

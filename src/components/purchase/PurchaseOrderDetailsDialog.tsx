@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, Receipt, ExternalLink, ImageIcon } from "lucide-react";
+import { Download, Printer, Receipt, ExternalLink, ImageIcon, User } from "lucide-react";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCard";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -19,6 +21,22 @@ interface PurchaseOrderDetailsDialogProps {
 export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: PurchaseOrderDetailsDialogProps) {
   const { toast } = useToast();
   const [selectedReceiptIndex, setSelectedReceiptIndex] = useState(0);
+
+  // Fetch creator's username if created_by exists
+  const { data: creatorUser } = useQuery({
+    queryKey: ['user', order?.created_by],
+    queryFn: async () => {
+      if (!order?.created_by) return null;
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('id', order.created_by)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!order?.created_by,
+  });
 
   if (!order) return null;
 
@@ -130,6 +148,21 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               <label className="text-sm font-medium text-muted-foreground">Updated At</label>
               <p className="text-sm">{format(new Date(order.updated_at), 'MMM dd, yyyy HH:mm')}</p>
             </div>
+            {/* Created By - for manual entries */}
+            {order.created_by && (
+              <div className="col-span-2">
+                <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  Created By
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm font-medium">{creatorUser?.username || 'Loading...'}</p>
+                  <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded" title={order.created_by}>
+                    ID: {order.created_by.slice(0, 8)}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {order.description && (

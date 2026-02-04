@@ -42,25 +42,43 @@ interface RawOrderData {
   order_date: string;
 }
 
-async function fetchClientOrders(clientId: string): Promise<PreviewData> {
-  // Use explicit typing to avoid deep type inference issues
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const salesQuery = supabase.from('sales_orders').select('order_number, total_amount, order_date') as any;
-  const salesResult = await salesQuery
-    .eq('client_id', clientId)
+// Fetch orders by matching client name and/or phone
+async function fetchClientOrders(clientName: string, clientPhone?: string | null): Promise<PreviewData> {
+  // Build sales query - match by client_name (case insensitive)
+  let salesQuery = supabase
+    .from('sales_orders')
+    .select('order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
-    .limit(5);
+    .limit(50);
+  
+  // Match by name OR phone
+  if (clientPhone) {
+    salesQuery = salesQuery.or(`client_name.ilike.${clientName},client_phone.eq.${clientPhone}`);
+  } else {
+    salesQuery = salesQuery.ilike('client_name', clientName);
+  }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const purchaseQuery = supabase.from('purchase_orders').select('order_number, total_amount, order_date') as any;
-  const purchaseResult = await purchaseQuery
-    .eq('client_id', clientId)
+  // Build purchase query - match by supplier_name (case insensitive)
+  let purchaseQuery = supabase
+    .from('purchase_orders')
+    .select('order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
-    .limit(5);
+    .limit(50);
+  
+  // Match by name OR phone
+  if (clientPhone) {
+    purchaseQuery = purchaseQuery.or(`supplier_name.ilike.${clientName},contact_number.eq.${clientPhone}`);
+  } else {
+    purchaseQuery = purchaseQuery.ilike('supplier_name', clientName);
+  }
 
-  // Cast to simple types
+  const [salesResult, purchaseResult] = await Promise.all([
+    salesQuery,
+    purchaseQuery
+  ]);
+
   const salesOrders: RawOrderData[] = (salesResult.data as RawOrderData[]) || [];
   const purchaseOrders: RawOrderData[] = (purchaseResult.data as RawOrderData[]) || [];
 
@@ -72,13 +90,13 @@ async function fetchClientOrders(clientId: string): Promise<PreviewData> {
 
   // Combine and sort recent transactions
   const allOrders: OrderData[] = [
-    ...salesOrders.map(o => ({ 
+    ...salesOrders.slice(0, 5).map(o => ({ 
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 
       type: 'buy' as const 
     })),
-    ...purchaseOrders.map(o => ({ 
+    ...purchaseOrders.slice(0, 5).map(o => ({ 
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 
@@ -98,14 +116,13 @@ async function fetchClientOrders(clientId: string): Promise<PreviewData> {
 }
 
 export function ClientOrderPreview({ 
-  clientId, 
   clientName, 
   clientData,
   isOpen 
 }: ClientOrderPreviewProps) {
   const { data, isLoading, refetch } = useQuery<PreviewData>({
-    queryKey: ['client-preview-orders', clientId],
-    queryFn: () => fetchClientOrders(clientId),
+    queryKey: ['client-preview-orders', clientName, clientData?.phone],
+    queryFn: () => fetchClientOrders(clientName, clientData?.phone),
     enabled: false,
     staleTime: 60000,
   });
@@ -129,6 +146,19 @@ export function ClientOrderPreview({
   const memberSince = clientData?.date_of_onboarding 
     ? formatDistanceToNow(new Date(clientData.date_of_onboarding), { addSuffix: true })
     : null;
+
+  // Determine client role based on is_buyer/is_seller flags
+  const getClientRole = () => {
+    const isBuyer = clientData?.is_buyer;
+    const isSeller = clientData?.is_seller;
+    
+    if (isBuyer && isSeller) return 'COMPOSITE';
+    if (isBuyer) return 'BUYER';
+    if (isSeller) return 'SELLER';
+    return null;
+  };
+
+  const clientRole = getClientRole();
 
   if (isLoading) {
     return (
@@ -166,16 +196,20 @@ export function ClientOrderPreview({
         </div>
       </div>
 
-      {/* Client Type & Composite Badge */}
+      {/* Client Role Badge */}
       <div className="flex items-center gap-1.5 flex-wrap">
-        {clientData?.client_type && (
-          <Badge variant="outline" className="text-xs">
-            {clientData.client_type}
-          </Badge>
-        )}
-        {data?.isComposite && (
-          <Badge className="text-xs bg-accent text-accent-foreground">
-            Composite Client
+        {clientRole && (
+          <Badge 
+            variant="outline" 
+            className={`text-xs ${
+              clientRole === 'COMPOSITE' 
+                ? 'bg-accent text-accent-foreground border-accent' 
+                : clientRole === 'BUYER' 
+                  ? 'bg-primary/10 text-primary border-primary/30' 
+                  : 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800'
+            }`}
+          >
+            {clientRole}
           </Badge>
         )}
       </div>

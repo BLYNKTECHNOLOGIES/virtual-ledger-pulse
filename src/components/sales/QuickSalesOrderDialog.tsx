@@ -41,7 +41,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     product_id: ""
   });
 
-  // Fetch bank accounts
+  // Fetch bank accounts (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
@@ -49,6 +49,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
         .from('bank_accounts')
         .select('*')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       if (error) throw error;
       return data;

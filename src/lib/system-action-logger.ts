@@ -42,6 +42,8 @@ export const ActionTypes = {
   BANK_TRANSFER_COMPLETED: 'bank.transfer_completed',
   BANK_ACCOUNT_CREATED: 'bank.account_created',
   BANK_ACCOUNT_CLOSED: 'bank.account_closed',
+  BANK_ACCOUNT_DORMANT: 'bank.account_dormant',
+  BANK_ACCOUNT_REACTIVATED: 'bank.account_reactivated',
   BANK_BALANCE_ADJUSTED: 'bank.balance_adjusted',
   
   // User Management

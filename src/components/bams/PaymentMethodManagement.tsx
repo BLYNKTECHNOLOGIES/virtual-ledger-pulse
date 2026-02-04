@@ -99,7 +99,7 @@ export function PaymentMethodManagement() {
     },
   });
 
-  // Fetch active bank accounts for dropdown
+  // Fetch active bank accounts for dropdown (excluding dormant)
   const { data: bankAccounts, isLoading: isLoadingBankAccounts } = useQuery({
     queryKey: ['active_bank_accounts'],
     queryFn: async () => {
@@ -107,6 +107,7 @@ export function PaymentMethodManagement() {
         .from('bank_accounts')
         .select('id, account_name, bank_name, account_number, IFSC')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       
       if (error) throw error;

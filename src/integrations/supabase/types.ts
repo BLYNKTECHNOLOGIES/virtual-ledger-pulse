@@ -86,6 +86,8 @@ export type Database = {
           bank_name: string
           branch: string | null
           created_at: string
+          dormant_at: string | null
+          dormant_by: string | null
           id: string
           IFSC: string | null
           lien_amount: number
@@ -104,6 +106,8 @@ export type Database = {
           bank_name: string
           branch?: string | null
           created_at?: string
+          dormant_at?: string | null
+          dormant_by?: string | null
           id?: string
           IFSC?: string | null
           lien_amount?: number
@@ -122,6 +126,8 @@ export type Database = {
           bank_name?: string
           branch?: string | null
           created_at?: string
+          dormant_at?: string | null
+          dormant_by?: string | null
           id?: string
           IFSC?: string | null
           lien_amount?: number

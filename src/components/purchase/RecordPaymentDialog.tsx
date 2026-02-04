@@ -53,7 +53,7 @@ export function RecordPaymentDialog({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch active bank accounts
+  // Fetch active bank accounts (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts_active'],
     queryFn: async () => {
@@ -61,6 +61,7 @@ export function RecordPaymentDialog({
         .from('bank_accounts')
         .select('id, account_name, bank_name, balance')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       if (error) throw error;
       return data || [];

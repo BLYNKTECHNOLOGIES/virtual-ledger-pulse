@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface SalesEntryDialogProps {
@@ -146,6 +146,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   const createSalesOrderMutation = useMutation({
     mutationFn: async (data: any) => {
+      // Get current user ID for tracking creator
+      const createdBy = getCurrentUserId();
+      
       const { data: result, error } = await supabase
         .from('sales_orders')
         .insert([{
@@ -162,7 +165,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           payment_status: data.payment_status,
           order_date: `${data.order_date}T${data.order_time}:00.000Z`,
           description: data.description,
-          is_off_market: data.is_off_market || false
+          is_off_market: data.is_off_market || false,
+          created_by: createdBy
         }])
         .select()
         .single();

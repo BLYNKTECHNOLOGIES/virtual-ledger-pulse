@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Edit, Smartphone, Building } from "lucide-react";
+import { Plus, Edit, Smartphone, Building, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +53,7 @@ export function PaymentMethodManagement() {
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<SalesPaymentMethod | null>(null);
+  const [deletingMethod, setDeletingMethod] = useState<SalesPaymentMethod | null>(null);
   const [step, setStep] = useState(1);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -231,6 +233,33 @@ export function PaymentMethodManagement() {
       toast({
         title: "Error",
         description: details || "Failed to update payment method",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete payment method mutation (soft delete by setting is_active to false)
+  const deleteMethodMutation = useMutation({
+    mutationFn: async (methodId: string) => {
+      const { error } = await supabase
+        .from('sales_payment_methods')
+        .update({ is_active: false })
+        .eq('id', methodId);
+
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      toast({
+        title: "Payment Method Deleted",
+        description: "Payment method has been successfully deleted.",
+      });
+      await queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      setDeletingMethod(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete payment method.",
         variant: "destructive",
       });
     },
@@ -944,15 +973,26 @@ export function PaymentMethodManagement() {
                     </TableCell>
                     <TableCell>
                       <PermissionGate permissions={["bams_manage"]} showFallback={false}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(method)}
-                          className="flex items-center gap-1"
-                        >
-                          <Edit className="h-3 w-3" />
-                          Edit
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(method)}
+                            className="flex items-center gap-1"
+                          >
+                            <Edit className="h-3 w-3" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setDeletingMethod(method)}
+                            className="flex items-center gap-1"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </Button>
+                        </div>
                       </PermissionGate>
                     </TableCell>
                   </TableRow>
@@ -969,6 +1009,42 @@ export function PaymentMethodManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingMethod} onOpenChange={(open) => !open && setDeletingMethod(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment Method</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this payment method?
+              {deletingMethod && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                  <p className="font-medium">
+                    {deletingMethod.type === "UPI" ? deletingMethod.upi_id : "Bank Transfer"}
+                  </p>
+                  {deletingMethod.bank_accounts && (
+                    <p className="text-sm text-gray-500">
+                      Linked to: {deletingMethod.bank_accounts.account_name}
+                    </p>
+                  )}
+                </div>
+              )}
+              <p className="mt-2 text-amber-600 text-sm">
+                This action will deactivate the payment method. Historical transactions will be preserved.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingMethod && deleteMethodMutation.mutate(deletingMethod.id)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteMethodMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

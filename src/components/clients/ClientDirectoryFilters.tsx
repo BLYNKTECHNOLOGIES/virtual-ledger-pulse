@@ -6,7 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Filter, ChevronDown, ChevronUp, X, RotateCcw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Filter, ChevronDown, ChevronUp, X, RotateCcw, TrendingUp, TrendingDown, Sparkles, Minus, Calendar } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 export interface ClientFilters {
@@ -34,6 +35,16 @@ export interface ClientFilters {
   daysSinceLastOrderMin: string;
   daysSinceLastOrderMax: string;
   clientStatus: string[];
+  
+  // Volume trend filters
+  volumePeriod: '10-day' | 'month';
+  volumeTrends: string[];
+  volumeChangeMin: string;
+  volumeChangeMax: string;
+  
+  // Client age filter
+  clientAgeMin: string;
+  clientAgeMax: string;
 }
 
 export const defaultFilters: ClientFilters = {
@@ -54,6 +65,12 @@ export const defaultFilters: ClientFilters = {
   daysSinceLastOrderMin: '',
   daysSinceLastOrderMax: '',
   clientStatus: [],
+  volumePeriod: '10-day',
+  volumeTrends: [],
+  volumeChangeMin: '',
+  volumeChangeMax: '',
+  clientAgeMin: '',
+  clientAgeMax: '',
 };
 
 interface ClientDirectoryFiltersProps {
@@ -77,6 +94,13 @@ const COSMOS_OPTIONS = [
   { value: 'alert', label: 'Alert' },
   { value: 'normal', label: 'Normal' },
 ];
+const VOLUME_TRENDS = [
+  { value: 'growing', label: 'Growing (+10%)', icon: TrendingUp, color: 'text-green-600' },
+  { value: 'stable', label: 'Stable (±10%)', icon: Minus, color: 'text-muted-foreground' },
+  { value: 'declining', label: 'Declining (-10% to -30%)', icon: TrendingDown, color: 'text-yellow-600' },
+  { value: 'dropping', label: 'Dropping (< -30%)', icon: TrendingDown, color: 'text-red-600' },
+  { value: 'new', label: 'New (No history)', icon: Sparkles, color: 'text-blue-600' },
+];
 
 // Multi-select dropdown component
 function MultiSelectFilter({
@@ -87,10 +111,10 @@ function MultiSelectFilter({
   renderOption,
 }: {
   label: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; icon?: any; color?: string }[];
   selected: string[];
   onSelectionChange: (selected: string[]) => void;
-  renderOption?: (option: { value: string; label: string }) => React.ReactNode;
+  renderOption?: (option: { value: string; label: string; icon?: any; color?: string }) => React.ReactNode;
 }) {
   const toggleOption = (value: string) => {
     if (selected.includes(value)) {
@@ -128,8 +152,13 @@ function MultiSelectFilter({
                   onCheckedChange={() => toggleOption(option.value)}
                   className="pointer-events-none"
                 />
-                <span className="text-sm">
-                  {renderOption ? renderOption(option) : option.label}
+                <span className="text-sm flex items-center gap-1.5">
+                  {renderOption ? renderOption(option) : (
+                    <>
+                      {option.icon && <option.icon className={`h-3.5 w-3.5 ${option.color || ''}`} />}
+                      {option.label}
+                    </>
+                  )}
                 </span>
               </div>
             ))}
@@ -242,6 +271,9 @@ export function ClientDirectoryFilters({
     if (filters.totalOrdersMin || filters.totalOrdersMax) count++;
     if (filters.daysSinceLastOrderMin || filters.daysSinceLastOrderMax) count++;
     if (filters.clientStatus.length > 0) count++;
+    if (filters.volumeTrends.length > 0) count++;
+    if (filters.volumeChangeMin || filters.volumeChangeMax) count++;
+    if (filters.clientAgeMin || filters.clientAgeMax) count++;
     return count;
   }, [filters]);
 
@@ -406,12 +438,56 @@ export function ClientDirectoryFilters({
             </div>
           </div>
 
-          {/* Section 3: Activity Filters */}
+          {/* Section 3: Volume & Engagement */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Activity & Re-Targeting
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <TrendingUp className="h-3.5 w-3.5" />
+              Volume & Engagement
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Comparison Period</label>
+                <Select 
+                  value={filters.volumePeriod} 
+                  onValueChange={(v) => updateFilter('volumePeriod', v as '10-day' | 'month')}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10-day">10-Day Rolling</SelectItem>
+                    <SelectItem value="month">Month-on-Month</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Volume Trend</label>
+                <MultiSelectFilter
+                  label="Select trends"
+                  options={VOLUME_TRENDS}
+                  selected={filters.volumeTrends}
+                  onSelectionChange={(v) => updateFilter('volumeTrends', v)}
+                />
+              </div>
+              <RangeFilter
+                label="Volume Change (%)"
+                minValue={filters.volumeChangeMin}
+                maxValue={filters.volumeChangeMax}
+                onMinChange={(v) => updateFilter('volumeChangeMin', v)}
+                onMaxChange={(v) => updateFilter('volumeChangeMax', v)}
+                suffix="%"
+                placeholder={{ min: '-100', max: '+∞' }}
+              />
+            </div>
+          </div>
+
+          {/* Section 4: Activity & Client Age */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5" />
+              Activity & Client Age
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <RangeFilter
                 label="Total Orders"
                 minValue={filters.totalOrdersMin}
@@ -425,7 +501,15 @@ export function ClientDirectoryFilters({
                 maxValue={filters.daysSinceLastOrderMax}
                 onMinChange={(v) => updateFilter('daysSinceLastOrderMin', v)}
                 onMaxChange={(v) => updateFilter('daysSinceLastOrderMax', v)}
-                suffix="days"
+                suffix="d"
+              />
+              <RangeFilter
+                label="Days Since Onboarding"
+                minValue={filters.clientAgeMin}
+                maxValue={filters.clientAgeMax}
+                onMinChange={(v) => updateFilter('clientAgeMin', v)}
+                onMaxChange={(v) => updateFilter('clientAgeMax', v)}
+                suffix="d"
               />
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Client Status</label>
@@ -533,6 +617,27 @@ export function ClientDirectoryFilters({
                     />
                   </Badge>
                 )}
+                {filters.volumeTrends.length > 0 && (
+                  <Badge variant="secondary" className="gap-1 pr-1">
+                    Trend: {filters.volumeTrends.length} selected ({filters.volumePeriod})
+                    <X 
+                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                      onClick={() => updateFilter('volumeTrends', [])}
+                    />
+                  </Badge>
+                )}
+                {(filters.volumeChangeMin || filters.volumeChangeMax) && (
+                  <Badge variant="secondary" className="gap-1 pr-1">
+                    Vol Δ: {filters.volumeChangeMin || '-∞'}% - {filters.volumeChangeMax || '+∞'}%
+                    <X 
+                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                      onClick={() => {
+                        updateFilter('volumeChangeMin', '');
+                        updateFilter('volumeChangeMax', '');
+                      }}
+                    />
+                  </Badge>
+                )}
                 {(filters.totalOrdersMin || filters.totalOrdersMax) && (
                   <Badge variant="secondary" className="gap-1 pr-1">
                     Orders: {filters.totalOrdersMin || '0'} - {filters.totalOrdersMax || '∞'}
@@ -553,6 +658,18 @@ export function ClientDirectoryFilters({
                       onClick={() => {
                         updateFilter('daysSinceLastOrderMin', '');
                         updateFilter('daysSinceLastOrderMax', '');
+                      }}
+                    />
+                  </Badge>
+                )}
+                {(filters.clientAgeMin || filters.clientAgeMax) && (
+                  <Badge variant="secondary" className="gap-1 pr-1">
+                    Client Age: {filters.clientAgeMin || '0'} - {filters.clientAgeMax || '∞'} days
+                    <X 
+                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                      onClick={() => {
+                        updateFilter('clientAgeMin', '');
+                        updateFilter('clientAgeMax', '');
                       }}
                     />
                   </Badge>

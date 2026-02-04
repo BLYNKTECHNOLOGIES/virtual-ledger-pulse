@@ -86,6 +86,7 @@ export function EditPaymentGatewayDialog({
         .from('bank_accounts')
         .select('id, account_name, bank_name, account_number')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
 
       if (error) throw error;

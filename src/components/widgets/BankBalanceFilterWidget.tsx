@@ -27,7 +27,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Fetch active bank accounts
+  // Fetch active bank accounts (excluding dormant)
   const { data: bankAccounts = [], isLoading } = useQuery({
     queryKey: ['active_bank_accounts_widget'],
     queryFn: async () => {
@@ -35,6 +35,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         .from('bank_accounts')
         .select('id, bank_name, account_name, account_number, balance, lien_amount')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('bank_name');
 
       if (error) throw error;

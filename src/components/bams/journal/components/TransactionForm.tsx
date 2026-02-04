@@ -189,7 +189,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
                 <SelectValue placeholder="Select bank account" />
               </SelectTrigger>
               <SelectContent>
-                {bankAccounts?.map((account) => (
+                {bankAccounts?.filter(account => !account.dormant_at).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-muted-foreground ml-2">

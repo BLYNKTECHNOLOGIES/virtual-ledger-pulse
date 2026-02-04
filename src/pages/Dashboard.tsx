@@ -115,10 +115,12 @@ export default function Dashboard() {
         .select('id');
 
       // Get active bank accounts and their available balances (total balance - lien amount)
+      // Exclude dormant banks from calculations
       const { data: bankData } = await supabase
         .from('bank_accounts')
         .select('balance, lien_amount')
-        .eq('status', 'ACTIVE');
+        .eq('status', 'ACTIVE')
+        .is('dormant_at', null); // Exclude dormant accounts
 
       // Get stock inventory data using cost_price for total value calculation
       const { data: stockData } = await supabase

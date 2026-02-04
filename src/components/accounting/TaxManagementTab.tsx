@@ -153,7 +153,7 @@ export function TaxManagementTab() {
     enabled: !!dateRange.start,
   });
 
-  // Fetch bank accounts
+  // Fetch bank accounts (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts_active'],
     queryFn: async () => {
@@ -161,6 +161,7 @@ export function TaxManagementTab() {
         .from('bank_accounts')
         .select('id, account_name, bank_name, balance')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       if (error) throw error;
       return data;

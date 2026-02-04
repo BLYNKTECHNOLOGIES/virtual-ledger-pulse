@@ -117,7 +117,7 @@ export function CaseGenerator() {
     statement_proof: [],
   });
 
-  // Fetch bank accounts for dropdown
+  // Fetch bank accounts for dropdown (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
@@ -125,6 +125,7 @@ export function CaseGenerator() {
         .from('bank_accounts')
         .select('id, bank_name, account_name, account_number')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('bank_name');
       
       if (error) throw error;

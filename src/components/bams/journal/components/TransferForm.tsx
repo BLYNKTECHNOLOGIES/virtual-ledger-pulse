@@ -172,7 +172,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 <SelectValue placeholder="Select source account" />
               </SelectTrigger>
               <SelectContent>
-                {bankAccounts?.map((account) => (
+                {bankAccounts?.filter(account => !account.dormant_at).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-gray-500 ml-2">
@@ -191,7 +191,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 <SelectValue placeholder="Select destination account" />
               </SelectTrigger>
               <SelectContent>
-                {bankAccounts?.map((account) => (
+                {bankAccounts?.filter(account => !account.dormant_at).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-gray-500 ml-2">

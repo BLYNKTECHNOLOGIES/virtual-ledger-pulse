@@ -43,6 +43,7 @@ interface SystemTotals {
   total_accounts: number;
   active_accounts: number;
   inactive_accounts: number;
+  dormant_accounts: number;
   total_stored_balance: number;
   first_account_created: string;
   last_account_updated: string;
@@ -135,20 +136,26 @@ export function AccountSummary() {
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 
-  // Fetch system totals
+  // Fetch system totals (exclude dormant from active balance calculations)
   const { data: systemTotals } = useQuery({
     queryKey: ['system-totals'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('status, balance, created_at, updated_at');
+        .select('status, balance, created_at, updated_at, dormant_at');
       
       if (error) throw error;
       
       const total_accounts = data.length;
-      const active_accounts = data.filter(a => a.status === 'ACTIVE').length;
+      const active_accounts = data.filter(a => a.status === 'ACTIVE' && !a.dormant_at).length;
       const inactive_accounts = data.filter(a => a.status === 'INACTIVE').length;
-      const total_stored_balance = data.reduce((sum, a) => sum + a.balance, 0);
+      const dormant_accounts = data.filter(a => a.dormant_at || a.status === 'DORMANT').length;
+      
+      // Only include non-dormant active accounts in balance calculation
+      const total_stored_balance = data
+        .filter(a => a.status === 'ACTIVE' && !a.dormant_at)
+        .reduce((sum, a) => sum + a.balance, 0);
+      
       const first_account_created = data.reduce((earliest, a) => 
         new Date(a.created_at) < new Date(earliest) ? a.created_at : earliest, 
         data[0]?.created_at || new Date().toISOString()
@@ -162,6 +169,7 @@ export function AccountSummary() {
         total_accounts,
         active_accounts,
         inactive_accounts,
+        dormant_accounts,
         total_stored_balance,
         first_account_created,
         last_account_updated

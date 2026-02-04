@@ -10,7 +10,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 export function ExpensesIncomesTab() {
-  // Fetch bank accounts from Supabase
+  // Fetch bank accounts from Supabase (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
     queryFn: async () => {
@@ -18,6 +18,7 @@ export function ExpensesIncomesTab() {
         .from('bank_accounts')
         .select('*')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       
       if (error) throw error;

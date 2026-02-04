@@ -4,12 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Eye, EyeOff, X, Search, Upload, Settings } from "lucide-react";
+import { Plus, Edit, Eye, EyeOff, X, Search, Upload, Settings, AlertTriangle, Moon, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,13 +32,15 @@ interface BankAccount {
   branch?: string;
   balance: number;
   lien_amount: number;
-  status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL";
+  status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
   account_type: "SAVINGS" | "CURRENT";
   subsidiary_id?: string;
   created_at: string;
   updated_at: string;
+  dormant_at?: string | null;
+  dormant_by?: string | null;
 }
 
 interface ClosedBankAccount {
@@ -75,11 +79,13 @@ export function BankAccountManagement() {
     branch: "",
     balance: "",
     lien_amount: "",
-    status: "PENDING_APPROVAL" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
+    status: "PENDING_APPROVAL" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT",
     bank_account_holder_name: "",
     account_type: "SAVINGS" as "SAVINGS" | "CURRENT",
     subsidiary_id: ""
   });
+  const [showDormantConfirmDialog, setShowDormantConfirmDialog] = useState(false);
+  const [accountToDormant, setAccountToDormant] = useState<BankAccount | null>(null);
 
   // Fetch active bank accounts from the table (source of truth for balances)
   const { data: bankAccounts, isLoading } = useQuery({
@@ -122,6 +128,20 @@ export function BankAccountManagement() {
         .select('*')
         .eq('status', 'PENDING_APPROVAL')
         .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data as BankAccount[];
+    }
+  });
+
+  // Fetch dormant accounts (only visible in bank management settings)
+  const { data: dormantAccounts, isLoading: isLoadingDormant } = useQuery({
+    queryKey: ['dormant_bank_accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'DORMANT')
+        .order('dormant_at', { ascending: false });
       if (error) throw error;
       return data as BankAccount[];
     }
@@ -358,6 +378,91 @@ export function BankAccountManagement() {
     setEditingAccount(null);
   };
 
+  // Mark account as dormant mutation
+  const markDormantMutation = useMutation({
+    mutationFn: async (account: BankAccount) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from('bank_accounts')
+        .update({
+          status: 'DORMANT',
+          dormant_at: new Date().toISOString(),
+          dormant_by: user?.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', account.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      logActionWithCurrentUser({
+        actionType: ActionTypes.BANK_ACCOUNT_DORMANT,
+        entityType: EntityTypes.BANK_ACCOUNT,
+        entityId: accountToDormant?.id || '',
+        module: Modules.BAMS,
+        metadata: { 
+          account_name: accountToDormant?.account_name, 
+          action: 'marked_dormant',
+          reason: 'User marked as dormant' 
+        }
+      });
+      
+      toast({
+        title: "Account Marked as Dormant",
+        description: "This bank account has been marked as dormant and will be excluded from all future transactions and calculations."
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
+      setShowDormantConfirmDialog(false);
+      setAccountToDormant(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark account as dormant",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Reactivate dormant account mutation
+  const reactivateMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      const { error } = await supabase
+        .from('bank_accounts')
+        .update({
+          status: 'ACTIVE',
+          dormant_at: null,
+          dormant_by: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', accountId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account Reactivated",
+        description: "This bank account is now active and included in transactions."
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reactivate account",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleMarkDormant = (account: BankAccount) => {
+    setAccountToDormant(account);
+    setShowDormantConfirmDialog(true);
+  };
+
   // Filter and sort bank accounts
   const filteredAndSortedAccounts = useMemo(() => {
     if (!bankAccounts) return [];
@@ -518,7 +623,7 @@ export function BankAccountManagement() {
                   <Label htmlFor="status">Account Status *</Label>
                   <Select 
                     value={formData.status} 
-                    onValueChange={(value: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL") => setFormData(prev => ({ ...prev, status: value }))}
+                    onValueChange={(value: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT") => setFormData(prev => ({ ...prev, status: value }))}
                   >
                     <SelectTrigger className="bg-background">
                       <SelectValue />
@@ -527,8 +632,14 @@ export function BankAccountManagement() {
                       <SelectItem value="ACTIVE">Active</SelectItem>
                       <SelectItem value="INACTIVE">Inactive</SelectItem>
                       <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
+                      <SelectItem value="DORMANT">Dormant</SelectItem>
                     </SelectContent>
                   </Select>
+                  {formData.status === "DORMANT" && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      ⚠️ Dormant banks are excluded from all transactions and calculations
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="account_type">Account Type *</Label>
@@ -586,10 +697,11 @@ export function BankAccountManagement() {
       </div>
 
       <Tabs defaultValue="working" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="working">Working Bank Accounts ({bankAccounts?.length || 0})</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval ({pendingAccounts?.length || 0})</TabsTrigger>
-          <TabsTrigger value="closed">Closed Accounts ({closedAccounts?.length || 0})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="working">Working ({bankAccounts?.filter(a => a.status !== 'DORMANT').length || 0})</TabsTrigger>
+          <TabsTrigger value="dormant">Dormant ({dormantAccounts?.length || 0})</TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingAccounts?.length || 0})</TabsTrigger>
+          <TabsTrigger value="closed">Closed ({closedAccounts?.length || 0})</TabsTrigger>
         </TabsList>
         
         <TabsContent value="working">
@@ -675,7 +787,7 @@ export function BankAccountManagement() {
                           </TableCell>
                           <TableCell>
                             <PermissionGate permissions={["bams_manage"]} showFallback={false}>
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -684,6 +796,15 @@ export function BankAccountManagement() {
                                 >
                                   <Edit className="h-3 w-3" />
                                   Edit
+                                </Button>
+                                <Button 
+                                  variant="secondary" 
+                                  size="sm" 
+                                  onClick={() => handleMarkDormant(account)}
+                                  className="flex items-center gap-1 bg-amber-100 text-amber-700 hover:bg-amber-200"
+                                >
+                                  <Moon className="h-3 w-3" />
+                                  Dormant
                                 </Button>
                                 <Button 
                                   variant="destructive" 
@@ -714,6 +835,87 @@ export function BankAccountManagement() {
                         </TableRow>
                       )}
                     </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Dormant Accounts Tab */}
+        <TabsContent value="dormant">
+          <Card className="border-amber-200 bg-amber-50/30">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Moon className="h-5 w-5 text-amber-600" />
+                <CardTitle className="text-amber-800">Dormant Bank Accounts</CardTitle>
+              </div>
+              <Alert className="bg-amber-100 border-amber-300 mt-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800 text-sm">
+                  Dormant accounts are excluded from all transactions, calculations, selectors, and reports. 
+                  Historical data remains intact.
+                </AlertDescription>
+              </Alert>
+            </CardHeader>
+            <CardContent>
+              {isLoadingDormant ? (
+                <div className="text-center py-8">Loading dormant accounts...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Account Name</TableHead>
+                      <TableHead>Bank Name</TableHead>
+                      <TableHead>Account Number</TableHead>
+                      <TableHead>Last Balance</TableHead>
+                      <TableHead>Lien Amount</TableHead>
+                      <TableHead>Marked Dormant</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dormantAccounts?.map((account) => (
+                      <TableRow key={account.id} className="bg-amber-50/50">
+                        <TableCell className="font-medium">{account.account_name}</TableCell>
+                        <TableCell>{account.bank_name}</TableCell>
+                        <TableCell>{account.account_number}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          ₹{((account.balance as number) || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          ₹{((account.lien_amount || 0) as number).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          {account.dormant_at ? (
+                            <span className="text-sm text-muted-foreground">
+                              {format(new Date(account.dormant_at), 'dd MMM yyyy, HH:mm')}
+                            </span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => reactivateMutation.mutate(account.id)}
+                              disabled={reactivateMutation.isPending}
+                              className="flex items-center gap-1 bg-white hover:bg-green-50 text-green-700 border-green-300"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Reactivate
+                            </Button>
+                          </PermissionGate>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {dormantAccounts?.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          No dormant accounts. Dormant accounts are excluded from all operations.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
                 </Table>
               )}
             </CardContent>
@@ -869,6 +1071,52 @@ export function BankAccountManagement() {
         open={showAdjustmentDialog} 
         onOpenChange={setShowAdjustmentDialog} 
       />
+
+      {/* Dormant Confirmation Dialog */}
+      <Dialog open={showDormantConfirmDialog} onOpenChange={setShowDormantConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="h-5 w-5" />
+              Mark Account as Dormant
+            </DialogTitle>
+            <DialogDescription>
+              This action will mark the bank account as dormant.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Alert className="bg-amber-50 border-amber-300">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 text-sm space-y-2">
+                <p><strong>Account:</strong> {accountToDormant?.account_name} ({accountToDormant?.bank_name})</p>
+                <p><strong>Current Balance:</strong> ₹{accountToDormant?.balance?.toLocaleString()}</p>
+                <p className="mt-2">Once marked dormant:</p>
+                <ul className="list-disc ml-4 space-y-1">
+                  <li>Account will be excluded from all future transactions</li>
+                  <li>Balance will not appear in totals or reports</li>
+                  <li>Account cannot be selected for payments or settlements</li>
+                  <li>Historical data will remain intact</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowDormantConfirmDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => accountToDormant && markDormantMutation.mutate(accountToDormant)}
+              disabled={markDormantMutation.isPending}
+            >
+              {markDormantMutation.isPending ? "Processing..." : "Mark as Dormant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

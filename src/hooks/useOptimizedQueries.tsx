@@ -30,6 +30,7 @@ export const useBankAccounts = (enabled: boolean = true) => {
         .from('bank_accounts')
         .select('*')
         .eq('status', 'ACTIVE')
+        .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       
       if (error) throw error;

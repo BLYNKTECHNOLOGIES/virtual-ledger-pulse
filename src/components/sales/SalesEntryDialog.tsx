@@ -420,7 +420,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Sales Order</DialogTitle>
         </DialogHeader>
@@ -433,7 +433,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           className="space-y-4"
           noValidate
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* First Row - Order info */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Order Number *</Label>
               <Input
@@ -446,6 +447,27 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
+            <div>
+              <Label>Order Date</Label>
+              <Input
+                type="date"
+                value={formData.order_date}
+                onChange={(e) => handleInputChange('order_date', e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label>Order Time</Label>
+              <Input
+                type="time"
+                value={formData.order_time}
+                onChange={(e) => handleInputChange('order_time', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Second Row - Customer (wider for hover) + Phone */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <CustomerAutocomplete
                 value={formData.client_name}
@@ -470,33 +492,38 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
-            <div>
-              <Label>Customer Phone</Label>
-              <Input
-                value={formData.client_phone}
-                onChange={(e) => handleInputChange('client_phone', e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Customer Phone</Label>
+                <Input
+                  value={formData.client_phone}
+                  onChange={(e) => handleInputChange('client_phone', e.target.value)}
+                />
+              </div>
+              
+              <div>
+                <Label>State</Label>
+                <Select
+                  value={formData.client_state}
+                  onValueChange={(value) => handleInputChange('client_state', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background border shadow-lg z-[100] max-h-60">
+                    {INDIAN_STATES_AND_UTS.map((state) => (
+                      <SelectItem key={state} value={state}>
+                        {state}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+          </div>
 
-            <div>
-              <Label>State</Label>
-              <Select
-                value={formData.client_state}
-                onValueChange={(value) => handleInputChange('client_state', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state (optional)" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
-                  {INDIAN_STATES_AND_UTS.map((state) => (
-                    <SelectItem key={state} value={state}>
-                      {state}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          {/* Third Row - Product and Wallet */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Product</Label>
               <Select
@@ -506,7 +533,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select product" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-[100]">
                   {products?.map((product) => (
                     <SelectItem key={product.id} value={product.id}>
                       {product.name} - {product.code}
@@ -515,7 +542,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 </SelectContent>
               </Select>
             </div>
-
 
             <div>
               <Label>Wallet *</Label>
@@ -526,7 +552,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectTrigger>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectContent className="bg-background border shadow-lg z-[100]">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name} ({wallet.wallet_type}) - Balance: {wallet.current_balance}
@@ -535,7 +561,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          {/* Pricing row */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Quantity *</Label>
               <Input
@@ -548,14 +577,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 placeholder="Enter quantity"
                 className={stockValidationError ? "border-destructive" : ""}
               />
-              {stockValidationError && (
-                <Alert className="mt-2 border-destructive bg-destructive/10">
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <AlertDescription className="text-destructive">
-                    {stockValidationError}
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
 
             <div>
@@ -571,23 +592,43 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
-            {/* Show wallet balance when wallet is selected */}
-            {selectedWalletBalance !== null && (
-              <div className="col-span-1 md:col-span-2">
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString()}</strong>
-                    {selectedWalletFee > 0 && !isOffMarket && (
-                      <span className="ml-2 text-orange-600">
-                        (Platform Fee: {selectedWalletFee}%)
-                      </span>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
+            <div>
+              <Label>Total Amount</Label>
+              <Input
+                type="number"
+                value={formData.total_amount}
+                onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                placeholder="Auto-calculated"
+              />
+            </div>
           </div>
+
+          {/* Wallet balance warning */}
+          {stockValidationError && (
+            <Alert className="border-destructive bg-destructive/10">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-destructive">
+                {stockValidationError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Show wallet balance when wallet is selected */}
+          {selectedWalletBalance !== null && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString()}</strong>
+                {selectedWalletFee > 0 && !isOffMarket && (
+                  <span className="ml-2 text-muted-foreground">
+                    (Platform Fee: {selectedWalletFee}%)
+                  </span>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Off Market Toggle Section */}
           <div className="space-y-4 border rounded-lg p-4 bg-muted/30">

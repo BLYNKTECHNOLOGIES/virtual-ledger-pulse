@@ -382,7 +382,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           Manual Purchase Entry
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ShoppingCart className="w-5 h-5" />
@@ -394,8 +394,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Order Details */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Order Details + Supplier in one row */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="order_number">Order Number</Label>
               <Input
@@ -417,60 +417,72 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 onChange={(e) => handleInputChange('order_date', e.target.value)}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contact_number">Contact Number</Label>
+              <Input
+                id="contact_number"
+                value={formData.contact_number}
+                onChange={(e) => handleInputChange('contact_number', e.target.value)}
+                placeholder="Enter contact number"
+              />
+            </div>
           </div>
 
-          {/* Supplier */}
-          <div className="space-y-2">
-            <SupplierAutocomplete
-              value={formData.supplier_name}
-              onChange={(value) => handleInputChange('supplier_name', value)}
-              onContactChange={(contact) => handleInputChange('contact_number', contact)}
-              onClientSelect={(clientId, clientName, bankDetails) => {
-                setSelectedClientId(clientId);
-                setSelectedClientBankDetails(bankDetails || null);
-                handleInputChange('supplier_name', clientName);
-                
-                // Auto-fill PAN if client has one and TDS is 1%
-                if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
-                  handleInputChange('pan_number', bankDetails.pan_card_number);
-                }
-              }}
-              onNewClient={(isNew) => {
-                setIsNewClient(isNew);
-                if (isNew) {
-                  setSelectedClientBankDetails(null);
-                }
-              }}
-              selectedClientId={selectedClientId}
-            />
-          </div>
-
-          {/* Product Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="product_id">Product *</Label>
-            <Select 
-              value={formData.product_id} 
-              onValueChange={(value) => handleInputChange('product_id', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select product" />
-              </SelectTrigger>
-              <SelectContent className="bg-white z-[60] border border-gray-200 shadow-lg">
-                {productsLoading ? (
-                  <SelectItem value="loading" disabled>Loading products...</SelectItem>
-                ) : productsError ? (
-                  <SelectItem value="error" disabled>Error loading products</SelectItem>
-                ) : !products || products.length === 0 ? (
-                  <SelectItem value="empty" disabled>No products found</SelectItem>
-                ) : (
-                  products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {product.code} (Stock: {product.current_stock_quantity})
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+          {/* Supplier - Wider column for hover card */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <SupplierAutocomplete
+                value={formData.supplier_name}
+                onChange={(value) => handleInputChange('supplier_name', value)}
+                onContactChange={(contact) => handleInputChange('contact_number', contact)}
+                onClientSelect={(clientId, clientName, bankDetails) => {
+                  setSelectedClientId(clientId);
+                  setSelectedClientBankDetails(bankDetails || null);
+                  handleInputChange('supplier_name', clientName);
+                  
+                  // Auto-fill PAN if client has one and TDS is 1%
+                  if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
+                    handleInputChange('pan_number', bankDetails.pan_card_number);
+                  }
+                }}
+                onNewClient={(isNew) => {
+                  setIsNewClient(isNew);
+                  if (isNew) {
+                    setSelectedClientBankDetails(null);
+                  }
+                }}
+                selectedClientId={selectedClientId}
+              />
+            </div>
+            
+            {/* Product Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="product_id">Product *</Label>
+              <Select 
+                value={formData.product_id} 
+                onValueChange={(value) => handleInputChange('product_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[60] border border-border shadow-lg">
+                  {productsLoading ? (
+                    <SelectItem value="loading" disabled>Loading products...</SelectItem>
+                  ) : productsError ? (
+                    <SelectItem value="error" disabled>Error loading products</SelectItem>
+                  ) : !products || products.length === 0 ? (
+                    <SelectItem value="empty" disabled>No products found</SelectItem>
+                  ) : (
+                    products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - {product.code} (Stock: {product.current_stock_quantity})
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Description */}

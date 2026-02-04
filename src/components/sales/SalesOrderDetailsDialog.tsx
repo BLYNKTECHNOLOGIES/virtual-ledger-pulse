@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 
@@ -59,6 +59,23 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
       return bankAccount;
     },
     enabled: !!order?.sales_payment_method_id && open,
+  });
+
+  // Fetch creator username if created_by exists
+  const { data: creatorData } = useQuery({
+    queryKey: ['sales_order_creator', order?.created_by],
+    queryFn: async () => {
+      if (!order?.created_by) return null;
+      
+      const { data: user } = await supabase
+        .from('users')
+        .select('username')
+        .eq('id', order.created_by)
+        .single();
+
+      return user;
+    },
+    enabled: !!order?.created_by && open,
   });
 
   if (!order) return null;
@@ -179,6 +196,13 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             <div>
               <label className="text-sm font-medium text-gray-600">Created At</label>
               <p className="text-sm">{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Created By</label>
+              <p className="text-sm flex items-center gap-1">
+                <User className="h-3 w-3" />
+                {creatorData?.username || 'N/A'}
+              </p>
             </div>
           </div>
 

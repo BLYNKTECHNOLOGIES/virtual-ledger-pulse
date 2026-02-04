@@ -16,6 +16,7 @@ import { AlertTriangle } from "lucide-react";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -40,6 +41,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     order_number: '', // User must enter this manually
     client_name: '',
     client_phone: '',
+    client_state: '', // State field for client location
     product_id: '',
     wallet_id: '',
     platform: '',
@@ -230,6 +232,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             sales_order_id: result.id,
             client_name: data.client_name,
             client_phone: data.client_phone || null,
+            client_state: data.client_state || null,
             order_amount: data.total_amount,
             order_date: data.order_date,
             approval_status: 'PENDING'
@@ -272,6 +275,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         order_number: '',
         client_name: '',
         client_phone: '',
+        client_state: '',
         product_id: '',
         wallet_id: '',
         platform: '',
@@ -446,8 +450,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 onClientSelect={(client) => {
                   if (client) {
                     setSelectedClientId(client.id);
+                    // Auto-fill state from client if available
+                    if (client.state) {
+                      handleInputChange('client_state', client.state);
+                    } else {
+                      handleInputChange('client_state', '');
+                    }
                   } else {
                     setSelectedClientId(undefined);
+                    handleInputChange('client_state', '');
                   }
                 }}
                 onNewClient={(isNew) => setIsNewClient(isNew)}
@@ -462,6 +473,26 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 onChange={(e) => handleInputChange('client_phone', e.target.value)}
               />
             </div>
+
+            <div>
+              <Label>State</Label>
+              <Select
+                value={formData.client_state}
+                onValueChange={(value) => handleInputChange('client_state', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state (optional)" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-50 max-h-60">
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <Label>Product</Label>
               <Select

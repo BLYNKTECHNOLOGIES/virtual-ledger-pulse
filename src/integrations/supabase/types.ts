@@ -517,6 +517,7 @@ export type Database = {
           client_email: string | null
           client_name: string
           client_phone: string | null
+          client_state: string | null
           compliance_notes: string | null
           created_at: string
           id: string
@@ -544,6 +545,7 @@ export type Database = {
           client_email?: string | null
           client_name: string
           client_phone?: string | null
+          client_state?: string | null
           compliance_notes?: string | null
           created_at?: string
           id?: string
@@ -571,6 +573,7 @@ export type Database = {
           client_email?: string | null
           client_name?: string
           client_phone?: string | null
+          client_state?: string | null
           compliance_notes?: string | null
           created_at?: string
           id?: string
@@ -629,6 +632,7 @@ export type Database = {
           risk_appetite: string
           seller_approval_status: string | null
           seller_approved_at: string | null
+          state: string | null
           updated_at: string
         }
         Insert: {
@@ -662,6 +666,7 @@ export type Database = {
           risk_appetite?: string
           seller_approval_status?: string | null
           seller_approved_at?: string | null
+          state?: string | null
           updated_at?: string
         }
         Update: {
@@ -695,6 +700,7 @@ export type Database = {
           risk_appetite?: string
           seller_approval_status?: string | null
           seller_approved_at?: string | null
+          state?: string | null
           updated_at?: string
         }
         Relationships: []

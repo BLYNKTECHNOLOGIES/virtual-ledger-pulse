@@ -348,6 +348,7 @@ export type Database = {
           amount: number
           bank_account_id: string
           category: string | null
+          client_id: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -363,6 +364,7 @@ export type Database = {
           amount: number
           bank_account_id: string
           category?: string | null
+          client_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -378,6 +380,7 @@ export type Database = {
           amount?: number
           bank_account_id?: string
           category?: string | null
+          client_id?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -402,6 +405,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
           {

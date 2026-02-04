@@ -12,7 +12,7 @@ import { CalendarIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,7 +33,21 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     category: "",
     description: "",
     date: undefined as Date | undefined,
-    referenceNumber: ""
+    referenceNumber: "",
+    clientId: ""
+  });
+
+  // Fetch clients for linking
+  const { data: clients } = useQuery({
+    queryKey: ['clients_for_expenses'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, client_id')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
   });
 
   // Get categories based on transaction type
@@ -68,11 +82,12 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           bank_account_id: transactionData.bankAccountId,
           transaction_type: transactionData.transactionType,
           amount: amount,
-          category: categoryLabel, // Store the human-readable label
-          description: transactionData.description || null,
+          category: categoryLabel,
+          description: transactionData.description, // Now mandatory
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
           created_by: user?.id || null,
+          client_id: transactionData.clientId || null, // Link to client if applicable
         })
         .select()
         .single();
@@ -96,7 +111,8 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         category: "",
         description: "",
         date: undefined,
-        referenceNumber: ""
+        referenceNumber: "",
+        clientId: ""
       });
     },
     onError: (error: any) => {
@@ -110,10 +126,21 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   });
 
   const handleSubmit = () => {
-    if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date) {
+    // Validate required fields including description
+    if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date || !formData.description.trim()) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields including description",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Category is required when transaction type is selected
+    if (formData.transactionType && !formData.category) {
+      toast({
+        title: "Error",
+        description: "Please select a category",
         variant: "destructive"
       });
       return;
@@ -137,7 +164,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     setFormData({
       ...formData, 
       transactionType: value,
-      category: "" // Reset category when type changes
+      category: ""
     });
   };
 
@@ -154,7 +181,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="bankAccount">Bank Account *</Label>
             <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value})}>
@@ -188,18 +215,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
           <div>
-            <Label htmlFor="amount">Amount (₹) *</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) => setFormData({...formData, amount: e.target.value})}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="category">Category {formData.transactionType && "*"}</Label>
+            <Label htmlFor="category">Category *</Label>
             <Select 
               value={formData.category} 
               onValueChange={(value) => setFormData({...formData, category: value})}
@@ -221,6 +237,17 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="amount">Amount (₹) *</Label>
+            <Input
+              id="amount"
+              type="number"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData({...formData, amount: e.target.value})}
+            />
           </div>
 
           <div>
@@ -250,6 +277,26 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
           <div>
+            <Label htmlFor="clientId">Linked Client (optional)</Label>
+            <Select 
+              value={formData.clientId} 
+              onValueChange={(value) => setFormData({...formData, clientId: value})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select client (if applicable)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No client</SelectItem>
+                {clients?.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name} ({client.client_id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label htmlFor="referenceNumber">Reference Number</Label>
             <Input
               id="referenceNumber"
@@ -259,17 +306,18 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             />
           </div>
 
-          <div className="md:col-span-2">
-            <Label htmlFor="description">Description</Label>
+          <div className="lg:col-span-2">
+            <Label htmlFor="description">Description *</Label>
             <Textarea
               id="description"
-              placeholder="Transaction details..."
+              placeholder="Describe the transaction (required)..."
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
+              className={cn(!formData.description.trim() && formData.transactionType && "border-destructive")}
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div className="lg:col-span-3">
             <Button 
               onClick={handleSubmit} 
               className="w-full"

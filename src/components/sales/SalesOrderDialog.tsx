@@ -52,6 +52,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
   const [isOffMarket, setIsOffMarket] = useState(false);
+  const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
 
   // Fetch live USDT/INR rate
   const { data: usdtRateData } = useUSDTRate();
@@ -379,12 +380,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     // Pass calculated fee data to mutation
     const orderDataWithFees = {
       ...formData,
-      feeUSDT: calculatedFee.feeUSDT,
-      feeINR: calculatedFee.feeINR,
-      feePercentage: calculatedFee.feePercentage,
+      feeUSDT: isOffMarket ? 0 : calculatedFee.feeUSDT,
+      feeINR: isOffMarket ? 0 : calculatedFee.feeINR,
+      feePercentage: isOffMarket ? 0 : calculatedFee.feePercentage,
       usdtRate: usdtRateData?.rate || 0,
       averageBuyingPrice: averageBuyingPrice,
       isOffMarket: isOffMarket,
+      is_off_market: isOffMarket,
     };
 
     createSalesOrderMutation.mutate(orderDataWithFees);
@@ -466,6 +468,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                     value={formData.order_number}
                     onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
                     required
+                    disabled={isOffMarket || isGeneratingOrderNumber}
+                    className={isOffMarket ? "bg-muted" : ""}
+                    placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
                   />
                 </div>
 
@@ -525,7 +530,27 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                       <Checkbox
                         id="off_market"
                         checked={isOffMarket}
-                        onCheckedChange={(checked) => setIsOffMarket(!!checked)}
+                        onCheckedChange={async (checked) => {
+                          const isOn = !!checked;
+                          setIsOffMarket(isOn);
+                          if (isOn) {
+                            // Generate off-market order number
+                            setIsGeneratingOrderNumber(true);
+                            try {
+                              const { data, error } = await supabase.rpc('generate_off_market_sales_order_number');
+                              if (!error && data) {
+                                setFormData(prev => ({ ...prev, order_number: data }));
+                              }
+                            } catch (err) {
+                              console.error('Failed to generate off-market order number:', err);
+                            } finally {
+                              setIsGeneratingOrderNumber(false);
+                            }
+                          } else {
+                            // Clear order number when turning off
+                            setFormData(prev => ({ ...prev, order_number: '' }));
+                          }
+                        }}
                       />
                       <Label htmlFor="off_market" className="font-medium">Off Market (No Platform Fee)</Label>
                     </div>

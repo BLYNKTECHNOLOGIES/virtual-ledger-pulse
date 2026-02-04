@@ -4795,6 +4795,11 @@ export type Database = {
         Args: { dept: string; designation: string }
         Returns: string
       }
+      generate_off_market_purchase_order_number: {
+        Args: never
+        Returns: string
+      }
+      generate_off_market_sales_order_number: { Args: never; Returns: string }
       get_active_users: {
         Args: never
         Returns: {

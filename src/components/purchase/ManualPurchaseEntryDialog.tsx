@@ -26,6 +26,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const [loading, setLoading] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
+  const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -372,7 +373,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 id="order_number"
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
-                placeholder="Auto-generated if empty"
+                placeholder={isGeneratingOrderNumber ? "Generating..." : formData.is_off_market ? "Auto-generated" : "Auto-generated if empty"}
+                disabled={formData.is_off_market || isGeneratingOrderNumber}
+                className={formData.is_off_market ? "bg-muted" : ""}
               />
             </div>
 
@@ -622,7 +625,26 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     </div>
                     <Switch
                       checked={formData.is_off_market}
-                      onCheckedChange={(checked) => handleInputChange('is_off_market', checked)}
+                      onCheckedChange={async (checked) => {
+                        handleInputChange('is_off_market', checked);
+                        if (checked) {
+                          // Generate off-market order number
+                          setIsGeneratingOrderNumber(true);
+                          try {
+                            const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+                            if (!error && data) {
+                              handleInputChange('order_number', data);
+                            }
+                          } catch (err) {
+                            console.error('Failed to generate off-market order number:', err);
+                          } finally {
+                            setIsGeneratingOrderNumber(false);
+                          }
+                        } else {
+                          // Clear order number when turning off
+                          handleInputChange('order_number', '');
+                        }
+                      }}
                     />
                   </div>
                   

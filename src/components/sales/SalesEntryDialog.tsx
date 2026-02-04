@@ -32,6 +32,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   const [formTouched, setFormTouched] = useState(false); // Track if user has started filling form
   const [isOffMarket, setIsOffMarket] = useState(false);
+  const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
 
   const [formData, setFormData] = useState({
     order_number: '', // User must enter this manually
@@ -156,7 +157,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           sales_payment_method_id: data.sales_payment_method_id || null,
           payment_status: data.payment_status,
           order_date: `${data.order_date}T${data.order_time}:00.000Z`,
-          description: data.description
+          description: data.description,
+          is_off_market: data.is_off_market || false
         }])
         .select()
         .single();
@@ -282,6 +284,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         description: ''
       });
       setFormTouched(false);
+      setIsOffMarket(false);
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
@@ -335,7 +338,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     }
     
     console.log('✅ Validation passed, calling mutation');
-    createSalesOrderMutation.mutate(formData);
+    createSalesOrderMutation.mutate({
+      ...formData,
+      is_off_market: isOffMarket,
+      platform_fees: isOffMarket ? '0' : formData.platform_fees
+    });
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -420,8 +427,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               <Input
                 value={formData.order_number}
                 onChange={(e) => handleInputChange('order_number', e.target.value)}
-                placeholder="Enter order number"
+                placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
                 required
+                disabled={isOffMarket || isGeneratingOrderNumber}
+                className={isOffMarket ? "bg-muted" : ""}
               />
             </div>
 
@@ -542,7 +551,26 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               </div>
               <Switch 
                 checked={isOffMarket} 
-                onCheckedChange={setIsOffMarket} 
+                onCheckedChange={async (checked) => {
+                  setIsOffMarket(checked);
+                  if (checked) {
+                    // Generate off-market order number
+                    setIsGeneratingOrderNumber(true);
+                    try {
+                      const { data, error } = await supabase.rpc('generate_off_market_sales_order_number');
+                      if (!error && data) {
+                        handleInputChange('order_number', data);
+                      }
+                    } catch (err) {
+                      console.error('Failed to generate off-market order number:', err);
+                    } finally {
+                      setIsGeneratingOrderNumber(false);
+                    }
+                  } else {
+                    // Clear order number when turning off
+                    handleInputChange('order_number', '');
+                  }
+                }}
               />
             </div>
             

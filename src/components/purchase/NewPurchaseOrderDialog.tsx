@@ -44,6 +44,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
   const [isOffMarket, setIsOffMarket] = useState(false);
+  const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
   const [selectedWalletFee, setSelectedWalletFee] = useState<number>(0);
   
   const [formData, setFormData] = useState({
@@ -278,7 +279,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           order_expires_at: orderExpiresAt,
           order_status: initialOrderStatus, // Set correct initial status!
           created_by: user?.id,
-          status: 'PENDING'
+          status: 'PENDING',
+          is_off_market: isOffMarket
         })
         .select()
         .single();
@@ -478,6 +480,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     setProductItems([]);
     setSelectedClientId('');
     setIsNewClient(false);
+    setIsOffMarket(false);
   };
 
   // Handle supplier selection from autocomplete
@@ -570,6 +573,9 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                 value={formData.order_number}
                 onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
                 required
+                disabled={isOffMarket || isGeneratingOrderNumber}
+                className={isOffMarket ? "bg-muted" : ""}
+                placeholder={isGeneratingOrderNumber ? "Generating..." : isOffMarket ? "Auto-generated" : "Enter order number"}
               />
             </div>
 
@@ -733,7 +739,26 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                 )}
                 <Switch 
                   checked={isOffMarket} 
-                  onCheckedChange={setIsOffMarket} 
+                  onCheckedChange={async (checked) => {
+                    setIsOffMarket(checked);
+                    if (checked) {
+                      // Generate off-market order number
+                      setIsGeneratingOrderNumber(true);
+                      try {
+                        const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+                        if (!error && data) {
+                          setFormData(prev => ({ ...prev, order_number: data }));
+                        }
+                      } catch (err) {
+                        console.error('Failed to generate off-market order number:', err);
+                      } finally {
+                        setIsGeneratingOrderNumber(false);
+                      }
+                    } else {
+                      // Clear order number when turning off
+                      setFormData(prev => ({ ...prev, order_number: '' }));
+                    }
+                  }}
                 />
               </div>
             </div>

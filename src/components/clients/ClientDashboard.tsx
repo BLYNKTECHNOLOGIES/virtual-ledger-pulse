@@ -324,25 +324,15 @@ export function ClientDashboard() {
             <TabsContent value="buyers" className="space-y-6">
               {/* Header with Quick Actions for Buyers */}
               <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Buyers Directory
-                    </CardTitle>
-                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add New Buyer
-                        </Button>
-                      </div>
-                    </PermissionGate>
-                  </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Buyers Directory
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center space-x-2 max-w-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name or ID..."
@@ -356,6 +346,13 @@ export function ClientDashboard() {
                       availableRMs={availableRMs}
                       clientType="buyers"
                     />
+                    <div className="flex-1" />
+                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                      <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Buyer
+                      </Button>
+                    </PermissionGate>
                   </div>
                 </CardContent>
               </Card>
@@ -443,25 +440,15 @@ export function ClientDashboard() {
             <TabsContent value="sellers" className="space-y-6">
               {/* Header with Quick Actions for Sellers */}
               <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Sellers Directory
-                    </CardTitle>
-                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add New Seller
-                        </Button>
-                      </div>
-                    </PermissionGate>
-                  </div>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Sellers Directory
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center space-x-2 max-w-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center space-x-2 flex-1 max-w-sm">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search sellers by name or ID..."
@@ -475,6 +462,13 @@ export function ClientDashboard() {
                       availableRMs={availableRMs}
                       clientType="sellers"
                     />
+                    <div className="flex-1" />
+                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                      <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add New Seller
+                      </Button>
+                    </PermissionGate>
                   </div>
                 </CardContent>
               </Card>

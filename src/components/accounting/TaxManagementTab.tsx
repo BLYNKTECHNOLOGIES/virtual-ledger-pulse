@@ -30,9 +30,22 @@ interface TDSRecord {
   payment_status: string;
   tds_certificate_number: string | null;
   payment_batch_id: string | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  payment_bank_account_id: string | null;
+  payment_reference: string | null;
   purchase_orders?: {
     order_number: string;
     supplier_name: string;
+  };
+  paid_by_user?: {
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
+  payment_bank_account?: {
+    account_name: string;
+    bank_name: string;
   };
 }
 
@@ -106,7 +119,7 @@ export function TaxManagementTab() {
   const quarterOptions = useMemo(() => generateQuarterOptions(), []);
   const dateRange = useMemo(() => getQuarterDateRange(selectedQuarter), [selectedQuarter]);
 
-  // Fetch TDS records for selected quarter
+  // Fetch TDS records for selected quarter with payment details
   const { data: tdsRecords, isLoading } = useQuery({
     queryKey: ['tds_records_quarter', selectedQuarter],
     queryFn: async () => {
@@ -119,6 +132,15 @@ export function TaxManagementTab() {
           purchase_orders!inner(
             order_number,
             supplier_name
+          ),
+          paid_by_user:users!paid_by(
+            username,
+            first_name,
+            last_name
+          ),
+          payment_bank_account:bank_accounts!payment_bank_account_id(
+            account_name,
+            bank_name
           )
         `)
         .gte('deduction_date', start)
@@ -157,6 +179,12 @@ export function TaxManagementTab() {
       unpaid_tds: number;
       records: TDSRecord[];
       unpaid_record_ids: string[];
+      paid_record_ids: string[];
+      // Payment details from the most recent paid record
+      last_paid_at: string | null;
+      last_paid_by_username: string | null;
+      last_payment_bank: string | null;
+      last_payment_batch_id: string | null;
     }>();
     
     tdsRecords.forEach(record => {
@@ -168,6 +196,11 @@ export function TaxManagementTab() {
         unpaid_tds: 0,
         records: [],
         unpaid_record_ids: [],
+        paid_record_ids: [],
+        last_paid_at: null,
+        last_paid_by_username: null,
+        last_payment_bank: null,
+        last_payment_batch_id: null,
       };
       
       existing.total_tds += record.tds_amount;
@@ -175,6 +208,19 @@ export function TaxManagementTab() {
       
       if (record.payment_status === 'PAID') {
         existing.paid_tds += record.tds_amount;
+        existing.paid_record_ids.push(record.id);
+        
+        // Track most recent payment details
+        if (!existing.last_paid_at || (record.paid_at && record.paid_at > existing.last_paid_at)) {
+          existing.last_paid_at = record.paid_at;
+          existing.last_paid_by_username = record.paid_by_user?.first_name 
+            || record.paid_by_user?.username 
+            || null;
+          existing.last_payment_bank = record.payment_bank_account 
+            ? `${record.payment_bank_account.account_name} - ${record.payment_bank_account.bank_name}`
+            : null;
+          existing.last_payment_batch_id = record.payment_batch_id;
+        }
       } else {
         existing.unpaid_tds += record.tds_amount;
         existing.unpaid_record_ids.push(record.id);
@@ -189,6 +235,12 @@ export function TaxManagementTab() {
   // Filter for unpaid only
   const unpaidPanEntries = useMemo(() => 
     aggregatedByPan.filter(entry => entry.unpaid_tds > 0),
+    [aggregatedByPan]
+  );
+
+  // Filter for paid only (fully paid PANs)
+  const paidPanEntries = useMemo(() => 
+    aggregatedByPan.filter(entry => entry.paid_tds > 0),
     [aggregatedByPan]
   );
 
@@ -447,6 +499,9 @@ export function TaxManagementTab() {
                 <TabsTrigger value="unpaid">
                   Unpaid ({unpaidPanEntries.length})
                 </TabsTrigger>
+                <TabsTrigger value="paid">
+                  Paid ({paidPanEntries.filter(e => e.paid_tds > 0).length})
+                </TabsTrigger>
                 <TabsTrigger value="all">
                   All Records ({aggregatedByPan.length})
                 </TabsTrigger>
@@ -497,6 +552,74 @@ export function TaxManagementTab() {
                 )}
               </TabsContent>
 
+              <TabsContent value="paid">
+                {paidPanEntries.filter(e => e.paid_tds > 0).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No paid TDS records for this quarter
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Client Name</TableHead>
+                        <TableHead>PAN</TableHead>
+                        <TableHead className="text-right">TDS Paid</TableHead>
+                        <TableHead>Paid By</TableHead>
+                        <TableHead>Paid Date & Time</TableHead>
+                        <TableHead>Bank Account</TableHead>
+                        <TableHead>Batch ID</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paidPanEntries.filter(e => e.paid_tds > 0).map((entry) => (
+                        <TableRow key={entry.pan_number}>
+                          <TableCell className="font-medium">{entry.supplier_name}</TableCell>
+                          <TableCell>{entry.pan_number}</TableCell>
+                          <TableCell className="text-right font-semibold text-green-600">
+                            ₹{entry.paid_tds.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            {entry.last_paid_by_username ? (
+                              <Badge variant="outline">{entry.last_paid_by_username}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {entry.last_paid_at ? (
+                              <div className="text-sm">
+                                <div>{format(new Date(entry.last_paid_at), "MMM dd, yyyy")}</div>
+                                <div className="text-muted-foreground text-xs">
+                                  {format(new Date(entry.last_paid_at), "HH:mm:ss")}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {entry.last_payment_bank ? (
+                              <span className="text-sm">{entry.last_payment_bank}</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {entry.last_payment_batch_id ? (
+                              <Badge variant="secondary" className="text-xs font-mono">
+                                {entry.last_payment_batch_id}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
               <TabsContent value="all">
                 <Table>
                   <TableHeader>
@@ -523,7 +646,7 @@ export function TaxManagementTab() {
                         </TableCell>
                         <TableCell>
                           {entry.unpaid_tds === 0 ? (
-                            <Badge variant="default" className="bg-green-100 text-green-800">Paid</Badge>
+                            <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>
                           ) : entry.paid_tds > 0 ? (
                             <Badge variant="secondary">Partial</Badge>
                           ) : (

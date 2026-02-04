@@ -15,7 +15,7 @@ import { createSellerClient } from "@/utils/clientIdGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -256,6 +256,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         }
       }
 
+      // Get current user ID for created_by tracking
+      const currentUserId = getCurrentUserId();
+
       // Prepare RPC parameters
       const rpcParams = {
         p_order_number: orderNumber,
@@ -272,7 +275,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         p_tds_option: formData.tds_option,
         p_pan_number: formData.pan_number || undefined,
         p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
-        p_is_off_market: formData.is_off_market
+        p_is_off_market: formData.is_off_market,
+        p_created_by: currentUserId || undefined
       };
       
       console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);

@@ -286,7 +286,6 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
                 <SelectValue placeholder="Select client (if applicable)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No client</SelectItem>
                 {clients?.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name} ({client.client_id})

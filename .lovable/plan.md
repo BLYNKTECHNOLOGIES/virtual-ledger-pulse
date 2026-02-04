@@ -1,238 +1,215 @@
 
-
-# Plan: Volume Drop Detection System & Client Age Filter
+# Plan: Client Order Snapshot on Hover Preview
 
 ## Overview
-Add two new powerful features to the Client Directory:
-1. **Volume Trend Indicator** - Visually identify clients whose trading volume has dropped over configurable periods (Month-on-Month or 10-day rolling windows)
-2. **Client Age Filter** - Filter clients based on how long they've been onboarded (useful for targeting established vs new clients)
+Add a hover preview card to the client/supplier autocomplete dropdowns in Purchase and Sales dialogs. When hovering over a suggested client name, a compact snapshot of their recent order history will appear - helping users distinguish between similarly-named clients.
 
 ---
 
-## Feature 1: Volume Drop Detection System
+## Visual Design
 
-### Concept
-Compare a client's recent trading volume against their previous period to calculate a **Volume Change %**. Display this as a visual indicator in the table and allow filtering by trend direction.
-
-### Period Options
-| Period Type | Current Period | Previous Period | Use Case |
-|-------------|---------------|-----------------|----------|
-| 10-Day Rolling | Last 10 days | Previous 10 days (day 11-20) | High-frequency business tracking |
-| Month-on-Month | Current month | Previous month | Standard monthly comparison |
-
-### Volume Trend Categories
-| Category | Change % | Badge Color | Icon |
-|----------|----------|-------------|------|
-| Growing | > +10% | Green | TrendingUp |
-| Stable | -10% to +10% | Gray | Minus |
-| Declining | -10% to -30% | Yellow | TrendingDown |
-| Dropping | < -30% | Red | TrendingDown (bold) |
-| New | No previous data | Blue | Sparkles |
-
-### UI Implementation
-
-**Table Column** - Add a "Volume Trend" column showing:
+### Current State (Without Hover)
 ```
-+------------------+
-| ▲ +25%           |  <- Green badge with up arrow
-| ▼ -45%           |  <- Red badge with down arrow  
-| ─ +3%            |  <- Gray badge with stable icon
-| ✦ New            |  <- Blue badge for new clients
-+------------------+
++--------------------------------------------+
+| [Client Name Input Field                 ] |
++--------------------------------------------+
+| Rajesh Kumar                    [RK-1234] |
+| Phone: 9876543210 | Type: HNI              |
++--------------------------------------------+
+| Rajesh Kumar Singh              [RK-5678] |
+| Phone: 9123456789 | Type: INDIVIDUAL       |
++--------------------------------------------+
 ```
 
-**Filter Options**:
-- Period Selector: Dropdown to choose "10-Day" or "Month-on-Month"
-- Trend Filter: Multi-select for Growing/Stable/Declining/Dropping/New
-- Volume Change Range: Min-Max inputs for exact % range (e.g., find clients with -50% to -30% drop)
+### With Hover Preview (Proposed)
+```
++--------------------------------------------+
+| [Client Name Input Field                 ] |
++--------------------------------------------+
+| Rajesh Kumar                    [RK-1234] | ← Hover here
+| Phone: 9876543210 | Type: HNI              |
++--------------------------------------------+     +--------------------------------+
+| Rajesh Kumar Singh              [RK-5678] |     | 📊 Order Snapshot              |
+| Phone: 9123456789 | Type: INDIVIDUAL       |     +--------------------------------+
++--------------------------------------------+     | Rajesh Kumar (RK-1234)         |
+                                                   | Member since: Jan 2024         |
+                                                   +--------------------------------+
+                                                   | RECENT ORDERS                  |
+                                                   | ───────────────────────────    |
+                                                   | Buy:  ₹12.5L (15 orders)       |
+                                                   | Sell: ₹8.2L  (8 orders)        |
+                                                   +--------------------------------+
+                                                   | LAST 3 TRANSACTIONS            |
+                                                   | • SO-241201 | ₹85,000 | 2 days |
+                                                   | • PO-241128 | ₹1.2L   | 5 days |
+                                                   | • SO-241125 | ₹45,000 | 8 days |
+                                                   +--------------------------------+
+                                                   | 🏷️ COMPOSITE CLIENT             |
+                                                   +--------------------------------+
+```
 
 ---
 
-## Feature 2: Client Age Filter
+## Preview Card Content
 
-### Concept
-Filter clients based on `date_of_onboarding` field to identify:
-- Recently onboarded clients (for follow-up)
-- Established clients (for loyalty programs)
-- Long-term dormant clients (for win-back)
+### Section 1: Client Identity Header
+- **Client Name** (bold)
+- **Client ID** badge
+- **Member Since**: Date of onboarding (e.g., "Jan 2024" or "45 days ago")
+- **Client Type Badge**: HNI / INDIVIDUAL / BUSINESS
+- **Composite Badge** (if client has both buy & sell orders)
 
-### Filter UI
-```
-Client Age (Days Since Onboarding)
-Min [____] to Max [____] days
-```
+### Section 2: Order Summary Statistics
+| Metric | Display |
+|--------|---------|
+| Total Buy Value | ₹ amount with order count |
+| Total Sell Value | ₹ amount with order count |
+| Average Order Value | ₹ amount |
+| Last Order Date | Relative time (e.g., "3 days ago") |
 
-**Common Use Cases**:
-| Filter Setting | Purpose |
-|---------------|---------|
-| Min: 0, Max: 30 | New clients in first month |
-| Min: 90, Max: ∞ | Established clients (3+ months) |
-| Min: 180, Max: ∞ | Long-term clients (6+ months) |
+### Section 3: Last 3 Transactions (Most Recent)
+Compact list showing:
+- Order number (SO-XXXXXX / PO-XXXXXX)
+- Amount (₹)
+- Relative time
+- Type badge (Buy/Sell)
 
 ---
 
 ## Technical Implementation
 
-### 1. Extend `useClientTypeFromOrders` Hook
+### 1. Create Reusable Preview Component
 
-Add new fields to `ClientOrderData` interface:
+**New Component: `ClientOrderPreview.tsx`**
+
 ```typescript
-interface ClientOrderData {
-  // ... existing fields ...
-  
-  // Volume trend metrics
-  currentPeriodValue: number;      // Value in current period
-  previousPeriodValue: number;     // Value in previous period
-  volumeChangePercent: number | null;  // % change
-  volumeTrend: 'growing' | 'stable' | 'declining' | 'dropping' | 'new';
-  
-  // For 10-day comparison
-  last10DaysValue: number;
-  prev10DaysValue: number;
-  
-  // For month comparison  
-  currentMonthValue: number;
-  previousMonthValue: number;
-}
-```
-
-Query modifications to fetch orders with dates for period-based aggregation:
-```typescript
-// Group orders by period
-const last10Days = subDays(today, 10);
-const prev10Days = subDays(today, 20);
-const currentMonthStart = startOfMonth(today);
-const previousMonthStart = startOfMonth(subMonths(today, 1));
-const previousMonthEnd = endOfMonth(subMonths(today, 1));
-
-// Calculate period values
-const last10DaysOrders = clientOrders.filter(o => 
-  new Date(o.order_date) >= last10Days
-);
-const prev10DaysOrders = clientOrders.filter(o => 
-  new Date(o.order_date) >= prev10Days && 
-  new Date(o.order_date) < last10Days
-);
-```
-
-### 2. Update `ClientFilters` Interface
-
-Add new filter fields:
-```typescript
-interface ClientFilters {
-  // ... existing fields ...
-  
-  // Volume trend filters
-  volumePeriod: '10-day' | 'month';
-  volumeTrends: string[];  // ['growing', 'stable', 'declining', 'dropping', 'new']
-  volumeChangeMin: string;
-  volumeChangeMax: string;
-  
-  // Client age filter
-  clientAgeMin: string;  // days since onboarding
-  clientAgeMax: string;
-}
-```
-
-### 3. Filter Panel UI Updates
-
-Add new section to `ClientDirectoryFilters.tsx`:
-
-```
-+------------------------------------------------------------------+
-| VOLUME & ENGAGEMENT                                               |
-+------------------------------------------------------------------+
-| Comparison Period: [10-Day ▼]                                     |
-|                                                                   |
-| Volume Trend: [▼ Select...] (Growing, Stable, Declining, etc.)   |
-|                                                                   |
-| Volume Change %: Min [___]% to Max [___]%                        |
-+------------------------------------------------------------------+
-| CLIENT AGE                                                        |
-+------------------------------------------------------------------+
-| Days Since Onboarding: Min [___] to Max [___] days               |
-+------------------------------------------------------------------+
-```
-
-### 4. Table Column Addition
-
-Add "Trend" column to buyer/seller tables in `ClientDashboard.tsx`:
-```typescript
-<th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
-
-// In row rendering:
-<td className="py-3 px-4">
-  <VolumeTrendBadge 
-    changePercent={orderInfo?.volumeChangePercent} 
-    trend={orderInfo?.volumeTrend}
-  />
-</td>
-```
-
-### 5. Volume Trend Badge Component
-
-Create a reusable badge component:
-```typescript
-function VolumeTrendBadge({ changePercent, trend }) {
-  const config = {
-    growing: { icon: TrendingUp, color: 'bg-green-100 text-green-800', prefix: '+' },
-    stable: { icon: Minus, color: 'bg-gray-100 text-gray-600', prefix: '' },
-    declining: { icon: TrendingDown, color: 'bg-yellow-100 text-yellow-800', prefix: '' },
-    dropping: { icon: TrendingDown, color: 'bg-red-100 text-red-800', prefix: '' },
-    new: { icon: Sparkles, color: 'bg-blue-100 text-blue-800', prefix: '' },
+interface ClientOrderPreviewProps {
+  clientId: string;
+  clientName: string;
+  clientData?: {
+    client_id: string;
+    phone: string;
+    date_of_onboarding: string;
+    client_type: string;
   };
-  
-  const { icon: Icon, color, prefix } = config[trend];
-  
-  return (
-    <Badge className={color}>
-      <Icon className="h-3 w-3 mr-1" />
-      {trend === 'new' ? 'New' : `${prefix}${changePercent?.toFixed(0)}%`}
-    </Badge>
-  );
 }
+```
+
+This component will:
+- Accept client ID and fetch recent orders on demand
+- Use `useQuery` with `enabled: false` initially, triggered on hover
+- Display loading skeleton while fetching
+- Cache results for subsequent hovers
+
+### 2. Data Fetching Strategy
+
+**Lazy Load on Hover**: Fetch order data only when user hovers (not on initial client list load)
+
+```typescript
+// Fetch last 5 orders combined (sales + purchase)
+const { data: recentOrders, refetch } = useQuery({
+  queryKey: ['client-preview-orders', clientId],
+  queryFn: async () => {
+    // Fetch sales orders (buy)
+    const { data: salesOrders } = await supabase
+      .from('sales_orders')
+      .select('order_number, total_amount, order_date')
+      .or(`client_name.eq.${name},client_phone.eq.${phone}`)
+      .neq('status', 'CANCELLED')
+      .order('order_date', { ascending: false })
+      .limit(5);
+    
+    // Fetch purchase orders (sell)
+    const { data: purchaseOrders } = await supabase
+      .from('purchase_orders')
+      .select('order_number, total_amount, order_date')
+      .or(`supplier_name.eq.${name},contact_number.eq.${phone}`)
+      .neq('status', 'CANCELLED')
+      .order('order_date', { ascending: false })
+      .limit(5);
+    
+    return { salesOrders, purchaseOrders };
+  },
+  enabled: false, // Manual trigger on hover
+  staleTime: 60000, // Cache for 1 minute
+});
+```
+
+### 3. Update Autocomplete Components
+
+**Files to Modify:**
+- `src/components/purchase/SupplierAutocomplete.tsx`
+- `src/components/sales/CustomerAutocomplete.tsx`
+
+**Changes:**
+- Wrap each client suggestion row with `HoverCard` from Radix UI
+- Trigger order preview fetch on `onOpenChange` of HoverCard
+- Position preview card to the right side of dropdown
+
+```typescript
+<HoverCard openDelay={300} closeDelay={100}>
+  <HoverCardTrigger asChild>
+    <div className="px-3 py-2 hover:bg-gray-100 cursor-pointer">
+      {/* Existing client row content */}
+    </div>
+  </HoverCardTrigger>
+  <HoverCardContent side="right" align="start" className="w-80">
+    <ClientOrderPreview 
+      clientId={client.id}
+      clientName={client.name}
+      clientData={client}
+    />
+  </HoverCardContent>
+</HoverCard>
 ```
 
 ---
 
-## Re-Targeting Use Cases Enabled
+## Component Structure
 
-| Scenario | Filter Configuration |
-|----------|---------------------|
-| Win back declining high-value clients | Volume Trend: Declining/Dropping + Total Value Min: 100000 |
-| Target established clients with drops | Client Age Min: 90 + Volume Change: -50% to -20% |
-| Engage new clients early | Client Age Max: 30 + Status: Active |
-| Identify at-risk VIPs | Priority: Platinum/Gold + Volume Trend: Declining |
-| Re-engage dormant veterans | Client Age Min: 180 + Status: Dormant |
-| High-frequency users slowing down | Total Orders Min: 20 + Volume Trend: Dropping |
+```
++-- ClientOrderPreview.tsx (NEW)
+|   |-- Header: Name, ID, Member Since
+|   |-- Stats Grid: Buy/Sell totals
+|   |-- Recent Transactions List
+|   |-- Client Type Badges
+|
++-- SupplierAutocomplete.tsx (MODIFY)
+|   |-- Wrap suggestions with HoverCard
+|   |-- Import ClientOrderPreview
+|
++-- CustomerAutocomplete.tsx (MODIFY)
+    |-- Wrap suggestions with HoverCard
+    |-- Import ClientOrderPreview
+```
 
 ---
 
-## Files to Modify
+## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useClientTypeFromOrders.tsx` | Add period-based volume calculations and trend detection |
-| `src/components/clients/ClientDirectoryFilters.tsx` | Add Volume Trend section with period selector, trend filter, change % range; Add Client Age range filter |
-| `src/components/clients/ClientDashboard.tsx` | Add "Trend" column to tables, update filter application logic, pass new filter state |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/clients/ClientOrderPreview.tsx` | CREATE | New preview component showing order snapshot |
+| `src/components/purchase/SupplierAutocomplete.tsx` | MODIFY | Add HoverCard wrapper around client suggestions |
+| `src/components/sales/CustomerAutocomplete.tsx` | MODIFY | Add HoverCard wrapper around client suggestions |
 
 ---
 
 ## Performance Considerations
 
-- All calculations happen client-side after initial data fetch
-- Period-based aggregation reuses already-fetched order data
-- Memoize trend calculations to avoid recomputation on every render
-- Volume period preference persisted in filter state (not localStorage, resets on page refresh)
+1. **Lazy Loading**: Orders fetched only on hover, not on dropdown open
+2. **Debounced Hover**: 300ms delay before showing preview (prevents flash on quick scroll)
+3. **Query Caching**: Results cached for 1 minute using React Query
+4. **Limited Data**: Only fetch last 5 orders per type (not full history)
+5. **Skeleton Loading**: Show loading state while fetching
 
 ---
 
 ## Summary
 
-This implementation provides:
-- **Visual Volume Trend Indicators** in directory tables with color-coded badges
-- **Flexible Period Comparison** (10-day for high-frequency tracking, monthly for standard)
-- **Custom Range Filters** for precise targeting by volume change percentage
-- **Client Age Filter** to segment by relationship duration
-- **Powerful Re-Targeting Combinations** for win-back campaigns
+This feature adds an elegant hover preview that shows:
+- Client identity confirmation (ID, type, tenure)
+- Quick order statistics (total buy/sell values)
+- Recent transaction list (last 3 orders)
 
+This helps operators quickly distinguish between similarly-named clients (e.g., "Rajesh Kumar" vs "Rajesh Kumar Singh") by seeing their order history at a glance before selection.

@@ -37,6 +37,7 @@ interface SalesPaymentMethod {
   payment_gateway: boolean;
   settlement_cycle?: "Instant Settlement" | "T+1 Day" | "Custom";
   settlement_days?: number;
+  nickname?: string;
 }
 
 export function PaymentMethodManagement() {
@@ -68,7 +69,8 @@ export function PaymentMethodManagement() {
     custom_frequency: "",
     payment_gateway: false,
     settlement_cycle: "" as "Instant Settlement" | "T+1 Day" | "Custom" | "",
-    settlement_days: ""
+    settlement_days: "",
+    nickname: ""
   });
 
   const getProgressColor = (progress: number) => {
@@ -207,7 +209,8 @@ export function PaymentMethodManagement() {
           settlement_cycle: methodData.payment_gateway ? methodData.settlement_cycle : null,
           settlement_days: methodData.payment_gateway && methodData.settlement_cycle === "Custom" ? parseInt(methodData.settlement_days) : null,
           is_active: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          nickname: methodData.nickname?.trim() || null
         })
         .eq('id', methodData.id)
         .select('id')
@@ -410,7 +413,8 @@ export function PaymentMethodManagement() {
       
       payment_gateway: method.payment_gateway || false,
       settlement_cycle: method.settlement_cycle || "",
-      settlement_days: method.settlement_days?.toString() || ""
+      settlement_days: method.settlement_days?.toString() || "",
+      nickname: method.nickname || ""
     });
     setStep(1); // Reset to first step when editing
     setIsAddDialogOpen(true);
@@ -431,7 +435,8 @@ export function PaymentMethodManagement() {
       
       payment_gateway: false,
       settlement_cycle: "",
-      settlement_days: ""
+      settlement_days: "",
+      nickname: ""
     });
     setEditingMethod(null);
     setStep(1);
@@ -592,6 +597,22 @@ export function PaymentMethodManagement() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Nickname field - only show when editing */}
+                  {editingMethod && (
+                    <div>
+                      <Label htmlFor="nickname">Nickname (Optional)</Label>
+                      <Input
+                        id="nickname"
+                        value={formData.nickname}
+                        onChange={(e) => setFormData(prev => ({ ...prev, nickname: e.target.value }))}
+                        placeholder="e.g., Main UPI, Backup Account"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This nickname will be displayed instead of payment details in Manual Sales entry
+                      </p>
+                    </div>
+                  )}
 
                   <div>
                     <Label htmlFor="payment_limit">Payment Limit (₹) *</Label>

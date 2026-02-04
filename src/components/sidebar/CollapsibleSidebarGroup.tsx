@@ -25,7 +25,7 @@ export interface SidebarGroupConfig {
   icon: LucideIcon;
   color: string;
   bgColor: string;
-  pinProtected: boolean;
+  pinProtected?: boolean;
   pinCode?: string;
   children: SidebarGroupItem[];
 }

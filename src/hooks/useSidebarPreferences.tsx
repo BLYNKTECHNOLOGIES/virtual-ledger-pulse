@@ -19,7 +19,7 @@ interface SidebarGroupConfig {
   icon: any;
   color: string;
   bgColor: string;
-  pinProtected: boolean;
+  pinProtected?: boolean;
   pinCode?: string;
   children: SidebarItem[];
 }

@@ -120,21 +120,24 @@ export function SupplierAutocomplete({
 
   return (
     <div className="relative">
-      <Label htmlFor="sellerName">Seller Name *</Label>
-      <div className="relative">
-        <Input
-          id="sellerName"
-          value={value}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          placeholder="Enter seller name"
-          required
-          className={hasExactMatch && !selectedClientId ? "border-destructive pr-10" : ""}
-        />
-        {selectedClientId && (
-          <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
-        )}
+      {/* Keep label-to-input spacing consistent with other form fields */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="sellerName">Seller Name *</Label>
+        <div className="relative">
+          <Input
+            id="sellerName"
+            value={value}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            placeholder="Enter seller name"
+            required
+            className={hasExactMatch && !selectedClientId ? "border-destructive pr-10" : ""}
+          />
+          {selectedClientId && (
+            <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+          )}
+        </div>
       </div>
       
       {/* Status indicators */}

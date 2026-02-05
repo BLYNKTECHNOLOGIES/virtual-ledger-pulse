@@ -193,11 +193,52 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
 
       return order.id;
     },
-    onSuccess: () => {
+     onSuccess: async () => {
       toast({ 
         title: "Order Completed", 
         description: "Sales order completed successfully with wallet deduction and stock updates" 
       });
+       
+       // Check if client exists - if not, create an onboarding approval request for new buyers
+       try {
+         const clientName = order?.client_name;
+         const clientPhone = order?.client_phone;
+         
+         if (clientName) {
+           const { data: existingClient } = await supabase
+             .from('clients')
+             .select('id, name')
+             .or(`name.ilike.${clientName},phone.eq.${clientPhone || ''}`)
+             .limit(1)
+             .maybeSingle();
+           
+           // If client doesn't exist, create an onboarding approval request
+           if (!existingClient) {
+             console.log('📝 New client detected, creating onboarding approval request...');
+             const { error: approvalError } = await supabase
+               .from('client_onboarding_approvals')
+               .insert({
+                 sales_order_id: order.id,
+                 client_name: clientName,
+                 client_phone: clientPhone || null,
+                 order_amount: order.total_amount || 0,
+                 order_date: new Date().toISOString().split('T')[0],
+                 approval_status: 'PENDING'
+               });
+ 
+             if (approvalError) {
+               console.error('⚠️ Failed to create approval request:', approvalError);
+             } else {
+               console.log('✅ Onboarding approval request created');
+             }
+           } else {
+             console.log('✅ Existing client found:', existingClient.name);
+           }
+         }
+       } catch (approvalCheckError) {
+         console.error('Error checking for existing client:', approvalCheckError);
+       }
+       
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
@@ -205,6 +246,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       onOpenChange(false);
     },
     onError: (error) => {

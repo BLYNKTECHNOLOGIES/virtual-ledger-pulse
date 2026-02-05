@@ -128,6 +128,45 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
         .select();
       
       if (error) throw error;
+       
+       // For each order, check if client exists - if not, create onboarding approval request
+       if (data && data.length > 0) {
+         for (const salesOrder of data) {
+           try {
+             const { data: existingClient } = await supabase
+               .from('clients')
+               .select('id, name')
+               .or(`name.ilike.${salesOrder.client_name}`)
+               .limit(1)
+               .maybeSingle();
+             
+             // If client doesn't exist, create an onboarding approval request
+             if (!existingClient) {
+               console.log('📝 New client detected, creating onboarding approval request for:', salesOrder.client_name);
+               const { error: approvalError } = await supabase
+                 .from('client_onboarding_approvals')
+                 .insert({
+                   sales_order_id: salesOrder.id,
+                   client_name: salesOrder.client_name,
+                   order_amount: salesOrder.total_amount || 0,
+                   order_date: salesOrder.order_date || new Date().toISOString().split('T')[0],
+                   approval_status: 'PENDING'
+                 });
+ 
+               if (approvalError) {
+                 console.error('⚠️ Failed to create approval request:', approvalError);
+               } else {
+                 console.log('✅ Onboarding approval request created for:', salesOrder.client_name);
+               }
+             } else {
+               console.log('✅ Existing client found:', existingClient.name);
+             }
+           } catch (approvalCheckError) {
+             console.error('Error checking for existing client:', approvalCheckError);
+           }
+         }
+       }
+       
       return data;
     },
     onSuccess: () => {
@@ -137,6 +176,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
         duration: 3000 
       });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       resetForm();
       onOpenChange(false);
     },

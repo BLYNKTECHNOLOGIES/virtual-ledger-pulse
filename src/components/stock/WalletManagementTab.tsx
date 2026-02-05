@@ -87,7 +87,7 @@ export function WalletManagementTab() {
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
       
       if (error) throw error;
       return data;
@@ -674,7 +674,7 @@ export function WalletManagementTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions?.slice(0, 10).map((transaction) => (
+                {transactions?.slice(0, 50).map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell>
                       <div className="flex flex-col">

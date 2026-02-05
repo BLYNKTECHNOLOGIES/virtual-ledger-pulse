@@ -3368,6 +3368,27 @@ export type Database = {
           },
         ]
       }
+      reversal_guards: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+        }
+        Relationships: []
+      }
       risk_detection_logs: {
         Row: {
           details: Json | null

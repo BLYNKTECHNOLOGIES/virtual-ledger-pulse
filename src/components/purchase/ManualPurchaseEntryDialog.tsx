@@ -394,9 +394,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Order Number */}
-          <div className="w-full max-w-xs">
-            <div className="space-y-2">
+          {/* Row 1: Order Number + Contact Number */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="order_number">Order Number</Label>
               <Input
                 id="order_number"
@@ -407,10 +407,20 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 className={formData.is_off_market ? "bg-muted" : ""}
               />
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="contact_number">Contact Number</Label>
+              <Input
+                id="contact_number"
+                value={formData.contact_number}
+                onChange={(e) => handleInputChange('contact_number', e.target.value)}
+                placeholder="Enter contact number"
+              />
+            </div>
           </div>
 
-          {/* Seller Name, Contact Number and Product */}
-          <div className="grid grid-cols-3 gap-4 items-start">
+          {/* Row 2: Seller Name + Product */}
+          <div className="grid grid-cols-2 gap-4 items-start">
             <div>
               <SupplierAutocomplete
                 value={formData.supplier_name}
@@ -433,16 +443,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   }
                 }}
                 selectedClientId={selectedClientId}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="contact_number">Contact Number</Label>
-              <Input
-                id="contact_number"
-                value={formData.contact_number}
-                onChange={(e) => handleInputChange('contact_number', e.target.value)}
-                placeholder="Enter contact number"
               />
             </div>
             
@@ -475,30 +475,17 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter purchase description"
-              rows={2}
-            />
-          </div>
-
-          {/* Quantity & Pricing */}
+          {/* Row 3: Total Amount, Price per Unit, Quantity - matching Sales order layout */}
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity *</Label>
+              <Label htmlFor="total_amount">Total Amount (₹)</Label>
               <Input
-                id="quantity"
+                id="total_amount"
                 type="number"
-                step="0.0001"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', e.target.value)}
-                placeholder="0.00"
-                required
+                step="0.01"
+                value={formData.total_amount}
+                onChange={(e) => handleInputChange('total_amount', e.target.value)}
+                placeholder="0"
               />
             </div>
 
@@ -516,14 +503,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="total_amount">Total Amount (₹)</Label>
+              <Label htmlFor="quantity">Quantity *</Label>
               <Input
-                id="total_amount"
+                id="quantity"
                 type="number"
-                step="0.01"
-                value={formData.total_amount}
-                onChange={(e) => handleInputChange('total_amount', e.target.value)}
-                placeholder="0"
+                step="0.0001"
+                value={formData.quantity}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                placeholder="0.00"
+                required
               />
             </div>
           </div>
@@ -732,7 +720,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </Card>
           )}
 
-          {/* Contact Number */}
+          {/* Order Date */}
           <div className="space-y-2">
             <Label htmlFor="order_date">Order Date</Label>
             <Input
@@ -740,6 +728,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               type="date"
               value={formData.order_date}
               onChange={(e) => handleInputChange('order_date', e.target.value)}
+            />
+          </div>
+
+          {/* Description - moved to bottom */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              placeholder="Enter purchase description"
+              rows={2}
             />
           </div>
 

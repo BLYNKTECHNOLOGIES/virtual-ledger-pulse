@@ -434,8 +434,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           noValidate
         >
           {/* First Row - Order info */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
+          <div>
+            <div className="w-full max-w-xs">
               <Label>Order Number *</Label>
               <Input
                 value={formData.order_number}
@@ -444,24 +444,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 required
                 disabled={isOffMarket || isGeneratingOrderNumber}
                 className={isOffMarket ? "bg-muted" : ""}
-              />
-            </div>
-
-            <div>
-              <Label>Order Date</Label>
-              <Input
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => handleInputChange('order_date', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label>Order Time</Label>
-              <Input
-                type="time"
-                value={formData.order_time}
-                onChange={(e) => handleInputChange('order_time', e.target.value)}
               />
             </div>
           </div>
@@ -719,21 +701,21 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             </div>
 
             <div>
-              <Label>Order Date</Label>
-              <Input
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => handleInputChange('order_date', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label>Order Time</Label>
-              <Input
-                type="time"
-                value={formData.order_time}
-                onChange={(e) => handleInputChange('order_time', e.target.value)}
-              />
+              <Label>Order Date & Time</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={formData.order_date}
+                  onChange={(e) => handleInputChange('order_date', e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="time"
+                  value={formData.order_time}
+                  onChange={(e) => handleInputChange('order_time', e.target.value)}
+                  className="w-28"
+                />
+              </div>
             </div>
           </div>
 

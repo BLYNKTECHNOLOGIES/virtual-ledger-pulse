@@ -103,6 +103,9 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
       const quantityChanged = order.quantity !== data.quantity;
       const paymentMethodChanged = originalPaymentMethodId !== data.sales_payment_method_id;
+
+       const selectedPaymentMethod = paymentMethods?.find((m: any) => m.id === data.sales_payment_method_id);
+       const selectedIsGateway = Boolean((selectedPaymentMethod as any)?.payment_gateway);
       
       // If wallet changed and order was completed, handle wallet transaction transfer
       if (walletChanged && order.payment_status === 'COMPLETED') {
@@ -140,7 +143,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       }
       
       // If payment method changed and order was completed, handle bank transaction transfer
-      if (paymentMethodChanged && order.payment_status === 'COMPLETED') {
+       if (paymentMethodChanged && order.payment_status === 'COMPLETED') {
         console.log('🔄 Payment method changed, processing bank transaction transfer...');
         
         const { data: result, error: transferError } = await supabase.rpc('handle_sales_order_payment_method_change', {
@@ -161,6 +164,39 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         
         console.log('✅ Payment method change processed', result);
       }
+
+       // Repair: if order is completed + selected method is NOT a gateway, but there is no INCOME tx,
+       // ensure the bank transaction exists so balances reflect correctly.
+       if (!paymentMethodChanged && order.payment_status === 'COMPLETED' && data.sales_payment_method_id && !selectedIsGateway) {
+         const { count, error: countError } = await supabase
+           .from('bank_transactions')
+           .select('id', { count: 'exact', head: true })
+           .eq('reference_number', data.order_number)
+           .eq('transaction_type', 'INCOME');
+
+         if (countError) {
+           console.warn('Could not verify bank transaction existence:', countError);
+         } else if ((count || 0) === 0) {
+           console.log('🩹 Missing INCOME bank transaction detected; repairing...');
+           const { data: result, error: repairError } = await supabase.rpc('handle_sales_order_payment_method_change', {
+             p_order_id: order.id,
+             p_old_payment_method_id: null,
+             p_new_payment_method_id: data.sales_payment_method_id,
+             p_total_amount: data.total_amount,
+           });
+
+           if (repairError) {
+             console.error('Error repairing payment method transaction:', repairError);
+             throw new Error(`Failed to repair bank balance posting: ${repairError.message}`);
+           }
+
+           if (result && !(result as any).success) {
+             throw new Error((result as any).error || 'Failed to repair bank balance posting');
+           }
+
+           console.log('✅ Bank transaction repaired', result);
+         }
+       }
       
       const { data: result, error } = await supabase
         .from('sales_orders')

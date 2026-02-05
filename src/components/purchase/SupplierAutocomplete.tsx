@@ -59,9 +59,19 @@ export function SupplierAutocomplete({
   // Filter clients based on input
   const filteredClients = useMemo(() => {
     if (!clients || !debouncedValue.trim()) return [];
-    return clients.filter(client => 
-      matchesWordPrefix(debouncedValue, client.name)
+    
+    // Use word-prefix matching for suggestions
+    const prefixMatches = clients.filter(client => 
+      matchesWordPrefix(debouncedValue, client.name) ||
+      // Also include partial/fuzzy matches by checking if input is contained anywhere
+      client.name.toLowerCase().includes(debouncedValue.trim().toLowerCase()) ||
+      // Match by phone number
+      (client.phone && client.phone.includes(debouncedValue.trim())) ||
+      // Match by PAN
+      (client.pan_card_number && client.pan_card_number.toLowerCase().includes(debouncedValue.trim().toLowerCase()))
     );
+    
+    return prefixMatches;
   }, [clients, debouncedValue]);
 
   // Check for exact match
@@ -76,14 +86,27 @@ export function SupplierAutocomplete({
     const exactMatch = clients.find(
       c => c.name.toLowerCase() === value.trim().toLowerCase()
     );
+    
+    // Also check for partial match (client name contains input or vice versa)
+    const partialMatch = clients.find(
+      c => c.name.toLowerCase().includes(value.trim().toLowerCase()) ||
+           value.trim().toLowerCase().includes(c.name.toLowerCase())
+    );
 
-    setHasExactMatch(!!exactMatch);
+    // Only show "client exists" warning if we have an exact match AND the client appears in suggestions
+    // This prevents showing the warning when no suggestions are visible
+    const matchFound = exactMatch || partialMatch;
+    const matchAppearsInSuggestions = matchFound && filteredClients.some(
+      fc => fc.id === exactMatch?.id || fc.id === partialMatch?.id
+    );
+    
+    setHasExactMatch(!!matchAppearsInSuggestions);
     
     // If there's an exact match but no client selected, user must select from dropdown
-    if (exactMatch && !selectedClientId) {
+    if (matchAppearsInSuggestions && !selectedClientId) {
       setIsNewClient(false);
       onNewClient?.(false);
-    } else if (!exactMatch && value.trim().length > 0) {
+    } else if (!matchAppearsInSuggestions && value.trim().length > 0) {
       // New client will be created
       setIsNewClient(true);
       onNewClient?.(true);
@@ -91,7 +114,7 @@ export function SupplierAutocomplete({
       setIsNewClient(false);
       onNewClient?.(false);
     }
-  }, [value, clients, selectedClientId, onNewClient]);
+  }, [value, clients, selectedClientId, onNewClient, filteredClients]);
 
   const handleClientSelect = (client: any) => {
     onChange(client.name);

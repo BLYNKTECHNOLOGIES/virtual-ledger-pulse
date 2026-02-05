@@ -193,6 +193,18 @@ export function EnhancedPurchaseOrderDialog({ open, onOpenChange, editingOrder }
 
       if (orderError) throw orderError;
 
+      // Verify purchase order was created and is readable (RLS check)
+      const { data: verifiedOrder, error: verifyError } = await supabase
+        .from('purchase_orders')
+        .select('id')
+        .eq('id', orderData.id)
+        .single();
+
+      if (verifyError || !verifiedOrder) {
+        console.error('Purchase order verification failed:', verifyError);
+        throw new Error('Purchase order created but not readable - check RLS policies');
+      }
+
       // Insert order items
       const orderItemsData = orderItems.map(item => ({
         purchase_order_id: orderData.id,

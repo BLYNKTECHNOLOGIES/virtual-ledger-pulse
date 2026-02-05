@@ -117,11 +117,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   });
 
   const handleSubmit = () => {
-    // Validate required fields including description
-    if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date || !formData.description.trim()) {
+     // Validate required fields
+     if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields including description",
+         description: "Please fill in all required fields",
         variant: "destructive"
       });
       return;
@@ -302,18 +302,17 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             />
           </div>
 
-          <div className="lg:col-span-2">
-            <Label htmlFor="description">Description *</Label>
+           <div className="lg:col-span-3">
+             <Label htmlFor="description">Description (optional)</Label>
             <Textarea
               id="description"
-              placeholder="Describe the transaction (required)..."
+               placeholder="Describe the transaction..."
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className={cn(!formData.description.trim() && formData.transactionType && "border-destructive")}
             />
           </div>
 
-          <div className="lg:col-span-3">
+           <div className="lg:col-span-3 mt-2">
             <Button 
               onClick={handleSubmit} 
               className="w-full"

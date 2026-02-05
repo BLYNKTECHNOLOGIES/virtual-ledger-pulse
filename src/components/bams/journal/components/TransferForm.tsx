@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
+ import { isUuid } from "@/utils/isUuid";
 
 interface TransferFormProps {
   bankAccounts: any[];
@@ -53,6 +54,9 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         throw new Error('Failed to validate bank account balance');
       }
 
+       // Only use user.id if it's a valid UUID, otherwise set to null
+       const createdBy = user?.id && isUuid(user.id) ? user.id : null;
+ 
       // Create transfer out transaction
       const { data: transferOutData, error: transferOutError } = await supabase
         .from('bank_transactions')
@@ -64,7 +68,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
           transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
           reference_number: `TRF-OUT-${Date.now()}`,
           related_account_name: toAccount.account_name,
-          created_by: user?.id || null, // Persist user ID for audit trail
+           created_by: createdBy,
         })
         .select()
         .single();
@@ -83,7 +87,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
           reference_number: `TRF-IN-${Date.now()}`,
           related_account_name: fromAccount.account_name,
           related_transaction_id: transferOutData.id,
-          created_by: user?.id || null, // Persist user ID for audit trail
+           created_by: createdBy,
         })
         .select()
         .single();

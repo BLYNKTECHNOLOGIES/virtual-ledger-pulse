@@ -1,15 +1,36 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+ import { useState } from "react";
+ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionForm } from "./components/TransactionForm";
 import { TransactionSummary } from "./components/TransactionSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+ import { Button } from "@/components/ui/button";
+ import { 
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+ } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+ import { TrendingUp, TrendingDown, ArrowRightLeft, Pencil, Trash2 } from "lucide-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+ import { useToast } from "@/hooks/use-toast";
+ import { EditExpenseDialog } from "./components/EditExpenseDialog";
 
 export function ExpensesIncomesTab() {
+   const { toast } = useToast();
+   const queryClient = useQueryClient();
+   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+   const [editDialogOpen, setEditDialogOpen] = useState(false);
+   const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
+ 
   // Fetch bank accounts from Supabase (excluding dormant)
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts'],
@@ -70,6 +91,52 @@ export function ExpensesIncomesTab() {
     staleTime: 0,
   });
 
+   // Delete mutation
+   const deleteTransactionMutation = useMutation({
+     mutationFn: async (transactionId: string) => {
+       const { error } = await supabase
+         .from('bank_transactions')
+         .delete()
+         .eq('id', transactionId);
+       
+       if (error) throw error;
+     },
+     onSuccess: () => {
+       toast({
+         title: "Success",
+         description: "Transaction deleted successfully. Bank balance updated.",
+       });
+       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+       setDeleteDialogOpen(false);
+       setTransactionToDelete(null);
+     },
+     onError: (error: any) => {
+       toast({
+         title: "Error",
+         description: error.message || "Failed to delete transaction",
+         variant: "destructive",
+       });
+     },
+   });
+ 
+   const handleDeleteClick = (transaction: any) => {
+     setTransactionToDelete(transaction);
+     setDeleteDialogOpen(true);
+   };
+ 
+   const handleEditClick = (transaction: any) => {
+     setTransactionToEdit(transaction);
+     setEditDialogOpen(true);
+   };
+ 
+   const confirmDelete = () => {
+     if (transactionToDelete) {
+       deleteTransactionMutation.mutate(transactionToDelete.id);
+     }
+   };
+ 
   // Get recent transactions (last 10)
   const recentTransactions = transactions?.slice(0, 10) || [];
 
@@ -178,13 +245,38 @@ export function ExpensesIncomesTab() {
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
+                   <div className="flex items-center gap-2">
+                     <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8"
+                         onClick={() => handleEditClick(transaction)}
+                       >
+                         <Pencil className="h-4 w-4" />
+                       </Button>
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8 text-destructive hover:text-destructive"
+                         onClick={() => handleDeleteClick(transaction)}
+                       >
+                         <Trash2 className="h-4 w-4" />
+                       </Button>
+                     </PermissionGate>
+                     <div className="text-right">
                     <div className={`font-semibold text-lg ${getTransactionColor(transaction.transaction_type)}`}>
                       {transaction.transaction_type === 'EXPENSE' ? '-' : '+'}
                       ₹{parseFloat(transaction.amount.toString()).toLocaleString()}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(transaction.created_at), "HH:mm:ss")}
+                       <div className="text-xs text-muted-foreground">
+                         {transaction.created_by_user 
+                           ? `By: ${transaction.created_by_user.username || transaction.created_by_user.first_name}`
+                           : 'System'}
+                       </div>
+                       <div className="text-xs text-muted-foreground">
+                         {format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm:ss")}
+                       </div>
                     </div>
                   </div>
                 </div>
@@ -193,6 +285,36 @@ export function ExpensesIncomesTab() {
           )}
         </CardContent>
       </Card>
+ 
+       {/* Delete Confirmation Dialog */}
+       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete this {transactionToDelete?.transaction_type?.toLowerCase()} entry of ₹{transactionToDelete?.amount?.toLocaleString()}? 
+               This will reverse the bank balance adjustment. This action cannot be undone.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel>Cancel</AlertDialogCancel>
+             <AlertDialogAction 
+               onClick={confirmDelete}
+               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+             >
+               {deleteTransactionMutation.isPending ? "Deleting..." : "Delete"}
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+ 
+       {/* Edit Dialog */}
+       <EditExpenseDialog
+         open={editDialogOpen}
+         onOpenChange={setEditDialogOpen}
+         transaction={transactionToEdit}
+         bankAccounts={bankAccounts || []}
+       />
     </div>
   );
 }

@@ -531,19 +531,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 onClientSelect={(client) => {
                   if (client) {
                     setSelectedClientId(client.id);
-                    // Auto-fill state from client if available
-                    if (client.state) {
-                      handleInputChange('client_state', client.state);
-                    } else {
-                      handleInputChange('client_state', '');
-                    }
-                    // Auto-fill phone if available
-                    if (client.phone) {
-                      handleInputChange('client_phone', client.phone);
-                    }
+                    // Auto-fill is handled by CustomerAutocomplete via onPhoneChange and onStateChange
                   } else {
                     setSelectedClientId(undefined);
-                    handleInputChange('client_state', '');
+                    // Clear auto-filled fields when client is deselected
+                    setFormData(prev => ({
+                      ...prev,
+                      client_phone: '',
+                      client_state: ''
+                    }));
                   }
                 }}
                 onNewClient={(isNew) => setIsNewClient(isNew)}

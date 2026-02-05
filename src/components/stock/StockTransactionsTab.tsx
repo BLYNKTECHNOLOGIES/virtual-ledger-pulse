@@ -334,9 +334,11 @@ export function StockTransactionsTab() {
     mutationFn: async (adjustmentData: any) => {
       const amount = parseFloat(adjustmentData.amount);
       const transferFee = parseFloat(adjustmentData.transferFee) || 0;
-      // NOTE: wallet_transactions table in this project does not have a created_by column.
-      // Attribution is handled via system_action_logs instead.
-      void getCurrentUserId();
+      // Get current user ID for attribution - validate UUID format
+      const rawUserId = getCurrentUserId();
+      // Only use if it's a valid UUID (wallet_transactions.created_by references users.id which is UUID)
+      const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
+      const createdByUserId = isValidUuid ? rawUserId : null;
       
       // Generate unique reference ID for idempotency
       const transferRefId = globalThis.crypto?.randomUUID?.() ?? null;
@@ -365,7 +367,8 @@ export function StockTransactionsTab() {
             reference_id: transferRefId,
             description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,  // Will be calculated by trigger
+            created_by: createdByUserId
           });
 
         if (debitError) throw debitError;
@@ -381,7 +384,8 @@ export function StockTransactionsTab() {
             reference_id: transferRefId,
             description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,  // Will be calculated by trigger
+            created_by: createdByUserId
           });
 
         if (creditError) throw creditError;
@@ -398,7 +402,8 @@ export function StockTransactionsTab() {
               reference_id: transferRefId,
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
               balance_before: 0,
-              balance_after: 0
+              balance_after: 0,
+              created_by: createdByUserId
             });
           
           if (feeError) throw feeError;
@@ -416,7 +421,8 @@ export function StockTransactionsTab() {
             reference_id: null,
             description: adjustmentData.description,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,  // Will be calculated by trigger
+            created_by: createdByUserId
           });
 
         if (error) throw error;

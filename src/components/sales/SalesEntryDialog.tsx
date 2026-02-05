@@ -431,9 +431,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           className="space-y-4"
           noValidate
         >
-          {/* First Row - Order info */}
-          <div>
-            <div className="w-full max-w-xs">
+          {/* First Row - Order Number and Customer Phone */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label>Order Number *</Label>
               <Input
                 value={formData.order_number}
@@ -444,11 +444,19 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 className={isOffMarket ? "bg-muted" : ""}
               />
             </div>
+            <div>
+              <Label>Customer Phone</Label>
+              <Input
+                value={formData.client_phone}
+                onChange={(e) => handleInputChange('client_phone', e.target.value)}
+                placeholder="Enter phone"
+              />
+            </div>
           </div>
 
-          {/* Second Row - Customer (wider for hover) + Phone */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-1">
+          {/* Second Row - Customer Name and State */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <CustomerAutocomplete
                 value={formData.client_name}
                 onChange={(value) => handleInputChange('client_name', value)}
@@ -469,15 +477,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 }}
                 onNewClient={(isNew) => setIsNewClient(isNew)}
                 selectedClientId={selectedClientId}
-              />
-            </div>
-
-            <div>
-              <Label>Customer Phone</Label>
-              <Input
-                value={formData.client_phone}
-                onChange={(e) => handleInputChange('client_phone', e.target.value)}
-                placeholder="Enter phone"
               />
             </div>
 

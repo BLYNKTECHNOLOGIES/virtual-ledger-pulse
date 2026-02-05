@@ -308,6 +308,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     onSuccess: (data) => {
       console.log('🎉 Sales order created successfully');
       
+      // Close dialog first to ensure it always closes
+      onOpenChange(false);
+      
       // Log the action
       logActionWithCurrentUser({
         actionType: ActionTypes.SALES_MANUAL_ENTRY_CREATED,
@@ -318,7 +321,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       });
       
       toast({ title: "Success", description: "Sales order created successfully. New clients will appear in approvals queue." });
-      onOpenChange(false);
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });

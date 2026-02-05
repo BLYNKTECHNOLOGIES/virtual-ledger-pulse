@@ -22,6 +22,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [originalWalletId, setOriginalWalletId] = useState<string | null>(null);
+  const [originalPaymentMethodId, setOriginalPaymentMethodId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     order_number: '',
@@ -76,6 +77,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     if (order) {
       const walletId = order.wallet_id || order.wallet?.id || '';
       setOriginalWalletId(walletId);
+      setOriginalPaymentMethodId(order.sales_payment_method_id || null);
       setFormData({
         order_number: order.order_number || '',
         client_name: order.client_name || '',
@@ -100,6 +102,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     mutationFn: async (data: typeof formData) => {
       const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
       const quantityChanged = order.quantity !== data.quantity;
+      const paymentMethodChanged = originalPaymentMethodId !== data.sales_payment_method_id;
       
       // If wallet changed and order was completed, handle wallet transaction transfer
       if (walletChanged && order.payment_status === 'COMPLETED') {
@@ -134,6 +137,29 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           throw new Error(`Failed to adjust quantity: ${adjustError.message}`);
         }
         console.log('✅ Quantity adjustment completed');
+      }
+      
+      // If payment method changed and order was completed, handle bank transaction transfer
+      if (paymentMethodChanged && order.payment_status === 'COMPLETED') {
+        console.log('🔄 Payment method changed, processing bank transaction transfer...');
+        
+        const { data: result, error: transferError } = await supabase.rpc('handle_sales_order_payment_method_change', {
+          p_order_id: order.id,
+          p_old_payment_method_id: originalPaymentMethodId,
+          p_new_payment_method_id: data.sales_payment_method_id || null,
+          p_total_amount: data.total_amount
+        });
+        
+        if (transferError) {
+          console.error('Error transferring payment method:', transferError);
+          throw new Error(`Failed to transfer payment method: ${transferError.message}`);
+        }
+        
+        if (result && !(result as any).success) {
+          throw new Error((result as any).error || 'Failed to process payment method change');
+        }
+        
+        console.log('✅ Payment method change processed', result);
       }
       
       const { data: result, error } = await supabase
@@ -177,6 +203,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

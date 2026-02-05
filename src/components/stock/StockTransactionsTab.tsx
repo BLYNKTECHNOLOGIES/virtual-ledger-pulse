@@ -25,7 +25,8 @@ export function StockTransactionsTab() {
     toWallet: "",
     amount: "",
     description: "",
-    transactionType: "TRANSFER"
+    transactionType: "TRANSFER",
+    transferFee: ""
   });
   
   const { toast } = useToast();
@@ -165,7 +166,7 @@ export function StockTransactionsTab() {
           *,
           wallets(wallet_name, wallet_type)
         `)
-        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER'])
+        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER', 'TRANSFER_FEE'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -331,8 +332,25 @@ export function StockTransactionsTab() {
   const manualAdjustmentMutation = useMutation({
     mutationFn: async (adjustmentData: any) => {
       const amount = parseFloat(adjustmentData.amount);
+      const transferFee = parseFloat(adjustmentData.transferFee) || 0;
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Generate unique reference ID for idempotency
+      const transferRefId = globalThis.crypto?.randomUUID?.() ?? null;
       
       if (adjustmentData.transactionType === 'TRANSFER') {
+        // Validate balance before proceeding
+        const totalDeduction = amount + transferFee;
+        const { data: sourceWallet } = await supabase
+          .from('wallets')
+          .select('current_balance, wallet_name')
+          .eq('id', adjustmentData.fromWallet)
+          .single();
+        
+        if (!sourceWallet || sourceWallet.current_balance < totalDeduction) {
+          throw new Error(`Insufficient balance in ${sourceWallet?.wallet_name || 'source wallet'}. Required: ${totalDeduction.toFixed(4)} USDT, Available: ${(sourceWallet?.current_balance || 0).toFixed(4)} USDT`);
+        }
+        
         // Create debit transaction for source wallet
         const { error: debitError } = await supabase
           .from('wallet_transactions')
@@ -341,10 +359,11 @@ export function StockTransactionsTab() {
             transaction_type: 'TRANSFER_OUT',
             amount: amount,
             reference_type: 'MANUAL_TRANSFER',
-            reference_id: null,
-            description: `Transfer to another wallet: ${adjustmentData.description}`,
+            reference_id: transferRefId,
+            description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,   // Will be calculated by trigger
+            created_by: user?.id || null
           });
 
         if (debitError) throw debitError;
@@ -357,13 +376,34 @@ export function StockTransactionsTab() {
             transaction_type: 'TRANSFER_IN',
             amount: amount,
             reference_type: 'MANUAL_TRANSFER',
-            reference_id: null,
-            description: `Transfer from another wallet: ${adjustmentData.description}`,
+            reference_id: transferRefId,
+            description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,   // Will be calculated by trigger
+            created_by: user?.id || null
           });
 
         if (creditError) throw creditError;
+        
+        // Create fee transaction if fee is specified
+        if (transferFee > 0) {
+          const { error: feeError } = await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: adjustmentData.fromWallet,
+              transaction_type: 'DEBIT',
+              amount: transferFee,
+              reference_type: 'TRANSFER_FEE',
+              reference_id: transferRefId,
+              description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
+              balance_before: 0,
+              balance_after: 0,
+              created_by: user?.id || null
+            });
+          
+          if (feeError) throw feeError;
+          console.log(`✅ Transfer fee of ${transferFee.toFixed(4)} USDT recorded`);
+        }
       } else {
         // Single wallet adjustment (CREDIT or DEBIT)
         const { error } = await supabase
@@ -376,7 +416,8 @@ export function StockTransactionsTab() {
             reference_id: null,
             description: adjustmentData.description,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0   // Will be calculated by trigger
+            balance_after: 0,   // Will be calculated by trigger
+            created_by: user?.id || null
           });
 
         if (error) throw error;
@@ -391,6 +432,7 @@ export function StockTransactionsTab() {
         description: "Manual stock adjustment completed successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setShowAdjustmentDialog(false);
@@ -399,7 +441,8 @@ export function StockTransactionsTab() {
         toWallet: "",
         amount: "",
         description: "",
-        transactionType: "TRANSFER"
+        transactionType: "TRANSFER",
+        transferFee: ""
       });
     },
     onError: (error: any) => {
@@ -431,6 +474,8 @@ export function StockTransactionsTab() {
         return <Badge className="bg-green-100 text-green-800">Manual Credit</Badge>;
       case 'DEBIT':
         return <Badge className="bg-red-100 text-red-800">Manual Debit</Badge>;
+      case 'TRANSFER_FEE':
+        return <Badge className="bg-amber-100 text-amber-800">Transfer Fee</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
@@ -722,6 +767,23 @@ export function StockTransactionsTab() {
               />
             </div>
 
+            {adjustmentData.transactionType === 'TRANSFER' && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Transfer Fee (USDT)
+                  <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder="Enter fee amount (optional)"
+                  value={adjustmentData.transferFee}
+                  onChange={(e) => setAdjustmentData(prev => ({ ...prev, transferFee: e.target.value }))}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Description</Label>
               <Textarea
@@ -731,6 +793,31 @@ export function StockTransactionsTab() {
                 rows={3}
               />
             </div>
+
+            {/* Transfer Summary - Show when transfer type with fee */}
+            {adjustmentData.transactionType === 'TRANSFER' && adjustmentData.fromWallet && adjustmentData.amount && (
+              <div className="border rounded-lg p-3 bg-muted/50 space-y-2 text-sm">
+                <div className="font-medium text-foreground">Transfer Summary</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Transfer Amount:</span>
+                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} USDT</span>
+                </div>
+                {parseFloat(adjustmentData.transferFee || '0') > 0 && (
+                  <div className="flex justify-between text-amber-600">
+                    <span>Fee (deducted from sender):</span>
+                    <span>{parseFloat(adjustmentData.transferFee || '0').toFixed(4)} USDT</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-medium border-t pt-2 mt-2">
+                  <span>Total Deducted from Sender:</span>
+                  <span>{(parseFloat(adjustmentData.amount || '0') + parseFloat(adjustmentData.transferFee || '0')).toFixed(4)} USDT</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Receiver Gets:</span>
+                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} USDT</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end space-x-2">
               <Button 

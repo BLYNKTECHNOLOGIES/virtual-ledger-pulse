@@ -47,7 +47,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     platform: '',
     quantity: '',
     price_per_unit: '',
-    total_amount: 0,
+    total_amount: '',
     platform_fees: '',
     sales_payment_method_id: '',
     payment_status: 'COMPLETED',
@@ -284,7 +284,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         platform: '',
         quantity: '',
         price_per_unit: '',
-        total_amount: 0,
+        total_amount: '',
         platform_fees: '',
         sales_payment_method_id: '',
         payment_status: 'COMPLETED',
@@ -375,7 +375,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           // Reset quantity when wallet changes to avoid validation issues
           updated.quantity = '';
           updated.platform_fees = '';
-          updated.total_amount = 0;
+          updated.total_amount = '';
         }
         
         // Clear wallet balance when wallet changes
@@ -387,22 +387,22 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
         const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(updated.quantity) || 0;
         const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
-        const total = field === 'total_amount' ? parseFloat(value) || 0 : updated.total_amount;
+        const total = field === 'total_amount' ? parseFloat(value) || 0 : parseFloat(String(updated.total_amount)) || 0;
         
         if (field === 'quantity' && price > 0) {
           // User changed quantity - calculate total
-          updated.total_amount = parseFloat((qty * price).toFixed(2));
+          updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
           // User changed price - recalculate based on what exists
           if (qty > 0) {
-            updated.total_amount = parseFloat((qty * price).toFixed(2));
+            updated.total_amount = (qty * price).toFixed(2);
           } else if (total > 0 && price > 0) {
-            updated.quantity = (total / price).toFixed(2);
+            updated.quantity = (total / price).toFixed(4);
           }
         } else if (field === 'total_amount') {
           // User changed total - calculate quantity if price exists
           if (price > 0) {
-            updated.quantity = (total / price).toFixed(2);
+            updated.quantity = (total / price).toFixed(4);
           }
         }
       }

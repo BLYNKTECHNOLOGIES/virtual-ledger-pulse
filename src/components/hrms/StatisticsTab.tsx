@@ -1119,68 +1119,22 @@ export function StatisticsTab() {
             </Card>
           </div>
 
-          {/* USDT Fees Widget Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card 
-              className="shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0"
-              onClick={() => setShowFeeHistoryDialog(true)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-amber-100 text-sm font-medium">Total USDT Fees</p>
-                    <p className="text-2xl font-bold mt-1">{formatUSDT(usdtFees.total)}</p>
-                    <p className="text-xs text-amber-200 mt-1">Click to view history</p>
-                  </div>
-                  <Coins className="h-8 w-8 text-amber-200" />
+          {/* USDT Fees Widget - Single Simple Card */}
+          <Card 
+            className="shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => setShowFeeHistoryDialog(true)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total USDT Fees Collected</p>
+                  <p className="text-2xl font-bold mt-1">{formatUSDT(usdtFees.total)} USDT</p>
+                  <p className="text-xs text-muted-foreground mt-1">Click to view complete history</p>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md bg-gradient-to-br from-emerald-500 to-green-600 text-white border-0">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-emerald-100 text-sm font-medium">Platform Fees</p>
-                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.platform)}</p>
-                  </div>
-                  <DollarSign className="h-6 w-6 text-emerald-200" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md bg-gradient-to-br from-purple-500 to-violet-600 text-white border-0">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-purple-100 text-sm font-medium">Transfer Fees</p>
-                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.transfer)}</p>
-                  </div>
-                  <ArrowRightLeft className="h-6 w-6 text-purple-200" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-blue-100 text-sm font-medium">Sales Order Fees</p>
-                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.salesOrder)}</p>
-                  </div>
-                  <TrendingUp className="h-6 w-6 text-blue-200" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="shadow-md bg-gradient-to-br from-cyan-500 to-teal-600 text-white border-0">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-cyan-100 text-sm font-medium">Purchase Order Fees</p>
-                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.purchaseOrder)}</p>
-                  </div>
-                  <ShoppingCart className="h-6 w-6 text-cyan-200" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Coins className="h-8 w-8 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Expense Breakdown */}
@@ -1251,36 +1205,36 @@ export function StatisticsTab() {
 
       {/* USDT Fees History Dialog */}
       <Dialog open={showFeeHistoryDialog} onOpenChange={setShowFeeHistoryDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-amber-600" />
+              <Coins className="h-5 w-5" />
               USDT Fees History
             </DialogTitle>
           </DialogHeader>
           
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
-              <p className="text-xs text-amber-600 font-medium">Total Fees</p>
-              <p className="text-lg font-bold text-amber-700">{formatUSDT(usdtFees.total)}</p>
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Total Fees</p>
+              <p className="text-lg font-bold">{formatUSDT(usdtFees.total)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-              <p className="text-xs text-emerald-600 font-medium">Platform Fees</p>
-              <p className="text-lg font-bold text-emerald-700">{formatUSDT(usdtFees.platform)}</p>
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Platform Fees</p>
+              <p className="text-lg font-bold">{formatUSDT(usdtFees.platform)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
-              <p className="text-xs text-purple-600 font-medium">Transfer Fees</p>
-              <p className="text-lg font-bold text-purple-700">{formatUSDT(usdtFees.transfer)}</p>
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Transfer Fees</p>
+              <p className="text-lg font-bold">{formatUSDT(usdtFees.transfer)}</p>
             </div>
-            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-              <p className="text-xs text-blue-600 font-medium">Order Fees</p>
-              <p className="text-lg font-bold text-blue-700">{formatUSDT(usdtFees.salesOrder + usdtFees.purchaseOrder)}</p>
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Order Fees</p>
+              <p className="text-lg font-bold">{formatUSDT(usdtFees.salesOrder + usdtFees.purchaseOrder)}</p>
             </div>
           </div>
 
           {/* Transactions Table */}
-          <div className="border rounded-lg">
+          <div className="border rounded-lg flex-1 overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1304,12 +1258,6 @@ export function StatisticsTab() {
                       <TableCell>
                         <Badge 
                           variant="outline"
-                          className={
-                            fee.reference_type === 'PLATFORM_FEE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                            fee.reference_type === 'TRANSFER_FEE' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                            fee.reference_type === 'SALES_ORDER_FEE' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                            'bg-cyan-50 text-cyan-700 border-cyan-200'
-                          }
                         >
                           {fee.reference_type === 'PLATFORM_FEE' ? 'Platform' :
                            fee.reference_type === 'TRANSFER_FEE' ? 'Transfer' :
@@ -1324,7 +1272,7 @@ export function StatisticsTab() {
                       <TableCell className="max-w-[250px] truncate text-sm text-muted-foreground">
                         {fee.description}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-amber-600">
+                      <TableCell className="text-right font-medium">
                         {formatUSDT(Number(fee.amount || 0))}
                       </TableCell>
                     </TableRow>

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface EditClientDetailsDialogProps {
   open: boolean;
@@ -46,6 +47,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
     buying_purpose: client?.buying_purpose || "",
     monthly_limit: client?.monthly_limit || "",
     operator_notes: client?.operator_notes || "",
+    state: client?.state || "",
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -73,6 +75,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
           buying_purpose: formData.buying_purpose,
           monthly_limit: parseFloat(formData.monthly_limit) || null,
           operator_notes: formData.operator_notes,
+          state: formData.state || null,
         })
         .eq("id", client.id);
 
@@ -216,6 +219,25 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
                 value={formData.buying_purpose}
                 onChange={(e) => handleInputChange("buying_purpose", e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="state">State</Label>
+              <Select
+                value={formData.state}
+                onValueChange={(value) => handleInputChange("state", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -210,16 +210,34 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🚀 ManualPurchase: Submit clicked, formData:', formData);
+    console.log('🚀 ManualPurchase: Submit clicked');
+    console.log('🚀 ManualPurchase: formData:', JSON.stringify(formData, null, 2));
+    console.log('🚀 ManualPurchase: isNewClient:', isNewClient, 'selectedClientId:', selectedClientId);
+    console.log('🚀 ManualPurchase: loading state:', loading);
+    
+    // Guard against double submission
+    if (loading) {
+      console.log('⚠️ ManualPurchase: Already loading, ignoring submit');
+      return;
+    }
+    
     setLoading(true);
 
     try {
       // Validate required fields
-      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id || !formData.credit_wallet_id) {
-        console.log('❌ Validation failed - missing required fields');
+      const missingFields = [];
+      if (!formData.supplier_name) missingFields.push('supplier_name');
+      if (!formData.quantity) missingFields.push('quantity');
+      if (!formData.price_per_unit) missingFields.push('price_per_unit');
+      if (!formData.product_id) missingFields.push('product_id');
+      if (!formData.deduction_bank_account_id) missingFields.push('deduction_bank_account_id');
+      if (!formData.credit_wallet_id) missingFields.push('credit_wallet_id');
+      
+      if (missingFields.length > 0) {
+        console.log('❌ Validation failed - missing required fields:', missingFields);
         toast({
           title: "Error",
-          description: "Please fill in all required fields including supplier name, product, quantity, price per unit, bank account, and wallet",
+          description: `Missing required fields: ${missingFields.join(', ')}`,
           variant: "destructive"
         });
         setLoading(false);

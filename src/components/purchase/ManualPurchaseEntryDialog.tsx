@@ -30,12 +30,13 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const [selectedClientBankDetails, setSelectedClientBankDetails] = useState<{
     pan_card_number?: string | null;
     linked_bank_accounts?: Array<{
-      account_name?: string;
-      account_number?: string;
-      bank_name?: string;
-      ifsc_code?: string;
+      id?: string;
+      bankName?: string;
+      lastFourDigits?: string;
+      isCustomBank?: boolean;
     }> | null;
   } | null>(null);
+  const [selectedClientBankAccount, setSelectedClientBankAccount] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -412,6 +413,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       setSelectedClientId('');
       setIsNewClient(false);
       setSelectedClientBankDetails(null);
+      setSelectedClientBankAccount('');
 
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -492,6 +494,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   setSelectedClientBankDetails(bankDetails || null);
                   handleInputChange('supplier_name', clientName);
                   
+                  // Reset client bank account selection when client changes
+                  setSelectedClientBankAccount('');
+                  
                   // Auto-fill PAN if client has one and TDS is 1%
                   if (bankDetails?.pan_card_number && formData.tds_option === '1%') {
                     handleInputChange('pan_number', bankDetails.pan_card_number);
@@ -501,6 +506,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   setIsNewClient(isNew);
                   if (isNew) {
                     setSelectedClientBankDetails(null);
+                    setSelectedClientBankAccount('');
                   }
                 }}
                 selectedClientId={selectedClientId}
@@ -611,7 +617,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectTrigger>
                   <SelectValue placeholder="Select bank account" />
                 </SelectTrigger>
-                <SelectContent className="bg-white z-50">
+                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
                   {bankAccounts?.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -621,6 +627,31 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </Select>
             </div>
           </div>
+
+          {/* Seller's Bank Account Selection - Only show if client has linked bank accounts */}
+          {selectedClientId && selectedClientBankDetails?.linked_bank_accounts && selectedClientBankDetails.linked_bank_accounts.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="client_bank_account">Seller's Bank Account (for reference)</Label>
+              <Select 
+                value={selectedClientBankAccount} 
+                onValueChange={(value) => setSelectedClientBankAccount(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select seller's bank account" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                  {selectedClientBankDetails.linked_bank_accounts.map((account, index) => (
+                    <SelectItem key={account.id || `account-${index}`} value={account.id || `account-${index}`}>
+                      {account.bankName} - ****{account.lastFourDigits}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                This is the seller's bank account from their KYC records
+              </p>
+            </div>
+          )}
 
           {/* TDS Section */}
           <Card className="border-amber-200 bg-amber-50/50">

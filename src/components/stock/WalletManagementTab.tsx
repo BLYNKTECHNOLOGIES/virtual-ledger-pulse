@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { ImportWalletsDialog } from "./ImportWalletsDialog";
 import { EditWalletDialog } from "./EditWalletDialog";
+import { getCurrentUserId } from "@/lib/system-action-logger";
+import { ClickableUser } from "@/components/ui/clickable-user";
 
 interface WalletType {
   id: string;
@@ -160,6 +162,11 @@ export function WalletManagementTab() {
       amount: number;
       description: string;
     }) => {
+      // Get current user ID for attribution - validate UUID format
+      const rawUserId = getCurrentUserId();
+      const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
+      const createdByUserId = isValidUuid ? rawUserId : null;
+
       // Get current balance first
       const { data: wallet } = await supabase
         .from('wallets')
@@ -180,7 +187,8 @@ export function WalletManagementTab() {
           ...transactionData,
           reference_type: 'MANUAL_ADJUSTMENT',
           balance_before: balanceBefore,
-          balance_after: balanceAfter
+          balance_after: balanceAfter,
+          created_by: createdByUserId
         }]);
       
       if (error) throw error;
@@ -702,10 +710,13 @@ export function WalletManagementTab() {
                     <TableCell>{transaction.description}</TableCell>
                     <TableCell>{(transaction.balance_after ?? 0).toLocaleString()}</TableCell>
                     <TableCell>
-                      {(transaction as any).created_by_user ? (
-                        <span className="font-medium">
-                          {(transaction as any).created_by_user.first_name || (transaction as any).created_by_user.username}
-                        </span>
+                      {(transaction as any).created_by_user && (transaction as any).created_by_user.username ? (
+                        <ClickableUser
+                          userId={(transaction as any).created_by}
+                          username={(transaction as any).created_by_user.username}
+                          firstName={(transaction as any).created_by_user.first_name}
+                          lastName={(transaction as any).created_by_user.last_name}
+                        />
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}

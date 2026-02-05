@@ -4462,6 +4462,7 @@ export type Database = {
           balance_after: number
           balance_before: number
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           reference_id: string | null
@@ -4474,6 +4475,7 @@ export type Database = {
           balance_after: number
           balance_before: number
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           reference_id?: string | null
@@ -4486,6 +4488,7 @@ export type Database = {
           balance_after?: number
           balance_before?: number
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           reference_id?: string | null
@@ -4494,6 +4497,13 @@ export type Database = {
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wallet_transactions_wallet_id_fkey"
             columns: ["wallet_id"]

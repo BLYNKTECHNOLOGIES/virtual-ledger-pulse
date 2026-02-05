@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentUserId } from "@/lib/system-action-logger";
 
 export interface WalletStockItem {
   wallet_id: string;
@@ -131,8 +132,17 @@ export async function createValidatedWalletTransaction(
   amount: number,
   referenceType?: string,
   referenceId?: string,
-  description?: string
+  description?: string,
+  createdBy?: string | null
 ) {
+  // Get current user ID for attribution if not provided
+  let createdByUserId = createdBy;
+  if (createdByUserId === undefined) {
+    const rawUserId = getCurrentUserId();
+    const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
+    createdByUserId = isValidUuid ? rawUserId : null;
+  }
+
   // Validate wallet balance for DEBIT movements
   if ((transactionType === 'DEBIT' || transactionType === 'TRANSFER_OUT') && amount > 0) {
     const { data: wallet } = await supabase
@@ -167,7 +177,8 @@ export async function createValidatedWalletTransaction(
       reference_id: referenceId,
       description,
       balance_before: currentBalance,
-      balance_after: newBalance
+      balance_after: newBalance,
+      created_by: createdByUserId
     });
 
   if (error) throw error;

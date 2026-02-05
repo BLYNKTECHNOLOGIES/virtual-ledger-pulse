@@ -464,7 +464,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           {/* Row 3: Total Amount, Price per Unit, Quantity - matching Sales order layout */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="total_amount">Total Amount (₹)</Label>
               <Input
@@ -501,6 +501,29 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 placeholder="0.00"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="credit_wallet_id">Wallet *</Label>
+              <Select 
+                value={formData.credit_wallet_id} 
+                onValueChange={(value) => {
+                  console.log('🪙 ManualPurchase: wallet selected:', value);
+                  handleInputChange('credit_wallet_id', value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select wallet" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                  {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name}
+                      {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -574,34 +597,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               )}
             </CardContent>
           </Card>
-
-          {/* Wallet Selection - Mandatory for all purchases */}
-          <div className="space-y-2">
-            <Label htmlFor="credit_wallet_id" className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-primary" />
-              Credit to Wallet *
-            </Label>
-            <Select 
-              value={formData.credit_wallet_id} 
-              onValueChange={(value) => {
-                console.log('🪙 ManualPurchase: wallet selected:', value);
-                handleInputChange('credit_wallet_id', value);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select wallet to credit" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover z-50 border border-border shadow-lg">
-                {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
-                  <SelectItem key={wallet.id} value={wallet.id}>
-                    {wallet.wallet_name}
-                    {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
-                    {` (${(wallet.current_balance ?? 0).toFixed(4)} USDT)`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Platform Fee Section */}
           <Card className="border-muted">

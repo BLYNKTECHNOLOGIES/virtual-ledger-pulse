@@ -35,7 +35,8 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
           *,
           purchase_order_items (
             id,
-            warehouse_id
+            warehouse_id,
+            products (name, code)
           ),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
@@ -196,9 +197,13 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                     </TableCell>
                     <TableCell>
                       {(() => {
+                        // If is_off_market is true, show "Off Market"
+                        if (order.is_off_market) {
+                          return 'Off Market';
+                        }
                         const walletId = order.purchase_order_items?.[0]?.warehouse_id;
                         const wallet = wallets?.find(w => w.id === walletId);
-                        return wallet?.wallet_name || 'Off Market';
+                        return wallet?.wallet_name || '-';
                       })()}
                     </TableCell>
                     <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>

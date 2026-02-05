@@ -184,9 +184,13 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
 
   // Helper to get wallet name
   const getWalletName = (order: any) => {
+    // If is_off_market is true, show "Off Market"
+    if (order.is_off_market) {
+      return 'Off Market';
+    }
     const walletId = order.purchase_order_items?.[0]?.warehouse_id;
     const wallet = wallets?.find(w => w.id === walletId);
-    return wallet?.wallet_name || 'Off Market';
+    return wallet?.wallet_name || '-';
   };
 
   // Mobile card view

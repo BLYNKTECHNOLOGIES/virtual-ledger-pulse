@@ -54,7 +54,8 @@ export default function Sales() {
         .from('sales_orders')
         .select(`
           *,
-          created_by_user:users!created_by(username, first_name, last_name)
+          created_by_user:users!created_by(username, first_name, last_name),
+          wallet:wallets!wallet_id(wallet_name)
         `)
         .order('created_at', { ascending: false });
 
@@ -271,7 +272,7 @@ export default function Sales() {
           </div>
           <div>
             <span className="text-gray-500">Platform:</span>
-            <p className="font-medium">{order.platform || 'Off Market'}</p>
+            <p className="font-medium">{order.wallet?.wallet_name || order.platform || 'Off Market'}</p>
           </div>
           <div>
             <span className="text-gray-500">Date:</span>
@@ -383,7 +384,7 @@ export default function Sales() {
                     </div>
                   )}
                 </TableCell>
-                <TableCell>{order.platform || 'Off Market'}</TableCell>
+                <TableCell>{order.wallet?.wallet_name || order.platform || 'Off Market'}</TableCell>
                 <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
                 <TableCell>{order.quantity || 1}</TableCell>
                 <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>

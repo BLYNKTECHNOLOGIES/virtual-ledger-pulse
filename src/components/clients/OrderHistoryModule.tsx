@@ -50,7 +50,10 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
       
       const { data, error } = await supabase
         .from('sales_orders')
-        .select('*')
+        .select(`
+          *,
+          wallet:wallets!wallet_id(wallet_name)
+        `)
         .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
@@ -69,7 +72,12 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
       
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('*')
+        .select(`
+          *,
+          purchase_order_items (
+            warehouse_id
+          )
+        `)
         .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
@@ -79,6 +87,29 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     },
     enabled: !!activeClientId && !!client,
   });
+
+  // Fetch wallets for mapping warehouse_id to wallet_name
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
+  });
+
+  // Helper to get wallet name for sell orders (purchase_orders)
+  const getPurchaseWalletName = (order: any) => {
+    if (order.is_off_market) {
+      return 'Off Market';
+    }
+    const walletId = order.purchase_order_items?.[0]?.warehouse_id;
+    const wallet = wallets?.find(w => w.id === walletId);
+    return wallet?.wallet_name || '-';
+  };
 
   // Filter orders based on search term
   const filteredBuyOrders = buyOrders?.filter(order => 
@@ -172,7 +203,10 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
                 ₹{order.total_amount?.toLocaleString()}
               </TableCell>
               <TableCell>
-                {order.platform || 'N/A'}
+                {isBuyOrder 
+                  ? (order.wallet?.wallet_name || order.platform || 'Off Market')
+                  : getPurchaseWalletName(order)
+                }
               </TableCell>
               <TableCell>
                 {getStatusBadge(order.status, order.payment_status)}

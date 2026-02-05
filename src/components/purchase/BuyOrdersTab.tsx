@@ -250,50 +250,72 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
           for (const item of orderItems) {
             const product = item.products;
             if (product?.code === 'USDT') {
-              const { data: usdtWallets } = await supabase
-                .from('wallets')
-                .select('*')
-                .eq('wallet_type', 'USDT')
-                .eq('is_active', true)
-                .limit(1);
-
-              if (usdtWallets && usdtWallets.length > 0) {
-                const wallet = usdtWallets[0];
+              // Get the wallet from the order item's warehouse_id (wallet mapping)
+              let walletId = item.warehouse_id;
+              
+              // If no warehouse_id set, try to find any active USDT wallet
+              if (!walletId) {
+                const { data: usdtWallets } = await supabase
+                  .from('wallets')
+                  .select('id')
+                  .eq('wallet_type', 'USDT')
+                  .eq('is_active', true)
+                  .limit(1);
                 
+                walletId = usdtWallets?.[0]?.id;
+              }
+
+              if (walletId) {
                 // Calculate net quantity after platform fee (only if not off-market)
                 let netQuantity = item.quantity;
-                if (!order.is_off_market && order.fee_percentage > 0) {
-                  const feeQuantity = item.quantity * (order.fee_percentage / 100);
+                const feeQuantity = !order.is_off_market && order.fee_percentage > 0
+                  ? item.quantity * (order.fee_percentage / 100)
+                  : 0;
+                
+                if (feeQuantity > 0) {
                   netQuantity = item.quantity - feeQuantity;
                   
-                  // Record platform fee deduction transaction
+                  // Use idempotent RPC for fee deduction with proper audit trail
+                  const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
+                    p_order_id: orderId,
+                    p_order_type: 'PURCHASE_ORDER',
+                    p_wallet_id: walletId,
+                    p_fee_amount: feeQuantity,
+                    p_order_number: order.order_number
+                  });
+                  
+                  if (feeError) {
+                    console.error('Platform fee deduction error:', feeError);
+                    // Don't throw - main order completion should continue
+                  } else {
+                    console.log('Platform fee processed:', feeResult);
+                  }
+                }
+                
+                // Credit net quantity to wallet
+                // Check for existing credit to prevent duplicates
+                const { data: existingCredit } = await supabase
+                  .from('wallet_transactions')
+                  .select('id')
+                  .eq('reference_id', orderId)
+                  .eq('reference_type', 'PURCHASE_ORDER')
+                  .eq('transaction_type', 'CREDIT')
+                  .limit(1);
+                
+                if (!existingCredit || existingCredit.length === 0) {
                   await supabase
                     .from('wallet_transactions')
                     .insert({
-                      wallet_id: wallet.id,
-                      transaction_type: 'FEE_DEDUCTION',
-                      amount: feeQuantity,
-                      reference_type: 'PLATFORM_FEE',
+                      wallet_id: walletId,
+                      transaction_type: 'CREDIT',
+                      amount: netQuantity,
+                      reference_type: 'PURCHASE_ORDER',
                       reference_id: orderId,
-                      description: `Platform fee (${order.fee_percentage}%) for buy order ${order.order_number}`,
+                      description: `USDT purchased via buy order ${order.order_number}${feeQuantity > 0 ? ' (after platform fee)' : ''}`,
                       balance_before: 0,
                       balance_after: 0
                     });
                 }
-                
-                // Credit net quantity to wallet
-                await supabase
-                  .from('wallet_transactions')
-                  .insert({
-                    wallet_id: wallet.id,
-                    transaction_type: 'CREDIT',
-                    amount: netQuantity,
-                    reference_type: 'PURCHASE_ORDER',
-                    reference_id: orderId,
-                    description: `USDT purchased via buy order ${order.order_number}${!order.is_off_market && order.fee_percentage > 0 ? ' (after platform fee)' : ''}`,
-                    balance_before: 0,
-                    balance_after: 0
-                  });
               }
             }
           }

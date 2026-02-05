@@ -339,8 +339,47 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
       return salesOrder;
     },
-    onSuccess: (data) => {
+     onSuccess: async (data) => {
       console.log('Sales order creation completed successfully:', data);
+       
+       // Check if client exists - if not, create an onboarding approval request for new buyers
+       try {
+         const clientName = selectedClient?.name || newClientData.name;
+         const clientPhone = selectedClient?.phone || newClientData.phone;
+         
+         const { data: existingClient } = await supabase
+           .from('clients')
+           .select('id, name')
+           .or(`name.ilike.${clientName},phone.eq.${clientPhone || ''}`)
+           .limit(1)
+           .maybeSingle();
+         
+         // If client doesn't exist, create an onboarding approval request
+         if (!existingClient) {
+           console.log('📝 New client detected, creating onboarding approval request...');
+           const { error: approvalError } = await supabase
+             .from('client_onboarding_approvals')
+             .insert({
+               sales_order_id: data.id,
+               client_name: clientName,
+               client_phone: clientPhone || null,
+               order_amount: parseFloat(orderAmount) || 0,
+               order_date: new Date().toISOString().split('T')[0],
+               approval_status: 'PENDING'
+             });
+ 
+           if (approvalError) {
+             console.error('⚠️ Failed to create approval request:', approvalError);
+           } else {
+             console.log('✅ Onboarding approval request created');
+           }
+         } else {
+           console.log('✅ Existing client found:', existingClient.name);
+         }
+       } catch (approvalCheckError) {
+         console.error('Error checking for existing client:', approvalCheckError);
+       }
+       
       toast({ 
         title: "Success", 
         description: "Sales order created successfully with wallet deduction and all linked records updated" 
@@ -353,6 +392,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       resetFlow();
       onOpenChange(false);
       // Force a full page refresh to ensure all components show updated data

@@ -694,7 +694,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
-          {/* Row 4: Wallet and Bank Account on same line */}
+          {/* Row 4: Wallet and Bank Account */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="credit_wallet_id">Wallet *</Label>
@@ -719,32 +719,34 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </Select>
             </div>
 
-            {!isMultiplePayments && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="multiple_payments"
-                      checked={isMultiplePayments}
-                      onCheckedChange={(checked) => {
-                        setIsMultiplePayments(checked === true);
-                        if (checked) {
-                          // Initialize first split with full amount if net payable is set
-                          if (tdsCalculation.netPayable > 0) {
-                            setPaymentSplits([{ 
-                              bank_account_id: formData.deduction_bank_account_id || '', 
-                              amount: tdsCalculation.netPayable.toFixed(2) 
-                            }]);
-                          }
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
+                <div className="flex items-center gap-1.5">
+                  <Checkbox 
+                    id="multiple_payments"
+                    checked={isMultiplePayments}
+                    onCheckedChange={(checked) => {
+                      setIsMultiplePayments(checked === true);
+                      if (checked) {
+                        if (tdsCalculation.netPayable > 0) {
+                          setPaymentSplits([{ 
+                            bank_account_id: formData.deduction_bank_account_id || '', 
+                            amount: tdsCalculation.netPayable.toFixed(2) 
+                          }]);
                         }
-                      }}
-                    />
-                    <Label htmlFor="multiple_payments" className="text-xs text-muted-foreground cursor-pointer">
-                      Multiple Banks
-                    </Label>
-                  </div>
+                      } else {
+                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="multiple_payments" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                    Split Payment
+                  </Label>
                 </div>
+              </div>
+              
+              {!isMultiplePayments && (
                 <Select 
                   value={formData.deduction_bank_account_id} 
                   onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
@@ -760,82 +762,79 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
-
-            {isMultiplePayments && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Payment Distribution *</Label>
-                  <div className="flex items-center gap-2">
-                    <Checkbox 
-                      id="multiple_payments_toggle"
-                      checked={isMultiplePayments}
-                      onCheckedChange={(checked) => {
-                        setIsMultiplePayments(checked === true);
-                        if (!checked) {
-                          setPaymentSplits([{ bank_account_id: '', amount: '' }]);
-                        }
-                      }}
-                    />
-                    <Label htmlFor="multiple_payments_toggle" className="text-xs text-muted-foreground cursor-pointer">
-                      Multiple Banks
-                    </Label>
-                  </div>
+              )}
+              
+              {isMultiplePayments && (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                  Configure payment distribution below
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Multiple Payments Section */}
+          {/* Multiple Payments Section - Full Width */}
           {isMultiplePayments && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardContent className="pt-4 space-y-3">
-                {/* Validation Status */}
-                <div className="flex items-center justify-between text-sm">
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-4">
+                {/* Header with validation status */}
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    <Label className="font-medium">Payment Distribution</Label>
                     {splitAllocation.isValid ? (
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
                     ) : (
                       <AlertCircle className="h-4 w-4 text-destructive" />
                     )}
-                    <span className="text-muted-foreground">Net Payable:</span>
-                    <span className="font-semibold">₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <span className="text-muted-foreground">Allocated: </span>
-                      <span className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className={splitAllocation.isValid ? "text-green-600" : "text-destructive"}>
-                      <span>Remaining: </span>
-                      <span className="font-semibold">₹{splitAllocation.remaining.toFixed(2)}</span>
+                </div>
+
+                {/* Status Bar */}
+                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-xs mb-1">Net Payable</div>
+                    <div className="font-semibold">₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center border-x">
+                    <div className="text-muted-foreground text-xs mb-1">Allocated</div>
+                    <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-xs mb-1">Remaining</div>
+                    <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      ₹{splitAllocation.remaining.toFixed(2)}
                     </div>
                   </div>
                 </div>
 
-                {/* Payment Rows */}
+                {/* Payment Rows - Table-like layout */}
                 <div className="space-y-2">
+                  {/* Header Row */}
+                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                    <div className="col-span-4">Amount (₹)</div>
+                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  
+                  {/* Payment Rows */}
                   {paymentSplits.map((split, index) => (
-                    <div key={index} className="flex gap-2 items-start">
-                      <div className="flex-1">
+                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
                         <Input
                           type="number"
                           step="0.01"
                           min="0"
                           value={split.amount}
                           onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
-                          placeholder="Amount"
-                          className="w-full"
+                          placeholder="0.00"
                         />
                       </div>
-                      <div className="flex-[2]">
+                      <div className="col-span-7">
                         <Select 
                           value={split.bank_account_id} 
                           onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select bank" />
+                            <SelectValue placeholder="Select bank account" />
                           </SelectTrigger>
                           <SelectContent className="bg-popover z-50 border border-border shadow-lg">
                             {bankAccounts?.map((account) => (
@@ -846,16 +845,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => removePaymentSplit(index)}
-                        disabled={paymentSplits.length === 1}
-                        className="shrink-0"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePaymentSplit(index)}
+                          disabled={paymentSplits.length === 1}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -867,8 +868,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   onClick={addPaymentSplit}
                   className="w-full"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Bank
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Bank
                 </Button>
               </CardContent>
             </Card>

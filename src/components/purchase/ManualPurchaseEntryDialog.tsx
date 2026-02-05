@@ -410,7 +410,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           {/* Seller Name, Contact Number and Product */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 items-start">
             <div>
               <SupplierAutocomplete
                 value={formData.supplier_name}
@@ -436,7 +436,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="contact_number">Contact Number</Label>
               <Input
                 id="contact_number"
@@ -447,7 +447,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
             
             {/* Product Selection */}
-            <div className="space-y-2">
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="product_id">Product *</Label>
               <Select 
                 value={formData.product_id} 

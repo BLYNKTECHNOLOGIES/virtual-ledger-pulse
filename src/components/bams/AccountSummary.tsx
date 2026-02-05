@@ -582,7 +582,7 @@ export function AccountSummary() {
                     <SelectTrigger className="w-[220px]">
                       <SelectValue placeholder="Select Bank Account" />
                     </SelectTrigger>
-                    <SelectContent className="z-[100]">
+                    <SelectContent className="z-[100] bg-popover border shadow-md">
                       <SelectItem value="all">All Bank Accounts</SelectItem>
                       {bankAccountOptions?.map((account) => (
                         <SelectItem key={account.id} value={account.id}>

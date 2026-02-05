@@ -56,15 +56,22 @@ export function CollapsibleSidebarGroup({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: group.id });
+  } = useSortable({ 
+    id: group.id,
+    disabled: !isDragMode,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
   };
 
   const handleToggle = () => {
+    // Don't toggle if in drag mode
+    if (isDragMode) return;
+    
     if (!isUnlocked) {
       setShowPinDialog(true);
     } else {
@@ -81,32 +88,30 @@ export function CollapsibleSidebarGroup({
 
   return (
     <>
-      <Collapsible open={isExpanded && isUnlocked} onOpenChange={setIsExpanded}>
-        <SidebarMenuItem ref={setNodeRef} style={style}>
+      <Collapsible open={isExpanded && isUnlocked && !isDragMode} onOpenChange={setIsExpanded}>
+        <SidebarMenuItem ref={setNodeRef} style={style} className={isDragging ? 'relative z-50' : ''}>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton
               onClick={handleToggle}
               className={`
                 hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-xl group border-2 border-transparent hover:border-gray-200 shadow-sm hover:shadow-md
                 ${hasActiveChild ? 'bg-blue-50 text-blue-700 font-semibold shadow-md border-blue-200' : ''}
-                ${isDragMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
+                ${isDragMode ? 'cursor-default' : 'cursor-pointer'}
                 ${isDragging ? 'opacity-50 z-50' : ''}
                 ${isCollapsed ? 'justify-center' : ''}
               `}
             >
-              <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}>
+              <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-2 px-3 py-3'}`}>
                 {isDragMode && !isCollapsed && (
                   <div
                     {...attributes}
                     {...listeners}
-                    className="touch-none flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-colors cursor-grab active:cursor-grabbing"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => e.preventDefault()}
+                    className="touch-none flex-shrink-0 p-1.5 hover:bg-blue-100 bg-gray-100 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-gray-200"
                   >
-                    <GripVertical className="h-4 w-4 text-gray-400" />
+                    <GripVertical className="h-4 w-4 text-gray-600" />
                   </div>
                 )}
-                <div className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                <div className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}>
                   <div className={`p-2 rounded-lg ${hasActiveChild ? 'bg-blue-100' : group.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
                     <GroupIcon className={`h-4 w-4 ${hasActiveChild ? 'text-blue-700' : group.color} transition-colors duration-200`} />
                   </div>
@@ -115,7 +120,7 @@ export function CollapsibleSidebarGroup({
                       <span className="font-medium text-sm truncate transition-all duration-200 flex-1">
                         {group.title}
                       </span>
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className={`flex items-center gap-1 flex-shrink-0 ${isDragMode ? 'hidden' : ''}`}>
                         {group.pinProtected && (
                           isUnlocked ? (
                             <LockOpen className="h-3 w-3 text-green-500" />

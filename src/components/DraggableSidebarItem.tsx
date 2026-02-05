@@ -31,39 +31,47 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id });
+  } = useSortable({ 
+    id: item.id,
+    disabled: !isDragMode,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
   };
 
   return (
-    <SidebarMenuItem ref={setNodeRef} style={style}>
-      <SidebarMenuButton 
-        asChild 
+    <SidebarMenuItem 
+      ref={setNodeRef} 
+      style={style}
+      className={isDragging ? 'relative z-50' : ''}
+    >
+      <SidebarMenuButton
         className={`
           hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-xl group border-2 border-transparent hover:border-gray-200 shadow-sm hover:shadow-md
           ${isActive ? 'bg-blue-50 text-blue-700 font-semibold shadow-md border-blue-200 transform translate-x-1' : ''}
-          ${isDragMode ? 'cursor-grab active:cursor-grabbing' : ''}
           ${isDragging ? 'opacity-50 z-50' : ''}
           ${isCollapsed ? 'justify-center' : ''}
         `}
       >
-        <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}>
+        <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-2 px-3 py-3'}`}>
           {isDragMode && !isCollapsed && (
             <div 
               {...attributes}
               {...listeners}
-              className="touch-none flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-colors cursor-grab active:cursor-grabbing"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.preventDefault()}
+              className="touch-none flex-shrink-0 p-1.5 hover:bg-blue-100 bg-gray-100 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-gray-200"
             >
-              <GripVertical className="h-4 w-4 text-gray-400" />
+              <GripVertical className="h-4 w-4 text-gray-600" />
             </div>
           )}
-          <Link to={item.url} className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+          <Link 
+            to={isDragMode ? '#' : item.url} 
+            onClick={(e) => isDragMode && e.preventDefault()}
+            className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}
+          >
             <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
               <item.icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
             </div>

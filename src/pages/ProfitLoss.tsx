@@ -461,12 +461,6 @@ export default function ProfitLoss() {
                  </TooltipTrigger>
                  <TooltipContent className="max-w-xs p-3">
                    <p className="font-medium mb-1">Effective Purchase Rate</p>
-                   <p className="text-xs text-muted-foreground">
-                     Purchase rate adjusted after deducting all USDT operational fees incurred in the selected period.
-                   </p>
-                   <p className="text-xs mt-2 font-mono bg-muted p-1 rounded">
-                     = Total Purchase INR ÷ (Qty Purchased − Total USDT Fees)
-                   </p>
                    <p className="text-xs mt-2 text-muted-foreground">
                      Total USDT Fees: {(periodMetrics?.totalUsdtFees || 0).toFixed(4)} USDT
                    </p>

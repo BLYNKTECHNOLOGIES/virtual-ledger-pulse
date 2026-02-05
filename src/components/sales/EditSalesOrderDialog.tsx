@@ -350,7 +350,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                 <SelectTrigger>
                   <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
                       {(method as any).nickname || `${method.bank_accounts?.account_name || method.type} - ${method.bank_accounts?.bank_name || ''}`}

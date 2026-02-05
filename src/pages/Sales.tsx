@@ -153,11 +153,22 @@ export default function Sales() {
     const csvHeaders = [
       'Order Number',
       'Customer',
+      'Phone',
+      'State',
       'Platform', 
       'Amount',
       'Quantity',
       'Price Per Unit',
+      'Fee Percentage',
+      'Fee Amount',
+      'Net Amount',
       'Status',
+      'Payment Status',
+      'Settlement Status',
+      'Is Off Market',
+      'Description',
+      'Risk Level',
+      'Created By',
       'Date',
       'Created At'
     ];
@@ -165,17 +176,30 @@ export default function Sales() {
     const csvData = salesOrders.map(order => [
       order.order_number,
       order.client_name,
+      order.client_phone || '',
+      order.client_state || '',
       order.platform || '',
       order.total_amount,
       order.quantity || 1,
       order.price_per_unit || order.total_amount,
-      order.payment_status,
+      order.fee_percentage || 0,
+      order.fee_amount || 0,
+      order.net_amount || order.total_amount,
+      order.status || '',
+      order.payment_status || '',
+      order.settlement_status || '',
+      order.is_off_market ? 'Yes' : 'No',
+      order.description || '',
+      order.risk_level || '',
+      order.created_by_user 
+        ? (order.created_by_user.first_name || order.created_by_user.username || '')
+        : '',
       format(new Date(order.order_date), 'MMM dd, yyyy'),
       format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
     ]);
 
     const csvContent = [csvHeaders, ...csvData]
-      .map(row => row.map(field => `"${field}"`).join(','))
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
       .join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });

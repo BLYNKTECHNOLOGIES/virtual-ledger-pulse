@@ -15,6 +15,7 @@ interface CustomerAutocompleteProps {
   onChange: (value: string) => void;
   onRiskLevelChange?: (riskLevel: string) => void;
   onPhoneChange?: (phone: string) => void;
+  onStateChange?: (state: string) => void;
   onClientSelect?: (client: any) => void;
   onNewClient?: (isNew: boolean) => void;
   selectedClientId?: string;
@@ -27,6 +28,7 @@ export function CustomerAutocomplete({
   onChange, 
   onRiskLevelChange,
   onPhoneChange,
+  onStateChange,
   onClientSelect,
   onNewClient,
   selectedClientId,
@@ -98,6 +100,11 @@ export function CustomerAutocomplete({
     // Auto-populate phone number
     if (onPhoneChange && client.phone) {
       onPhoneChange(client.phone);
+    }
+    
+    // Auto-populate state
+    if (onStateChange && client.state) {
+      onStateChange(client.state);
     }
     
     // Pass the full client object

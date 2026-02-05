@@ -20,9 +20,11 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Purchase() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("buy_orders");
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -57,8 +59,127 @@ export default function Purchase() {
     },
   });
 
+  // Fetch all purchase orders for export
+  const { data: allPurchaseOrders } = useQuery({
+    queryKey: ['purchase_orders_export'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          created_by_user:users!created_by(username, first_name, last_name)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const handleExportCSV = () => {
-    // CSV export logic will be implemented in individual tab components
+    if (!allPurchaseOrders || allPurchaseOrders.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no purchase orders to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const csvHeaders = [
+      'Order Number',
+      'Supplier Name',
+      'Contact Number',
+      'State',
+      'Product Name',
+      'Product Category',
+      'Quantity',
+      'Price Per Unit',
+      'Total Amount',
+      'TDS Applied',
+      'TDS Amount',
+      'PAN Number',
+      'Net Payable Amount',
+      'Tax Amount',
+      'Fee Percentage',
+      'Fee Amount',
+      'Net Amount',
+      'Status',
+      'Order Status',
+      'Is Off Market',
+      'Is Safe Fund',
+      'Total Paid',
+      'Payment Method Type',
+      'UPI ID',
+      'Bank Account Name',
+      'Bank Account Number',
+      'IFSC Code',
+      'Warehouse Name',
+      'Assigned To',
+      'Description',
+      'Notes',
+      'Created By',
+      'Order Date',
+      'Created At'
+    ];
+
+    const csvData = allPurchaseOrders.map(order => [
+      order.order_number || '',
+      order.supplier_name || '',
+      order.contact_number || '',
+      order.client_state || '',
+      order.product_name || '',
+      order.product_category || '',
+      order.quantity || 0,
+      order.price_per_unit || 0,
+      order.total_amount || 0,
+      order.tds_applied ? 'Yes' : 'No',
+      order.tds_amount || 0,
+      order.pan_number || '',
+      order.net_payable_amount || order.total_amount || 0,
+      order.tax_amount || 0,
+      order.fee_percentage || 0,
+      order.fee_amount || 0,
+      order.net_amount || order.total_amount || 0,
+      order.status || '',
+      order.order_status || '',
+      order.is_off_market ? 'Yes' : 'No',
+      order.is_safe_fund ? 'Yes' : 'No',
+      order.total_paid || 0,
+      order.payment_method_type || '',
+      order.upi_id || '',
+      order.bank_account_name || '',
+      order.bank_account_number || '',
+      order.ifsc_code || '',
+      order.warehouse_name || '',
+      order.assigned_to || '',
+      order.description || '',
+      order.notes || '',
+      order.created_by_user 
+        ? (order.created_by_user.first_name || order.created_by_user.username || '')
+        : '',
+      order.order_date ? format(new Date(order.order_date), 'MMM dd, yyyy') : '',
+      order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
+    ]);
+
+    const csvContent = [csvHeaders, ...csvData]
+      .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `purchase_orders_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${allPurchaseOrders.length} purchase orders.`
+    });
   };
 
   const clearFilters = () => {

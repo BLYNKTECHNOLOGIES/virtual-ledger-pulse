@@ -154,6 +154,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           order_number: data.order_number,
           client_name: data.client_name,
           client_phone: data.client_phone || null,
+          client_state: data.client_state || null,
           product_id: data.product_id || null,
           wallet_id: data.wallet_id || null,
           platform: data.platform || null,
@@ -493,6 +494,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 value={formData.client_name}
                 onChange={(value) => handleInputChange('client_name', value)}
                 onPhoneChange={(phone) => handleInputChange('client_phone', phone)}
+                onStateChange={(state) => handleInputChange('client_state', state)}
                 onClientSelect={(client) => {
                   if (client) {
                     setSelectedClientId(client.id);
@@ -501,6 +503,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                       handleInputChange('client_state', client.state);
                     } else {
                       handleInputChange('client_state', '');
+                    }
+                    // Auto-fill phone if available
+                    if (client.phone) {
+                      handleInputChange('client_phone', client.phone);
                     }
                   } else {
                     setSelectedClientId(undefined);

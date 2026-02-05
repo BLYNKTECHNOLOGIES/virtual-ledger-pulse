@@ -3031,6 +3031,7 @@ export type Database = {
           bank_account_id: string | null
           bank_account_name: string | null
           bank_account_number: string | null
+          client_state: string | null
           contact_number: string | null
           created_at: string
           created_by: string | null
@@ -3076,6 +3077,7 @@ export type Database = {
           bank_account_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
+          client_state?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -3121,6 +3123,7 @@ export type Database = {
           bank_account_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
+          client_state?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -3590,6 +3593,7 @@ export type Database = {
         Row: {
           client_name: string
           client_phone: string | null
+          client_state: string | null
           cosmos_alert: boolean | null
           created_at: string
           created_by: string | null
@@ -3621,6 +3625,7 @@ export type Database = {
         Insert: {
           client_name: string
           client_phone?: string | null
+          client_state?: string | null
           cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null
@@ -3652,6 +3657,7 @@ export type Database = {
         Update: {
           client_name?: string
           client_phone?: string | null
+          client_state?: string | null
           cosmos_alert?: boolean | null
           created_at?: string
           created_by?: string | null

@@ -194,6 +194,13 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
                 </div>
               </div>
               <div>
+                <label className="text-sm font-medium text-muted-foreground">PAN Card Number</label>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-mono">{client.pan_card_number || 'Not provided'}</span>
+                </div>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-muted-foreground">Assigned Operator</label>
                 <p className="text-base">{client.assigned_operator || 'Unassigned'}</p>
               </div>

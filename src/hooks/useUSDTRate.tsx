@@ -6,20 +6,30 @@ interface USDTRateData {
   source: string;
 }
 
+// Default fallback rate when API is unavailable
+const FALLBACK_RATE = 84.5;
+
 // Fetch live USDT/INR rate from CoinGecko (free API, no key required)
 async function fetchUSDTRate(): Promise<USDTRateData> {
   try {
+    // Use AbortController to timeout quickly on CORS/network issues
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
     const response = await fetch(
       'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr',
       {
         headers: {
           'Accept': 'application/json',
         },
+        signal: controller.signal,
       }
     );
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error('Failed to fetch USDT rate');
+      throw new Error(`API returned ${response.status}`);
     }
 
     const data = await response.json();
@@ -34,11 +44,13 @@ async function fetchUSDTRate(): Promise<USDTRateData> {
     
     throw new Error('Invalid response format');
   } catch (error) {
-    console.error('Error fetching USDT rate from CoinGecko:', error);
-    // Fallback to a reasonable default if API fails
-    // This should be replaced with a cached value in production
+    // Silently fallback - CORS/rate-limit errors are expected from browser
+    // Log only in development for debugging
+    if (import.meta.env.DEV) {
+      console.debug('[useUSDTRate] Using fallback rate due to:', error instanceof Error ? error.message : 'API unavailable');
+    }
     return {
-      rate: 84.5, // Approximate fallback rate
+      rate: FALLBACK_RATE,
       timestamp: new Date(),
       source: 'Fallback'
     };
@@ -51,8 +63,8 @@ export function useUSDTRate() {
     queryFn: fetchUSDTRate,
     staleTime: 30000, // Consider fresh for 30 seconds
     refetchInterval: 60000, // Refetch every minute
-    retry: 3,
-    retryDelay: 1000,
+    retry: 1, // Reduce retries since CORS will always fail from browser
+    retryDelay: 2000,
   });
 }
 

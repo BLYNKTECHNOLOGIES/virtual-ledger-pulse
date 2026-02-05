@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon, Coins } from "lucide-react";
+import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon, Coins, ArrowRightLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -34,9 +34,38 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     },
   });
 
+  // Fetch transfer fees from wallet_transactions
+  const { data: transferFeeData } = useQuery({
+    queryKey: ['transfer_fees', startDate, endDate],
+    queryFn: async () => {
+      const { data: transferFees, error } = await supabase
+        .from('wallet_transactions')
+        .select(`
+          *,
+          wallets:wallet_id (
+            wallet_name,
+            wallet_type
+          )
+        `)
+        .eq('reference_type', 'TRANSFER_FEE')
+        .gte('created_at', format(startDate, 'yyyy-MM-dd'))
+        .lte('created_at', format(endDate, 'yyyy-MM-dd') + 'T23:59:59')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return transferFees || [];
+    },
+  });
+
   // Calculate summary statistics - now using fee_inr_value_at_buying_price for accounting
   const totalFeesINR = feeData?.reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
   const totalFeesUSDT = feeData?.reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
+  
+  // Transfer fees (already in USDT)
+  const transferFeesUSDT = transferFeeData?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
+  
+  // Combined totals
+  const combinedTotalUSDT = totalFeesUSDT + transferFeesUSDT;
   
   const salesFeesINR = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
   const salesFeesUSDT = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
@@ -88,7 +117,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
               <div>
                 <p className="text-amber-100 text-sm font-medium">Total Platform Fees</p>
                 <p className="text-2xl font-bold mt-2">{formatCurrency(totalFeesINR)}</p>
-                <p className="text-sm text-amber-200 mt-1">{formatUSDT(totalFeesUSDT)}</p>
+                <p className="text-sm text-amber-200 mt-1">{formatUSDT(combinedTotalUSDT)}</p>
               </div>
               <div className="bg-amber-600 p-3 rounded-xl">
                 <Coins className="h-6 w-6" />
@@ -137,11 +166,32 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">Average Fee Rate</p>
-                <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
-                <p className="text-sm text-purple-200 mt-1">Across all orders</p>
+                <p className="text-purple-100 text-sm font-medium">Transfer Fees</p>
+                <p className="text-2xl font-bold mt-2">{formatUSDT(transferFeesUSDT)}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <ArrowRightLeft className="h-3 w-3" />
+                  <span className="text-sm text-purple-200">{transferFeeData?.length || 0} transfers</span>
+                </div>
               </div>
               <div className="bg-purple-600 p-3 rounded-xl">
+                <ArrowRightLeft className="h-6 w-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Avg Fee Rate Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-slate-500 to-gray-600 text-white border-0">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-100 text-sm font-medium">Average Fee Rate</p>
+                <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
+                <p className="text-sm text-slate-200 mt-1">On sales/purchase orders</p>
+              </div>
+              <div className="bg-slate-600 p-3 rounded-xl">
                 <Percent className="h-6 w-6" />
               </div>
             </div>
@@ -157,12 +207,55 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
             <div className="text-sm">
               <p className="font-medium text-amber-800">Fee Calculation Method</p>
               <p className="text-amber-700 mt-1">
-                Platform fees are deducted in USDT from wallet balances. The INR value shown is calculated using the average buying price of USDT in the period, ensuring accurate cost accounting.
+                Platform fees are deducted in USDT from wallet balances. The INR value shown is calculated using the average buying price of USDT in the period, ensuring accurate cost accounting. Transfer fees from wallet-to-wallet transfers are tracked separately in USDT.
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Transfer Fees Section */}
+      {transferFeeData && transferFeeData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5" />
+              Recent Transfer Fees
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>From Wallet</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Fee (USDT)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transferFeeData.slice(0, 10).map((fee: any) => (
+                  <TableRow key={fee.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{format(new Date(fee.created_at), 'dd/MM/yyyy')}</span>
+                        <span className="text-xs text-muted-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{fee.wallets?.wallet_name || 'N/A'}</TableCell>
+                    <TableCell className="max-w-[300px] truncate text-sm text-muted-foreground">
+                      {fee.description}
+                    </TableCell>
+                    <TableCell className="text-right text-amber-600 font-medium">
+                      {formatUSDT(Number(fee.amount || 0))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Fees by Wallet */}
       {feesByWallet && Object.keys(feesByWallet).length > 0 && (

@@ -3070,6 +3070,7 @@ export type Database = {
           total_paid: number | null
           updated_at: string
           upi_id: string | null
+          wallet_id: string | null
           warehouse_name: string | null
         }
         Insert: {
@@ -3116,6 +3117,7 @@ export type Database = {
           total_paid?: number | null
           updated_at?: string
           upi_id?: string | null
+          wallet_id?: string | null
           warehouse_name?: string | null
         }
         Update: {
@@ -3162,6 +3164,7 @@ export type Database = {
           total_paid?: number | null
           updated_at?: string
           upi_id?: string | null
+          wallet_id?: string | null
           warehouse_name?: string | null
         }
         Relationships: [
@@ -3191,6 +3194,13 @@ export type Database = {
             columns: ["purchase_payment_method_id"]
             isOneToOne: false
             referencedRelation: "purchase_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
             referencedColumns: ["id"]
           },
         ]

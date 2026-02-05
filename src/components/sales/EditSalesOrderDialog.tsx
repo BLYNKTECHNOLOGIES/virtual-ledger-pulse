@@ -85,7 +85,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',
         product_id: order.product_id || '',
-        warehouse_id: order.warehouse_id || '',
+        warehouse_id: order.wallet_id || order.wallet?.id || order.warehouse_id || '',
       });
     }
   }, [order]);
@@ -108,7 +108,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           risk_level: data.risk_level,
           sales_payment_method_id: data.sales_payment_method_id || null,
           product_id: data.product_id || null,
-          warehouse_id: data.warehouse_id || null,
+          wallet_id: data.warehouse_id || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)

@@ -203,11 +203,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
     try {
       // Validate required fields
-      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id) {
+      if (!formData.supplier_name || !formData.quantity || !formData.price_per_unit || !formData.product_id || !formData.deduction_bank_account_id || !formData.credit_wallet_id) {
         console.log('❌ Validation failed - missing required fields');
         toast({
           title: "Error",
-          description: "Please fill in all required fields including supplier name, product, quantity, price per unit, and bank account for deduction",
+          description: "Please fill in all required fields including supplier name, product, quantity, price per unit, bank account, and wallet",
           variant: "destructive"
         });
         setLoading(false);
@@ -220,18 +220,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         toast({
           title: "Error",
           description: "PAN number is required for 1% TDS deduction",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Validate wallet selection for USDT products
-      if (selectedProduct?.code === 'USDT' && !formData.credit_wallet_id) {
-        console.log('❌ Validation failed - wallet required for USDT');
-        toast({
-          title: "Error", 
-          description: "Please select a wallet to credit the purchased USDT",
           variant: "destructive"
         });
         setLoading(false);
@@ -587,138 +575,106 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </CardContent>
           </Card>
 
-          {/* Wallet Selection for USDT Products */}
-          {selectedProduct?.code === 'USDT' && (
-            <Card className="border-blue-200 bg-blue-50/50">
-              <CardContent className="pt-4 space-y-3">
+          {/* Wallet Selection - Mandatory for all purchases */}
+          <div className="space-y-2">
+            <Label htmlFor="credit_wallet_id" className="flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-primary" />
+              Credit to Wallet *
+            </Label>
+            <Select 
+              value={formData.credit_wallet_id} 
+              onValueChange={(value) => {
+                console.log('🪙 ManualPurchase: wallet selected:', value);
+                handleInputChange('credit_wallet_id', value);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select wallet to credit" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                  <SelectItem key={wallet.id} value={wallet.id}>
+                    {wallet.wallet_name}
+                    {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
+                    {` (${(wallet.current_balance ?? 0).toFixed(4)} USDT)`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Platform Fee Section */}
+          <Card className="border-muted">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-blue-600" />
-                  <Label className="font-medium">Credit to Wallet *</Label>
+                  <Label>Off Market</Label>
+                  <Info className="w-3 h-3 text-muted-foreground" />
                 </div>
-                
-                <Select 
-                  value={formData.credit_wallet_id} 
-                  onValueChange={(value) => {
-                    console.log('🪙 ManualPurchase: wallet selected:', value);
-                    handleInputChange('credit_wallet_id', value);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select wallet to credit purchased USDT" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white z-50">
-                    {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
-                      <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name}
-                        {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}
-                        {` (${(wallet.current_balance ?? 0).toFixed(4)} USDT)`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {/* Selected Wallet Details */}
-                {selectedWallet && (
-                  <div className="text-sm bg-white p-3 rounded border space-y-2">
-                    <div className="font-medium text-blue-700">{selectedWallet.wallet_name}</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-muted-foreground">Type:</span>
-                        <span className="ml-1">{selectedWallet.wallet_type}</span>
-                      </div>
-                      {selectedWallet.chain_name && (
-                        <div>
-                          <span className="text-muted-foreground">Chain:</span>
-                          <span className="ml-1">{selectedWallet.chain_name}</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-muted-foreground">Balance:</span>
-                        <span className="ml-1 font-medium">{selectedWallet.current_balance?.toFixed(4) || '0'} USDT</span>
-                      </div>
-                      {selectedWallet.is_fee_enabled && (
-                        <div>
-                          <span className="text-muted-foreground">Default Fee:</span>
-                          <span className="ml-1">{selectedWallet.fee_percentage}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Platform Fee Section */}
-                <div className="space-y-3 pt-2 border-t">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Label>Off Market</Label>
-                      <Info className="w-3 h-3 text-muted-foreground" />
-                    </div>
-                    <Switch
-                      checked={formData.is_off_market}
-                      onCheckedChange={async (checked) => {
-                        handleInputChange('is_off_market', checked);
-                        if (checked) {
-                          // Generate off-market order number
-                          setIsGeneratingOrderNumber(true);
-                          try {
-                            const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
-                            if (!error && data) {
-                              handleInputChange('order_number', data);
-                            }
-                          } catch (err) {
-                            console.error('Failed to generate off-market order number:', err);
-                          } finally {
-                            setIsGeneratingOrderNumber(false);
-                          }
-                        } else {
-                          // Clear order number when turning off
-                          handleInputChange('order_number', '');
+                <Switch
+                  checked={formData.is_off_market}
+                  onCheckedChange={async (checked) => {
+                    handleInputChange('is_off_market', checked);
+                    if (checked) {
+                      // Generate off-market order number
+                      setIsGeneratingOrderNumber(true);
+                      try {
+                        const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+                        if (!error && data) {
+                          handleInputChange('order_number', data);
                         }
-                      }}
+                      } catch (err) {
+                        console.error('Failed to generate off-market order number:', err);
+                      } finally {
+                        setIsGeneratingOrderNumber(false);
+                      }
+                    } else {
+                      // Clear order number when turning off
+                      handleInputChange('order_number', '');
+                    }
+                  }}
+                />
+              </div>
+              
+              {!formData.is_off_market && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fee_percentage">Platform Fee (%)</Label>
+                    <Input
+                      id="fee_percentage"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.fee_percentage}
+                      onChange={(e) => handleInputChange('fee_percentage', e.target.value)}
+                      placeholder="Enter fee percentage"
                     />
                   </div>
-                  
-                  {!formData.is_off_market && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="fee_percentage">Platform Fee (%)</Label>
-                        <Input
-                          id="fee_percentage"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          value={formData.fee_percentage}
-                          onChange={(e) => handleInputChange('fee_percentage', e.target.value)}
-                          placeholder="Enter fee percentage"
-                        />
-                      </div>
 
-                      {feeCalculation.feeAmount > 0 && parseFloat(formData.quantity) > 0 && (
-                        <div className="text-sm bg-white p-2 rounded border">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Fee Amount:</span>
-                            <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
-                          </div>
-                          <div className="flex justify-between mt-1">
-                            <span className="text-muted-foreground">Net Credit to Wallet:</span>
-                            <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} USDT</span>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {formData.is_off_market && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Info className="w-3 h-3" />
-                      Off Market: No platform fees will be applied
+                  {feeCalculation.feeAmount > 0 && parseFloat(formData.quantity) > 0 && (
+                    <div className="text-sm bg-muted/50 p-2 rounded border">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Fee Amount:</span>
+                        <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+                      </div>
+                      <div className="flex justify-between mt-1">
+                        <span className="text-muted-foreground">Net Credit to Wallet:</span>
+                        <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} USDT</span>
+                      </div>
                     </div>
                   )}
+                </>
+              )}
+              
+              {formData.is_off_market && (
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="w-3 h-3" />
+                  Off Market: No platform fees will be applied
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           {/* Order Date */}
           <div className="space-y-2">

@@ -251,7 +251,20 @@ export default function Sales() {
           </div>
           <div>
             <span className="text-gray-500">Date:</span>
-            <p className="font-medium">{format(new Date(order.order_date), 'MMM dd')}</p>
+            <p className="font-medium">
+              {format(new Date(order.order_date), 'MMM dd')}{' '}
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(order.created_at || order.order_date), 'HH:mm')}
+              </span>
+            </p>
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-500">Created By:</span>
+            <p className="font-medium">
+              {order.created_by_user 
+                ? (order.created_by_user.first_name || order.created_by_user.username)
+                : <span className="text-muted-foreground">N/A</span>}
+            </p>
           </div>
         </div>
         
@@ -360,7 +373,14 @@ export default function Sales() {
                     <span className="text-gray-400">N/A</span>
                   )}
                 </TableCell>
-                <TableCell>{format(new Date(order.order_date), 'MMM dd, yyyy')}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span>{format(new Date(order.order_date), 'MMM dd, yyyy')}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(order.created_at || order.order_date), 'HH:mm:ss')}
+                    </span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     {order.payment_status === 'USER_PAYING' ? (

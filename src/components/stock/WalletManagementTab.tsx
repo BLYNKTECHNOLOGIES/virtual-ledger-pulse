@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,13 +83,14 @@ export function WalletManagementTab() {
           wallets (
             wallet_name,
             wallet_type
-          )
+          ),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .order('created_at', { ascending: false })
         .limit(100);
       
       if (error) throw error;
-      return data as WalletTransaction[];
+      return data;
     },
     refetchInterval: 5000, // Live updates every 5 seconds
     staleTime: 0,
@@ -661,19 +663,27 @@ export function WalletManagementTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Date & Time</TableHead>
                   <TableHead>Wallet</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Reference</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Balance After</TableHead>
+                  <TableHead>Created By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions?.slice(0, 10).map((transaction) => (
                   <TableRow key={transaction.id}>
-                    <TableCell>{new Date(transaction.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span>{format(new Date(transaction.created_at), 'MMM dd, yyyy')}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(transaction.created_at), 'HH:mm:ss')}
+                        </span>
+                      </div>
+                    </TableCell>
                     <TableCell>{transaction.wallets?.wallet_name}</TableCell>
                     <TableCell>
                       <Badge variant={transaction.transaction_type === 'CREDIT' ? "default" : "destructive"}>
@@ -691,6 +701,15 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>{transaction.description}</TableCell>
                     <TableCell>{(transaction.balance_after ?? 0).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {(transaction as any).created_by_user ? (
+                        <span className="font-medium">
+                          {(transaction as any).created_by_user.first_name || (transaction as any).created_by_user.username}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

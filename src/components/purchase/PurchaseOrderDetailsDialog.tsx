@@ -142,11 +142,11 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Order Date</label>
-              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy')}</p>
+              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm:ss')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Updated At</label>
-              <p className="text-sm">{format(new Date(order.updated_at), 'MMM dd, yyyy HH:mm')}</p>
+              <p className="text-sm">{format(new Date(order.updated_at), 'MMM dd, yyyy HH:mm:ss')}</p>
             </div>
             {/* Created By - for manual entries */}
             {order.created_by && (

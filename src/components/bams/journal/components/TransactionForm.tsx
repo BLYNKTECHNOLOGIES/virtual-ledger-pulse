@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
  import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getSubCategories, getFullCategoryLabel } from "@/data/expenseCategories";
+ import { isUuid } from "@/utils/isUuid";
 
 interface TransactionFormProps {
   bankAccounts: any[];
@@ -68,6 +69,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
          ? getFullCategoryLabel(transactionData.category, transactionData.subCategory)
         : null;
 
+       // Only use user.id if it's a valid UUID, otherwise set to null
+       const createdBy = user?.id && isUuid(user.id) ? user.id : null;
+ 
       const { data, error } = await supabase
         .from('bank_transactions')
         .insert({
@@ -75,10 +79,10 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           transaction_type: transactionData.transactionType,
           amount: amount,
           category: categoryLabel,
-          description: transactionData.description, // Now mandatory
+           description: transactionData.description || null,
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
-          created_by: user?.id || null,
+           created_by: createdBy,
         })
         .select()
         .single();

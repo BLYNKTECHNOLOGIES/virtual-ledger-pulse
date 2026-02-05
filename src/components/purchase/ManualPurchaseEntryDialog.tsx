@@ -582,7 +582,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectContent className="bg-white z-50">
                   {bankAccounts?.map((account) => (
                     <SelectItem key={account.id} value={account.id}>
-                      {account.account_name} (₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                      {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </SelectItem>
                   ))}
                 </SelectContent>

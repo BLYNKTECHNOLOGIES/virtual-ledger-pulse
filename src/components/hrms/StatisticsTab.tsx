@@ -11,8 +11,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { 
   TrendingUp, Users, DollarSign, ShoppingCart, Building, 
   FileBarChart, UserCheck, Download, BarChart3, ArrowUp, ArrowDown, Briefcase,
-  Target, UserPlus, Clock, CheckCircle, XCircle, AlertCircle, Phone, Award, Star
+  Target, UserPlus, Clock, CheckCircle, XCircle, AlertCircle, Phone, Award, Star, Coins, ArrowRightLeft
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay } from "date-fns";
@@ -142,6 +143,23 @@ export function StatisticsTab() {
         .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
+
+      // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
+      const { data: usdtFees } = await supabase
+        .from('wallet_transactions')
+        .select(`
+          id,
+          amount,
+          reference_type,
+          reference_id,
+          description,
+          created_at,
+          wallets:wallet_id (wallet_name, wallet_type)
+        `)
+        .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+        .eq('transaction_type', 'DEBIT')
+        .gte('created_at', startStr)
+        .lte('created_at', endStr + 'T23:59:59');
 
       // Calculate core KPIs
       const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;
@@ -322,6 +340,13 @@ export function StatisticsTab() {
         }))
         .sort((a, b) => b.amount - a.amount);
 
+      // Calculate USDT fees totals
+      const totalUsdtFees = usdtFees?.reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      const platformFees = usdtFees?.filter(f => f.reference_type === 'PLATFORM_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      const transferFees = usdtFees?.filter(f => f.reference_type === 'TRANSFER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      const salesOrderFees = usdtFees?.filter(f => f.reference_type === 'SALES_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      const purchaseOrderFees = usdtFees?.filter(f => f.reference_type === 'PURCHASE_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+
       // Top clients by volume
       const clientVolumes = new Map<string, { name: string; volume: number; trades: number }>();
       salesOrders?.forEach(order => {
@@ -384,7 +409,15 @@ export function StatisticsTab() {
         expenseBreakdown,
         topClients,
         totalExpenses,
-        totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0
+        totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0,
+        usdtFees: {
+          total: totalUsdtFees,
+          platform: platformFees,
+          transfer: transferFees,
+          salesOrder: salesOrderFees,
+          purchaseOrder: purchaseOrderFees,
+          transactions: usdtFees || []
+        }
       };
     },
   });
@@ -401,6 +434,13 @@ export function StatisticsTab() {
     return value.toString();
   };
 
+  const formatUSDT = (value: number) => {
+    return `${value.toFixed(4)} USDT`;
+  };
+
+  // State for fee history dialog
+  const [showFeeHistoryDialog, setShowFeeHistoryDialog] = useState(false);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -415,7 +455,7 @@ export function StatisticsTab() {
   const { 
     kpi, clientStats, kycStats, leadStats, onboardingStats, 
     employeePerformance, monthlyData, departmentData, expenseBreakdown, 
-    topClients, totalExpenses, totalSalary 
+    topClients, totalExpenses, totalSalary, usdtFees
   } = statsData || {
     kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
     clientStats: { total: 0, newInPeriod: 0, newInPrevPeriod: 0, buyers: 0, sellers: 0, newBuyers: 0, newSellers: 0 },
@@ -428,7 +468,8 @@ export function StatisticsTab() {
     expenseBreakdown: [],
     topClients: [],
     totalExpenses: 0,
-    totalSalary: 0
+    totalSalary: 0,
+    usdtFees: { total: 0, platform: 0, transfer: 0, salesOrder: 0, purchaseOrder: 0, transactions: [] }
   };
 
   const clientGrowthChange = clientStats.newInPrevPeriod > 0 
@@ -1078,6 +1119,69 @@ export function StatisticsTab() {
             </Card>
           </div>
 
+          {/* USDT Fees Widget Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <Card 
+              className="shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0"
+              onClick={() => setShowFeeHistoryDialog(true)}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-amber-100 text-sm font-medium">Total USDT Fees</p>
+                    <p className="text-2xl font-bold mt-1">{formatUSDT(usdtFees.total)}</p>
+                    <p className="text-xs text-amber-200 mt-1">Click to view history</p>
+                  </div>
+                  <Coins className="h-8 w-8 text-amber-200" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md bg-gradient-to-br from-emerald-500 to-green-600 text-white border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-emerald-100 text-sm font-medium">Platform Fees</p>
+                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.platform)}</p>
+                  </div>
+                  <DollarSign className="h-6 w-6 text-emerald-200" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md bg-gradient-to-br from-purple-500 to-violet-600 text-white border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-purple-100 text-sm font-medium">Transfer Fees</p>
+                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.transfer)}</p>
+                  </div>
+                  <ArrowRightLeft className="h-6 w-6 text-purple-200" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md bg-gradient-to-br from-blue-500 to-indigo-600 text-white border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-blue-100 text-sm font-medium">Sales Order Fees</p>
+                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.salesOrder)}</p>
+                  </div>
+                  <TrendingUp className="h-6 w-6 text-blue-200" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-md bg-gradient-to-br from-cyan-500 to-teal-600 text-white border-0">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-cyan-100 text-sm font-medium">Purchase Order Fees</p>
+                    <p className="text-xl font-bold mt-1">{formatUSDT(usdtFees.purchaseOrder)}</p>
+                  </div>
+                  <ShoppingCart className="h-6 w-6 text-cyan-200" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Expense Breakdown */}
             <Card className="shadow-lg">
@@ -1144,6 +1248,100 @@ export function StatisticsTab() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* USDT Fees History Dialog */}
+      <Dialog open={showFeeHistoryDialog} onOpenChange={setShowFeeHistoryDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-amber-600" />
+              USDT Fees History
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-xs text-amber-600 font-medium">Total Fees</p>
+              <p className="text-lg font-bold text-amber-700">{formatUSDT(usdtFees.total)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+              <p className="text-xs text-emerald-600 font-medium">Platform Fees</p>
+              <p className="text-lg font-bold text-emerald-700">{formatUSDT(usdtFees.platform)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-purple-50 border border-purple-200">
+              <p className="text-xs text-purple-600 font-medium">Transfer Fees</p>
+              <p className="text-lg font-bold text-purple-700">{formatUSDT(usdtFees.transfer)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <p className="text-xs text-blue-600 font-medium">Order Fees</p>
+              <p className="text-lg font-bold text-blue-700">{formatUSDT(usdtFees.salesOrder + usdtFees.purchaseOrder)}</p>
+            </div>
+          </div>
+
+          {/* Transactions Table */}
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date & Time</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Wallet</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Fee (USDT)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {usdtFees.transactions.length > 0 ? (
+                  usdtFees.transactions.map((fee: any) => (
+                    <TableRow key={fee.id}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm">{format(new Date(fee.created_at), 'MMM dd, yyyy')}</span>
+                          <span className="text-xs text-muted-foreground">{format(new Date(fee.created_at), 'HH:mm:ss')}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant="outline"
+                          className={
+                            fee.reference_type === 'PLATFORM_FEE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            fee.reference_type === 'TRANSFER_FEE' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                            fee.reference_type === 'SALES_ORDER_FEE' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-cyan-50 text-cyan-700 border-cyan-200'
+                          }
+                        >
+                          {fee.reference_type === 'PLATFORM_FEE' ? 'Platform' :
+                           fee.reference_type === 'TRANSFER_FEE' ? 'Transfer' :
+                           fee.reference_type === 'SALES_ORDER_FEE' ? 'Sales Order' :
+                           fee.reference_type === 'PURCHASE_ORDER_FEE' ? 'Purchase Order' :
+                           fee.reference_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {fee.wallets?.wallet_name || 'N/A'}
+                      </TableCell>
+                      <TableCell className="max-w-[250px] truncate text-sm text-muted-foreground">
+                        {fee.description}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-amber-600">
+                        {formatUSDT(Number(fee.amount || 0))}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      <Coins className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No fee transactions found in selected period</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

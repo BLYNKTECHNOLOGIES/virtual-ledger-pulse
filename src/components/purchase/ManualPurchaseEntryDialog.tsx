@@ -696,7 +696,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
           {/* Row 4: Wallet and Bank Account */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <Label htmlFor="credit_wallet_id">Wallet *</Label>
               <Select 
                 value={formData.credit_wallet_id} 
@@ -719,10 +719,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
                 <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 ml-auto">
                   <Checkbox 
                     id="multiple_payments"
                     checked={isMultiplePayments}
@@ -765,7 +765,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               )}
               
               {isMultiplePayments && (
-                <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2">
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 py-2 h-10 flex items-center">
                   Configure payment distribution below
                 </div>
               )}

@@ -52,7 +52,9 @@ export function DirectoryTab() {
           reference_number,
           related_account_name,
           created_at,
-          bank_accounts!bank_account_id(account_name, bank_name, id, account_number)
+          created_by,
+          bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")') // Exclude core trading operations
         .order('transaction_date', { ascending: false });
@@ -71,8 +73,10 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
+          created_by,
           settlement_status,
-          sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number))
+          sales_payment_methods(type, payment_gateway, bank_accounts(account_name, bank_name, id, account_number)),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('settlement_status', 'DIRECT')  // Only show direct settlements (non-payment gateway)
         .order('order_date', { ascending: false });
@@ -91,8 +95,10 @@ export function DirectoryTab() {
           description,
           status,
           created_at,
+          created_by,
           bank_account_id,
-          bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
+          bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
+          created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('status', 'COMPLETED')  // Only show completed purchase orders
         .order('order_date', { ascending: false });
@@ -110,7 +116,10 @@ export function DirectoryTab() {
           display_description: t.description || '',
           display_reference: t.reference_number || '',
           display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name,
-          bank_account_id: t.bank_accounts?.id
+          bank_account_id: t.bank_accounts?.id,
+          display_created_by: (t as any).created_by_user 
+            ? ((t as any).created_by_user.first_name || (t as any).created_by_user.username)
+            : null
         })),
         ...(salesData || []).map(s => ({
           ...s,
@@ -123,7 +132,10 @@ export function DirectoryTab() {
           display_account: s.sales_payment_methods?.bank_accounts?.account_name ? 
             s.sales_payment_methods.bank_accounts.account_name + ' - ' + s.sales_payment_methods.bank_accounts.bank_name : 
             s.sales_payment_methods?.type || 'Not Specified',
-          bank_account_id: s.sales_payment_methods?.bank_accounts?.id
+          bank_account_id: s.sales_payment_methods?.bank_accounts?.id,
+          display_created_by: (s as any).created_by_user 
+            ? ((s as any).created_by_user.first_name || (s as any).created_by_user.username)
+            : null
         })),
         ...(purchaseData || []).map(p => ({
           ...p,
@@ -136,7 +148,10 @@ export function DirectoryTab() {
           display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
             `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
             'Bank Account Not Specified',
-          bank_account_id: p.bank_accounts?.id
+          bank_account_id: p.bank_accounts?.id,
+          display_created_by: (p as any).created_by_user 
+            ? ((p as any).created_by_user.first_name || (p as any).created_by_user.username)
+            : null
         }))
       ];
 
@@ -257,7 +272,8 @@ export function DirectoryTab() {
       'Description',
       'Reference',
       'Bank Account',
-      'Created At'
+      'Created At',
+      'Created By'
     ];
 
     const csvData = dataToDownload.map(transaction => [
@@ -268,7 +284,8 @@ export function DirectoryTab() {
       transaction.display_description,
       transaction.display_reference,
       transaction.display_account,
-      format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm')
+      format(new Date(transaction.created_at), 'MMM dd, yyyy HH:mm:ss'),
+      transaction.display_created_by || 'N/A'
     ]);
 
     const csvContent = [csvHeaders, ...csvData]
@@ -618,7 +635,15 @@ export function DirectoryTab() {
                         <Badge variant="outline">{transaction.source}</Badge>
                       </div>
                       <div className="text-sm text-gray-600">
-                        {format(new Date(transaction.display_date), "MMM dd, yyyy")}
+                        {format(new Date(transaction.display_date), "MMM dd, yyyy")}{' '}
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(transaction.created_at), "HH:mm:ss")}
+                        </span>
+                        {transaction.display_created_by && (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            by <span className="font-medium text-foreground">{transaction.display_created_by}</span>
+                          </span>
+                        )}
                       </div>
                       {transaction.display_description && (
                         <div className="text-sm text-gray-500">{transaction.display_description}</div>

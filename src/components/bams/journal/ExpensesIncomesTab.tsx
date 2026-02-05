@@ -153,7 +153,10 @@ export function ExpensesIncomesTab() {
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}
+                        {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}{' '}
+                        <span className="text-xs">
+                          {format(new Date(transaction.created_at), "HH:mm:ss")}
+                        </span>
                       </div>
                       {transaction.description && (
                         <div className="text-sm text-muted-foreground">{transaction.description}</div>
@@ -181,7 +184,7 @@ export function ExpensesIncomesTab() {
                       ₹{parseFloat(transaction.amount.toString()).toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {format(new Date(transaction.created_at), "HH:mm")}
+                      {format(new Date(transaction.created_at), "HH:mm:ss")}
                     </div>
                   </div>
                 </div>

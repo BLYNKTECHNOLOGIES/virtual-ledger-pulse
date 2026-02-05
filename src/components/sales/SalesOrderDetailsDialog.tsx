@@ -191,11 +191,11 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             </div>
             <div>
               <label className="text-sm font-medium text-gray-600">Order Date</label>
-              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy')}</p>
+              <p className="text-sm">{format(new Date(order.order_date), 'MMM dd, yyyy HH:mm:ss')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-600">Created At</label>
-              <p className="text-sm">{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')}</p>
+              <p className="text-sm">{format(new Date(order.created_at), 'MMM dd, yyyy HH:mm:ss')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-600">Created By</label>

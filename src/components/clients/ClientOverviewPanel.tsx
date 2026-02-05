@@ -201,6 +201,16 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         )}
         
+        {client.state && (
+          <div>
+            <label className="text-sm font-medium text-gray-600">State</label>
+            <div className="flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-gray-400" />
+              <span className="text-sm font-medium">{client.state}</span>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-600">Date of Onboarding</label>

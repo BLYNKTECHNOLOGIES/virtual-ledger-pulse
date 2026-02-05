@@ -1,7 +1,14 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Calendar, Phone, Mail, MapPin, CreditCard, FileText, TrendingUp } from "lucide-react";
+import { User, Calendar, Phone, Mail, MapPin, CreditCard, FileText, TrendingUp, Pencil, Check, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface ViewFullProfileDialogProps {
   open: boolean;
@@ -12,7 +19,64 @@ interface ViewFullProfileDialogProps {
 }
 
 export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [], kycData = [] }: ViewFullProfileDialogProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editData, setEditData] = useState({
+    phone: "",
+    email: "",
+    state: ""
+  });
+
   if (!client) return null;
+
+  const startEditing = () => {
+    setEditData({
+      phone: client.phone || "",
+      email: client.email || "",
+      state: client.state || ""
+    });
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditData({ phone: "", email: "", state: "" });
+  };
+
+  const saveChanges = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({
+          phone: editData.phone || null,
+          email: editData.email || null,
+          state: editData.state || null
+        })
+        .eq("id", client.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Updated",
+        description: "Client details updated successfully."
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["client", client.id] });
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating client:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update client details.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const totalOrders = orders.length;
   const totalVolume = orders.reduce((sum, order) => sum + order.total_amount, 0);
@@ -23,10 +87,29 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Complete Client Profile - {client.name}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Complete Client Profile - {client.name}
+            </DialogTitle>
+            {!isEditing ? (
+              <Button size="sm" variant="outline" onClick={startEditing}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit Basic Details
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={cancelEditing} disabled={isSaving}>
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={saveChanges} disabled={isSaving}>
+                  <Check className="h-4 w-4 mr-1" />
+                  {isSaving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -46,17 +129,52 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{client.phone || 'Not provided'}</span>
-                </div>
+                {isEditing ? (
+                  <Input
+                    value={editData.phone}
+                    onChange={(e) => setEditData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone number"
+                    className="mt-1"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{client.phone || 'Not provided'}</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{client.email || 'Not provided'}</span>
-                </div>
+                {isEditing ? (
+                  <Input
+                    type="email"
+                    value={editData.email}
+                    onChange={(e) => setEditData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Email address"
+                    className="mt-1"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{client.email || 'Not provided'}</span>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">State</label>
+                {isEditing ? (
+                  <Input
+                    value={editData.state}
+                    onChange={(e) => setEditData(prev => ({ ...prev, state: e.target.value }))}
+                    placeholder="State"
+                    className="mt-1"
+                  />
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{client.state || 'Not provided'}</span>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Date of Onboarding</label>

@@ -4883,6 +4883,16 @@ export type Database = {
         Args: { client_name_param: string }
         Returns: undefined
       }
+      process_platform_fee_deduction: {
+        Args: {
+          p_fee_amount: number
+          p_order_id: string
+          p_order_number?: string
+          p_order_type: string
+          p_wallet_id: string
+        }
+        Returns: Json
+      }
       process_sales_order_wallet_deduction: {
         Args: { sales_order_id: string; usdt_amount: number; wallet_id: string }
         Returns: boolean

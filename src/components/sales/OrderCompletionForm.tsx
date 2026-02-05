@@ -138,7 +138,8 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
 
       // Process wallet deduction if wallet and USDT amount are specified
       if (walletId && usdtAmount > 0) {
-        const { error: walletError } = await supabase.rpc(
+        // Deduct only the quantity sold (not including fees)
+        const { error: walletDeductError } = await supabase.rpc(
           'process_sales_order_wallet_deduction',
           {
             sales_order_id: order.id,
@@ -147,8 +148,29 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
           }
         );
 
-        if (walletError) {
-          throw new Error(`Wallet deduction failed: ${walletError.message}`);
+        if (walletDeductError) {
+          throw new Error(`Wallet deduction failed: ${walletDeductError.message}`);
+        }
+        
+        // Process platform fee separately if applicable
+        const platformFees = order?.fee_amount || 0;
+        if (platformFees > 0) {
+          console.log('💰 Processing platform fee deduction:', platformFees, 'USDT');
+          
+          const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
+            p_order_id: order.id,
+            p_order_type: 'SALES_ORDER',
+            p_wallet_id: walletId,
+            p_fee_amount: platformFees,
+            p_order_number: order.order_number
+          });
+          
+          if (feeError) {
+            console.error('Error processing platform fee:', feeError);
+            // Don't throw - main order was completed, just log
+          } else {
+            console.log('✅ Platform fee processed:', feeResult);
+          }
         }
       }
 

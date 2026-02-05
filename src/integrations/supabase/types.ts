@@ -4909,6 +4909,15 @@ export type Database = {
           username: string
         }[]
       }
+      handle_sales_order_payment_method_change: {
+        Args: {
+          p_new_payment_method_id: string
+          p_old_payment_method_id: string
+          p_order_id: string
+          p_total_amount: number
+        }
+        Returns: Json
+      }
       handle_sales_order_quantity_change: {
         Args: {
           p_new_quantity: number

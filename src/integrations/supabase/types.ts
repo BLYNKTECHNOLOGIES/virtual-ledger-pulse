@@ -2921,6 +2921,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_order_payment_splits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchase_order_payment_splits_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false

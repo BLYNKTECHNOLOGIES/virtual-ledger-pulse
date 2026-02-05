@@ -174,7 +174,7 @@ export function CustomerAutocomplete({
       
       {/* Suggestions dropdown */}
       {showSuggestions && filteredClients.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 min-w-[320px] w-max max-w-md mt-1 bg-background border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
           {filteredClients.map((client) => (
             <HoverCard key={client.id} openDelay={300} closeDelay={100} onOpenChange={(open) => {
               if (open) setHoveredClientId(client.id);
@@ -187,7 +187,7 @@ export function CustomerAutocomplete({
                   onClick={() => handleClientSelect(client)}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">{client.name}</span>
+                    <span className="font-medium whitespace-nowrap">{client.name}</span>
                     <Badge variant="secondary" className="text-xs">
                       {client.client_id}
                     </Badge>
@@ -196,7 +196,6 @@ export function CustomerAutocomplete({
                     {client.phone && `Phone: ${client.phone}`}
                     {client.email && ` | Email: ${client.email}`}
                     {client.pan_card_number && ` | PAN: ${client.pan_card_number}`}
-                    {client.client_type && ` | Type: ${client.client_type}`}
                   </div>
                 </div>
               </HoverCardTrigger>

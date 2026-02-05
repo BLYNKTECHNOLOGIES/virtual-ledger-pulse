@@ -394,8 +394,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Order Details + Supplier in one row */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Order Number */}
+          <div className="w-full max-w-xs">
             <div className="space-y-2">
               <Label htmlFor="order_number">Order Number</Label>
               <Input
@@ -407,21 +407,11 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 className={formData.is_off_market ? "bg-muted" : ""}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="contact_number">Contact Number</Label>
-              <Input
-                id="contact_number"
-                value={formData.contact_number}
-                onChange={(e) => handleInputChange('contact_number', e.target.value)}
-                placeholder="Enter contact number"
-              />
-            </div>
           </div>
 
-          {/* Supplier - Wider column for hover card */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
+          {/* Seller Name, Contact Number and Product */}
+          <div className="grid grid-cols-3 gap-4">
+            <div>
               <SupplierAutocomplete
                 value={formData.supplier_name}
                 onChange={(value) => handleInputChange('supplier_name', value)}
@@ -443,6 +433,16 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   }
                 }}
                 selectedClientId={selectedClientId}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contact_number">Contact Number</Label>
+              <Input
+                id="contact_number"
+                value={formData.contact_number}
+                onChange={(e) => handleInputChange('contact_number', e.target.value)}
+                placeholder="Enter contact number"
               />
             </div>
             

@@ -271,20 +271,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const totalAmount = parseFloat(formData.total_amount) || 0;
       console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
 
-      // Auto-create seller client if new
-      if (isNewClient && formData.supplier_name.trim()) {
-        console.log('🆕 Creating new seller client...');
-        const newClient = await createSellerClient(
-          formData.supplier_name.trim(),
-          formData.contact_number || undefined
-        );
-        if (newClient) {
-          console.log('✅ New seller client created');
-          queryClient.invalidateQueries({ queryKey: ['clients'] });
-          queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
-        }
-      }
-
       // Get current user ID for created_by tracking
       const currentUserId = getCurrentUserId();
 
@@ -322,28 +308,65 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         throw functionError;
       }
 
-      // Record timing for manual entry - result contains the purchase order id
-      if (result && typeof result === 'object' && 'purchase_order_id' in (result as Record<string, unknown>)) {
-        const orderId = (result as Record<string, unknown>).purchase_order_id as string;
-        await recordActionTiming(orderId, 'manual_entry_created', 'purchase_creator');
-        await recordActionTiming(orderId, 'order_created', 'purchase_creator');
-        
-        // Log actions for audit trail
-        await logActionWithCurrentUser({
-          actionType: ActionTypes.PURCHASE_MANUAL_ENTRY_CREATED,
-          entityType: EntityTypes.PURCHASE_ORDER,
-          entityId: orderId,
-          module: Modules.PURCHASE,
-          metadata: { order_number: orderNumber }
-        });
-        await logActionWithCurrentUser({
-          actionType: ActionTypes.PURCHASE_ORDER_CREATED,
-          entityType: EntityTypes.PURCHASE_ORDER,
-          entityId: orderId,
-          module: Modules.PURCHASE,
-          metadata: { order_number: orderNumber, is_manual_entry: true }
-        });
+      // Verify purchase order was created and is readable before proceeding
+      if (!result || typeof result !== 'object' || !('purchase_order_id' in (result as Record<string, unknown>))) {
+        throw new Error('Purchase order was not created properly - no order ID returned');
       }
+
+      const orderId = (result as Record<string, unknown>).purchase_order_id as string;
+
+      // Verify the purchase order is readable (RLS check)
+      const { data: verifiedOrder, error: verifyError } = await supabase
+        .from('purchase_orders')
+        .select('id')
+        .eq('id', orderId)
+        .single();
+
+      if (verifyError || !verifiedOrder) {
+        console.error('Purchase order verification failed:', verifyError);
+        throw new Error('Purchase order created but not readable - check RLS policies');
+      }
+
+      console.log('✅ Purchase order verified:', orderId);
+
+      // ONLY create seller client AFTER purchase order is successfully created and verified
+      if (isNewClient && formData.supplier_name.trim()) {
+        console.log('🆕 Creating new seller client after purchase order verification...');
+        try {
+          const newClient = await createSellerClient(
+            formData.supplier_name.trim(),
+            formData.contact_number || undefined
+          );
+          if (newClient) {
+            console.log('✅ New seller client created');
+            queryClient.invalidateQueries({ queryKey: ['clients'] });
+            queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
+          }
+        } catch (clientError) {
+          // Log but don't fail - purchase order was already created
+          console.warn('Failed to create seller client, but purchase order succeeded:', clientError);
+        }
+      }
+
+      // Record timing for manual entry - result contains the purchase order id
+      await recordActionTiming(orderId, 'manual_entry_created', 'purchase_creator');
+      await recordActionTiming(orderId, 'order_created', 'purchase_creator');
+      
+      // Log actions for audit trail
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_MANUAL_ENTRY_CREATED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: orderId,
+        module: Modules.PURCHASE,
+        metadata: { order_number: orderNumber }
+      });
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_ORDER_CREATED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: orderId,
+        module: Modules.PURCHASE,
+        metadata: { order_number: orderNumber, is_manual_entry: true }
+      });
 
       // Build success message with details
       let successMessage = `Purchase order ${orderNumber} created successfully!`;

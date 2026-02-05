@@ -10,6 +10,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WalletSelector } from "@/components/stock/WalletSelector";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface EditSalesOrderDialogProps {
   open: boolean;
@@ -20,11 +21,13 @@ interface EditSalesOrderDialogProps {
 export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [originalWalletId, setOriginalWalletId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     order_number: '',
     client_name: '',
     client_phone: '',
+    client_state: '',
     platform: '',
     quantity: 1,
     price_per_unit: 0,
@@ -71,10 +74,13 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
   useEffect(() => {
     if (order) {
+      const walletId = order.wallet_id || order.wallet?.id || '';
+      setOriginalWalletId(walletId);
       setFormData({
         order_number: order.order_number || '',
         client_name: order.client_name || '',
         client_phone: order.client_phone || '',
+        client_state: order.client_state || '',
         platform: order.platform || '',
         quantity: order.quantity || 1,
         price_per_unit: order.price_per_unit || 0,
@@ -85,19 +91,58 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',
         product_id: order.product_id || '',
-        warehouse_id: order.wallet_id || order.wallet?.id || order.warehouse_id || '',
+        warehouse_id: walletId,
       });
     }
   }, [order]);
 
   const updateSalesOrderMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
+      const quantityChanged = order.quantity !== data.quantity;
+      
+      // If wallet changed and order was completed, handle wallet transaction transfer
+      if (walletChanged && order.payment_status === 'COMPLETED') {
+        console.log('🔄 Wallet changed, processing wallet transaction transfer...');
+        
+        // Call RPC to handle wallet change (reverse from old, deduct from new)
+        const { error: transferError } = await supabase.rpc('handle_sales_order_wallet_change', {
+          p_order_id: order.id,
+          p_old_wallet_id: originalWalletId,
+          p_new_wallet_id: data.warehouse_id,
+          p_quantity: data.quantity
+        });
+        
+        if (transferError) {
+          console.error('Error transferring wallet transaction:', transferError);
+          throw new Error(`Failed to transfer wallet transaction: ${transferError.message}`);
+        }
+        console.log('✅ Wallet transaction transfer completed');
+      } else if (!walletChanged && quantityChanged && order.payment_status === 'COMPLETED' && data.warehouse_id) {
+        // Quantity changed but same wallet - adjust the difference
+        console.log('🔄 Quantity changed, adjusting wallet balance...');
+        
+        const { error: adjustError } = await supabase.rpc('handle_sales_order_quantity_change', {
+          p_order_id: order.id,
+          p_wallet_id: data.warehouse_id,
+          p_old_quantity: order.quantity,
+          p_new_quantity: data.quantity
+        });
+        
+        if (adjustError) {
+          console.error('Error adjusting quantity:', adjustError);
+          throw new Error(`Failed to adjust quantity: ${adjustError.message}`);
+        }
+        console.log('✅ Quantity adjustment completed');
+      }
+      
       const { data: result, error } = await supabase
         .from('sales_orders')
         .update({
           order_number: data.order_number,
           client_name: data.client_name,
           client_phone: data.client_phone,
+          client_state: data.client_state || null,
           platform: data.platform,
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
@@ -130,6 +175,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       
       toast({ title: "Success", description: "Sales order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -337,6 +384,25 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                 onChange={(e) => handleInputChange('platform', e.target.value)}
                 placeholder="e.g., Binance P2P"
               />
+            </div>
+
+            <div>
+              <Label>State</Label>
+              <Select
+                value={formData.client_state}
+                onValueChange={(value) => handleInputChange('client_state', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

@@ -357,7 +357,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.order_number.trim()) {
+    // For off-market orders, order number will be generated at creation time
+    if (!isOffMarket && !formData.order_number.trim()) {
       toast({
         title: "Error",
         description: "Please enter an order number",
@@ -382,18 +383,48 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     }
 
     // Pass calculated fee data to mutation
-    const orderDataWithFees = {
-      ...formData,
-      feeUSDT: isOffMarket ? 0 : calculatedFee.feeUSDT,
-      feeINR: isOffMarket ? 0 : calculatedFee.feeINR,
-      feePercentage: isOffMarket ? 0 : calculatedFee.feePercentage,
-      usdtRate: usdtRateData?.rate || 0,
-      averageBuyingPrice: averageBuyingPrice,
-      isOffMarket: isOffMarket,
-      is_off_market: isOffMarket,
+    const submitOrder = async () => {
+      let orderNumber = formData.order_number;
+      
+      if (isOffMarket) {
+        try {
+          const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_sales_order_number');
+          if (error || !offMarketNumber) {
+            toast({
+              title: "Error",
+              description: "Failed to generate off-market order number",
+              variant: "destructive"
+            });
+            return;
+          }
+          orderNumber = offMarketNumber;
+        } catch (err) {
+          console.error('Failed to generate off-market order number:', err);
+          toast({
+            title: "Error",
+            description: "Failed to generate off-market order number",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
+      const orderDataWithFees = {
+        ...formData,
+        order_number: orderNumber,
+        feeUSDT: isOffMarket ? 0 : calculatedFee.feeUSDT,
+        feeINR: isOffMarket ? 0 : calculatedFee.feeINR,
+        feePercentage: isOffMarket ? 0 : calculatedFee.feePercentage,
+        usdtRate: usdtRateData?.rate || 0,
+        averageBuyingPrice: averageBuyingPrice,
+        isOffMarket: isOffMarket,
+        is_off_market: isOffMarket,
+      };
+
+      createSalesOrderMutation.mutate(orderDataWithFees);
     };
 
-    createSalesOrderMutation.mutate(orderDataWithFees);
+    submitOrder();
   };
 
   const getAvailableLimit = (methodId: string) => {
@@ -546,15 +577,15 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                           const isOn = !!checked;
                           setIsOffMarket(isOn);
                           if (isOn) {
-                            // Generate off-market order number
+                            // Preview off-market order number (without consuming sequence)
                             setIsGeneratingOrderNumber(true);
                             try {
-                              const { data, error } = await supabase.rpc('generate_off_market_sales_order_number');
+                              const { data, error } = await supabase.rpc('preview_off_market_sales_order_number');
                               if (!error && data) {
                                 setFormData(prev => ({ ...prev, order_number: data }));
                               }
                             } catch (err) {
-                              console.error('Failed to generate off-market order number:', err);
+                              console.error('Failed to preview off-market order number:', err);
                             } finally {
                               setIsGeneratingOrderNumber(false);
                             }

@@ -4889,6 +4889,8 @@ export type Database = {
         Args: { client_name_param: string }
         Returns: undefined
       }
+      preview_off_market_purchase_order_number: { Args: never; Returns: string }
+      preview_off_market_sales_order_number: { Args: never; Returns: string }
       process_platform_fee_deduction: {
         Args: {
           p_fee_amount: number

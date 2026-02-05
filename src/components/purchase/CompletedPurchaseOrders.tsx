@@ -32,6 +32,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
         .from('purchase_orders')
         .select(`
           *,
+          wallet:wallets!wallet_id(id, wallet_name),
           purchase_order_items (
             id,
             product_id,
@@ -188,9 +189,17 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
     if (order.is_off_market) {
       return 'Off Market';
     }
-    const walletId = order.purchase_order_items?.[0]?.warehouse_id;
-    const wallet = wallets?.find(w => w.id === walletId);
-    return wallet?.wallet_name || '-';
+    // First try direct wallet relationship, then fallback to items
+    if (order.wallet?.wallet_name) {
+      return order.wallet.wallet_name;
+    }
+    // Fallback to purchase_order_items warehouse_id
+    const warehouseId = order.purchase_order_items?.[0]?.warehouse_id;
+    if (warehouseId) {
+      const wallet = wallets?.find(w => w.id === warehouseId);
+      return wallet?.wallet_name || '-';
+    }
+    return '-';
   };
 
   // Mobile card view

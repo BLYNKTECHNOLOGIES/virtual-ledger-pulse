@@ -61,7 +61,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       const firstItem = order.purchase_order_items?.[0];
       const quantity = firstItem?.quantity || order.quantity || 0;
       const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
-      const warehouseId = firstItem?.warehouse_id || '';
+      // Prefer direct wallet_id on order, fallback to purchase_order_items warehouse_id
+      const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || '';
 
       // Determine TDS option from existing data
       let tdsOption = 'NO_TDS';
@@ -125,6 +126,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           pan_number: data.pan_number,
           tds_amount: tdsAmount,
           net_payable_amount: netPayableAmount,
+          wallet_id: data.warehouse_id || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
@@ -154,6 +156,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +25,25 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
   const [formData, setFormData] = useState({
     stockName: '',
     quantity: 1,
-    price: order?.price_per_unit || order?.total_amount || 0,
+    price: 0,
     warehouseId: '',
-    description: `Sales order completion for ${order?.client_name || ''}`,
-    platform: order?.platform || ''
+    description: '',
+    platform: ''
   });
 
-  console.log('OrderCompletionForm opened with order:', order);
+  // Sync form data when dialog opens with a new order
+  useEffect(() => {
+    if (open && order) {
+      setFormData({
+        stockName: '',
+        quantity: 1,
+        price: order.price_per_unit || order.total_amount || 0,
+        warehouseId: '',
+        description: `Sales order completion for ${order.client_name || ''}`,
+        platform: order.platform || ''
+      });
+    }
+  }, [open, order?.id]);
 
   // Fetch products
   const { data: products } = useQuery({

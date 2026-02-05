@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ClickableUser } from "@/components/ui/clickable-user";
+import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 export function StockTransactionsTab() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -333,7 +334,7 @@ export function StockTransactionsTab() {
     mutationFn: async (adjustmentData: any) => {
       const amount = parseFloat(adjustmentData.amount);
       const transferFee = parseFloat(adjustmentData.transferFee) || 0;
-      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = getCurrentUserId();
       
       // Generate unique reference ID for idempotency
       const transferRefId = globalThis.crypto?.randomUUID?.() ?? null;
@@ -363,7 +364,7 @@ export function StockTransactionsTab() {
             description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: user?.id || null
+            created_by: currentUserId
           });
 
         if (debitError) throw debitError;
@@ -380,7 +381,7 @@ export function StockTransactionsTab() {
             description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: user?.id || null
+            created_by: currentUserId
           });
 
         if (creditError) throw creditError;
@@ -398,7 +399,7 @@ export function StockTransactionsTab() {
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
               balance_before: 0,
               balance_after: 0,
-              created_by: user?.id || null
+              created_by: currentUserId
             });
           
           if (feeError) throw feeError;
@@ -417,7 +418,7 @@ export function StockTransactionsTab() {
             description: adjustmentData.description,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: user?.id || null
+            created_by: currentUserId
           });
 
         if (error) throw error;
@@ -425,8 +426,26 @@ export function StockTransactionsTab() {
 
       // Stock syncing is handled by database triggers automatically
       console.log('✅ StockTransactions: Manual adjustment completed - stock updates handled by database triggers');
+      
+      // Return adjustment data for logging
+      return { adjustmentData };
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      // Log the action for audit trail
+      logActionWithCurrentUser({
+        actionType: ActionTypes.STOCK_WALLET_ADJUSTED,
+        entityType: EntityTypes.WALLET,
+        entityId: variables.fromWallet,
+        module: Modules.STOCK,
+        metadata: { 
+          adjustment_type: variables.transactionType, 
+          amount: variables.amount, 
+          description: variables.description,
+          to_wallet: variables.toWallet || null,
+          transfer_fee: variables.transferFee || null
+        }
+      });
+      
       toast({
         title: "Success",
         description: "Manual stock adjustment completed successfully",

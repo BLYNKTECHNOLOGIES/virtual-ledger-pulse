@@ -8,6 +8,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { AlertCircle, UserPlus, Check } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
+import { matchesWordPrefix } from "@/lib/utils";
 
 interface ClientBankDetails {
   pan_card_number?: string | null;
@@ -59,7 +60,7 @@ export function SupplierAutocomplete({
   const filteredClients = useMemo(() => {
     if (!clients || !debouncedValue.trim()) return [];
     return clients.filter(client => 
-      client.name.toLowerCase().includes(debouncedValue.toLowerCase())
+      matchesWordPrefix(debouncedValue, client.name)
     );
   }, [clients, debouncedValue]);
 

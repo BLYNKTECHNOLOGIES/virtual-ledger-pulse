@@ -8,6 +8,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { AlertCircle, UserPlus, Check } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
+import { matchesWordPrefix } from "@/lib/utils";
 
 interface CustomerAutocompleteProps {
   value: string;
@@ -56,7 +57,7 @@ export function CustomerAutocomplete({
     if (!clients || !debouncedValue.trim()) return [];
     const searchTerm = debouncedValue.toLowerCase().trim();
     return clients.filter(client => 
-      client.name.toLowerCase().includes(searchTerm) ||
+      matchesWordPrefix(searchTerm, client.name) ||
       (client.phone && client.phone.includes(searchTerm)) ||
       (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm))
     );

@@ -253,7 +253,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, name')
-        .or(`name.ilike.${data.client_name},phone.eq.${data.client_phone || ''}`)
+       .or(`name.ilike.%${data.client_name}%,phone.eq.${data.client_phone || 'NO_PHONE_MATCH'}`)
         .limit(1)
         .maybeSingle();
 

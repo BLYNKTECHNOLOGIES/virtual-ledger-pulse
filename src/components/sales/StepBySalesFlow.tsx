@@ -296,14 +296,14 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         try {
           const netQuantity = finalOrderData.quantity;
           const platformFees = finalOrderData.platform_fees || 0;
-          const totalDeductionAmount = netQuantity + platformFees;
           
+          // Deduct only the quantity sold from wallet (not including fees)
           const { error: walletError } = await supabase.rpc(
             'process_sales_order_wallet_deduction',
             {
               sales_order_id: salesOrder.id,
               wallet_id: walletId,
-              usdt_amount: totalDeductionAmount
+              usdt_amount: netQuantity  // Only the quantity sold, fees are separate
             }
           );
 
@@ -312,7 +312,40 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             throw new Error(`Wallet deduction failed: ${walletError.message}`);
           }
 
-          console.log(`Wallet deduction processed successfully: ${totalDeductionAmount} USDT (${netQuantity} + ${platformFees} fees)`);
+          console.log(`Wallet deduction processed successfully: ${netQuantity} USDT`);
+          
+          // Process platform fee deduction separately (if applicable)
+          if (platformFees > 0) {
+            console.log('💰 Processing platform fee deduction:', platformFees, 'USDT');
+            
+            const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
+              p_order_id: salesOrder.id,
+              p_order_type: 'SALES_ORDER',
+              p_wallet_id: walletId,
+              p_fee_amount: platformFees,
+              p_order_number: finalOrderData.order_number
+            });
+            
+            if (feeError) {
+              console.error('Error processing platform fee:', feeError);
+              // Don't throw - the main order was created, just log the fee error
+              console.warn('⚠️ Platform fee deduction failed, but order was created');
+            } else {
+              console.log('✅ Platform fee processed:', feeResult);
+            }
+            
+            // Update the sales order with fee details
+            const selectedWallet = wallets?.find(w => w.id === walletId);
+            const feePercentage = selectedWallet?.fee_percentage || 0;
+            
+            await supabase
+              .from('sales_orders')
+              .update({ 
+                fee_amount: platformFees,
+                fee_percentage: feePercentage
+              })
+              .eq('id', salesOrder.id);
+          }
         } catch (walletError) {
           // If wallet deduction fails, we should probably handle this more gracefully
           console.error('Error processing wallet deduction:', walletError);

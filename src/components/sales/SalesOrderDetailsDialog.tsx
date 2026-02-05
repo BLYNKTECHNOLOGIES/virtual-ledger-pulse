@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, User } from "lucide-react";
+import { Download, Printer, User, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 
@@ -205,6 +205,26 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               </p>
             </div>
           </div>
+
+          {/* Platform Fee Information */}
+          {(order.fee_amount > 0 || order.fee_percentage > 0) && (
+            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <h3 className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
+                <Coins className="h-4 w-4" />
+                Platform Fee Details
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-amber-700">Fee Percentage</label>
+                  <p className="text-sm text-amber-900">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-amber-700">Fee Amount (USDT)</label>
+                  <p className="text-sm text-amber-900 font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Bank Account Information */}
           {bankAccountData && (

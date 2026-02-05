@@ -346,6 +346,10 @@ export function StatisticsTab() {
       const transferFees = usdtFees?.filter(f => f.reference_type === 'TRANSFER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const salesOrderFees = usdtFees?.filter(f => f.reference_type === 'SALES_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
       const purchaseOrderFees = usdtFees?.filter(f => f.reference_type === 'PURCHASE_ORDER_FEE').reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      
+      // Combined order fees (sales + purchase) - this is shown as "Order Fees" in the UI
+      // Platform fees are the legacy type, Order fees are the new type from process_platform_fee_deduction
+      const combinedOrderFees = platformFees + salesOrderFees + purchaseOrderFees;
 
       // Top clients by volume
       const clientVolumes = new Map<string, { name: string; volume: number; trades: number }>();
@@ -412,7 +416,7 @@ export function StatisticsTab() {
         totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0,
         usdtFees: {
           total: totalUsdtFees,
-          platform: platformFees,
+          platform: combinedOrderFees, // Platform fees now aggregated with order fees
           transfer: transferFees,
           salesOrder: salesOrderFees,
           purchaseOrder: purchaseOrderFees,
@@ -1220,7 +1224,7 @@ export function StatisticsTab() {
               <p className="text-lg font-bold">{formatUSDT(usdtFees.total)}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Platform Fees</p>
+              <p className="text-xs text-muted-foreground font-medium">Order Fees (Sales + Purchase)</p>
               <p className="text-lg font-bold">{formatUSDT(usdtFees.platform)}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 border">
@@ -1228,8 +1232,8 @@ export function StatisticsTab() {
               <p className="text-lg font-bold">{formatUSDT(usdtFees.transfer)}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 border">
-              <p className="text-xs text-muted-foreground font-medium">Order Fees</p>
-              <p className="text-lg font-bold">{formatUSDT(usdtFees.salesOrder + usdtFees.purchaseOrder)}</p>
+              <p className="text-xs text-muted-foreground font-medium">Sales vs Purchase</p>
+              <p className="text-lg font-bold">{formatUSDT(usdtFees.salesOrder)} / {formatUSDT(usdtFees.purchaseOrder)}</p>
             </div>
           </div>
 

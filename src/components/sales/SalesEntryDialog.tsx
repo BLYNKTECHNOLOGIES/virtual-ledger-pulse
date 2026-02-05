@@ -30,6 +30,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   // State for wallet balance and validation errors
   const [selectedWalletBalance, setSelectedWalletBalance] = useState<number | null>(null);
   const [selectedWalletFee, setSelectedWalletFee] = useState<number>(0);
+  const [calculatedFee, setCalculatedFee] = useState<number>(0);
   const [stockValidationError, setStockValidationError] = useState<string | null>(null);
   const [formTouched, setFormTouched] = useState(false); // Track if user has started filling form
   const [isOffMarket, setIsOffMarket] = useState(false);
@@ -105,6 +106,27 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       setSelectedWalletFee(0);
     }
   }, [walletBalance]);
+
+  // Auto-calculate and sync platform fee when quantity or wallet fee changes
+  useEffect(() => {
+    if (!isOffMarket && selectedWalletFee > 0) {
+      const quantity = parseFloat(formData.quantity) || 0;
+      const feeAmount = quantity * (selectedWalletFee / 100);
+      setCalculatedFee(feeAmount);
+      
+      // Sync to form data for submission
+      setFormData(prev => ({
+        ...prev,
+        platform_fees: feeAmount.toFixed(6)
+      }));
+    } else {
+      setCalculatedFee(0);
+      setFormData(prev => ({
+        ...prev,
+        platform_fees: '0'
+      }));
+    }
+  }, [formData.quantity, selectedWalletFee, isOffMarket]);
 
   // Validate stock quantity whenever quantity or platform fees changes
   useEffect(() => {
@@ -477,10 +499,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     });
   };
 
-  // Calculate fee based on wallet fee percentage (if not off market)
+  // Display quantity for UI
   const quantity = parseFloat(formData.quantity) || 0;
-  const feeInfo = isOffMarket ? { feeAmount: 0, netAmount: quantity } : calculateFee(quantity, selectedWalletFee);
-  const calculatedFee = feeInfo.feeAmount;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

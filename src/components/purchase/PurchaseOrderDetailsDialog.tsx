@@ -11,6 +11,7 @@ import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCa
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Coins } from "lucide-react";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -164,6 +165,26 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               </div>
             )}
           </div>
+
+          {/* Platform Fee Information */}
+          {(order.fee_amount > 0 || order.fee_percentage > 0) && (
+            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
+              <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-400 mb-3 flex items-center gap-2">
+                <Coins className="h-4 w-4" />
+                Platform Fee Details
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Percentage</label>
+                  <p className="text-sm text-amber-900 dark:text-amber-300">{Number(order.fee_percentage || 0).toFixed(2)}%</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Amount (USDT)</label>
+                  <p className="text-sm text-amber-900 dark:text-amber-300 font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {order.description && (
             <div>

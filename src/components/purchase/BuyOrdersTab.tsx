@@ -19,6 +19,7 @@ import { useOrderAlertsContext } from "@/contexts/OrderAlertsContext";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { createSellerClient } from "@/utils/clientIdGenerator";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -369,6 +370,24 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         queryClient.invalidateQueries({ queryKey: ['wallets'] });
         queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
         queryClient.invalidateQueries({ queryKey: ['wallet_fee_deductions'] });
+        
+        // Create seller client now that order is completed (if new seller)
+        const completedOrder = orders?.find(o => o.id === orderId);
+        if (completedOrder?.supplier_name) {
+          // Check if seller already exists or needs to be created
+          createSellerClient(
+            completedOrder.supplier_name,
+            completedOrder.contact_number || undefined
+          ).then((newClient) => {
+            if (newClient) {
+              console.log('✅ Seller client created/found on order completion:', newClient);
+              queryClient.invalidateQueries({ queryKey: ['clients'] });
+              queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
+            }
+          }).catch(err => {
+            console.error('Failed to create seller client:', err);
+          });
+        }
       } else if (newStatus === 'cancelled') {
         toast({
           title: "Order Cancelled",

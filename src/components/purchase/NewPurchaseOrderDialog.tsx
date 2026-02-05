@@ -198,16 +198,10 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     mutationFn: async (orderData: any) => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Auto-create seller client if new
-      if (isNewClient && orderData.supplier_name.trim()) {
-        const newClient = await createSellerClient(
-          orderData.supplier_name.trim(),
-          orderData.contact_number || undefined
-        );
-        if (newClient) {
-          console.log('✅ New seller client created:', newClient);
-        }
-      }
+      // NOTE: For regular purchase orders, we do NOT create seller clients at order creation.
+      // Seller clients are only created when the order is COMPLETED (handled in BuyOrderCard completion logic).
+      // This prevents pending sellers from appearing for approval before the order is finalized.
+      // Manual Purchase Entry handles its own seller creation since those orders are immediately completed.
       
       // Calculate order expiry timestamp
       const orderExpiryMinutes = orderData.order_expiry_minutes || 55;

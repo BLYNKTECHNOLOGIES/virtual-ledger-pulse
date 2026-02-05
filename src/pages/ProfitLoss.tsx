@@ -207,8 +207,10 @@ export default function ProfitLoss() {
          effectivePurchaseRate = null;
        }
 
-      // Profit calculations based on period averages
-      const npm = avgSalesRate - avgPurchaseRate;
+       // Profit calculations based on Effective Purchase Rate (adjusted for all USDT fees)
+       // Use effective purchase rate when available, fall back to avg purchase rate
+       const purchaseRateForProfit = effectivePurchaseRate ?? avgPurchaseRate;
+       const npm = avgSalesRate - purchaseRateForProfit;
       const grossProfit = npm * totalSalesQty;
       
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;

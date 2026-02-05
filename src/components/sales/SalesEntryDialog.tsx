@@ -393,11 +393,13 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           // User changed quantity - calculate total
           updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
-          // User changed price - recalculate based on what exists
-          if (qty > 0) {
-            updated.total_amount = (qty * price).toFixed(2);
-          } else if (total > 0 && price > 0) {
+          // User changed price - prioritize calculating quantity from total if total exists
+          if (total > 0 && price > 0) {
+            // Total amount exists, calculate quantity from it
             updated.quantity = (total / price).toFixed(4);
+          } else if (qty > 0 && price > 0) {
+            // No total but quantity exists, calculate total
+            updated.total_amount = (qty * price).toFixed(2);
           }
         } else if (field === 'total_amount') {
           // User changed total - calculate quantity if price exists

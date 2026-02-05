@@ -51,8 +51,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     platform_fees: '',
     sales_payment_method_id: '',
     payment_status: 'COMPLETED',
-    order_date: new Date().toISOString().split('T')[0],
-    order_time: new Date().toTimeString().slice(0, 5),
+    order_datetime: `${new Date().toISOString().slice(0, 16)}`,
     description: ''
   });
 
@@ -163,7 +162,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           total_amount: data.total_amount,
           sales_payment_method_id: data.sales_payment_method_id || null,
           payment_status: data.payment_status,
-          order_date: `${data.order_date}T${data.order_time}:00.000Z`,
+          order_date: data.order_datetime ? `${data.order_datetime}:00.000Z` : new Date().toISOString(),
           description: data.description,
           is_off_market: data.is_off_market || false,
           created_by: createdBy
@@ -289,8 +288,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         platform_fees: '',
         sales_payment_method_id: '',
         payment_status: 'COMPLETED',
-        order_date: new Date().toISOString().split('T')[0],
-        order_time: new Date().toTimeString().slice(0, 5),
+        order_datetime: `${new Date().toISOString().slice(0, 16)}`,
         description: ''
       });
       setFormTouched(false);
@@ -702,20 +700,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
             <div>
               <Label>Order Date & Time</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="date"
-                  value={formData.order_date}
-                  onChange={(e) => handleInputChange('order_date', e.target.value)}
-                  className="flex-1"
-                />
-                <Input
-                  type="time"
-                  value={formData.order_time}
-                  onChange={(e) => handleInputChange('order_time', e.target.value)}
-                  className="w-28"
-                />
-              </div>
+              <Input
+                type="datetime-local"
+                value={formData.order_datetime}
+                onChange={(e) => handleInputChange('order_datetime', e.target.value)}
+              />
             </div>
           </div>
 

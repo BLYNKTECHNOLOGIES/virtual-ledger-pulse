@@ -23,8 +23,11 @@ import {
   ShoppingCart,
   Wallet,
   Percent,
-  ArrowRightLeft
+   ArrowRightLeft,
+   Gauge,
+   AlertTriangle
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
@@ -49,6 +52,11 @@ interface PeriodMetrics {
   // Expense/Income
   totalExpenses: number;
   totalIncome: number;
+   
+   // USDT Fees & Effective Rate
+   totalUsdtFees: number;
+   effectivePurchaseRate: number | null;
+   netPurchaseQty: number;
 }
 
 interface TradeEntry {
@@ -155,6 +163,16 @@ export default function ProfitLoss() {
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
+       // Fetch ALL USDT fees from wallet_transactions within the period
+       // This includes: PLATFORM_FEE, TRANSFER_FEE, SALES_ORDER_FEE, PURCHASE_ORDER_FEE, and any other operational fees
+       const { data: usdtFeesData } = await supabase
+         .from('wallet_transactions')
+         .select('id, amount, reference_type, created_at')
+         .eq('transaction_type', 'DEBIT')
+         .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+         .gte('created_at', startStr)
+         .lte('created_at', endStr + 'T23:59:59');
+
       // Calculate period-based metrics
       const totalPurchaseValue = purchaseItems.reduce(
         (sum, item) => sum + (item.quantity * item.unit_price), 0
@@ -174,6 +192,21 @@ export default function ProfitLoss() {
       const avgSalesRate = totalSalesQty > 0 
         ? totalSalesValue / totalSalesQty : 0;
       
+       // Calculate Total USDT Fees (all types)
+       const totalUsdtFees = usdtFeesData?.reduce((sum, fee) => sum + Number(fee.amount), 0) || 0;
+       
+       // Calculate Effective Purchase Rate
+       // Formula: Total Purchase Amount (INR) / (Total Quantity Purchased - Total USDT Fees)
+       const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
+       let effectivePurchaseRate: number | null = null;
+       
+       if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
+         effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
+       } else if (netPurchaseQty <= 0 && totalPurchaseQty > 0) {
+         // Fees exceed or equal purchased quantity - edge case
+         effectivePurchaseRate = null;
+       }
+
       // Profit calculations based on period averages
       const npm = avgSalesRate - avgPurchaseRate;
       const grossProfit = npm * totalSalesQty;
@@ -197,7 +230,10 @@ export default function ProfitLoss() {
         netProfit,
         profitMargin,
         totalExpenses,
-        totalIncome
+         totalIncome,
+         totalUsdtFees,
+         effectivePurchaseRate,
+         netPurchaseQty
       };
 
       // Create trade entries for table
@@ -397,6 +433,46 @@ export default function ProfitLoss() {
                 {(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought
               </p>
             </div>
+             <TooltipProvider>
+               <Tooltip>
+                 <TooltipTrigger asChild>
+                   <div className="p-4 bg-amber-500/10 rounded-lg cursor-help">
+                     <div className="flex items-center gap-2 mb-2">
+                       <Gauge className="h-4 w-4 text-amber-600" />
+                       <span className="text-sm font-medium text-muted-foreground">Effective Purchase Rate</span>
+                       <Info className="h-3 w-3 text-muted-foreground" />
+                     </div>
+                     {periodMetrics?.effectivePurchaseRate !== null ? (
+                       <>
+                         <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.effectivePurchaseRate || 0)}</p>
+                         <p className="text-xs text-muted-foreground mt-1">
+                           Net qty: {(periodMetrics?.netPurchaseQty || 0).toFixed(4)} USDT
+                         </p>
+                       </>
+                     ) : periodMetrics?.totalPurchaseQty === 0 ? (
+                       <p className="text-xl font-medium text-muted-foreground">—</p>
+                     ) : (
+                       <div className="flex items-center gap-2">
+                         <AlertTriangle className="h-4 w-4 text-amber-600" />
+                         <p className="text-sm font-medium text-amber-600">Fees exceed quantity</p>
+                       </div>
+                     )}
+                   </div>
+                 </TooltipTrigger>
+                 <TooltipContent className="max-w-xs p-3">
+                   <p className="font-medium mb-1">Effective Purchase Rate</p>
+                   <p className="text-xs text-muted-foreground">
+                     Purchase rate adjusted after deducting all USDT operational fees incurred in the selected period.
+                   </p>
+                   <p className="text-xs mt-2 font-mono bg-muted p-1 rounded">
+                     = Total Purchase INR ÷ (Qty Purchased − Total USDT Fees)
+                   </p>
+                   <p className="text-xs mt-2 text-muted-foreground">
+                     Total USDT Fees: {(periodMetrics?.totalUsdtFees || 0).toFixed(4)} USDT
+                   </p>
+                 </TooltipContent>
+               </Tooltip>
+             </TooltipProvider>
             <div className="p-4 bg-cyan-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Wallet className="h-4 w-4 text-cyan-500" />

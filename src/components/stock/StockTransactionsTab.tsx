@@ -334,7 +334,9 @@ export function StockTransactionsTab() {
     mutationFn: async (adjustmentData: any) => {
       const amount = parseFloat(adjustmentData.amount);
       const transferFee = parseFloat(adjustmentData.transferFee) || 0;
-      const currentUserId = getCurrentUserId();
+      // NOTE: wallet_transactions table in this project does not have a created_by column.
+      // Attribution is handled via system_action_logs instead.
+      void getCurrentUserId();
       
       // Generate unique reference ID for idempotency
       const transferRefId = globalThis.crypto?.randomUUID?.() ?? null;
@@ -363,8 +365,7 @@ export function StockTransactionsTab() {
             reference_id: transferRefId,
             description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId ?? null
+            balance_after: 0   // Will be calculated by trigger
           });
 
         if (debitError) throw debitError;
@@ -380,8 +381,7 @@ export function StockTransactionsTab() {
             reference_id: transferRefId,
             description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId ?? null
+            balance_after: 0   // Will be calculated by trigger
           });
 
         if (creditError) throw creditError;
@@ -398,8 +398,7 @@ export function StockTransactionsTab() {
               reference_id: transferRefId,
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
               balance_before: 0,
-              balance_after: 0,
-              created_by: currentUserId ?? null
+              balance_after: 0
             });
           
           if (feeError) throw feeError;
@@ -417,8 +416,7 @@ export function StockTransactionsTab() {
             reference_id: null,
             description: adjustmentData.description,
             balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId ?? null
+            balance_after: 0   // Will be calculated by trigger
           });
 
         if (error) throw error;

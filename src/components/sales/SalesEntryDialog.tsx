@@ -268,7 +268,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             client_phone: data.client_phone || null,
             client_state: data.client_state || null,
             order_amount: data.total_amount,
-            order_date: data.order_date,
+           order_date: data.order_datetime ? data.order_datetime.split('T')[0] : new Date().toISOString().split('T')[0],
             approval_status: 'PENDING'
           });
 

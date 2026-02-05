@@ -4909,6 +4909,24 @@ export type Database = {
           username: string
         }[]
       }
+      handle_sales_order_quantity_change: {
+        Args: {
+          p_new_quantity: number
+          p_old_quantity: number
+          p_order_id: string
+          p_wallet_id: string
+        }
+        Returns: boolean
+      }
+      handle_sales_order_wallet_change: {
+        Args: {
+          p_new_wallet_id: string
+          p_old_wallet_id: string
+          p_order_id: string
+          p_quantity: number
+        }
+        Returns: boolean
+      }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined

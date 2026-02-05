@@ -17,6 +17,16 @@ import { ImportWalletsDialog } from "./ImportWalletsDialog";
 import { EditWalletDialog } from "./EditWalletDialog";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface WalletType {
   id: string;
@@ -57,6 +67,8 @@ export function WalletManagementTab() {
   const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch wallets with real-time updates
   const { data: wallets, isLoading: walletsLoading, refetch: refetchWallets } = useQuery({
@@ -214,6 +226,65 @@ export function WalletManagementTab() {
       
     }
   });
+
+  // Copy address to clipboard
+  // Delete wallet transaction mutation (with reversal)
+  const deleteTransactionMutation = useMutation({
+    mutationFn: async (transactionId: string) => {
+      const rawUserId = getCurrentUserId();
+      const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
+      const deletedBy = isValidUuid ? rawUserId : null;
+
+      const { data, error } = await supabase.rpc('delete_wallet_transaction_with_reversal', {
+        p_transaction_id: transactionId,
+        p_deleted_by: deletedBy
+      });
+
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; reversed_amount?: number } | null;
+      if (!result?.success) throw new Error(result?.error || 'Failed to delete transaction');
+      
+      return result;
+    },
+    onSuccess: (result) => {
+      toast({ 
+        title: "Transaction Deleted", 
+        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString()} USDT` 
+      });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions_live'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
+      refetchWallets();
+      refetchTransactions();
+      setShowDeleteConfirm(false);
+      setTransactionToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete transaction", 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  // Check if transaction is deletable (only manual adjustments/transfers)
+  const isDeletable = (referenceType: string) => {
+    return ['MANUAL_ADJUSTMENT', 'MANUAL_TRANSFER', 'TRANSFER_FEE'].includes(referenceType);
+  };
+
+  const handleDeleteTransaction = (transaction: any) => {
+    setTransactionToDelete(transaction);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteTransaction = () => {
+    if (transactionToDelete) {
+      deleteTransactionMutation.mutate(transactionToDelete.id);
+    }
+  };
 
   // Copy address to clipboard
   const copyToClipboard = async (text: string) => {
@@ -679,6 +750,7 @@ export function WalletManagementTab() {
                   <TableHead>Description</TableHead>
                   <TableHead>Balance After</TableHead>
                   <TableHead>Created By</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -721,6 +793,19 @@ export function WalletManagementTab() {
                         <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {isDeletable(transaction.reference_type) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteTransaction(transaction)}
+                          disabled={deleteTransactionMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -744,6 +829,36 @@ export function WalletManagementTab() {
         open={showImportDialog} 
         onOpenChange={setShowImportDialog} 
       />
+
+      {/* Delete Transaction Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction & Reverse Balance</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this transaction? This will:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Delete the transaction record</li>
+                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString()} USDT</strong></li>
+                {transactionToDelete?.reference_type === 'MANUAL_TRANSFER' && (
+                  <li>Delete all related transfer transactions (including fee if any)</li>
+                )}
+              </ul>
+              <p className="mt-3 text-destructive font-medium">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteTransactionMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteTransaction}
+              disabled={deleteTransactionMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

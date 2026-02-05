@@ -4827,6 +4827,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      delete_wallet_transaction_with_reversal: {
+        Args: { p_deleted_by?: string; p_transaction_id: string }
+        Returns: Json
+      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string

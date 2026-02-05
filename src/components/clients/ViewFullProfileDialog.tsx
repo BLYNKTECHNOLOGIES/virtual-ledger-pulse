@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Calendar, Phone, Mail, MapPin, CreditCard, FileText, TrendingUp, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+ import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface ViewFullProfileDialogProps {
   open: boolean;
@@ -163,12 +164,21 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               <div>
                 <label className="text-sm font-medium text-muted-foreground">State</label>
                 {isEditing ? (
-                  <Input
+                  <Select
                     value={editData.state}
-                    onChange={(e) => setEditData(prev => ({ ...prev, state: e.target.value }))}
-                    placeholder="State"
-                    className="mt-1"
-                  />
+                    onValueChange={(value) => setEditData(prev => ({ ...prev, state: value }))}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES_AND_UTS.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />

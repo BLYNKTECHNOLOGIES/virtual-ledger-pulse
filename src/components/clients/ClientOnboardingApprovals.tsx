@@ -29,6 +29,7 @@ interface ClientOnboardingApproval {
   client_name: string;
   client_email?: string;
   client_phone?: string;
+  client_state?: string;
   order_amount: number;
   order_date: string;
   aadhar_front_url?: string;
@@ -119,7 +120,8 @@ export function ClientOnboardingApprovals() {
             kyc_status: 'VERIFIED',
             monthly_limit: parseFloat(clientData.proposed_monthly_limit),
             buying_purpose: clientData.purpose_of_buying,
-            risk_appetite: clientData.risk_assessment
+            risk_appetite: clientData.risk_assessment,
+            state: approval.client_state || undefined // Only update if state provided
           })
           .eq('id', existingClient.id);
 
@@ -148,7 +150,8 @@ export function ClientOnboardingApprovals() {
             seller_approval_status: 'NOT_APPLICABLE',
             buyer_approved_at: new Date().toISOString(),
             aadhar_front_url: approval.aadhar_front_url,
-            aadhar_back_url: approval.aadhar_back_url
+           aadhar_back_url: approval.aadhar_back_url,
+           state: approval.client_state || null
           });
 
         if (clientError) throw clientError;

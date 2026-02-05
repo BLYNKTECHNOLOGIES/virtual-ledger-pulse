@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+ import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryLabel } from "@/data/expenseCategories";
+ import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getSubCategories, getFullCategoryLabel } from "@/data/expenseCategories";
 
 interface TransactionFormProps {
   bankAccounts: any[];
@@ -31,29 +30,22 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     transactionType: "",
     amount: "",
     category: "",
+     subCategory: "",
     description: "",
     date: undefined as Date | undefined,
     referenceNumber: "",
-    clientId: ""
   });
 
-  // Fetch clients for linking
-  const { data: clients } = useQuery({
-    queryKey: ['clients_for_expenses'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name, client_id')
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Get categories based on transaction type
-  const categoryGroups = formData.transactionType === 'INCOME' 
+   // Get main categories based on transaction type
+   const mainCategories = formData.transactionType === 'INCOME' 
     ? INCOME_CATEGORIES 
     : EXPENSE_CATEGORIES;
+ 
+   // Get sub-categories based on selected category
+   const subCategories = useMemo(() => {
+     if (!formData.category) return [];
+     return getSubCategories(formData.category);
+   }, [formData.category]);
 
   const createTransactionMutation = useMutation({
     mutationFn: async (transactionData: typeof formData) => {
@@ -71,9 +63,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         }
       }
 
-      // Get category label for storage
-      const categoryLabel = transactionData.category 
-        ? getCategoryLabel(transactionData.category) 
+       // Get full category label for storage (Category > SubCategory)
+       const categoryLabel = transactionData.category && transactionData.subCategory
+         ? getFullCategoryLabel(transactionData.category, transactionData.subCategory)
         : null;
 
       const { data, error } = await supabase
@@ -87,7 +79,6 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
           created_by: user?.id || null,
-          client_id: transactionData.clientId || null, // Link to client if applicable
         })
         .select()
         .single();
@@ -109,10 +100,10 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         transactionType: "",
         amount: "",
         category: "",
+         subCategory: "",
         description: "",
         date: undefined,
         referenceNumber: "",
-        clientId: ""
       });
     },
     onError: (error: any) => {
@@ -136,11 +127,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       return;
     }
 
-    // Category is required when transaction type is selected
-    if (formData.transactionType && !formData.category) {
+     // Category and sub-category are required when transaction type is selected
+     if (formData.transactionType && (!formData.category || !formData.subCategory)) {
       toast({
         title: "Error",
-        description: "Please select a category",
+         description: "Please select both category and sub-category",
         variant: "destructive"
       });
       return;
@@ -159,14 +150,24 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     createTransactionMutation.mutate(formData);
   };
 
-  // Reset category when transaction type changes
+   // Reset category and sub-category when transaction type changes
   const handleTransactionTypeChange = (value: string) => {
     setFormData({
       ...formData, 
       transactionType: value,
-      category: ""
+       category: "",
+       subCategory: ""
     });
   };
+ 
+   // Reset sub-category when category changes
+   const handleCategoryChange = (value: string) => {
+     setFormData({
+       ...formData,
+       category: value,
+       subCategory: ""
+     });
+   };
 
   return (
     <Card>
@@ -218,28 +219,43 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             <Label htmlFor="category">Category *</Label>
             <Select 
               value={formData.category} 
-              onValueChange={(value) => setFormData({...formData, category: value})}
+               onValueChange={handleCategoryChange}
               disabled={!formData.transactionType}
             >
               <SelectTrigger>
                 <SelectValue placeholder={formData.transactionType ? "Select category" : "Select type first"} />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {categoryGroups.map((group) => (
-                  <SelectGroup key={group.group}>
-                    <SelectLabel className="font-semibold text-primary">{group.group}</SelectLabel>
-                    {group.categories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
+                 {mainCategories.map((category) => (
+                   <SelectItem key={category.value} value={category.value}>
+                     {category.label}
+                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div>
+             <Label htmlFor="subCategory">Sub-Category *</Label>
+             <Select 
+               value={formData.subCategory} 
+               onValueChange={(value) => setFormData({...formData, subCategory: value})}
+               disabled={!formData.category}
+             >
+               <SelectTrigger>
+                 <SelectValue placeholder={formData.category ? "Select sub-category" : "Select category first"} />
+               </SelectTrigger>
+               <SelectContent className="max-h-[300px]">
+                 {subCategories.map((subCategory) => (
+                   <SelectItem key={subCategory.value} value={subCategory.value}>
+                     {subCategory.label}
+                   </SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+           </div>
+ 
+           <div>
             <Label htmlFor="amount">Amount (₹) *</Label>
             <Input
               id="amount"
@@ -276,26 +292,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             </Popover>
           </div>
 
-          <div>
-            <Label htmlFor="clientId">Linked Client (optional)</Label>
-            <Select 
-              value={formData.clientId} 
-              onValueChange={(value) => setFormData({...formData, clientId: value})}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select client (if applicable)" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients?.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name} ({client.client_id})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
+           <div>
             <Label htmlFor="referenceNumber">Reference Number</Label>
             <Input
               id="referenceNumber"

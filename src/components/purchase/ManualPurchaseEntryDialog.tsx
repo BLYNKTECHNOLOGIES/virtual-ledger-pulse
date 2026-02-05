@@ -409,16 +409,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="order_date">Order Date</Label>
-              <Input
-                id="order_date"
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => handleInputChange('order_date', e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="contact_number">Contact Number</Label>
               <Input
                 id="contact_number"
@@ -744,12 +734,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
           {/* Contact Number */}
           <div className="space-y-2">
-            <Label htmlFor="contact_number">Contact Number</Label>
+            <Label htmlFor="order_date">Order Date</Label>
             <Input
-              id="contact_number"
-              value={formData.contact_number}
-              onChange={(e) => handleInputChange('contact_number', e.target.value)}
-              placeholder="Enter contact number"
+              id="order_date"
+              type="date"
+              value={formData.order_date}
+              onChange={(e) => handleInputChange('order_date', e.target.value)}
             />
           </div>
 

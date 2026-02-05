@@ -308,6 +308,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         throw functionError;
       }
 
+      // The RPC returns a JSON object even on failure; treat success:false as an error.
+      if (result && typeof result === 'object' && 'success' in (result as Record<string, unknown>)) {
+        const ok = Boolean((result as Record<string, unknown>).success);
+        if (!ok) {
+          const errMsg = String((result as Record<string, unknown>).error || 'Unknown error');
+          throw new Error(errMsg);
+        }
+      }
+
       // Verify purchase order was created and is readable before proceeding
       if (!result || typeof result !== 'object' || !('purchase_order_id' in (result as Record<string, unknown>))) {
         throw new Error('Purchase order was not created properly - no order ID returned');

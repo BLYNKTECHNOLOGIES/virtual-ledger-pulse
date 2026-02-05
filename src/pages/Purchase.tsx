@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PendingPurchaseOrders } from "@/components/purchase/PendingPurchaseOrders";
@@ -25,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function Purchase() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("buy_orders");
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -36,8 +38,15 @@ export default function Purchase() {
   const { canCreateOrders, isLoading: purchaseFunctionsLoading } = usePurchaseFunctions();
 
   const handleRefreshData = () => {
-    // This will trigger a refetch of the summary data
-    window.location.reload();
+    // Refetch without a full page reload
+    queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+    queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+    queryClient.invalidateQueries({ queryKey: ['purchase_orders_export'] });
+    queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+    queryClient.invalidateQueries({ queryKey: ['wallets'] });
+    queryClient.invalidateQueries({ queryKey: ['wallets-with-details'] });
+    queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['tds-records'] });
   };
 
   // Fetch purchase orders summary for badges

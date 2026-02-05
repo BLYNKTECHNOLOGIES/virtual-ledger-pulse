@@ -252,13 +252,12 @@ export function ClientOrderPreview({
                   ) : (
                     <Package className="h-3 w-3 text-primary" />
                   )}
-                  <span className="font-mono">{order.order_number}</span>
+                  <span className="text-muted-foreground">
+                    {new Date(order.order_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{formatAmount(order.total_amount)}</span>
-                  <span className="text-muted-foreground">
-                    {formatDistanceToNow(new Date(order.order_date), { addSuffix: true })}
-                  </span>
                 </div>
               </div>
             ))}

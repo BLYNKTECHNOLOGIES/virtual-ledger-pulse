@@ -467,8 +467,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           </div>
 
           {/* Second Row - Customer (wider for hover) + Phone */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-1">
               <CustomerAutocomplete
                 value={formData.client_name}
                 onChange={(value) => handleInputChange('client_name', value)}
@@ -492,33 +492,32 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Customer Phone</Label>
-                <Input
-                  value={formData.client_phone}
-                  onChange={(e) => handleInputChange('client_phone', e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <Label>State</Label>
-                <Select
-                  value={formData.client_state}
-                  onValueChange={(value) => handleInputChange('client_state', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg z-[100] max-h-60">
-                    {INDIAN_STATES_AND_UTS.map((state) => (
-                      <SelectItem key={state} value={state}>
-                        {state}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label>Customer Phone</Label>
+              <Input
+                value={formData.client_phone}
+                onChange={(e) => handleInputChange('client_phone', e.target.value)}
+                placeholder="Enter phone"
+              />
+            </div>
+
+            <div>
+              <Label>State</Label>
+              <Select
+                value={formData.client_state}
+                onValueChange={(value) => handleInputChange('client_state', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg z-[100] max-h-60">
+                  {INDIAN_STATES_AND_UTS.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -566,16 +565,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           {/* Pricing row */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label>Quantity *</Label>
+              <Label>Total Amount</Label>
               <Input
                 type="number"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', e.target.value)}
-                required
+                value={formData.total_amount}
+                onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
                 min="0"
                 step="0.01"
-                placeholder="Enter quantity"
-                className={stockValidationError ? "border-destructive" : ""}
+                placeholder="Enter total amount"
               />
             </div>
 
@@ -593,14 +590,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             </div>
 
             <div>
-              <Label>Total Amount</Label>
+              <Label>Quantity *</Label>
               <Input
                 type="number"
-                value={formData.total_amount}
-                onChange={(e) => handleInputChange('total_amount', parseFloat(e.target.value) || 0)}
+                value={formData.quantity}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                required
                 min="0"
                 step="0.01"
-                placeholder="Auto-calculated"
+                placeholder="Enter quantity"
+                className={stockValidationError ? "border-destructive" : ""}
               />
             </div>
           </div>

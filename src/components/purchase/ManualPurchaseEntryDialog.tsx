@@ -695,9 +695,16 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           </div>
 
           {/* Row 4: Wallet and Bank Account */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 items-start">
             <div className="space-y-1.5">
-              <Label htmlFor="credit_wallet_id">Wallet *</Label>
+              <div className="flex items-center justify-between h-6">
+                <Label htmlFor="credit_wallet_id" className="whitespace-nowrap">Wallet *</Label>
+                {/* Placeholder to keep header-row height aligned with Bank Account column */}
+                <div className="flex items-center gap-1.5 opacity-0 select-none pointer-events-none">
+                  <Checkbox checked={false} />
+                  <span className="text-xs whitespace-nowrap">Split Payment</span>
+                </div>
+              </div>
               <Select 
                 value={formData.credit_wallet_id} 
                 onValueChange={(value) => {
@@ -720,8 +727,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
+              <div className="flex items-center justify-between h-6">
+                <Label htmlFor="deduction_bank_account_id" className="whitespace-nowrap">Bank Account *</Label>
                 <div className="flex items-center gap-1.5">
                   <Checkbox 
                     id="multiple_payments"

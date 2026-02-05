@@ -174,12 +174,17 @@ export function getCurrentUserId(): string | null {
       // Session structure: { user: { id, username, ... }, timestamp, expiresIn }
       const userId = session?.user?.id || session?.id || null;
       
-      // Validate it's a proper UUID (not demo-admin-id or similar non-UUID values)
-      if (userId && userId !== 'demo-admin-id' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+      // Some deployments use non-UUID user ids (e.g., text ids). For action attribution we
+      // accept any non-empty string except demo-admin-id.
+      if (typeof userId === 'string' && userId.trim() && userId !== 'demo-admin-id') {
+        // Keep a soft validation warning for diagnostics, but don't block.
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+        if (!isUuid) {
+          console.warn('[SystemActionLogger] Non-UUID user id detected (allowed):', userId);
+        }
         return userId;
       }
-      
-      // For demo admin, try to resolve from users table by email
+
       if (userId === 'demo-admin-id') {
         console.warn('[SystemActionLogger] Demo admin detected - user ID not valid for production tracking');
         return null;

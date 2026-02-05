@@ -364,7 +364,7 @@ export function StockTransactionsTab() {
             description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId
+            created_by: currentUserId ?? null
           });
 
         if (debitError) throw debitError;
@@ -381,7 +381,7 @@ export function StockTransactionsTab() {
             description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId
+            created_by: currentUserId ?? null
           });
 
         if (creditError) throw creditError;
@@ -399,7 +399,7 @@ export function StockTransactionsTab() {
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
               balance_before: 0,
               balance_after: 0,
-              created_by: currentUserId
+              created_by: currentUserId ?? null
             });
           
           if (feeError) throw feeError;
@@ -418,7 +418,7 @@ export function StockTransactionsTab() {
             description: adjustmentData.description,
             balance_before: 0, // Will be calculated by trigger
             balance_after: 0,   // Will be calculated by trigger
-            created_by: currentUserId
+            created_by: currentUserId ?? null
           });
 
         if (error) throw error;
@@ -465,9 +465,16 @@ export function StockTransactionsTab() {
       });
     },
     onError: (error: any) => {
+      console.error('❌ Manual adjustment failed:', error);
+      const message =
+        error?.message ||
+        error?.details ||
+        error?.hint ||
+        (typeof error === 'string' ? error : null) ||
+        'Failed to complete manual adjustment';
       toast({
         title: "Error",
-        description: error.message || "Failed to complete manual adjustment",
+        description: message,
         variant: "destructive",
       });
     },

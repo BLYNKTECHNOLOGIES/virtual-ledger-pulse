@@ -13,10 +13,10 @@ import { matchesWordPrefix } from "@/lib/utils";
 interface ClientBankDetails {
   pan_card_number?: string | null;
   linked_bank_accounts?: Array<{
-    id?: string;
-    bankName?: string;
-    lastFourDigits?: string;
-    isCustomBank?: boolean;
+    account_name?: string;
+    account_number?: string;
+    bank_name?: string;
+    ifsc_code?: string;
   }> | null;
 }
 

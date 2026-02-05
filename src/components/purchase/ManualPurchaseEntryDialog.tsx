@@ -238,7 +238,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         return;
       }
 
-      const orderNumber = formData.order_number || generateOrderNumber();
+      // For off-market orders, generate the actual order number now (consuming the sequence)
+      // For regular orders, use the form value or auto-generate
+      let orderNumber: string;
+      if (formData.is_off_market) {
+        const { data: offMarketNumber, error: offMarketError } = await supabase.rpc('generate_off_market_purchase_order_number');
+        if (offMarketError || !offMarketNumber) {
+          throw new Error('Failed to generate off-market order number');
+        }
+        orderNumber = offMarketNumber;
+      } else {
+        orderNumber = formData.order_number || generateOrderNumber();
+      }
       const totalAmount = parseFloat(formData.total_amount) || 0;
       console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
 
@@ -625,15 +636,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   onCheckedChange={async (checked) => {
                     handleInputChange('is_off_market', checked);
                     if (checked) {
-                      // Generate off-market order number
+                      // Preview off-market order number (without consuming sequence)
                       setIsGeneratingOrderNumber(true);
                       try {
-                        const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+                        const { data, error } = await supabase.rpc('preview_off_market_purchase_order_number');
                         if (!error && data) {
                           handleInputChange('order_number', data);
                         }
                       } catch (err) {
-                        console.error('Failed to generate off-market order number:', err);
+                        console.error('Failed to preview off-market order number:', err);
                       } finally {
                         setIsGeneratingOrderNumber(false);
                       }

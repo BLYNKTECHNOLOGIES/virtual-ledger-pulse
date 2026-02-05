@@ -344,7 +344,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     // Collect all validation errors
     const errors: string[] = [];
     
-    if (!formData.order_number.trim()) {
+    // For off-market orders, order number will be generated at creation time
+    if (!isOffMarket && !formData.order_number.trim()) {
       errors.push("Order number is required");
     }
     
@@ -379,11 +380,43 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     }
     
     console.log('✅ Validation passed, calling mutation');
-    createSalesOrderMutation.mutate({
-      ...formData,
-      is_off_market: isOffMarket,
-      platform_fees: isOffMarket ? '0' : formData.platform_fees
-    });
+    
+    // For off-market orders, generate the actual order number at submission (consuming the sequence)
+    const submitOrder = async () => {
+      let orderNumber = formData.order_number;
+      
+      if (isOffMarket) {
+        try {
+          const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_sales_order_number');
+          if (error || !offMarketNumber) {
+            toast({
+              title: "Error",
+              description: "Failed to generate off-market order number",
+              variant: "destructive"
+            });
+            return;
+          }
+          orderNumber = offMarketNumber;
+        } catch (err) {
+          console.error('Failed to generate off-market order number:', err);
+          toast({
+            title: "Error",
+            description: "Failed to generate off-market order number",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
+      createSalesOrderMutation.mutate({
+        ...formData,
+        order_number: orderNumber,
+        is_off_market: isOffMarket,
+        platform_fees: isOffMarket ? '0' : formData.platform_fees
+      });
+    };
+    
+    submitOrder();
   };
 
   const handleInputChange = (field: string, value: any) => {
@@ -660,15 +693,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 onCheckedChange={async (checked) => {
                   setIsOffMarket(checked);
                   if (checked) {
-                    // Generate off-market order number
+                    // Preview off-market order number (without consuming sequence)
                     setIsGeneratingOrderNumber(true);
                     try {
-                      const { data, error } = await supabase.rpc('generate_off_market_sales_order_number');
+                      const { data, error } = await supabase.rpc('preview_off_market_sales_order_number');
                       if (!error && data) {
                         handleInputChange('order_number', data);
                       }
                     } catch (err) {
-                      console.error('Failed to generate off-market order number:', err);
+                      console.error('Failed to preview off-market order number:', err);
                     } finally {
                       setIsGeneratingOrderNumber(false);
                     }

@@ -507,7 +507,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     }
     
     // Validation
-    if (!formData.order_number.trim()) {
+    // For off-market orders, order number will be generated at creation time
+    if (!isOffMarket && !formData.order_number.trim()) {
       toast({
         title: "Error",
         description: "Order number is mandatory.",
@@ -554,7 +555,40 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
       return;
     }
 
-    createPurchaseOrderMutation.mutate(formData);
+    // For off-market orders, generate the actual order number at submission (consuming the sequence)
+    const submitOrder = async () => {
+      let orderNumber = formData.order_number;
+      
+      if (isOffMarket) {
+        try {
+          const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+          if (error || !offMarketNumber) {
+            toast({
+              title: "Error",
+              description: "Failed to generate off-market order number",
+              variant: "destructive"
+            });
+            return;
+          }
+          orderNumber = offMarketNumber;
+        } catch (err) {
+          console.error('Failed to generate off-market order number:', err);
+          toast({
+            title: "Error",
+            description: "Failed to generate off-market order number",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+      
+      createPurchaseOrderMutation.mutate({
+        ...formData,
+        order_number: orderNumber
+      });
+    };
+    
+    submitOrder();
   };
 
   return (
@@ -742,15 +776,15 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
                   onCheckedChange={async (checked) => {
                     setIsOffMarket(checked);
                     if (checked) {
-                      // Generate off-market order number
+                      // Preview off-market order number (without consuming sequence)
                       setIsGeneratingOrderNumber(true);
                       try {
-                        const { data, error } = await supabase.rpc('generate_off_market_purchase_order_number');
+                        const { data, error } = await supabase.rpc('preview_off_market_purchase_order_number');
                         if (!error && data) {
                           setFormData(prev => ({ ...prev, order_number: data }));
                         }
                       } catch (err) {
-                        console.error('Failed to generate off-market order number:', err);
+                        console.error('Failed to preview off-market order number:', err);
                       } finally {
                         setIsGeneratingOrderNumber(false);
                       }

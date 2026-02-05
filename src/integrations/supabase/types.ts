@@ -4874,6 +4874,29 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_transactions_with_closing_balance: {
+        Args: {
+          p_bank_account_id?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          account_name: string
+          amount: number
+          bank_account_id: string
+          bank_name: string
+          category: string
+          closing_balance: number
+          created_at: string
+          description: string
+          id: string
+          reference_number: string
+          related_account_name: string
+          total_count: number
+          transaction_date: string
+          transaction_type: string
+        }[]
+      }
       get_user_permissions:
         | {
             Args: { user_uuid: string }

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -18,7 +19,10 @@ import {
   DollarSign,
   BarChart3,
   PieChart,
-  Activity
+  Activity,
+  ChevronLeft,
+  ChevronRight,
+  Filter
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,10 +53,11 @@ interface SystemTotals {
   last_account_updated: string;
 }
 
-interface TransactionData {
+interface TransactionWithBalance {
   id: string;
   transaction_date: string;
   created_at: string;
+  bank_account_id: string;
   account_name: string;
   bank_name: string;
   transaction_type: string;
@@ -61,6 +66,14 @@ interface TransactionData {
   category: string;
   reference_number: string;
   related_account_name: string;
+  closing_balance: number;
+  total_count: number;
+}
+
+interface BankAccountOption {
+  id: string;
+  account_name: string;
+  bank_name: string;
 }
 
 interface CaseData {
@@ -79,6 +92,9 @@ interface CaseData {
 
 export function AccountSummary() {
   const [activeReportTab, setActiveReportTab] = useState("overview");
+  const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
+  const [transactionPage, setTransactionPage] = useState(0);
+  const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch account summary data directly from bank_accounts table (not computed view)
@@ -177,34 +193,35 @@ export function AccountSummary() {
     },
   });
 
-  // Fetch recent transactions
-  const { data: transactionsData } = useQuery({
-    queryKey: ['recent-transactions'],
+  // Fetch bank accounts for filter dropdown
+  const { data: bankAccountOptions } = useQuery({
+    queryKey: ['bank-accounts-filter'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('bank_transactions')
-        .select(`
-          id,
-          transaction_date,
-          created_at,
-          transaction_type,
-          amount,
-          description,
-          category,
-          reference_number,
-          related_account_name,
-          bank_accounts!bank_account_id(account_name, bank_name)
-        `)
-        .order('transaction_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .from('bank_accounts')
+        .select('id, account_name, bank_name')
+        .eq('status', 'ACTIVE')
+        .order('account_name');
       
       if (error) throw error;
-      return data.map(t => ({
-        ...t,
-        account_name: t.bank_accounts?.account_name,
-        bank_name: t.bank_accounts?.bank_name
-      })) as TransactionData[];
+      return data as BankAccountOption[];
+    },
+  });
+
+  // Fetch transactions with closing balance using RPC
+  const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
+    queryKey: ['transactions-with-balance', selectedBankFilter, transactionPage],
+    queryFn: async () => {
+      const bankAccountId = selectedBankFilter === 'all' ? null : selectedBankFilter;
+      
+      const { data, error } = await supabase.rpc('get_transactions_with_closing_balance', {
+        p_bank_account_id: bankAccountId,
+        p_limit: TRANSACTIONS_PER_PAGE,
+        p_offset: transactionPage * TRANSACTIONS_PER_PAGE
+      });
+      
+      if (error) throw error;
+      return data as TransactionWithBalance[];
     },
   });
 
@@ -541,51 +558,152 @@ export function AccountSummary() {
         <TabsContent value="transactions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Transactions (Last 10)</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Transaction History
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {transactionsData?.[0]?.total_count 
+                      ? `${transactionsData[0].total_count.toLocaleString()} total transactions`
+                      : 'Loading...'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Select 
+                    value={selectedBankFilter} 
+                    onValueChange={(value) => {
+                      setSelectedBankFilter(value);
+                      setTransactionPage(0); // Reset to first page when filter changes
+                    }}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Select Bank Account" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100]">
+                      <SelectItem value="all">All Bank Accounts</SelectItem>
+                      {bankAccountOptions?.map((account) => (
+                        <SelectItem key={account.id} value={account.id}>
+                          {account.account_name} ({account.bank_name})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Date</th>
-                      <th className="text-left p-2">Account</th>
-                      <th className="text-left p-2">Type</th>
-                      <th className="text-left p-2">Amount</th>
-                      <th className="text-left p-2">Description</th>
-                      <th className="text-left p-2">Reference</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactionsData?.map((transaction) => (
-                      <tr key={transaction.id} className="border-b hover:bg-gray-50">
-                        <td className="p-2">{format(new Date(transaction.transaction_date), 'dd MMM yyyy')}</td>
-                        <td className="p-2">
-                          <div>
-                            <div className="font-medium">{transaction.account_name}</div>
-                            <div className="text-xs text-gray-500">{transaction.bank_name}</div>
-                          </div>
-                        </td>
-                        <td className="p-2">
-                          <Badge 
-                            variant={transaction.transaction_type === 'INCOME' ? 'default' : 'secondary'}
-                            className={transaction.transaction_type === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}
-                          >
-                            {transaction.transaction_type}
-                          </Badge>
-                        </td>
-                        <td className="p-2 font-mono font-semibold">
-                          <span className={transaction.transaction_type === 'INCOME' ? 'text-green-600' : 'text-red-600'}>
-                            {transaction.transaction_type === 'INCOME' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                          </span>
-                        </td>
-                        <td className="p-2 max-w-xs truncate">{transaction.description}</td>
-                        <td className="p-2 font-mono text-xs">{transaction.reference_number}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {transactionsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Activity className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Loading transactions...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left p-3 font-semibold">Date & Time</th>
+                          <th className="text-left p-3 font-semibold">Account</th>
+                          <th className="text-left p-3 font-semibold">Type</th>
+                          <th className="text-right p-3 font-semibold">Amount</th>
+                          <th className="text-right p-3 font-semibold">Closing Balance</th>
+                          <th className="text-left p-3 font-semibold">Description</th>
+                          <th className="text-left p-3 font-semibold">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactionsData?.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                              No transactions found for the selected filter.
+                            </td>
+                          </tr>
+                        ) : (
+                          transactionsData?.map((transaction) => (
+                            <tr key={transaction.id} className="border-b hover:bg-muted/30 transition-colors">
+                              <td className="p-3">
+                                <div className="font-medium">{format(new Date(transaction.transaction_date), 'dd MMM yyyy')}</div>
+                                <div className="text-xs text-muted-foreground">{format(new Date(transaction.created_at), 'HH:mm:ss')}</div>
+                              </td>
+                              <td className="p-3">
+                                <div className="font-medium">{transaction.account_name}</div>
+                                <div className="text-xs text-muted-foreground">{transaction.bank_name}</div>
+                              </td>
+                              <td className="p-3">
+                                <Badge 
+                                  variant={transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' ? 'default' : 'secondary'}
+                                  className={
+                                    transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT'
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                  }
+                                >
+                                  {transaction.transaction_type}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-right font-mono font-semibold">
+                                <span className={
+                                  transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' 
+                                    ? 'text-green-600 dark:text-green-400' 
+                                    : 'text-red-600 dark:text-red-400'
+                                }>
+                                  {transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' ? '+' : '-'}
+                                  {formatCurrency(transaction.amount)}
+                                </span>
+                              </td>
+                              <td className="p-3 text-right font-mono font-semibold text-foreground">
+                                {formatCurrency(transaction.closing_balance)}
+                              </td>
+                              <td className="p-3 max-w-[200px] truncate" title={transaction.description || ''}>
+                                {transaction.description || '-'}
+                              </td>
+                              <td className="p-3 font-mono text-xs text-muted-foreground">
+                                {transaction.reference_number || '-'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {transactionsData && transactionsData[0]?.total_count > 0 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsData[0]?.total_count || 0)} of {transactionsData[0]?.total_count.toLocaleString()}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTransactionPage(prev => Math.max(0, prev - 1))}
+                          disabled={transactionPage === 0}
+                        >
+                          <ChevronLeft className="h-4 w-4 mr-1" />
+                          Previous
+                        </Button>
+                        <span className="text-sm px-2">
+                          Page {transactionPage + 1} of {Math.ceil((transactionsData[0]?.total_count || 1) / TRANSACTIONS_PER_PAGE)}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTransactionPage(prev => prev + 1)}
+                          disabled={(transactionPage + 1) * TRANSACTIONS_PER_PAGE >= (transactionsData[0]?.total_count || 0)}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

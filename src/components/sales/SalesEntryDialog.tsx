@@ -689,40 +689,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Platform Fees (USDT)</Label>
-              <Input
-                type="number"
-                value={isOffMarket ? '0' : (formData.platform_fees || calculatedFee.toFixed(4))}
-                onChange={(e) => handleInputChange('platform_fees', e.target.value)}
-                min="0"
-                step="0.01"
-                placeholder="Platform fees"
-                disabled={isOffMarket}
-              />
-              <div className="text-xs text-muted-foreground mt-1">
-                {isOffMarket ? 'Off Market - No fees applied' : 'Auto-calculated based on wallet fee percentage'}
-              </div>
-            </div>
-
-            <div>
-              <Label>Total Amount</Label>
-              <Input
-                type="number"
-                value={formData.total_amount || ''}
-                onChange={(e) => handleInputChange('total_amount', e.target.value)}
-                step="0.01"
-                placeholder="Enter total amount"
-              />
-              {formData.platform_fees && parseFloat(formData.platform_fees) > 0 && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  Net Quantity Received: {parseFloat(formData.quantity || '0').toFixed(2)} USDT
-                  <br />
-                  Total Deducted: {(parseFloat(formData.quantity || '0') + parseFloat(formData.platform_fees || '0')).toFixed(2)} USDT
-                </div>
-              )}
-            </div>
-
-            <div>
               <Label>Payment Method</Label>
               <Select
                 value={formData.sales_payment_method_id}

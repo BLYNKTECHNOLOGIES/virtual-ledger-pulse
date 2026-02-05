@@ -2880,6 +2880,55 @@ export type Database = {
           },
         ]
       }
+      purchase_order_payment_splits: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          purchase_order_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          purchase_order_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          purchase_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_payment_splits_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchase_order_payments: {
         Row: {
           amount_paid: number
@@ -4799,6 +4848,27 @@ export type Database = {
           p_unit_price: number
         }
         Returns: string
+      }
+      create_manual_purchase_with_split_payments: {
+        Args: {
+          p_contact_number?: string
+          p_created_by?: string
+          p_credit_wallet_id?: string
+          p_description?: string
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_order_date: string
+          p_order_number: string
+          p_pan_number?: string
+          p_payment_splits?: Json
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_tds_option?: string
+          p_total_amount: number
+          p_unit_price: number
+        }
+        Returns: Json
       }
       create_manual_purchase_working: {
         Args: {

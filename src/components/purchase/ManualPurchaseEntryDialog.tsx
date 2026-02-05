@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingCart, Wallet, Info, Loader2 } from "lucide-react";
+import { ShoppingCart, Wallet, Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SupplierAutocomplete } from "./SupplierAutocomplete";
 import { createSellerClient } from "@/utils/clientIdGenerator";
@@ -16,6 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { Checkbox } from "@/components/ui/checkbox";
+
+interface PaymentSplit {
+  bank_account_id: string;
+  amount: string;
+}
 
 interface ManualPurchaseEntryDialogProps {
   onSuccess?: () => void;
@@ -27,6 +33,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
+  const [isMultiplePayments, setIsMultiplePayments] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   const [selectedClientBankDetails, setSelectedClientBankDetails] = useState<{
     pan_card_number?: string | null;
     linked_bank_accounts?: Array<{
@@ -141,6 +149,42 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     return { feeAmount, netCredit };
   }, [formData.quantity, formData.fee_percentage, formData.is_off_market]);
 
+  // Calculate payment split allocation
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce((sum, s) => 
+      sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = tdsCalculation.netPayable - totalAllocated;
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, tdsCalculation.netPayable]);
+
+  // Helper functions for payment splits
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) => 
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
+  // Auto-fill first split amount when net payable changes (for single split convenience)
+  useEffect(() => {
+    if (isMultiplePayments && paymentSplits.length === 1 && tdsCalculation.netPayable > 0) {
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: tdsCalculation.netPayable.toFixed(2) }]);
+      }
+    }
+  }, [isMultiplePayments, tdsCalculation.netPayable]);
+
   // Auto-fill PAN when TDS option changes to 1% and existing client with PAN is selected
   useEffect(() => {
     if (
@@ -230,8 +274,35 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       if (!formData.quantity) missingFields.push('quantity');
       if (!formData.price_per_unit) missingFields.push('price_per_unit');
       if (!formData.product_id) missingFields.push('product_id');
-      if (!formData.deduction_bank_account_id) missingFields.push('deduction_bank_account_id');
       if (!formData.credit_wallet_id) missingFields.push('credit_wallet_id');
+      
+      // Validate bank account based on payment mode
+      if (isMultiplePayments) {
+        // Validate split payments
+        if (!splitAllocation.isValid) {
+          toast({
+            title: "Error",
+            description: `Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`,
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        // Check for duplicate banks
+        const bankIds = paymentSplits.map(s => s.bank_account_id);
+        const uniqueBankIds = new Set(bankIds);
+        if (uniqueBankIds.size !== bankIds.length) {
+          toast({
+            title: "Error",
+            description: "Each bank account can only be used once in split payments",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+      } else {
+        if (!formData.deduction_bank_account_id) missingFields.push('deduction_bank_account_id');
+      }
       
       if (missingFields.length > 0) {
         console.log('❌ Validation failed - missing required fields:', missingFields);
@@ -274,35 +345,76 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       // Get current user ID for created_by tracking
       const currentUserId = getCurrentUserId();
 
-      // Prepare RPC parameters
-      const rpcParams = {
-        p_order_number: orderNumber,
-        p_supplier_name: formData.supplier_name,
-        p_order_date: formData.order_date,
-        p_total_amount: totalAmount,
-        p_product_id: formData.product_id,
-        p_quantity: parseFloat(formData.quantity),
-        p_unit_price: parseFloat(formData.price_per_unit),
-        p_bank_account_id: formData.deduction_bank_account_id,
-        p_description: formData.description || '',
-        p_contact_number: formData.contact_number || undefined,
-        p_credit_wallet_id: formData.credit_wallet_id || undefined,
-        p_tds_option: formData.tds_option,
-        p_pan_number: formData.pan_number || undefined,
-        p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
-        p_is_off_market: formData.is_off_market,
-        p_created_by: currentUserId || undefined
-      };
-      
-      console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);
+      let result: Record<string, unknown>;
+      let functionError: Error | null = null;
 
-      // Call the enhanced function with TDS and fee support
-      const { data: result, error: functionError } = await supabase.rpc(
-        'create_manual_purchase_complete_v2',
-        rpcParams
-      );
+      if (isMultiplePayments && paymentSplits.length > 0) {
+        // Use split payments RPC
+        const splitPaymentsJson = paymentSplits.map(s => ({
+          bank_account_id: s.bank_account_id,
+          amount: parseFloat(s.amount)
+        }));
+
+        const rpcParams = {
+          p_order_number: orderNumber,
+          p_supplier_name: formData.supplier_name,
+          p_order_date: formData.order_date,
+          p_total_amount: totalAmount,
+          p_product_id: formData.product_id,
+          p_quantity: parseFloat(formData.quantity),
+          p_unit_price: parseFloat(formData.price_per_unit),
+          p_description: formData.description || '',
+          p_contact_number: formData.contact_number || undefined,
+          p_credit_wallet_id: formData.credit_wallet_id || undefined,
+          p_tds_option: formData.tds_option,
+          p_pan_number: formData.pan_number || undefined,
+          p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
+          p_is_off_market: formData.is_off_market,
+          p_created_by: currentUserId || undefined,
+          p_payment_splits: splitPaymentsJson
+        };
+        
+        console.log('📡 Calling RPC create_manual_purchase_with_split_payments with params:', rpcParams);
+
+        const { data, error } = await supabase.rpc(
+          'create_manual_purchase_with_split_payments',
+          rpcParams
+        );
+        result = data as Record<string, unknown>;
+        functionError = error;
+      } else {
+        // Use standard single-payment RPC
+        const rpcParams = {
+          p_order_number: orderNumber,
+          p_supplier_name: formData.supplier_name,
+          p_order_date: formData.order_date,
+          p_total_amount: totalAmount,
+          p_product_id: formData.product_id,
+          p_quantity: parseFloat(formData.quantity),
+          p_unit_price: parseFloat(formData.price_per_unit),
+          p_bank_account_id: formData.deduction_bank_account_id,
+          p_description: formData.description || '',
+          p_contact_number: formData.contact_number || undefined,
+          p_credit_wallet_id: formData.credit_wallet_id || undefined,
+          p_tds_option: formData.tds_option,
+          p_pan_number: formData.pan_number || undefined,
+          p_fee_percentage: formData.fee_percentage ? parseFloat(formData.fee_percentage) : undefined,
+          p_is_off_market: formData.is_off_market,
+          p_created_by: currentUserId || undefined
+        };
+        
+        console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);
+
+        const { data, error } = await supabase.rpc(
+          'create_manual_purchase_complete_v2',
+          rpcParams
+        );
+        result = data as Record<string, unknown>;
+        functionError = error;
+      }
 
       console.log('📡 RPC response:', { result, functionError });
+
 
       if (functionError) {
         throw functionError;
@@ -385,6 +497,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       if (feeCalculation.feeAmount > 0 && !formData.is_off_market) {
         successMessage += ` Platform fee of ${feeCalculation.feeAmount.toFixed(4)} USDT applied.`;
       }
+      if (isMultiplePayments && paymentSplits.length > 1) {
+        successMessage += ` Payment split across ${paymentSplits.length} bank accounts.`;
+      }
 
       toast({
         title: "Success",
@@ -412,6 +527,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       setSelectedClientId('');
       setIsNewClient(false);
       setSelectedClientBankDetails(null);
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
 
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -602,25 +719,160 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
-              <Select 
-                value={formData.deduction_bank_account_id} 
-                onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select bank account" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
-                  {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isMultiplePayments && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="multiple_payments"
+                      checked={isMultiplePayments}
+                      onCheckedChange={(checked) => {
+                        setIsMultiplePayments(checked === true);
+                        if (checked) {
+                          // Initialize first split with full amount if net payable is set
+                          if (tdsCalculation.netPayable > 0) {
+                            setPaymentSplits([{ 
+                              bank_account_id: formData.deduction_bank_account_id || '', 
+                              amount: tdsCalculation.netPayable.toFixed(2) 
+                            }]);
+                          }
+                        }
+                      }}
+                    />
+                    <Label htmlFor="multiple_payments" className="text-xs text-muted-foreground cursor-pointer">
+                      Multiple Banks
+                    </Label>
+                  </div>
+                </div>
+                <Select 
+                  value={formData.deduction_bank_account_id} 
+                  onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select bank account" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                    {bankAccounts?.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {isMultiplePayments && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Payment Distribution *</Label>
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      id="multiple_payments_toggle"
+                      checked={isMultiplePayments}
+                      onCheckedChange={(checked) => {
+                        setIsMultiplePayments(checked === true);
+                        if (!checked) {
+                          setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="multiple_payments_toggle" className="text-xs text-muted-foreground cursor-pointer">
+                      Multiple Banks
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Multiple Payments Section */}
+          {isMultiplePayments && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="pt-4 space-y-3">
+                {/* Validation Status */}
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    {splitAllocation.isValid ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                    <span className="text-muted-foreground">Net Payable:</span>
+                    <span className="font-semibold">₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <span className="text-muted-foreground">Allocated: </span>
+                      <span className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className={splitAllocation.isValid ? "text-green-600" : "text-destructive"}>
+                      <span>Remaining: </span>
+                      <span className="font-semibold">₹{splitAllocation.remaining.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Rows */}
+                <div className="space-y-2">
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={split.amount}
+                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                          placeholder="Amount"
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex-[2]">
+                        <Select 
+                          value={split.bank_account_id} 
+                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bank" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            {bankAccounts?.map((account) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removePaymentSplit(index)}
+                        disabled={paymentSplits.length === 1}
+                        className="shrink-0"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPaymentSplit}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Bank
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* TDS Section */}
           <Card className="border-amber-200 bg-amber-50/50">
@@ -785,10 +1037,34 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                       <span>-₹{tdsCalculation.tdsAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-semibold border-t pt-1 mt-1">
-                    <span>Bank Deduction:</span>
-                    <span className="text-destructive">-₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                  </div>
+                  
+                  {/* Bank Deductions - Split or Single */}
+                  {isMultiplePayments && paymentSplits.some(s => parseFloat(s.amount) > 0) ? (
+                    <>
+                      <div className="border-t pt-1 mt-1">
+                        <span className="text-muted-foreground">Bank Deductions:</span>
+                      </div>
+                      {paymentSplits.filter(s => parseFloat(s.amount) > 0).map((split, index) => {
+                        const bank = bankAccounts?.find(b => b.id === split.bank_account_id);
+                        return (
+                          <div key={index} className="flex justify-between pl-4 text-destructive">
+                            <span>• {bank?.account_name || 'Unknown Bank'}:</span>
+                            <span>-₹{parseFloat(split.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        );
+                      })}
+                      <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                        <span>Total Bank Deduction:</span>
+                        <span className="text-destructive">-₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between font-semibold border-t pt-1 mt-1">
+                      <span>Bank Deduction:</span>
+                      <span className="text-destructive">-₹{tdsCalculation.netPayable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  
                   {selectedProduct?.code === 'USDT' && (
                     <>
                       <div className="flex justify-between pt-2 border-t mt-2">

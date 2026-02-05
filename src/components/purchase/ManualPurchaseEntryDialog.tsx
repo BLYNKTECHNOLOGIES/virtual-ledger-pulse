@@ -463,8 +463,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
             </div>
           </div>
 
-          {/* Row 3: Total Amount, Price per Unit, Quantity - matching Sales order layout */}
-          <div className="grid grid-cols-4 gap-4">
+          {/* Row 3: Total Amount, Price per Unit, Quantity */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="total_amount">Total Amount (₹)</Label>
               <Input
@@ -502,7 +502,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 required
               />
             </div>
+          </div>
 
+          {/* Row 4: Wallet and Bank Account on same line */}
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="credit_wallet_id">Wallet *</Label>
               <Select 
@@ -525,26 +528,25 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Bank Account Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="deduction_bank_account_id">Deduct from Bank Account *</Label>
-            <Select 
-              value={formData.deduction_bank_account_id} 
-              onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select bank account for deduction" />
-              </SelectTrigger>
-              <SelectContent className="bg-white z-50">
-                {bankAccounts?.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.bank_name} - {account.account_name} (₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="deduction_bank_account_id">Bank Account *</Label>
+              <Select 
+                value={formData.deduction_bank_account_id} 
+                onValueChange={(value) => handleInputChange('deduction_bank_account_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select bank account" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.bank_name} - {account.account_name} (₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* TDS Section */}

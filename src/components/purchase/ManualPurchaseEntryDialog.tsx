@@ -160,22 +160,34 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Bidirectional auto-calculation for amounts
+      // Bidirectional auto-calculation for amounts:
+      // Priority: When editing a field, only recalculate the OTHER fields based on existing data.
+      // Never overwrite the field the user is currently typing in.
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
-        const qty = field === 'quantity' ? parseFloat(value as string) || 0 : parseFloat(updated.quantity) || 0;
-        const price = field === 'price_per_unit' ? parseFloat(value as string) || 0 : parseFloat(updated.price_per_unit) || 0;
-        const total = field === 'total_amount' ? parseFloat(value as string) || 0 : parseFloat(updated.total_amount) || 0;
-        
-        if (field === 'quantity' && price > 0) {
-          updated.total_amount = (qty * price).toFixed(2);
-        } else if (field === 'price_per_unit') {
-          if (qty > 0) {
-            updated.total_amount = (qty * price).toFixed(2);
-          } else if (total > 0 && price > 0) {
-            updated.quantity = (total / price).toFixed(4);
+        const newValue = parseFloat(value as string) || 0;
+        const existingQty = parseFloat(prev.quantity) || 0;
+        const existingPrice = parseFloat(prev.price_per_unit) || 0;
+        const existingTotal = parseFloat(prev.total_amount) || 0;
+
+        if (field === 'quantity') {
+          // User changed quantity: if price exists, calculate total
+          if (existingPrice > 0 && newValue > 0) {
+            updated.total_amount = (newValue * existingPrice).toFixed(2);
           }
-        } else if (field === 'total_amount' && price > 0) {
-          updated.quantity = (total / price).toFixed(4);
+        } else if (field === 'price_per_unit') {
+          // User changed price: 
+          // If total already exists, calculate quantity from total/price (preserve total, update qty)
+          // Else if quantity exists, calculate total from qty*price
+          if (existingTotal > 0 && newValue > 0) {
+            updated.quantity = (existingTotal / newValue).toFixed(4);
+          } else if (existingQty > 0 && newValue > 0) {
+            updated.total_amount = (existingQty * newValue).toFixed(2);
+          }
+        } else if (field === 'total_amount') {
+          // User changed total: if price exists, calculate quantity
+          if (existingPrice > 0 && newValue > 0) {
+            updated.quantity = (newValue / existingPrice).toFixed(4);
+          }
         }
       }
 

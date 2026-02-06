@@ -26,12 +26,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // For demo admin user, use hardcoded credentials
       if (email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
+        // Fetch real admin user ID from database to ensure FK references work
+        const { data: adminData } = await supabase
+          .from('users')
+          .select('id, username, first_name, last_name')
+          .eq('email', email.toLowerCase())
+          .single();
+
         const demoUser: User = {
-          id: 'demo-admin-id',
-          username: 'admin',
+          id: adminData?.id || 'demo-admin-id',
+          username: adminData?.username || 'admin',
           email: email.toLowerCase(),
-          firstName: 'Admin',
-          lastName: 'User',
+          firstName: adminData?.first_name || 'Admin',
+          lastName: adminData?.last_name || 'User',
           roles: ['admin', 'Admin']
         };
         

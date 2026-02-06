@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { SalesOrderDetailsDialog } from '@/components/sales/SalesOrderDetailsDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -55,6 +56,8 @@ interface ClientOnboardingApproval {
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewOrderData, setViewOrderData] = useState<any>(null);
+  const [viewOrderOpen, setViewOrderOpen] = useState(false);
   const [formData, setFormData] = useState({
     aadhar_number: '',
     address: '',
@@ -280,6 +283,24 @@ export function ClientOnboardingApprovals() {
     rejectClientMutation.mutate({ id, reason });
   };
 
+  const handleViewOrder = async (salesOrderId: string | undefined) => {
+    if (!salesOrderId) {
+      toast({ title: "No linked order", description: "This approval has no associated sales order", variant: "destructive" });
+      return;
+    }
+    const { data, error } = await supabase
+      .from('sales_orders')
+      .select('*')
+      .eq('id', salesOrderId)
+      .single();
+    if (error || !data) {
+      toast({ title: "Order not found", description: "Could not fetch the linked sales order", variant: "destructive" });
+      return;
+    }
+    setViewOrderData(data);
+    setViewOrderOpen(true);
+  };
+
   const resetForm = () => {
     setFormData({
       aadhar_number: '',
@@ -400,6 +421,14 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewOrder(approval.sales_order_id)}
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          View Order
+                        </Button>
                         <Button
                           size="sm"
                           onClick={() => handleApprovalClick(approval)}
@@ -609,6 +638,13 @@ export function ClientOnboardingApprovals() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* View Order Dialog */}
+      <SalesOrderDetailsDialog
+        open={viewOrderOpen}
+        onOpenChange={(open) => { if (!open) { setViewOrderOpen(false); setViewOrderData(null); } }}
+        order={viewOrderData}
+      />
     </div>
   );
 }

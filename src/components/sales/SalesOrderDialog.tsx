@@ -20,6 +20,7 @@ import { useUSDTRate, calculatePlatformFeeInUSDT } from "@/hooks/useUSDTRate";
 import { useAverageCost } from "@/hooks/useAverageCost";
 import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -32,7 +33,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const [showPaymentMethodAlert, setShowPaymentMethodAlert] = useState(false);
   
   const [formData, setFormData] = useState(() => {
-    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
     const lastDefaults = getLastOrderDefaults();
     return {
       order_number: "",
@@ -304,7 +304,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     },
     onSuccess: async (data) => {
       // Save last used defaults
-      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
       saveLastOrderDefaults({
         wallet_id: formData.wallet_id,
         product_id: formData.product_id,

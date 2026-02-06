@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
+import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
@@ -39,7 +40,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isNewClient, setIsNewClient] = useState(false);
 
   const [formData, setFormData] = useState(() => {
-    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
     const lastDefaults = getLastOrderDefaults();
     return {
       order_number: '',
@@ -321,7 +321,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       console.log('🎉 Sales order created successfully');
       
       // Save last used defaults for next order
-      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
       saveLastOrderDefaults({
         wallet_id: formData.wallet_id,
         product_id: formData.product_id,

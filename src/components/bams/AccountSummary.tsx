@@ -93,6 +93,7 @@ interface CaseData {
 export function AccountSummary() {
   const [activeReportTab, setActiveReportTab] = useState("overview");
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [transactionPage, setTransactionPage] = useState(0);
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
@@ -210,12 +211,14 @@ export function AccountSummary() {
 
   // Fetch transactions with closing balance using RPC
   const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions-with-balance', selectedBankFilter, transactionPage],
+    queryKey: ['transactions-with-balance', selectedBankFilter, selectedTypeFilter, transactionPage],
     queryFn: async () => {
       const bankAccountId = selectedBankFilter === 'all' ? null : selectedBankFilter;
+      const transactionType = selectedTypeFilter === 'all' ? null : selectedTypeFilter;
       
       const { data, error } = await supabase.rpc('get_transactions_with_closing_balance', {
         p_bank_account_id: bankAccountId,
+        p_transaction_type: transactionType,
         p_limit: TRANSACTIONS_PER_PAGE,
         p_offset: transactionPage * TRANSACTIONS_PER_PAGE
       });
@@ -570,13 +573,13 @@ export function AccountSummary() {
                       : 'Loading...'}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Filter className="h-4 w-4 text-muted-foreground" />
                   <Select 
                     value={selectedBankFilter} 
                     onValueChange={(value) => {
                       setSelectedBankFilter(value);
-                      setTransactionPage(0); // Reset to first page when filter changes
+                      setTransactionPage(0);
                     }}
                   >
                     <SelectTrigger className="w-[220px]">
@@ -589,6 +592,26 @@ export function AccountSummary() {
                           {account.account_name} ({account.bank_name})
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                  <Select 
+                    value={selectedTypeFilter} 
+                    onValueChange={(value) => {
+                      setSelectedTypeFilter(value);
+                      setTransactionPage(0);
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Transaction Type" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[100] bg-popover border shadow-md">
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="INCOME">Income</SelectItem>
+                      <SelectItem value="EXPENSE">Expense</SelectItem>
+                      <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
+                      <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
+                      <SelectItem value="CREDIT">Credit</SelectItem>
+                      <SelectItem value="DEBIT">Debit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -659,7 +682,9 @@ export function AccountSummary() {
                                 {formatCurrency(transaction.closing_balance)}
                               </td>
                               <td className="p-3 max-w-[200px] truncate" title={transaction.description || ''}>
-                                {transaction.description || '-'}
+                                {(transaction.transaction_type === 'TRANSFER_OUT' || transaction.transaction_type === 'TRANSFER_IN') && transaction.related_account_name
+                                  ? `${transaction.transaction_type === 'TRANSFER_OUT' ? 'Transfer to' : 'Transfer from'} ${transaction.related_account_name}`
+                                  : transaction.description || '-'}
                               </td>
                               <td className="p-3 font-mono text-xs text-muted-foreground">
                                 {transaction.reference_number || '-'}

@@ -442,7 +442,17 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
       return purchaseOrder;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Update existing client's phone/state from order data
+      if (selectedClientId && formData.contact_number) {
+        const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
+        await updateClientFromOrder({
+          clientId: selectedClientId,
+          phone: formData.contact_number,
+        });
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      }
+
       toast({
         title: "Purchase Order Created",
         description: "Purchase order has been created successfully.",

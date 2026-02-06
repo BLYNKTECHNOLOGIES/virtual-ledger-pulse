@@ -406,9 +406,15 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
            } else {
              console.log('✅ Onboarding approval request created');
            }
-         } else {
-           console.log('✅ Existing client found:', existingClient.name);
-         }
+          } else {
+            console.log('✅ Existing client found:', existingClient.name);
+            // Update client phone/state from order data
+            const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
+            await updateClientFromOrder({
+              clientId: existingClient.id,
+              phone: clientPhone,
+            });
+          }
        } catch (approvalCheckError) {
          console.error('Error checking for existing client:', approvalCheckError);
        }

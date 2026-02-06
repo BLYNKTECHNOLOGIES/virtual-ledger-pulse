@@ -328,6 +328,12 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
           }
         } else if (existingClient) {
           console.log('✅ Existing client found:', existingClient.name);
+          // Update client's phone/state from order data
+          const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
+          await updateClientFromOrder({
+            clientId: existingClient.id,
+            clientName: formData.client_name,
+          });
         }
       } catch (approvalCheckError) {
         console.error('Error checking for existing client:', approvalCheckError);

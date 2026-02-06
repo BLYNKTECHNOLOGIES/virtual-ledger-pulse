@@ -263,7 +263,12 @@ export function BankAccountManagement() {
   // Update bank account mutation
   const updateAccountMutation = useMutation({
     mutationFn: async (accountData: typeof formData & { id: string }) => {
-      const { error } = await supabase.from('bank_accounts').update({
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const isDormant = accountData.status === 'DORMANT';
+      const wasDormant = editingAccount?.status === 'DORMANT';
+      
+      const updatePayload: Record<string, any> = {
         account_name: accountData.account_name,
         bank_name: accountData.bank_name,
         account_number: accountData.account_number,
@@ -276,7 +281,20 @@ export function BankAccountManagement() {
         account_type: accountData.account_type,
         subsidiary_id: accountData.subsidiary_id || null,
         updated_at: new Date().toISOString()
-      }).eq('id', accountData.id);
+      };
+      
+      // Set dormant fields when marking as dormant
+      if (isDormant && !wasDormant) {
+        updatePayload.dormant_at = new Date().toISOString();
+        updatePayload.dormant_by = user?.id || null;
+      }
+      // Clear dormant fields when reactivating from dormant
+      if (!isDormant && wasDormant) {
+        updatePayload.dormant_at = null;
+        updatePayload.dormant_by = null;
+      }
+      
+      const { error } = await supabase.from('bank_accounts').update(updatePayload).eq('id', accountData.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -286,6 +304,8 @@ export function BankAccountManagement() {
       });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['pending_approval_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['dormant_bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
       resetForm();
       setIsAddDialogOpen(false);
       setEditingAccount(null);
@@ -343,7 +363,7 @@ export function BankAccountManagement() {
       branch: account.branch || "",
       balance: account.balance.toString(),
       lien_amount: (account.lien_amount || 0).toString(),
-      status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL",
+      status: account.status as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT",
       bank_account_holder_name: account.bank_account_holder_name || "",
       account_type: account.account_type || "SAVINGS",
       subsidiary_id: account.subsidiary_id || ""

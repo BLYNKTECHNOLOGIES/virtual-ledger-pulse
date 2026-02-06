@@ -349,16 +349,18 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      // Reset form with saved defaults pre-filled
+      const nextDefaults = getLastOrderDefaults();
       setFormData({
         order_number: '',
         client_name: '',
         client_phone: '',
         client_state: '',
-        product_id: '',
-        wallet_id: '',
+        product_id: nextDefaults.product_id || '',
+        wallet_id: nextDefaults.wallet_id || '',
         platform: '',
         quantity: '',
-        price_per_unit: '',
+        price_per_unit: nextDefaults.price_per_unit || '',
         total_amount: '',
         platform_fees: '',
         sales_payment_method_id: '',

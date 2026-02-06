@@ -120,9 +120,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const checkForceLogout = async (userId: string, sessionTimestamp: number): Promise<boolean> => {
+    try {
+      if (userId === 'demo-admin-id') return false;
+      const { data, error } = await supabase
+        .from('users')
+        .select('force_logout_at')
+        .eq('id', userId)
+        .single();
+      if (error || !data) return false;
+      if (data.force_logout_at) {
+        const forceLogoutTime = new Date(data.force_logout_at).getTime();
+        if (sessionTimestamp < forceLogoutTime) {
+          return true; // Session was created before password reset
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   const restoreSessionFromStorage = async () => {
     try {
-      // Check both localStorage methods
       const savedSession = localStorage.getItem('userSession');
       const isLoggedIn = localStorage.getItem('isLoggedIn');
       const userEmail = localStorage.getItem('userEmail');
@@ -132,6 +152,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const now = Date.now();
         
         if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
+          // Check if a password reset happened after this session was created
+          const shouldLogout = await checkForceLogout(sessionData.user?.id, sessionData.timestamp);
+          if (shouldLogout) {
+            localStorage.removeItem('userSession');
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userPermissions');
+            toast({
+              title: "Session Expired",
+              description: "Your password was recently reset. Please log in again.",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
           setUser(sessionData.user);
           setIsLoading(false);
           return;
@@ -152,7 +188,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           setUser(demoUser);
           
-          // Update to new format
           const sessionData = {
             user: demoUser,
             timestamp: Date.now(),

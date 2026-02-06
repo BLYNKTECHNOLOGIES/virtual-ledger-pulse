@@ -29,11 +29,38 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: async (transferOutId: string) => {
-      const { error } = await supabase.rpc('delete_contra_entry', {
-        p_transfer_out_id: transferOutId,
-      });
-      if (error) throw error;
+    mutationFn: async (transfer: any) => {
+      const transferOutId = transfer.id;
+
+      // Find the paired TRANSFER_IN via related_transaction_id
+      let transferInId = transfer.related_transaction_id;
+
+      if (!transferInId) {
+        // Check reverse linkage
+        const { data: linkedIn } = await supabase
+          .from('bank_transactions')
+          .select('id')
+          .eq('related_transaction_id', transferOutId)
+          .eq('transaction_type', 'TRANSFER_IN')
+          .maybeSingle();
+        transferInId = linkedIn?.id || null;
+      }
+
+      // Delete TRANSFER_IN first (trigger reverses destination balance)
+      if (transferInId) {
+        const { error: errIn } = await supabase
+          .from('bank_transactions')
+          .delete()
+          .eq('id', transferInId);
+        if (errIn) throw errIn;
+      }
+
+      // Delete TRANSFER_OUT (trigger reverses source balance)
+      const { error: errOut } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', transferOutId);
+      if (errOut) throw errOut;
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Contra entry deleted and bank balances reversed." });
@@ -42,6 +69,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['account_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
       setDeleteTarget(null);
     },
     onError: (error: any) => {
@@ -127,7 +155,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

@@ -5097,6 +5097,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      reverse_payment_gateway_settlement: {
+        Args: { p_settlement_id: string }
+        Returns: Json
+      }
       sync_existing_payment_methods_with_bank_status: {
         Args: never
         Returns: undefined

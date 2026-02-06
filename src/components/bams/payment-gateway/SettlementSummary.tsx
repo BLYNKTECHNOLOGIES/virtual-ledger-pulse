@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter, Eye, Undo2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SettlementReviewDialog } from "./SettlementReviewDialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Settlement {
   id: string;
@@ -61,7 +63,11 @@ export function SettlementSummary() {
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedSettlementBatch, setSelectedSettlementBatch] = useState("");
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+  const [selectedReverseSettlement, setSelectedReverseSettlement] = useState<Settlement | null>(null);
+  const [isReversing, setIsReversing] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     fetchSettlements();
@@ -151,10 +157,11 @@ export function SettlementSummary() {
   };
 
   const calculateStats = (settlementData: Settlement[]) => {
-    const totalSettled = settlementData.reduce((sum, s) => sum + s.net_amount, 0);
-    const totalTransactions = settlementData.reduce((sum, s) => sum + s.settlement_items.length, 0);
-    const totalMdrDeducted = settlementData.reduce((sum, s) => sum + s.mdr_amount, 0);
-    const averageSettlementAmount = settlementData.length > 0 ? totalSettled / settlementData.length : 0;
+    const activeSettlements = settlementData.filter(s => s.status !== 'REVERSED');
+    const totalSettled = activeSettlements.reduce((sum, s) => sum + s.net_amount, 0);
+    const totalTransactions = activeSettlements.reduce((sum, s) => sum + s.settlement_items.length, 0);
+    const totalMdrDeducted = activeSettlements.reduce((sum, s) => sum + s.mdr_amount, 0);
+    const averageSettlementAmount = activeSettlements.length > 0 ? totalSettled / activeSettlements.length : 0;
 
     setStats({
       totalSettled,
@@ -173,6 +180,46 @@ export function SettlementSummary() {
   const handleViewSettlement = (batchId: string) => {
     setSelectedSettlementBatch(batchId);
     setReviewDialogOpen(true);
+  };
+
+  const handleReverseClick = (settlement: Settlement) => {
+    setSelectedReverseSettlement(settlement);
+    setReverseDialogOpen(true);
+  };
+
+  const handleConfirmReverse = async () => {
+    if (!selectedReverseSettlement || isReversing) return;
+    setIsReversing(true);
+    try {
+      const { data, error } = await supabase.rpc('reverse_payment_gateway_settlement', {
+        p_settlement_id: selectedReverseSettlement.id,
+      });
+      if (error) throw error;
+      const result = data as any;
+      if (!result?.success) {
+        throw new Error(result?.error || 'Reversal failed');
+      }
+      toast({
+        title: "Settlement Reversed",
+        description: `₹${result.reversed_amount?.toLocaleString()} reversed. ${result.restored_count} order(s) moved back to pending settlements.`,
+      });
+      setReverseDialogOpen(false);
+      setSelectedReverseSettlement(null);
+      fetchSettlements();
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+      queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
+    } catch (error: any) {
+      console.error('Error reversing settlement:', error);
+      toast({
+        title: "Reversal Failed",
+        description: error.message || "Failed to reverse settlement",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReversing(false);
+    }
   };
 
   if (loading) {
@@ -350,20 +397,37 @@ export function SettlementSummary() {
                       {format(new Date(settlement.settlement_date), 'MMM dd, yyyy')}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="default" className="bg-green-100 text-green-800">
+                      <Badge variant="default" className={
+                        settlement.status === 'REVERSED'
+                          ? "bg-orange-100 text-orange-800"
+                          : "bg-green-100 text-green-800"
+                      }>
                         {settlement.status || 'COMPLETED'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleViewSettlement(settlement.settlement_batch_id)}
-                        className="flex items-center gap-2"
-                      >
-                        <Eye className="h-4 w-4" />
-                        Review
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleViewSettlement(settlement.settlement_batch_id)}
+                          className="flex items-center gap-2"
+                        >
+                          <Eye className="h-4 w-4" />
+                          Review
+                        </Button>
+                        {settlement.status !== 'REVERSED' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleReverseClick(settlement)}
+                            className="flex items-center gap-2 text-orange-600 border-orange-300 hover:bg-orange-50"
+                          >
+                            <Undo2 className="h-4 w-4" />
+                            Reverse
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -378,6 +442,66 @@ export function SettlementSummary() {
         onOpenChange={setReviewDialogOpen}
         settlementBatchId={selectedSettlementBatch}
       />
+
+      {/* Reverse Confirmation Dialog */}
+      <Dialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-orange-600">
+              <Undo2 className="h-5 w-5" />
+              Reverse Settlement
+            </DialogTitle>
+            <DialogDescription>
+              This will reverse the settlement and restore the transactions back to pending settlements.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedReverseSettlement && (
+            <div className="space-y-3 py-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Batch ID:</span>
+                <span className="font-medium">{selectedReverseSettlement.settlement_batch_id}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Bank Account:</span>
+                <span className="font-medium">{selectedReverseSettlement.bank_accounts.account_name}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Net Amount:</span>
+                <span className="font-medium text-green-600">₹{selectedReverseSettlement.net_amount.toLocaleString()}</span>
+              </div>
+              {selectedReverseSettlement.mdr_amount > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">MDR Expense to reverse:</span>
+                  <span className="font-medium text-red-600">₹{selectedReverseSettlement.mdr_amount.toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Orders:</span>
+                <span className="font-medium">{selectedReverseSettlement.settlement_items.length}</span>
+              </div>
+              <div className="bg-orange-50 border border-orange-200 rounded-md p-3 text-sm text-orange-800">
+                <strong>Warning:</strong> The bank balance will be debited by ₹{selectedReverseSettlement.net_amount.toLocaleString()}
+                {selectedReverseSettlement.mdr_amount > 0 && ` and MDR expense of ₹${selectedReverseSettlement.mdr_amount.toLocaleString()} will be reversed`}.
+                All associated orders will move back to Pending Settlements.
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setReverseDialogOpen(false)} disabled={isReversing}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReverse}
+              disabled={isReversing}
+              className="flex items-center gap-2"
+            >
+              {isReversing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+              Confirm Reversal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

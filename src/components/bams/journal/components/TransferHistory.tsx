@@ -46,6 +46,18 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
         transferInId = linkedIn?.id || null;
       }
 
+      // Clear related_transaction_id references to avoid FK conflicts
+      if (transferInId) {
+        await supabase
+          .from('bank_transactions')
+          .update({ related_transaction_id: null })
+          .eq('id', transferInId);
+      }
+      await supabase
+        .from('bank_transactions')
+        .update({ related_transaction_id: null })
+        .eq('id', transferOutId);
+
       // Delete TRANSFER_IN first (trigger reverses destination balance)
       if (transferInId) {
         const { error: errIn } = await supabase
@@ -155,7 +167,10 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteMutation.mutate(deleteTarget);
+              }}
               disabled={deleteMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >

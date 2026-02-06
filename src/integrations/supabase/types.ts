@@ -74,6 +74,27 @@ export type Database = {
           },
         ]
       }
+      asset_value_history: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot_date: string
+          total_asset_value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot_date: string
+          total_asset_value?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot_date?: string
+          total_asset_value?: number
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_name: string

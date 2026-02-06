@@ -615,10 +615,12 @@ export type Database = {
           current_month_used: number | null
           date_of_onboarding: string
           default_risk_level: string | null
+          deleted_at: string | null
           email: string | null
           first_order_value: number | null
           id: string
           is_buyer: boolean | null
+          is_deleted: boolean
           is_seller: boolean | null
           kyc_status: string
           linked_bank_accounts: Json | null
@@ -649,10 +651,12 @@ export type Database = {
           current_month_used?: number | null
           date_of_onboarding: string
           default_risk_level?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_order_value?: number | null
           id?: string
           is_buyer?: boolean | null
+          is_deleted?: boolean
           is_seller?: boolean | null
           kyc_status?: string
           linked_bank_accounts?: Json | null
@@ -683,10 +687,12 @@ export type Database = {
           current_month_used?: number | null
           date_of_onboarding?: string
           default_risk_level?: string | null
+          deleted_at?: string | null
           email?: string | null
           first_order_value?: number | null
           id?: string
           is_buyer?: boolean | null
+          is_deleted?: boolean
           is_seller?: boolean | null
           kyc_status?: string
           linked_bank_accounts?: Json | null

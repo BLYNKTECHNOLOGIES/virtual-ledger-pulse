@@ -66,10 +66,16 @@ export function SupplierAutocomplete({
       // Skip rejected sellers
       if (client.seller_approval_status === 'REJECTED') return false;
       
-      return matchesWordPrefix(debouncedValue, client.name) ||
-        client.name.toLowerCase().includes(debouncedValue.trim().toLowerCase()) ||
-        (client.phone && client.phone.includes(debouncedValue.trim())) ||
-        (client.pan_card_number && client.pan_card_number.toLowerCase().includes(debouncedValue.trim().toLowerCase()));
+      const searchTerm = debouncedValue.trim().toLowerCase();
+      
+      // Word-boundary prefix matching for names only
+      if (matchesWordPrefix(debouncedValue, client.name)) return true;
+      
+      // Phone and PAN use substring matching
+      if (client.phone && client.phone.includes(searchTerm)) return true;
+      if (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm)) return true;
+      
+      return false;
     });
     
     return prefixMatches;

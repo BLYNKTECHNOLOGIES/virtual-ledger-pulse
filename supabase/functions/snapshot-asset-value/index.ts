@@ -26,15 +26,14 @@ serve(async (req) => {
       (sum, a) => sum + Number(a.balance || 0), 0
     ) || 0;
 
-    // 2. Sum all POS / payment gateway balances (current_usage on active payment_gateway methods)
-    const { data: gateways } = await supabase
-      .from("sales_payment_methods")
-      .select("current_usage")
-      .eq("payment_gateway", true)
-      .eq("is_active", true);
+    // 2. POS / Payment gateway balances = pending settlements awaiting clearing
+    const { data: pendingSettlements } = await supabase
+      .from("pending_settlements")
+      .select("settlement_amount")
+      .eq("status", "PENDING");
 
-    const totalGatewayBalance = gateways?.reduce(
-      (sum, g) => sum + Number(g.current_usage || 0), 0
+    const totalGatewayBalance = pendingSettlements?.reduce(
+      (sum, p) => sum + Number(p.settlement_amount || 0), 0
     ) || 0;
 
     // 3. Stock valuation: total wallet units × weighted average purchase price

@@ -15,14 +15,13 @@ export function useTotalAssetValue() {
 
       const totalBank = banks?.reduce((s, a) => s + Number(a.balance || 0), 0) || 0;
 
-      // 2. POS / Payment gateway balances
-      const { data: gateways } = await supabase
-        .from("sales_payment_methods")
-        .select("current_usage")
-        .eq("payment_gateway", true)
-        .eq("is_active", true);
+      // 2. POS / Payment gateway balances = pending settlements awaiting clearing
+      const { data: pendingSettlements } = await supabase
+        .from("pending_settlements")
+        .select("settlement_amount")
+        .eq("status", "PENDING");
 
-      const totalGateway = gateways?.reduce((s, g) => s + Number(g.current_usage || 0), 0) || 0;
+      const totalGateway = pendingSettlements?.reduce((s, p) => s + Number(p.settlement_amount || 0), 0) || 0;
 
       // 3. Stock valuation: wallet units × weighted avg purchase price
       const { data: wallets } = await supabase

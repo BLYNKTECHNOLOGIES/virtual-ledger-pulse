@@ -550,17 +550,7 @@ export function ClientOnboardingApprovals() {
 
               {/* Compliance Form */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
-                  <Input
-                    id="aadhar_number"
-                    value={formData.aadhar_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, aadhar_number: e.target.value }))}
-                    placeholder="Enter 12-digit Aadhar number"
-                  />
-                </div>
-
-                <div>
+                <div className="col-span-2">
                   <Label htmlFor="proposed_monthly_limit">Monthly Transaction Limit (₹) *</Label>
                   <Input
                     id="proposed_monthly_limit"
@@ -570,16 +560,25 @@ export function ClientOnboardingApprovals() {
                     placeholder="Enter monthly limit"
                     required
                   />
-                </div>
-
-                <div className="col-span-2">
-                  <Label htmlFor="address">Complete Address</Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    placeholder="Enter complete address as per Aadhar"
-                  />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[
+                      { label: '₹50,000', value: '50000' },
+                      { label: '₹1 Lakh', value: '100000' },
+                      { label: '₹2 Lakh', value: '200000' },
+                      { label: '₹10 Lakh', value: '1000000' },
+                      { label: '₹1 Cr', value: '10000000' },
+                    ].map((opt) => (
+                      <Button
+                        key={opt.value}
+                        type="button"
+                        variant={formData.proposed_monthly_limit === opt.value ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setFormData(prev => ({ ...prev, proposed_monthly_limit: opt.value }))}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="col-span-2">

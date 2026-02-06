@@ -5,13 +5,12 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, Receipt, ExternalLink, ImageIcon, User } from "lucide-react";
+import { Download, Printer, Receipt, ExternalLink, ImageIcon, User, Building, Coins, SplitSquareHorizontal } from "lucide-react";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCard";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Coins } from "lucide-react";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -37,6 +36,35 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
       return data;
     },
     enabled: !!order?.created_by,
+  });
+
+  // Fetch bank account details for single payment
+  const { data: bankAccount } = useQuery({
+    queryKey: ['bank_account_detail', order?.bank_account_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('id, account_name, bank_name, account_number')
+        .eq('id', order.bank_account_id)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!order?.bank_account_id,
+  });
+
+  // Fetch split payment details
+  const { data: paymentSplits } = useQuery({
+    queryKey: ['payment_splits', order?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_order_payment_splits')
+        .select('id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name, account_number)')
+        .eq('purchase_order_id', order.id);
+      if (error) return null;
+      return data;
+    },
+    enabled: !!order?.id,
   });
 
   if (!order) return null;
@@ -185,6 +213,51 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               </div>
             </div>
           )}
+
+          {/* Payment Account Details */}
+          {(paymentSplits && paymentSplits.length > 0) ? (
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <SplitSquareHorizontal className="h-4 w-4" />
+                Payment Accounts (Split Payment)
+              </h3>
+              <div className="space-y-2">
+                {paymentSplits.map((split: any) => (
+                  <div key={split.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background">
+                    <div className="flex items-center gap-2">
+                      <Building className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{(split.bank_accounts as any)?.account_name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(split.bank_accounts as any)?.bank_name} - {(split.bank_accounts as any)?.account_number}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-mono font-medium">₹{Number(split.amount).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : bankAccount ? (
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Payment Account
+              </h3>
+              <div className="flex items-center justify-between p-2.5 rounded-md border bg-background">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">{bankAccount.account_name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {bankAccount.bank_name} - {bankAccount.account_number}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm font-mono font-medium">₹{Number(order.total_amount).toLocaleString()}</p>
+              </div>
+            </div>
+          ) : null}
 
           {order.description && (
             <div>

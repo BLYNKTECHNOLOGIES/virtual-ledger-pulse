@@ -47,22 +47,26 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    order_number: '',
-    supplier_name: '',
-    order_date: new Date().toISOString().split('T')[0],
-    description: '',
-    product_id: '',
-    quantity: '',
-    price_per_unit: '',
-    total_amount: '',
-    contact_number: '',
-    deduction_bank_account_id: '',
-    credit_wallet_id: '',
-    tds_option: 'none' as 'none' | '1%' | '20%',
-    pan_number: '',
-    fee_percentage: '',
-    is_off_market: false
+  const [formData, setFormData] = useState(() => {
+    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
+    const lastDefaults = getLastOrderDefaults();
+    return {
+      order_number: '',
+      supplier_name: '',
+      order_date: new Date().toISOString().split('T')[0],
+      description: '',
+      product_id: lastDefaults.product_id || '',
+      quantity: '',
+      price_per_unit: lastDefaults.price_per_unit || '',
+      total_amount: '',
+      contact_number: '',
+      deduction_bank_account_id: '',
+      credit_wallet_id: lastDefaults.wallet_id || '',
+      tds_option: 'none' as 'none' | '1%' | '20%',
+      pan_number: '',
+      fee_percentage: '',
+      is_off_market: false
+    };
   });
 
   // Fetch bank accounts
@@ -536,6 +540,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['tds-records'] });
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
+
+      // Save last used defaults
+      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
+      saveLastOrderDefaults({
+        wallet_id: formData.credit_wallet_id,
+        product_id: formData.product_id,
+        price_per_unit: formData.price_per_unit,
+      });
 
       setOpen(false);
       onSuccess?.();

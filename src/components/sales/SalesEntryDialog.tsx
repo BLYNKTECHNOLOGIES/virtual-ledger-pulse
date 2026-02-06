@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,22 +38,26 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
 
-  const [formData, setFormData] = useState({
-    order_number: '', // User must enter this manually
-    client_name: '',
-    client_phone: '',
-    client_state: '', // State field for client location
-    product_id: '',
-    wallet_id: '',
-    platform: '',
-    quantity: '',
-    price_per_unit: '',
-    total_amount: '',
-    platform_fees: '',
-    sales_payment_method_id: '',
-    payment_status: 'COMPLETED',
-    order_datetime: `${new Date().toISOString().slice(0, 16)}`,
-    description: ''
+  const [formData, setFormData] = useState(() => {
+    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
+    const lastDefaults = getLastOrderDefaults();
+    return {
+      order_number: '',
+      client_name: '',
+      client_phone: '',
+      client_state: '',
+      product_id: lastDefaults.product_id || '',
+      wallet_id: lastDefaults.wallet_id || '',
+      platform: '',
+      quantity: '',
+      price_per_unit: lastDefaults.price_per_unit || '',
+      total_amount: '',
+      platform_fees: '',
+      sales_payment_method_id: '',
+      payment_status: 'COMPLETED',
+      order_datetime: `${new Date().toISOString().slice(0, 16)}`,
+      description: ''
+    };
   });
 
   // Fetch products
@@ -315,6 +319,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
     onSuccess: (data) => {
       console.log('🎉 Sales order created successfully');
+      
+      // Save last used defaults for next order
+      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
+      saveLastOrderDefaults({
+        wallet_id: formData.wallet_id,
+        product_id: formData.product_id,
+        price_per_unit: formData.price_per_unit,
+      });
       
       // Close dialog first to ensure it always closes
       onOpenChange(false);

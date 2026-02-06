@@ -315,11 +315,13 @@ export function PendingSettlements() {
     const selectedBankAcc = bankAccounts.find(acc => acc.id === bankAccountId);
 
     // Use atomic RPC to prevent duplicate settlements
+    // Validate user id is a valid UUID before passing to RPC
+    const isValidUuid = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
     const { data, error } = await supabase.rpc('process_payment_gateway_settlement', {
       p_pending_settlement_ids: saleIds,
       p_bank_account_id: bankAccountId,
       p_mdr_amount: mdrDeduction,
-      p_created_by: user?.id || null,
+      p_created_by: isValidUuid ? user.id : null,
     });
 
     if (error) throw error;

@@ -124,6 +124,15 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     [wallets, formData.credit_wallet_id]
   );
 
+  // Auto-fill fee_percentage from wallet when pre-filled from defaults
+  useEffect(() => {
+    if (selectedWallet && !formData.fee_percentage) {
+      if (selectedWallet.is_fee_enabled && selectedWallet.fee_percentage) {
+        setFormData(prev => ({ ...prev, fee_percentage: selectedWallet.fee_percentage.toString() }));
+      }
+    }
+  }, [selectedWallet]);
+
   // Calculate TDS amount
   const tdsCalculation = useMemo(() => {
     const totalAmount = parseFloat(formData.total_amount) || 0;

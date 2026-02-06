@@ -50,14 +50,16 @@ export function StatisticsTab() {
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 
-      // Get previous period for comparison
-      const periodDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const prevStartDate = new Date(startDate);
-      prevStartDate.setDate(prevStartDate.getDate() - periodDays);
-      const prevEndDate = new Date(startDate);
-      prevEndDate.setDate(prevEndDate.getDate() - 1);
-      const prevStartStr = format(prevStartDate, 'yyyy-MM-dd');
-      const prevEndStr = format(prevEndDate, 'yyyy-MM-dd');
+      // Normalize dates for timestamp comparisons (clients use created_at timestamp)
+      const periodStart = startOfDay(startDate);
+      const periodEnd = endOfDay(endDate);
+
+      // Get previous period for comparison (equal-length preceding window)
+      const periodDays = Math.max(1, Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24)));
+      const prevPeriodEnd = new Date(periodStart.getTime() - 1); // 1ms before current period start
+      const prevPeriodStart = startOfDay(subDays(periodStart, periodDays));
+      const prevStartStr = format(prevPeriodStart, 'yyyy-MM-dd');
+      const prevEndStr = format(prevPeriodEnd, 'yyyy-MM-dd');
 
       // Fetch sales orders with client info
       const { data: salesOrders } = await supabase
@@ -90,16 +92,16 @@ export function StatisticsTab() {
         .from('clients')
         .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator');
 
-      // Clients created in this period (new clients)
+      // Clients created in this period (new clients) - use normalized timestamps
       const newClientsInPeriod = allClients?.filter(c => {
         const createdDate = new Date(c.created_at);
-        return createdDate >= startDate && createdDate <= endDate;
+        return createdDate >= periodStart && createdDate <= periodEnd;
       }) || [];
 
       // Clients from previous period
       const newClientsInPrevPeriod = allClients?.filter(c => {
         const createdDate = new Date(c.created_at);
-        return createdDate >= prevStartDate && createdDate <= prevEndDate;
+        return createdDate >= prevPeriodStart && createdDate <= prevPeriodEnd;
       }) || [];
 
       // Fetch leads
@@ -110,13 +112,13 @@ export function StatisticsTab() {
       // Leads in current period
       const leadsInPeriod = leads?.filter(l => {
         const createdDate = new Date(l.created_at);
-        return createdDate >= startDate && createdDate <= endDate;
+        return createdDate >= periodStart && createdDate <= periodEnd;
       }) || [];
 
       // Leads in previous period
       const leadsInPrevPeriod = leads?.filter(l => {
         const createdDate = new Date(l.created_at);
-        return createdDate >= prevStartDate && createdDate <= prevEndDate;
+        return createdDate >= prevPeriodStart && createdDate <= prevPeriodEnd;
       }) || [];
 
       // Fetch employees
@@ -132,7 +134,7 @@ export function StatisticsTab() {
       // Onboarding in period
       const onboardingInPeriod = onboardingApprovals?.filter(a => {
         const createdDate = new Date(a.created_at);
-        return createdDate >= startDate && createdDate <= endDate;
+        return createdDate >= periodStart && createdDate <= periodEnd;
       }) || [];
 
       // Fetch operating expenses

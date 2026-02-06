@@ -5051,6 +5051,15 @@ export type Database = {
       }
       preview_off_market_purchase_order_number: { Args: never; Returns: string }
       preview_off_market_sales_order_number: { Args: never; Returns: string }
+      process_payment_gateway_settlement: {
+        Args: {
+          p_bank_account_id: string
+          p_created_by?: string
+          p_mdr_amount?: number
+          p_pending_settlement_ids: string[]
+        }
+        Returns: Json
+      }
       process_platform_fee_deduction: {
         Args: {
           p_fee_amount: number

@@ -125,14 +125,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (userId === 'demo-admin-id') return false;
       const { data, error } = await supabase
         .from('users')
-        .select('force_logout_at')
+        .select('force_logout_at, status')
         .eq('id', userId)
         .single();
-      if (error || !data) return false;
+      
+      // If user not found (deleted), force logout
+      if (error || !data) return true;
+      
+      // If user is suspended/inactive, force logout
+      if (data.status === 'SUSPENDED' || data.status === 'INACTIVE') return true;
+      
+      // If force_logout_at is set and session is older, force logout
       if (data.force_logout_at) {
         const forceLogoutTime = new Date(data.force_logout_at).getTime();
         if (sessionTimestamp < forceLogoutTime) {
-          return true; // Session was created before password reset
+          return true;
         }
       }
       return false;
@@ -162,7 +169,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.removeItem('userPermissions');
             toast({
               title: "Session Expired",
-              description: "Your password was recently reset. Please log in again.",
+              description: "Your account has been updated or removed. Please log in again.",
               variant: "destructive",
             });
             setIsLoading(false);
@@ -343,10 +350,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Restore session on mount
   useEffect(() => {
     restoreSessionFromStorage();
   }, []);
 
+  // Periodic force-logout check (every 30 seconds)
+  useEffect(() => {
+    if (!user || user.id === 'demo-admin-id') return;
+    
+    const interval = setInterval(async () => {
+      const savedSession = localStorage.getItem('userSession');
+      if (!savedSession) return;
+      const sessionData = JSON.parse(savedSession);
+      const shouldLogout = await checkForceLogout(user.id, sessionData.timestamp);
+      if (shouldLogout) {
+        setUser(null);
+        localStorage.removeItem('userSession');
+        localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userPermissions');
+        toast({
+          title: "Session Expired",
+          description: "Your account has been updated or removed. Please log in again.",
+          variant: "destructive",
+        });
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Sync user to localStorage
   useEffect(() => {
     if (user) {
       const sessionData = {

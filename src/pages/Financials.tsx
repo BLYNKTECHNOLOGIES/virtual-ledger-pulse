@@ -33,6 +33,8 @@ import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { PlatformFeesSummary } from "@/components/financials/PlatformFeesSummary";
+import { TotalAssetValueWidget } from "@/components/financials/TotalAssetValueWidget";
+import { AssetValueHistoryTab } from "@/components/financials/AssetValueHistoryTab";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 
 export default function Financials() {
@@ -253,32 +255,8 @@ export default function Financials() {
           </Card>
         </ClickableCard>
 
-        {/* Net Cash Flow - Clickable to P&L */}
-        <ClickableCard to="/profit-loss">
-          <Card className="bg-indigo-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-indigo-100 text-sm font-medium">Net Cash Flow</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
-                    {financialData?.netCashFlow && financialData.netCashFlow >= 0 ? '+' : '-'}
-                    {formatCurrency(financialData?.netCashFlow || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    {(financialData?.netCashFlow || 0) >= 0 ? 
-                      <ArrowUpIcon className="h-4 w-4" /> : 
-                      <ArrowDownIcon className="h-4 w-4" />
-                    }
-                    <span className="text-sm font-medium">Click to view P&L →</span>
-                  </div>
-                </div>
-                <div className="bg-indigo-700 p-3 rounded-xl shadow-lg flex-shrink-0">
-                  <TrendingUp className="h-8 w-8" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </ClickableCard>
+        {/* Total Asset Value */}
+        <TotalAssetValueWidget />
 
         {/* Bank Balance - Clickable to BAMS */}
         <ClickableCard to="/bams">
@@ -306,7 +284,7 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6">
           <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
           <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <span className="hidden sm:inline">Bank Accounts</span>
@@ -320,6 +298,11 @@ export default function Financials() {
             <Percent className="h-3 w-3" />
             <span className="hidden sm:inline">Platform Fees</span>
             <span className="sm:hidden">Fees</span>
+          </TabsTrigger>
+          <TabsTrigger value="asset-history" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <TrendingUp className="h-3 w-3" />
+            <span className="hidden sm:inline">Asset Value History</span>
+            <span className="sm:hidden">Assets</span>
           </TabsTrigger>
           <TabsTrigger value="reports" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Reports</TabsTrigger>
         </TabsList>
@@ -527,6 +510,11 @@ export default function Financials() {
         {/* Platform Fees Tab */}
         <TabsContent value="platform-fees" className="space-y-6">
           <PlatformFeesSummary startDate={startDate} endDate={endDate} />
+        </TabsContent>
+
+        {/* Asset Value History Tab */}
+        <TabsContent value="asset-history" className="space-y-6">
+          <AssetValueHistoryTab />
         </TabsContent>
       </Tabs>
     </div>

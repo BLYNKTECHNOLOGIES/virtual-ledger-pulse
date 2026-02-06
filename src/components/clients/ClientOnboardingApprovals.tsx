@@ -63,7 +63,7 @@ export function ClientOnboardingApprovals() {
     address: '',
     purpose_of_buying: '',
     proposed_monthly_limit: '',
-    risk_assessment: 'MEDIUM',
+    risk_assessment: 'HIGH',
     compliance_notes: ''
   });
   
@@ -258,7 +258,7 @@ export function ClientOnboardingApprovals() {
       address: approval.address || '',
       purpose_of_buying: approval.purpose_of_buying || '',
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
-      risk_assessment: approval.risk_assessment || 'MEDIUM',
+      risk_assessment: approval.risk_assessment || 'HIGH',
       compliance_notes: approval.compliance_notes || ''
     });
     setDialogOpen(true);
@@ -307,7 +307,7 @@ export function ClientOnboardingApprovals() {
       address: '',
       purpose_of_buying: '',
       proposed_monthly_limit: '',
-      risk_assessment: 'MEDIUM',
+      risk_assessment: 'HIGH',
       compliance_notes: ''
     });
     setSelectedApproval(null);

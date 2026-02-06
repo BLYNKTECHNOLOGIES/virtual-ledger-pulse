@@ -31,23 +31,27 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const queryClient = useQueryClient();
   const [showPaymentMethodAlert, setShowPaymentMethodAlert] = useState(false);
   
-  const [formData, setFormData] = useState({
-    order_number: "",
-    client_name: "",
-    product_id: "",
-    wallet_id: "",
-    amount: 0,
-    quantity: "",
-    price_per_unit: "",
-    platform_fees: "",
-    order_date: new Date().toISOString().split('T')[0],
-    order_time: new Date().toTimeString().slice(0, 5), // HH:MM format
-    delivery_date: "",
-    payment_status: "PENDING",
-    sales_payment_method_id: "",
-    description: "",
-    cosmos_alert: false,
-    credits_applied: 0,
+  const [formData, setFormData] = useState(() => {
+    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
+    const lastDefaults = getLastOrderDefaults();
+    return {
+      order_number: "",
+      client_name: "",
+      product_id: lastDefaults.product_id || "",
+      wallet_id: lastDefaults.wallet_id || "",
+      amount: 0,
+      quantity: "",
+      price_per_unit: lastDefaults.price_per_unit || "",
+      platform_fees: "",
+      order_date: new Date().toISOString().split('T')[0],
+      order_time: new Date().toTimeString().slice(0, 5),
+      delivery_date: "",
+      payment_status: "PENDING",
+      sales_payment_method_id: "",
+      description: "",
+      cosmos_alert: false,
+      credits_applied: 0,
+    };
   });
   
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
@@ -299,6 +303,14 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       return data;
     },
     onSuccess: async (data) => {
+      // Save last used defaults
+      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
+      saveLastOrderDefaults({
+        wallet_id: formData.wallet_id,
+        product_id: formData.product_id,
+        price_per_unit: formData.price_per_unit,
+      });
+
       // Check if client already exists - if not, create onboarding approval request
       try {
         const { data: existingClient } = await supabase

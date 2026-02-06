@@ -65,7 +65,20 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
     is_safe_fund: false,
   });
 
-  const [productItems, setProductItems] = useState<ProductItem[]>([]);
+  const [productItems, setProductItems] = useState<ProductItem[]>(() => {
+    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
+    const lastDefaults = getLastOrderDefaults();
+    if (lastDefaults.product_id || lastDefaults.wallet_id) {
+      return [{
+        id: '1',
+        product_id: lastDefaults.product_id || '',
+        quantity: 0,
+        unit_price: parseFloat(lastDefaults.price_per_unit || '0') || 0,
+        warehouse_id: lastDefaults.wallet_id || '',
+      }];
+    }
+    return [];
+  });
 
   // Fetch live USDT/INR rate
   const { data: usdtRateData } = useUSDTRate();
@@ -451,6 +464,16 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           phone: formData.contact_number,
         });
         queryClient.invalidateQueries({ queryKey: ['clients'] });
+      }
+
+      // Save last used defaults
+      if (normalizedItems.length > 0) {
+        const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
+        saveLastOrderDefaults({
+          wallet_id: normalizedItems[0].warehouse_id,
+          product_id: normalizedItems[0].product_id,
+          price_per_unit: normalizedItems[0].unit_price?.toString(),
+        });
       }
 
       toast({

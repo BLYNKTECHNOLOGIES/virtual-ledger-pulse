@@ -21,6 +21,7 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrent
 import { useAuth } from "@/hooks/useAuth";
 import { BuyOrderStatus, PanType } from "@/lib/buy-order-types";
 import { setPanTypeInNotes } from "@/lib/pan-notes";
+import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 
 interface NewPurchaseOrderDialogProps {
   open: boolean;
@@ -66,7 +67,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>(() => {
-    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
     const lastDefaults = getLastOrderDefaults();
     if (lastDefaults.product_id || lastDefaults.wallet_id) {
       return [{
@@ -468,7 +468,6 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
 
       // Save last used defaults
       if (normalizedItems.length > 0) {
-        const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
         saveLastOrderDefaults({
           wallet_id: normalizedItems[0].warehouse_id,
           product_id: normalizedItems[0].product_id,

@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { Checkbox } from "@/components/ui/checkbox";
+import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -48,7 +49,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState(() => {
-    const { getLastOrderDefaults } = require('@/utils/orderDefaults');
     const lastDefaults = getLastOrderDefaults();
     return {
       order_number: '',
@@ -542,7 +542,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
 
       // Save last used defaults
-      const { saveLastOrderDefaults } = require('@/utils/orderDefaults');
       saveLastOrderDefaults({
         wallet_id: formData.credit_wallet_id,
         product_id: formData.product_id,

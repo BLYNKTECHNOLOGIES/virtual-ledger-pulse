@@ -4415,6 +4415,7 @@ export type Database = {
           email_verified: boolean | null
           failed_login_attempts: number | null
           first_name: string | null
+          force_logout_at: string | null
           id: string
           is_payer: boolean
           is_purchase_creator: boolean
@@ -4436,6 +4437,7 @@ export type Database = {
           email_verified?: boolean | null
           failed_login_attempts?: number | null
           first_name?: string | null
+          force_logout_at?: string | null
           id?: string
           is_payer?: boolean
           is_purchase_creator?: boolean
@@ -4457,6 +4459,7 @@ export type Database = {
           email_verified?: boolean | null
           failed_login_attempts?: number | null
           first_name?: string | null
+          force_logout_at?: string | null
           id?: string
           is_payer?: boolean
           is_purchase_creator?: boolean

@@ -56,20 +56,21 @@ export function SupplierAutocomplete({
     },
   });
 
-  // Filter clients based on input
+  // Filter clients based on input - exclude deleted and rejected clients
   const filteredClients = useMemo(() => {
     if (!clients || !debouncedValue.trim()) return [];
     
-    // Use word-prefix matching for suggestions
-    const prefixMatches = clients.filter(client => 
-      matchesWordPrefix(debouncedValue, client.name) ||
-      // Also include partial/fuzzy matches by checking if input is contained anywhere
-      client.name.toLowerCase().includes(debouncedValue.trim().toLowerCase()) ||
-      // Match by phone number
-      (client.phone && client.phone.includes(debouncedValue.trim())) ||
-      // Match by PAN
-      (client.pan_card_number && client.pan_card_number.toLowerCase().includes(debouncedValue.trim().toLowerCase()))
-    );
+    const prefixMatches = clients.filter(client => {
+      // Skip deleted clients
+      if ((client as any).is_deleted) return false;
+      // Skip rejected sellers
+      if (client.seller_approval_status === 'REJECTED') return false;
+      
+      return matchesWordPrefix(debouncedValue, client.name) ||
+        client.name.toLowerCase().includes(debouncedValue.trim().toLowerCase()) ||
+        (client.phone && client.phone.includes(debouncedValue.trim())) ||
+        (client.pan_card_number && client.pan_card_number.toLowerCase().includes(debouncedValue.trim().toLowerCase()));
+    });
     
     return prefixMatches;
   }, [clients, debouncedValue]);

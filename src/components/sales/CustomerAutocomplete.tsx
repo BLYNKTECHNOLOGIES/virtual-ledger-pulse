@@ -55,14 +55,20 @@ export function CustomerAutocomplete({
   });
 
   // Filter clients based on input - search by name, phone, or PAN
+  // Exclude deleted clients and rejected buyers
   const filteredClients = useMemo(() => {
     if (!clients || !debouncedValue.trim()) return [];
     const searchTerm = debouncedValue.toLowerCase().trim();
-    return clients.filter(client => 
-      matchesWordPrefix(searchTerm, client.name) ||
-      (client.phone && client.phone.includes(searchTerm)) ||
-      (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm))
-    );
+    return clients.filter(client => {
+      // Skip deleted clients
+      if ((client as any).is_deleted) return false;
+      // Skip rejected buyers
+      if (client.buyer_approval_status === 'REJECTED') return false;
+      
+      return matchesWordPrefix(searchTerm, client.name) ||
+        (client.phone && client.phone.includes(searchTerm)) ||
+        (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm));
+    });
   }, [clients, debouncedValue]);
 
   // Check for exact match

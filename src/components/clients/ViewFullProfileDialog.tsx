@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Calendar, Phone, Mail, MapPin, CreditCard, FileText, TrendingUp, Pencil, Check, X } from "lucide-react";
+import { User, Calendar, Phone, Mail, MapPin, CreditCard, FileText, TrendingUp, Pencil, Check, X, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +25,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState({
     phone: "",
     email: "",
@@ -349,6 +351,53 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               </CardContent>
             </Card>
           )}
+
+          {/* Delete Client */}
+          <div className="border-t pt-4">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full" disabled={isDeleting}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {isDeleting ? "Deleting..." : "Delete Client"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Client</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete <strong>{client.name}</strong>? This client will no longer appear in order creation suggestions. This action cannot be undone easily.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={async () => {
+                      setIsDeleting(true);
+                      try {
+                        const { error } = await supabase
+                          .from("clients")
+                          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+                          .eq("id", client.id);
+                        if (error) throw error;
+                        toast({ title: "Client Deleted", description: `${client.name} has been deleted successfully.` });
+                        queryClient.invalidateQueries({ queryKey: ["clients"] });
+                        queryClient.invalidateQueries({ queryKey: ["client", client.id] });
+                        onOpenChange(false);
+                      } catch (error) {
+                        console.error("Error deleting client:", error);
+                        toast({ title: "Error", description: "Failed to delete client.", variant: "destructive" });
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

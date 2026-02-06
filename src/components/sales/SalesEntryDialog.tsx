@@ -301,6 +301,14 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       } else {
         console.log('✅ Existing client found:', existingClient.name);
+        // Update client's phone/state if provided in the order
+        const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
+        await updateClientFromOrder({
+          clientId: existingClient.id,
+          phone: data.client_phone,
+          state: data.client_state,
+          panNumber: data.pan_number,
+        });
       }
 
       return result;
@@ -329,6 +337,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       setFormData({
         order_number: '',
         client_name: '',

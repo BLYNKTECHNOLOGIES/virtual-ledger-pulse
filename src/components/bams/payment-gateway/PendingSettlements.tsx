@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,7 @@ export function PendingSettlements() {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
+  const settleInProgressRef = useRef(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -263,142 +264,34 @@ export function PendingSettlements() {
   };
 
   const settleTransactions = async (saleIds: string[], bankAccountId: string, mdrDeduction: number = 0) => {
-    const totalAmount = saleIds.reduce((sum, saleId) => {
-      const sale = pendingSales.find(s => s.id === saleId);
-      return sum + (sale?.total_amount || 0);
-    }, 0);
-    const settlementAmount = totalAmount - mdrDeduction;
     const selectedBankAcc = bankAccounts.find(acc => acc.id === bankAccountId);
-    const settlementBatchId = `PGS-${Date.now()}`;
 
-    // Create settlement record
-    const { data: settlement, error: settlementError } = await supabase
-      .from('payment_gateway_settlements')
-      .insert({
-        settlement_batch_id: settlementBatchId,
-        bank_account_id: bankAccountId,
-        total_amount: totalAmount,
-        mdr_amount: mdrDeduction,
-        net_amount: settlementAmount,
-        mdr_rate: totalAmount > 0 ? (mdrDeduction / totalAmount) * 100 : 0,
-        settlement_date: new Date().toISOString().split('T')[0]
-      })
-      .select()
-      .single();
-
-    if (settlementError) throw settlementError;
-
-    // Create settlement items
-    const settlementItems = saleIds.map(settlementId => {
-      const pendingSettlement = pendingSales.find(s => s.id === settlementId);
-      return {
-        settlement_id: settlement.id,
-        sales_order_id: pendingSettlement?.sales_order_id,
-        amount: pendingSettlement?.total_amount || 0
-      };
+    // Use atomic RPC to prevent duplicate settlements
+    const { data, error } = await supabase.rpc('process_payment_gateway_settlement', {
+      p_pending_settlement_ids: saleIds,
+      p_bank_account_id: bankAccountId,
+      p_mdr_amount: mdrDeduction,
+      p_created_by: user?.id || null,
     });
 
-    const { error: itemsError } = await supabase
-      .from('payment_gateway_settlement_items')
-      .insert(settlementItems);
+    if (error) throw error;
 
-    if (itemsError) throw itemsError;
-
-    // Create bank transaction for settlement (credit to bank account - NET amount)
-    const { error: transactionError } = await supabase
-      .from('bank_transactions')
-      .insert({
-        bank_account_id: bankAccountId,
-        transaction_type: 'INCOME',
-        amount: settlementAmount,
-        description: `Payment Gateway Settlement - ${saleIds.length} sale(s)${mdrDeduction > 0 ? ` (Net after MDR: ₹${mdrDeduction.toFixed(2)})` : ''}`,
-        transaction_date: new Date().toISOString().split('T')[0],
-        category: 'Settlement',
-        reference_number: settlementBatchId,
-        created_by: user?.id || null,
-      });
-
-    if (transactionError) throw transactionError;
-
-    // AUTO-CREATE EXPENSE ENTRY for MDR/Payment Gateway Fees if deducted
-    if (mdrDeduction > 0) {
-      const { error: mdrExpenseError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: bankAccountId,
-          transaction_type: 'EXPENSE',
-          amount: mdrDeduction,
-          description: `MDR / Payment Gateway Fees - Settlement ${settlementBatchId} (${saleIds.length} transactions)`,
-          transaction_date: new Date().toISOString().split('T')[0],
-          category: 'MDR / payment gateway fees', // Fixed category from expense categories
-          reference_number: `MDR-${settlementBatchId}`,
-          created_by: user?.id || null,
-        });
-
-      if (mdrExpenseError) {
-        console.error('Failed to create MDR expense entry:', mdrExpenseError);
-        // Don't throw - settlement already completed, just log the error
-      }
+    const result = data as any;
+    if (!result?.success) {
+      throw new Error(result?.error || 'Settlement failed');
     }
 
-    // Update pending settlements status
-    const successfullySettledIds: string[] = [];
-    for (const settlementId of saleIds) {
-      const { data: updatedSettlement, error: updateError } = await supabase
-        .from('pending_settlements')
-        .update({
-          status: 'SETTLED',
-          settlement_batch_id: settlementBatchId,
-          settled_at: new Date().toISOString(),
-          actual_settlement_date: new Date().toISOString().split('T')[0]
-        })
-        .eq('id', settlementId)
-        .select('id');
-
-      if (!updateError && updatedSettlement && updatedSettlement.length > 0) {
-        successfullySettledIds.push(settlementId);
-      }
-    }
-
-    // Reset payment method usage
-    const paymentMethodIds = [...new Set(successfullySettledIds.map(saleId => {
-      const sale = pendingSales.find(s => s.id === saleId);
-      return sale?.sales_payment_method?.id;
-    }).filter(Boolean))];
-
-    for (const methodId of paymentMethodIds) {
-      const settledAmount = successfullySettledIds.reduce((sum, saleId) => {
-        const sale = pendingSales.find(s => s.id === saleId);
-        return sale?.sales_payment_method?.id === methodId ? sum + (sale?.total_amount || 0) : sum;
-      }, 0);
-
-      const { data: currentMethod } = await supabase
-        .from('sales_payment_methods')
-        .select('current_usage')
-        .eq('id', methodId)
-        .single();
-
-      if (currentMethod) {
-        const newUsage = Math.max(0, (currentMethod.current_usage || 0) - settledAmount);
-        await supabase
-          .from('sales_payment_methods')
-          .update({ current_usage: newUsage })
-          .eq('id', methodId);
-      }
-    }
-
-    // Delete settled records
-    if (successfullySettledIds.length > 0) {
-      await supabase
-        .from('pending_settlements')
-        .delete()
-        .in('id', successfullySettledIds);
-    }
-
-    return { settlementAmount, successfullySettledIds, selectedBankAcc };
+    return {
+      settlementAmount: result.net_amount,
+      successfullySettledIds: saleIds,
+      selectedBankAcc,
+      batchId: result.settlement_batch_id,
+    };
   };
 
   const handleSettleIndividual = async (sale: PendingSale) => {
+    if (settleInProgressRef.current) return;
+    
     const bankAccountId = sale.bank_account_id || sale.sales_payment_method?.bank_account?.id;
     
     if (!bankAccountId) {
@@ -409,6 +302,8 @@ export function PendingSettlements() {
       });
       return;
     }
+
+    settleInProgressRef.current = true;
 
     setSettlingIndividualId(sale.id);
     
@@ -449,11 +344,13 @@ export function PendingSettlements() {
       });
     } finally {
       setSettlingIndividualId(null);
+      settleInProgressRef.current = false;
     }
   };
 
   const handleSettle = async () => {
-    if (isSettling) return;
+    if (isSettling || settleInProgressRef.current) return;
+    settleInProgressRef.current = true;
     
     if (selectedSales.length === 0) {
       toast({
@@ -520,6 +417,7 @@ export function PendingSettlements() {
       });
     } finally {
       setIsSettling(false);
+      settleInProgressRef.current = false;
     }
   };
 

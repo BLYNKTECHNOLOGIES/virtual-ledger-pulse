@@ -231,18 +231,66 @@ export function PendingSettlements() {
     
     if (allSelected) {
       setSelectedSales(prev => prev.filter(id => !groupSaleIds.includes(id)));
-      // Check if we need to clear bank account
       const remainingSelected = selectedSales.filter(id => !groupSaleIds.includes(id));
       if (remainingSelected.length === 0) {
         setSelectedBankAccount("");
       }
     } else {
       setSelectedSales(prev => [...new Set([...prev, ...groupSaleIds])]);
-      // Auto-select the bank account linked to the payment gateway
       if (gatewayGroup.settlementBankAccount) {
         setSelectedBankAccount(gatewayGroup.settlementBankAccount.id);
       }
     }
+  };
+
+  const handleSelectDateGroup = (sales: PendingSale[]) => {
+    const dateGroupIds = sales.map(s => s.id);
+    const allSelected = dateGroupIds.every(id => selectedSales.includes(id));
+
+    if (allSelected) {
+      setSelectedSales(prev => {
+        const next = prev.filter(id => !dateGroupIds.includes(id));
+        if (next.length === 0) setSelectedBankAccount("");
+        return next;
+      });
+    } else {
+      setSelectedSales(prev => {
+        const next = [...new Set([...prev, ...dateGroupIds])];
+        if (prev.length === 0) {
+          const bankId = sales[0]?.bank_account_id || sales[0]?.sales_payment_method?.bank_account?.id;
+          if (bankId) setSelectedBankAccount(bankId);
+        }
+        return next;
+      });
+    }
+  };
+
+  const groupSalesByDate = (sales: PendingSale[]) => {
+    const groups: { date: string; sales: PendingSale[]; totalAmount: number }[] = [];
+    const map: Record<string, PendingSale[]> = {};
+
+    sales.forEach(sale => {
+      const dateKey = new Date(sale.order_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(sale);
+    });
+
+    // Sort dates descending
+    const sortedKeys = Object.keys(map).sort((a, b) => {
+      const da = new Date(map[a][0].order_date);
+      const db = new Date(map[b][0].order_date);
+      return db.getTime() - da.getTime();
+    });
+
+    sortedKeys.forEach(dateKey => {
+      groups.push({
+        date: dateKey,
+        sales: map[dateKey],
+        totalAmount: map[dateKey].reduce((sum, s) => sum + (s.settlement_amount || s.total_amount), 0),
+      });
+    });
+
+    return groups;
   };
 
   const calculateSettlementAmount = (saleIds?: string[]) => {
@@ -604,55 +652,88 @@ export function PendingSettlements() {
                         <TableHead>Client</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Settlement Bank</TableHead>
-                        <TableHead>Date</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {gatewayGroup.sales.map((sale) => {
-                        const settlementBank = sale.bank_account || sale.sales_payment_method?.bank_account;
-                        
+                      {groupSalesByDate(gatewayGroup.sales).map((dateGroup) => {
+                        const dateAllSelected = dateGroup.sales.every(s => selectedSales.includes(s.id));
+                        const dateSomeSelected = dateGroup.sales.some(s => selectedSales.includes(s.id));
+
                         return (
-                          <TableRow key={sale.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedSales.includes(sale.id)}
-                                onCheckedChange={() => handleSelectSale(sale.id)}
-                              />
-                            </TableCell>
-                            <TableCell className="font-medium">{sale.order_number}</TableCell>
-                            <TableCell>{sale.client_name}</TableCell>
-                            <TableCell>₹{sale.total_amount.toLocaleString()}</TableCell>
-                            <TableCell>
-                              {settlementBank ? (
-                                <div className="flex items-center gap-1">
-                                  <Building className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-sm">{settlementBank.account_name}</span>
+                          <>
+                            <TableRow key={`date-${dateGroup.date}`} className="bg-muted/50 hover:bg-muted/70">
+                              <TableCell colSpan={6}>
+                                <div className="flex items-center justify-between py-1">
+                                  <div className="flex items-center gap-3">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-semibold text-sm">{dateGroup.date}</span>
+                                    <Badge variant="secondary" className="text-xs">{dateGroup.sales.length} txn</Badge>
+                                    <span className="text-sm font-medium text-muted-foreground">₹{dateGroup.totalAmount.toLocaleString()}</span>
+                                  </div>
+                                  <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
+                                    <Button
+                                      variant={dateAllSelected ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => handleSelectDateGroup(dateGroup.sales)}
+                                      className="h-7 text-xs flex items-center gap-1.5"
+                                    >
+                                      <Checkbox
+                                        checked={dateAllSelected ? true : dateSomeSelected ? "indeterminate" : false}
+                                        className="pointer-events-none h-3.5 w-3.5"
+                                      />
+                                      {dateAllSelected ? "Deselect" : "Select All"}
+                                    </Button>
+                                  </ViewOnlyWrapper>
                                 </div>
-                              ) : (
-                              <Badge variant="secondary">Not configured</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{new Date(sale.order_date).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right">
-                              <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleSettleIndividual(sale)}
-                                  disabled={settlingIndividualId === sale.id || !settlementBank}
-                                  className="flex items-center gap-1"
-                                >
-                                  {settlingIndividualId === sale.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <CheckCircle className="h-3 w-3" />
-                                  )}
-                                  Settle Now
-                                </Button>
-                              </ViewOnlyWrapper>
-                            </TableCell>
-                          </TableRow>
+                              </TableCell>
+                            </TableRow>
+                            {dateGroup.sales.map((sale) => {
+                              const settlementBank = sale.bank_account || sale.sales_payment_method?.bank_account;
+                              
+                              return (
+                                <TableRow key={sale.id}>
+                                  <TableCell>
+                                    <Checkbox
+                                      checked={selectedSales.includes(sale.id)}
+                                      onCheckedChange={() => handleSelectSale(sale.id)}
+                                    />
+                                  </TableCell>
+                                  <TableCell className="font-medium">{sale.order_number}</TableCell>
+                                  <TableCell>{sale.client_name}</TableCell>
+                                  <TableCell>₹{sale.total_amount.toLocaleString()}</TableCell>
+                                  <TableCell>
+                                    {settlementBank ? (
+                                      <div className="flex items-center gap-1">
+                                        <Building className="h-3 w-3 text-muted-foreground" />
+                                        <span className="text-sm">{settlementBank.account_name}</span>
+                                      </div>
+                                    ) : (
+                                      <Badge variant="secondary">Not configured</Badge>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleSettleIndividual(sale)}
+                                        disabled={settlingIndividualId === sale.id || !settlementBank}
+                                        className="flex items-center gap-1"
+                                      >
+                                        {settlingIndividualId === sale.id ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          <CheckCircle className="h-3 w-3" />
+                                        )}
+                                        Settle Now
+                                      </Button>
+                                    </ViewOnlyWrapper>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </>
                         );
                       })}
                     </TableBody>

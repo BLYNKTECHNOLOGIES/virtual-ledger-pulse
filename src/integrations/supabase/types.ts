@@ -4943,6 +4943,10 @@ export type Database = {
         }
         Returns: string
       }
+      delete_contra_entry: {
+        Args: { p_transfer_out_id: string }
+        Returns: undefined
+      }
       delete_purchase_order_with_reversal: {
         Args: { order_id: string }
         Returns: Json

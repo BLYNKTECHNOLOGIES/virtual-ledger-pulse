@@ -510,19 +510,27 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         description: successMessage
       });
 
-      // Reset form
+      // Save last used defaults for next order
+      saveLastOrderDefaults({
+        wallet_id: formData.credit_wallet_id,
+        product_id: formData.product_id,
+        price_per_unit: formData.price_per_unit,
+      });
+
+      // Reset form with saved defaults pre-filled
+      const nextDefaults = getLastOrderDefaults();
       setFormData({
         order_number: '',
         supplier_name: '',
         order_date: new Date().toISOString().split('T')[0],
         description: '',
-        product_id: '',
+        product_id: nextDefaults.product_id || '',
         quantity: '',
-        price_per_unit: '',
+        price_per_unit: nextDefaults.price_per_unit || '',
         total_amount: '',
         contact_number: '',
         deduction_bank_account_id: '',
-        credit_wallet_id: '',
+        credit_wallet_id: nextDefaults.wallet_id || '',
         tds_option: 'none',
         pan_number: '',
         fee_percentage: '',

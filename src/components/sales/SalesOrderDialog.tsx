@@ -33,7 +33,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
   const [showPaymentMethodAlert, setShowPaymentMethodAlert] = useState(false);
   
   const [formData, setFormData] = useState(() => {
-    const lastDefaults = getLastOrderDefaults();
+    const lastDefaults = getLastOrderDefaults('sales');
     return {
       order_number: "",
       client_name: "",
@@ -308,7 +308,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         wallet_id: formData.wallet_id,
         product_id: formData.product_id,
         price_per_unit: formData.price_per_unit,
-      });
+      }, 'sales');
 
       // Check if client already exists - if not, create onboarding approval request
       try {

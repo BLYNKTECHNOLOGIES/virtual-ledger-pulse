@@ -67,7 +67,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
   });
 
   const [productItems, setProductItems] = useState<ProductItem[]>(() => {
-    const lastDefaults = getLastOrderDefaults();
+    const lastDefaults = getLastOrderDefaults('purchase');
     if (lastDefaults.product_id || lastDefaults.wallet_id) {
       return [{
         id: '1',
@@ -472,7 +472,7 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           wallet_id: normalizedItems[0].warehouse_id,
           product_id: normalizedItems[0].product_id,
           price_per_unit: normalizedItems[0].unit_price?.toString(),
-        });
+        }, 'purchase');
       }
 
       toast({

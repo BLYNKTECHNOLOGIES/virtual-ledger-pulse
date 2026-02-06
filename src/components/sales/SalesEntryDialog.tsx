@@ -40,7 +40,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isNewClient, setIsNewClient] = useState(false);
 
   const [formData, setFormData] = useState(() => {
-    const lastDefaults = getLastOrderDefaults();
+    const lastDefaults = getLastOrderDefaults('sales');
     return {
       order_number: '',
       client_name: '',
@@ -325,7 +325,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         wallet_id: formData.wallet_id,
         product_id: formData.product_id,
         price_per_unit: formData.price_per_unit,
-      });
+      }, 'sales');
       
       // Close dialog first to ensure it always closes
       onOpenChange(false);
@@ -350,7 +350,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       // Reset form with saved defaults pre-filled
-      const nextDefaults = getLastOrderDefaults();
+      const nextDefaults = getLastOrderDefaults('sales');
       setFormData({
         order_number: '',
         client_name: '',

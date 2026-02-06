@@ -49,7 +49,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState(() => {
-    const lastDefaults = getLastOrderDefaults();
+    const lastDefaults = getLastOrderDefaults('purchase');
     return {
       order_number: '',
       supplier_name: '',
@@ -515,10 +515,10 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         wallet_id: formData.credit_wallet_id,
         product_id: formData.product_id,
         price_per_unit: formData.price_per_unit,
-      });
+      }, 'purchase');
 
       // Reset form with saved defaults pre-filled
-      const nextDefaults = getLastOrderDefaults();
+      const nextDefaults = getLastOrderDefaults('purchase');
       setFormData({
         order_number: '',
         supplier_name: '',
@@ -554,7 +554,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         wallet_id: formData.credit_wallet_id,
         product_id: formData.product_id,
         price_per_unit: formData.price_per_unit,
-      });
+      }, 'purchase');
 
       setOpen(false);
       onSuccess?.();

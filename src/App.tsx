@@ -46,7 +46,7 @@ import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import Leads from './pages/Leads';
 import UserManagement from './pages/UserManagement';
-import HRMS from './pages/HRMS';
+import HorillaHRMS from './pages/HorillaHRMS';
 import Payroll from './pages/Payroll';
 import Compliance from './pages/Compliance';
 import StockManagement from './pages/StockManagement';
@@ -355,9 +355,7 @@ const router = createBrowserRouter([
       <QueryProvider>
         <AuthProvider>
           <AuthCheck>
-            <Layout>
-              <HRMS />
-            </Layout>
+            <HorillaHRMS />
           </AuthCheck>
         </AuthProvider>
       </QueryProvider>

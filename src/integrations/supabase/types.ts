@@ -1278,6 +1278,458 @@ export type Database = {
           },
         ]
       }
+      hr_bonus_points: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          points: number
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          points?: number
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          points?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_bonus_points_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_disciplinary_actions: {
+        Row: {
+          action_type: string
+          attachment_url: string | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          employee_ids: string[]
+          id: string
+          start_date: string | null
+          unit_in: string | null
+        }
+        Insert: {
+          action_type: string
+          attachment_url?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          employee_ids?: string[]
+          id?: string
+          start_date?: string | null
+          unit_in?: string | null
+        }
+        Update: {
+          action_type?: string
+          attachment_url?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          employee_ids?: string[]
+          id?: string
+          start_date?: string | null
+          unit_in?: string | null
+        }
+        Relationships: []
+      }
+      hr_employee_bank_details: {
+        Row: {
+          account_number: string | null
+          additional_info: Json | null
+          address: string | null
+          bank_code_1: string | null
+          bank_code_2: string | null
+          bank_name: string | null
+          branch: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          additional_info?: Json | null
+          address?: string | null
+          bank_code_1?: string | null
+          bank_code_2?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          additional_info?: Json | null
+          address?: string | null
+          bank_code_1?: string | null
+          bank_code_2?: string | null
+          bank_name?: string | null
+          branch?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_bank_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employee_notes: {
+        Row: {
+          created_at: string
+          description: string
+          employee_id: string
+          id: string
+          note_files: string[] | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          employee_id: string
+          id?: string
+          note_files?: string[] | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          employee_id?: string
+          id?: string
+          note_files?: string[] | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employee_tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      hr_employee_work_info: {
+        Row: {
+          additional_info: Json | null
+          basic_salary: number | null
+          company_name: string | null
+          contract_end_date: string | null
+          created_at: string
+          department_id: string | null
+          employee_id: string
+          employee_type: string | null
+          experience_years: number | null
+          id: string
+          job_position_id: string | null
+          job_role: string | null
+          joining_date: string | null
+          location: string | null
+          reporting_manager_id: string | null
+          salary_per_hour: number | null
+          shift_id: string | null
+          tags: string[] | null
+          updated_at: string
+          work_email: string | null
+          work_phone: string | null
+          work_type: string | null
+        }
+        Insert: {
+          additional_info?: Json | null
+          basic_salary?: number | null
+          company_name?: string | null
+          contract_end_date?: string | null
+          created_at?: string
+          department_id?: string | null
+          employee_id: string
+          employee_type?: string | null
+          experience_years?: number | null
+          id?: string
+          job_position_id?: string | null
+          job_role?: string | null
+          joining_date?: string | null
+          location?: string | null
+          reporting_manager_id?: string | null
+          salary_per_hour?: number | null
+          shift_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          work_email?: string | null
+          work_phone?: string | null
+          work_type?: string | null
+        }
+        Update: {
+          additional_info?: Json | null
+          basic_salary?: number | null
+          company_name?: string | null
+          contract_end_date?: string | null
+          created_at?: string
+          department_id?: string | null
+          employee_id?: string
+          employee_type?: string | null
+          experience_years?: number | null
+          id?: string
+          job_position_id?: string | null
+          job_role?: string | null
+          joining_date?: string | null
+          location?: string | null
+          reporting_manager_id?: string | null
+          salary_per_hour?: number | null
+          shift_id?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          work_email?: string | null
+          work_phone?: string | null
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_work_info_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_work_info_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_work_info_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_work_info_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employees: {
+        Row: {
+          additional_info: Json | null
+          address: string | null
+          badge_id: string
+          children: number | null
+          city: string | null
+          country: string | null
+          created_at: string
+          dob: string | null
+          email: string | null
+          emergency_contact: string | null
+          emergency_contact_name: string | null
+          emergency_contact_relation: string | null
+          experience: string | null
+          first_name: string
+          gender: string | null
+          id: string
+          is_active: boolean
+          last_name: string
+          marital_status: string | null
+          phone: string | null
+          profile_image_url: string | null
+          qualification: string | null
+          state: string | null
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          additional_info?: Json | null
+          address?: string | null
+          badge_id: string
+          children?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          dob?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_relation?: string | null
+          experience?: string | null
+          first_name: string
+          gender?: string | null
+          id?: string
+          is_active?: boolean
+          last_name: string
+          marital_status?: string | null
+          phone?: string | null
+          profile_image_url?: string | null
+          qualification?: string | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          additional_info?: Json | null
+          address?: string | null
+          badge_id?: string
+          children?: number | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          dob?: string | null
+          email?: string | null
+          emergency_contact?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_relation?: string | null
+          experience?: string | null
+          first_name?: string
+          gender?: string | null
+          id?: string
+          is_active?: boolean
+          last_name?: string
+          marital_status?: string | null
+          phone?: string | null
+          profile_image_url?: string | null
+          qualification?: string | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: []
+      }
+      hr_notifications: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string | null
+          title: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          title: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string | null
+          title?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_notifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_policies: {
+        Row: {
+          attachments: string[] | null
+          body: string | null
+          created_at: string
+          id: string
+          is_visible_to_all: boolean | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attachments?: string[] | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_visible_to_all?: boolean | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attachments?: string[] | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_visible_to_all?: boolean | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       interview_schedules: {
         Row: {
           applicant_id: string

@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.snapshot-daily-profit]
 verify_jwt = false
+
+[functions.fetch-usdt-rate]
+verify_jwt = false

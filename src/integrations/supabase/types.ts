@@ -1310,6 +1310,264 @@ export type Database = {
           },
         ]
       }
+      hr_candidate_ratings: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          employee_id: string
+          id: string
+          rating: number
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          rating?: number
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_ratings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidate_ratings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_candidate_stages: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          onboarding_stage_id: string
+          stage_id: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          onboarding_stage_id: string
+          stage_id?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          onboarding_stage_id?: string
+          stage_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_stages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidate_stages_onboarding_stage_id_fkey"
+            columns: ["onboarding_stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_onboarding_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidate_stages_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_candidate_tasks: {
+        Row: {
+          candidate_stage_id: string
+          candidate_task_id: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_stage_id: string
+          candidate_task_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_stage_id?: string
+          candidate_task_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_tasks_candidate_stage_id_fkey"
+            columns: ["candidate_stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidate_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidate_tasks_candidate_task_id_fkey"
+            columns: ["candidate_task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_onboarding_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_candidates: {
+        Row: {
+          address: string | null
+          canceled: boolean | null
+          city: string | null
+          converted: boolean | null
+          country: string | null
+          created_at: string
+          dob: string | null
+          email: string | null
+          gender: string | null
+          hired: boolean | null
+          hired_date: string | null
+          id: string
+          job_position_id: string | null
+          joining_date: string | null
+          mobile: string | null
+          name: string
+          offer_letter_status: string | null
+          portfolio_url: string | null
+          profile_image_url: string | null
+          rating: number | null
+          recruitment_id: string | null
+          referral_id: string | null
+          resume_url: string | null
+          schedule_date: string | null
+          sequence: number | null
+          source: string | null
+          stage_id: string | null
+          start_onboard: boolean | null
+          state: string | null
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          address?: string | null
+          canceled?: boolean | null
+          city?: string | null
+          converted?: boolean | null
+          country?: string | null
+          created_at?: string
+          dob?: string | null
+          email?: string | null
+          gender?: string | null
+          hired?: boolean | null
+          hired_date?: string | null
+          id?: string
+          job_position_id?: string | null
+          joining_date?: string | null
+          mobile?: string | null
+          name: string
+          offer_letter_status?: string | null
+          portfolio_url?: string | null
+          profile_image_url?: string | null
+          rating?: number | null
+          recruitment_id?: string | null
+          referral_id?: string | null
+          resume_url?: string | null
+          schedule_date?: string | null
+          sequence?: number | null
+          source?: string | null
+          stage_id?: string | null
+          start_onboard?: boolean | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          address?: string | null
+          canceled?: boolean | null
+          city?: string | null
+          converted?: boolean | null
+          country?: string | null
+          created_at?: string
+          dob?: string | null
+          email?: string | null
+          gender?: string | null
+          hired?: boolean | null
+          hired_date?: string | null
+          id?: string
+          job_position_id?: string | null
+          joining_date?: string | null
+          mobile?: string | null
+          name?: string
+          offer_letter_status?: string | null
+          portfolio_url?: string | null
+          profile_image_url?: string | null
+          rating?: number | null
+          recruitment_id?: string | null
+          referral_id?: string | null
+          resume_url?: string | null
+          schedule_date?: string | null
+          sequence?: number | null
+          source?: string | null
+          stage_id?: string | null
+          start_onboard?: boolean | null
+          state?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidates_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidates_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidates_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidates_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_disciplinary_actions: {
         Row: {
           action_type: string
@@ -1700,6 +1958,145 @@ export type Database = {
           },
         ]
       }
+      hr_onboarding_stage_managers: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          stage_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          stage_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_stage_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_onboarding_stage_managers_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_onboarding_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_onboarding_stages: {
+        Row: {
+          created_at: string
+          id: string
+          is_final_stage: boolean | null
+          recruitment_id: string | null
+          sequence: number
+          stage_title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_final_stage?: boolean | null
+          recruitment_id?: string | null
+          sequence?: number
+          stage_title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_final_stage?: boolean | null
+          recruitment_id?: string | null
+          sequence?: number
+          stage_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_stages_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_onboarding_task_employees: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_task_employees_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_onboarding_task_employees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "hr_onboarding_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_onboarding_tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          stage_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          stage_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          stage_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_tasks_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_onboarding_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_policies: {
         Row: {
           attachments: string[] | null
@@ -1727,6 +2124,281 @@ export type Database = {
           is_visible_to_all?: boolean | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_recruitment_managers: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          recruitment_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          recruitment_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          recruitment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_recruitment_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_recruitment_managers_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_recruitments: {
+        Row: {
+          closed: boolean | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          is_event_based: boolean | null
+          is_published: boolean | null
+          skill_ids: string[] | null
+          start_date: string | null
+          title: string
+          updated_at: string
+          vacancy: number | null
+        }
+        Insert: {
+          closed?: boolean | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_event_based?: boolean | null
+          is_published?: boolean | null
+          skill_ids?: string[] | null
+          start_date?: string | null
+          title: string
+          updated_at?: string
+          vacancy?: number | null
+        }
+        Update: {
+          closed?: boolean | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_event_based?: boolean | null
+          is_published?: boolean | null
+          skill_ids?: string[] | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+          vacancy?: number | null
+        }
+        Relationships: []
+      }
+      hr_rejected_candidates: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          description: string | null
+          id: string
+          reject_reason: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reject_reason?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          reject_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_rejected_candidates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_skills: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      hr_stage_managers: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          stage_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          stage_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_stage_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_stage_managers_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_stage_notes: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          description: string
+          id: string
+          stage_id: string
+          updated_by: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          description: string
+          id?: string
+          stage_id: string
+          updated_by?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          stage_id?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_stage_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_stage_notes_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_stage_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_stages: {
+        Row: {
+          created_at: string
+          id: string
+          recruitment_id: string
+          sequence: number
+          stage_name: string
+          stage_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recruitment_id: string
+          sequence?: number
+          stage_name: string
+          stage_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recruitment_id?: string
+          sequence?: number
+          stage_name?: string
+          stage_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_stages_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_survey_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_general_template: boolean | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_general_template?: boolean | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_general_template?: boolean | null
+          title?: string
         }
         Relationships: []
       }

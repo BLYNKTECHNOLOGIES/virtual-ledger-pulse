@@ -342,7 +342,7 @@ export function useUsers() {
       }
 
       // Prevent self-deletion
-      if (userId === user.id || userId === 'demo-admin-id') {
+      if (userId === user.id) {
         toast({
           title: "Warning",
           description: "You cannot delete your own account",

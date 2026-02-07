@@ -24,26 +24,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const authenticateUser = async (email: string, password: string): Promise<User | null> => {
     try {
-      // For demo admin user, use hardcoded credentials
-      if (email.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com' && password === 'Blynk@0717') {
-        // Fetch real admin user ID from database to ensure FK references work
-        const { data: adminData } = await supabase
-          .from('users')
-          .select('id, username, first_name, last_name')
-          .eq('email', email.toLowerCase())
-          .single();
-
-        const demoUser: User = {
-          id: adminData?.id || 'demo-admin-id',
-          username: adminData?.username || 'admin',
-          email: email.toLowerCase(),
-          firstName: adminData?.first_name || 'Admin',
-          lastName: adminData?.last_name || 'User',
-          roles: ['admin', 'Admin']
-        };
-        
-        return demoUser;
-      }
 
       // For other users, try database authentication
       const { data: validationResult, error: validationError } = await supabase
@@ -122,7 +102,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkForceLogout = async (userId: string, sessionTimestamp: number): Promise<boolean> => {
     try {
-      if (userId === 'demo-admin-id') return false;
       const { data, error } = await supabase
         .from('users')
         .select('force_logout_at, status')
@@ -181,30 +160,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
       
-      // Check old localStorage format
-      if (isLoggedIn === 'true' && userEmail) {
-        if (userEmail.toLowerCase() === 'blynkvirtualtechnologiespvtld@gmail.com') {
-          const demoUser: User = {
-            id: 'demo-admin-id',
-            username: 'admin',
-            email: userEmail.toLowerCase(),
-            firstName: 'Admin',
-            lastName: 'User',
-            roles: ['admin', 'Admin']
-          };
-          
-          setUser(demoUser);
-          
-          const sessionData = {
-            user: demoUser,
-            timestamp: Date.now(),
-            expiresIn: 7 * 24 * 60 * 60 * 1000
-          };
-          localStorage.setItem('userSession', JSON.stringify(sessionData));
-          setIsLoading(false);
-          return;
-        }
-      }
+      // No fallback — if session is invalid, user must re-login
     } catch (error) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');
@@ -299,9 +255,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       if (!user?.id) return;
 
-      // Skip refresh for demo admin
-      if (user.id === 'demo-admin-id') return;
-
       // Fetch updated user data including avatar_url
       const { data: userData, error } = await supabase
         .from('users')
@@ -357,7 +310,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Periodic force-logout check (every 30 seconds)
   useEffect(() => {
-    if (!user || user.id === 'demo-admin-id') return;
+    if (!user) return;
     
     const interval = setInterval(async () => {
       const savedSession = localStorage.getItem('userSession');

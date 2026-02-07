@@ -1,40 +1,64 @@
 
 
-# Add Sort Functionality to Client Directory
+# Daily Gross Profit Snapshot with History Chart
 
-## What's changing
-A "Sort" dropdown will be added next to the Filter button in both Buyers and Sellers tabs. It will default to **Onboarded: Newest First** (matching the current database ordering by `created_at desc`).
+## Overview
+Mirrors the existing Total Asset Value daily snapshot system: an edge function runs at 12:00 AM each day, calculates that day's gross profit, saves it, and a new history section on the P&L page displays the trend with a Day/Month toggle and AreaChart.
 
-## Sort Options
-- **Onboarded: Newest First** (default)
-- **Onboarded: Oldest First**
-- **Name: A-Z**
-- **Name: Z-A**
-- **Orders: Most First**
-- **Orders: Least First**
-- **Last Order: Newest First**
-- **Last Order: Oldest First**
+## What Gets Saved (per day)
+- **snapshot_date** -- the date
+- **gross_profit** -- that single day's gross profit (NPM x Sales Qty)
+- **total_sales_qty** -- units sold that day
+- **avg_sales_rate** -- average selling rate that day
+- **effective_purchase_rate** -- purchase rate adjusted for USDT fees
+- _(No total_sales_value column)_
 
-## UI Placement
-The sort dropdown will sit between the Filter button and the "Add New" button in both Buyers and Sellers sections, using the existing `Select` component with an `ArrowUpDown` icon.
+## Changes
 
-## Technical Details
+### 1. Database Migration: `daily_gross_profit_history` table
 
-### File: `src/components/clients/ClientDashboard.tsx`
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID (PK) | Default gen_random_uuid() |
+| snapshot_date | DATE, UNIQUE | The day this profit represents |
+| gross_profit | NUMERIC | Gross profit for that day |
+| total_sales_qty | NUMERIC | Units sold |
+| avg_sales_rate | NUMERIC | Avg selling rate |
+| effective_purchase_rate | NUMERIC | Adjusted purchase rate |
+| created_at | TIMESTAMPTZ | Default now() |
 
-1. **Add imports**: `ArrowUpDown` from lucide-react; `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` from UI components.
+RLS enabled with a SELECT policy for authenticated users.
 
-2. **Add state variables** (default: `onboarding` / `desc`):
-   - `buyerSort` and `sellerSort` of type `string` with values like `"onboarding-desc"`, `"name-asc"`, `"orders-desc"`, `"lastOrder-desc"`, etc.
-   - Using a single combined string avoids needing two state variables per tab.
+### 2. New Edge Function: `snapshot-daily-profit`
 
-3. **Add a sort helper function** that takes the filtered array, sort value, `clientOrderCounts` map, and `isBuyer` flag:
-   - `name`: `localeCompare` on `client.name`
-   - `orders`: numeric compare on `salesOrderCount` or `purchaseOrderCount`
-   - `lastOrder`: date string compare on `lastSalesOrderDate` or `lastPurchaseOrderDate`
-   - `onboarding`: date string compare on `client.date_of_onboarding` or `client.created_at`
+File: `supabase/functions/snapshot-daily-profit/index.ts`
 
-4. **Update `filteredBuyers` and `filteredSellers` useMemo** to apply sorting after filtering. Add sort state to dependency arrays.
+Same pattern as `snapshot-asset-value`. Logic:
+1. Get today's date string
+2. Query completed sales orders where `order_date = today` -- get quantity, price_per_unit
+3. Query completed purchase orders where `order_date = today` -- get items with quantity, unit_price
+4. Query USDT fee debits (PLATFORM_FEE, TRANSFER_FEE, etc.) for today
+5. Calculate: avg sales rate, total purchase value/qty, effective purchase rate (purchase INR / (purchase qty - USDT fees)), NPM, gross profit
+6. Upsert into `daily_gross_profit_history` on conflict `snapshot_date`
 
-5. **Add `Select` dropdown** in both the Buyers toolbar (around line 346) and Sellers toolbar (around line 468) with the 8 sort options listed above.
+Config: Add `[functions.snapshot-daily-profit] verify_jwt = false` to `supabase/config.toml`.
+
+### 3. Cron Job (SQL via insert tool)
+Schedule `snapshot-daily-profit` at `0 0 * * *` (midnight daily) using `pg_cron` + `pg_net`, same pattern as the asset value snapshot cron.
+
+### 4. New Component: `GrossProfitHistoryTab.tsx`
+
+File: `src/components/financials/GrossProfitHistoryTab.tsx`
+
+Follows the exact same structure as `AssetValueHistoryTab.tsx`:
+- **3 summary cards**: Latest Day's Gross Profit (green/red based on positive/negative), Change vs Previous Day (%), Total Snapshots
+- **Day/Month toggle** buttons in the chart header
+- **AreaChart** (Recharts) -- Day view shows each daily data point; Month view sums gross profit per month
+- Green color theme (to distinguish from the indigo asset value chart)
+
+### 5. Integration into P&L Page
+
+File: `src/pages/ProfitLoss.tsx`
+
+Add the `GrossProfitHistoryTab` component at the bottom of the page, below the existing "Expense & Income Breakdown" card, as a new section.
 

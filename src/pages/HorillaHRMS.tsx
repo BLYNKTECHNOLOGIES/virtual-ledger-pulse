@@ -4,6 +4,8 @@ import { HorillaSidebar, HorillaModule } from "@/components/horilla/HorillaSideb
 import { HorillaHeader } from "@/components/horilla/HorillaHeader";
 import { HorillaDashboard } from "@/components/horilla/HorillaDashboard";
 import { EmployeeDirectory } from "@/components/horilla/employee/EmployeeDirectory";
+import { RecruitmentDashboard } from "@/components/horilla/recruitment/RecruitmentDashboard";
+import { OnboardingDashboard } from "@/components/horilla/onboarding/OnboardingDashboard";
 
 function PlaceholderModule({ name }: { name: string }) {
   return (
@@ -42,6 +44,10 @@ export default function HorillaHRMS() {
         return <HorillaDashboard onNavigate={setActiveModule} />;
       case "employee":
         return <EmployeeDirectory />;
+      case "recruitment":
+        return <RecruitmentDashboard />;
+      case "onboarding":
+        return <OnboardingDashboard />;
       default:
         return <PlaceholderModule name={moduleLabels[activeModule]} />;
     }

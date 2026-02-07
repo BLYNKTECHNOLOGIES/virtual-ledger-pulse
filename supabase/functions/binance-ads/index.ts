@@ -85,10 +85,18 @@ serve(async (req) => {
 
       case "updateAdStatus": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
-          advNos: payload.advNos,
-          advStatus: payload.advStatus,
-        }) });
+        // Try multiple parameter formats for compatibility
+        const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
+        const body: Record<string, any> = {
+          advStatus: Number(payload.advStatus),
+        };
+        // Send both formats - advNos (array) and advNo (single string)
+        if (advNosList.length === 1) {
+          body.advNo = advNosList[0];
+        }
+        body.advNos = advNosList;
+        console.log("updateAdStatus request body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("updateAdStatus response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }

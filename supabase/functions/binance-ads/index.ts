@@ -7,22 +7,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function signRequest(queryString: string, secret: string): string {
+function signQuery(queryString: string, secret: string): string {
   const hmac = createHmac("sha256", secret);
   hmac.update(queryString);
   return hmac.digest("hex");
 }
 
-function buildSignedParams(params: Record<string, string | number | boolean>, secret: string): string {
+// Build signed URL for Binance SAPI C2C endpoints
+// C2C SAPI: signature is computed over query params only (not body)
+// Body is sent as JSON separately
+function buildSignedUrl(
+  proxyUrl: string,
+  path: string,
+  secret: string,
+  extraParams: Record<string, string> = {}
+): string {
   const timestamp = Date.now();
-  const allParams = { ...params, timestamp: timestamp.toString() };
-  const queryString = Object.entries(allParams)
-    .filter(([_, v]) => v !== undefined && v !== null && v !== "")
+  const params: Record<string, string> = { ...extraParams, timestamp: String(timestamp) };
+  const queryString = Object.entries(params)
+    .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
-    .sort()
     .join("&");
-  const signature = signRequest(queryString, secret);
-  return `${queryString}&signature=${signature}`;
+  const signature = signQuery(queryString, secret);
+  return `${proxyUrl}${path}?${queryString}&signature=${signature}`;
 }
 
 serve(async (req) => {
@@ -40,6 +47,7 @@ serve(async (req) => {
     }
 
     const { action, ...payload } = await req.json();
+    console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
     const headers: Record<string, string> = {
       "X-MBX-APIKEY": BINANCE_API_KEY,
@@ -51,86 +59,85 @@ serve(async (req) => {
 
     switch (action) {
       case "listAds": {
-        const body = {
-          asset: payload.asset || "",
-          tradeType: payload.tradeType || "",
-          advStatus: payload.advStatus !== undefined ? payload.advStatus : null,
+        const body: Record<string, any> = {
           page: payload.page || 1,
           rows: payload.rows || 20,
-          startDate: payload.startDate || "",
-          endDate: payload.endDate || "",
-          fiatUnit: payload.fiatUnit || "INR",
         };
-        
-        // Remove empty/null fields
-        const cleanBody = Object.fromEntries(
-          Object.entries(body).filter(([_, v]) => v !== null && v !== "" && v !== undefined)
-        );
+        if (payload.asset) body.asset = payload.asset;
+        if (payload.tradeType) body.tradeType = payload.tradeType;
+        if (payload.advStatus !== undefined && payload.advStatus !== null) body.advStatus = payload.advStatus;
+        if (payload.startDate) body.startDate = payload.startDate;
+        if (payload.endDate) body.endDate = payload.endDate;
+        if (payload.fiatUnit) body.fiatUnit = payload.fiatUnit;
 
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/ads/listWithPagination", BINANCE_API_SECRET);
+        console.log("listAds URL:", url);
+        console.log("listAds body:", JSON.stringify(body));
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/listWithPagination?${queryString}&signature=${signature}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(cleanBody),
-        });
-        result = await response.json();
+        const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("listAds response status:", response.status, "body:", text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "getAdDetail": {
-        const timestamp = Date.now();
-        const queryString = `adsNo=${payload.adsNo}&timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        // adsNo goes as query param for this endpoint
+        const url = buildSignedUrl(
+          BINANCE_PROXY_URL,
+          "/sapi/v1/c2c/ads/getDetailByNo",
+          BINANCE_API_SECRET,
+          { adsNo: payload.adsNo }
+        );
+        console.log("getAdDetail URL:", url);
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/getDetailByNo?${queryString}&signature=${signature}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-        });
-        result = await response.json();
+        const response = await fetch(url, { method: "POST", headers });
+        const text = await response.text();
+        console.log("getAdDetail response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "postAd": {
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/ads/post", BINANCE_API_SECRET);
+        console.log("postAd body:", JSON.stringify(payload.adData));
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/post?${queryString}&signature=${signature}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload.adData),
-        });
-        result = await response.json();
+        const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload.adData) });
+        const text = await response.text();
+        console.log("postAd response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "updateAd": {
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/ads/update", BINANCE_API_SECRET);
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/update?${queryString}&signature=${signature}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload.adData),
-        });
-        result = await response.json();
+        const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(payload.adData) });
+        const text = await response.text();
+        console.log("updateAd response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "updateAdStatus": {
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/ads/updateStatus", BINANCE_API_SECRET);
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/updateStatus?${queryString}&signature=${signature}`;
         const response = await fetch(url, {
           method: "POST",
           headers,
@@ -139,16 +146,19 @@ serve(async (req) => {
             advStatus: payload.advStatus,
           }),
         });
-        result = await response.json();
+        const text = await response.text();
+        console.log("updateAdStatus response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "getReferencePrice": {
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/ads/getReferencePrice", BINANCE_API_SECRET);
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/ads/getReferencePrice?${queryString}&signature=${signature}`;
         const response = await fetch(url, {
           method: "POST",
           headers,
@@ -158,21 +168,27 @@ serve(async (req) => {
             tradeType: payload.tradeType || "SELL",
           }),
         });
-        result = await response.json();
+        const text = await response.text();
+        console.log("getReferencePrice response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
       case "getPaymentMethods": {
-        const timestamp = Date.now();
-        const queryString = `timestamp=${timestamp}`;
-        const signature = signRequest(queryString, BINANCE_API_SECRET);
+        const url = buildSignedUrl(BINANCE_PROXY_URL, "/sapi/v1/c2c/paymentMethod/listByUserId", BINANCE_API_SECRET);
 
-        const url = `${BINANCE_PROXY_URL}/sapi/v1/c2c/paymentMethod/listByUserId?${queryString}&signature=${signature}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-        });
-        result = await response.json();
+        const response = await fetch(url, { method: "POST", headers });
+        const text = await response.text();
+        console.log("getPaymentMethods response:", response.status, text);
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
+        }
         break;
       }
 
@@ -183,8 +199,14 @@ serve(async (req) => {
         );
     }
 
+    // Check for Binance-level errors
+    const isError = result?.code && result.code !== "000000" && result.code !== 200;
     return new Response(
-      JSON.stringify({ success: true, data: result }),
+      JSON.stringify({ 
+        success: !isError, 
+        data: result,
+        ...(isError ? { error: result.message || "Binance API error" } : {})
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

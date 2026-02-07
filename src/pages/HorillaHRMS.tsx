@@ -40,11 +40,17 @@ const moduleLabels: Record<HorillaModule, string> = {
 
 export default function HorillaHRMS() {
   const [activeModule, setActiveModule] = useState<HorillaModule>("dashboard");
+  const [activeSubPage, setActiveSubPage] = useState<string | undefined>();
+
+  const handleModuleChange = (module: HorillaModule, subPage?: string) => {
+    setActiveModule(module);
+    setActiveSubPage(subPage);
+  };
 
   const renderModule = () => {
     switch (activeModule) {
       case "dashboard":
-        return <HorillaDashboard onNavigate={setActiveModule} />;
+        return <HorillaDashboard onNavigate={(m) => handleModuleChange(m)} />;
       case "employee":
         return <EmployeeDirectory />;
       case "recruitment":
@@ -54,7 +60,12 @@ export default function HorillaHRMS() {
       case "attendance":
         return <AttendanceDashboard />;
       case "leave":
-        return <LeaveDashboard />;
+        return (
+          <LeaveDashboard
+            subPage={activeSubPage || "dashboard"}
+            onSubPageChange={(sp) => setActiveSubPage(sp)}
+          />
+        );
       case "payroll":
         return <PayrollDashboard />;
       default:
@@ -66,7 +77,8 @@ export default function HorillaHRMS() {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <HorillaSidebar
         activeModule={activeModule}
-        onModuleChange={setActiveModule}
+        activeSubPage={activeSubPage}
+        onModuleChange={handleModuleChange}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         <HorillaHeader activeModule={activeModule} />

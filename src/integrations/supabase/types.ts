@@ -1278,6 +1278,65 @@ export type Database = {
           },
         ]
       }
+      hr_attendance: {
+        Row: {
+          attendance_date: string
+          attendance_status: string | null
+          check_in: string | null
+          check_out: string | null
+          created_at: string
+          early_leave_minutes: number | null
+          employee_id: string
+          id: string
+          late_minutes: number | null
+          notes: string | null
+          overtime_hours: number | null
+          shift_id: string | null
+          updated_at: string
+          work_type: string | null
+        }
+        Insert: {
+          attendance_date?: string
+          attendance_status?: string | null
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          early_leave_minutes?: number | null
+          employee_id: string
+          id?: string
+          late_minutes?: number | null
+          notes?: string | null
+          overtime_hours?: number | null
+          shift_id?: string | null
+          updated_at?: string
+          work_type?: string | null
+        }
+        Update: {
+          attendance_date?: string
+          attendance_status?: string | null
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string
+          early_leave_minutes?: number | null
+          employee_id?: string
+          id?: string
+          late_minutes?: number | null
+          notes?: string | null
+          overtime_hours?: number | null
+          shift_id?: string | null
+          updated_at?: string
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_bonus_points: {
         Row: {
           created_at: string
@@ -1911,6 +1970,175 @@ export type Database = {
           state?: string | null
           updated_at?: string
           zip?: string | null
+        }
+        Relationships: []
+      }
+      hr_leave_allocations: {
+        Row: {
+          allocated_days: number
+          carry_forward_days: number | null
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type_id: string
+          updated_at: string
+          used_days: number
+          year: number
+        }
+        Insert: {
+          allocated_days?: number
+          carry_forward_days?: number | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type_id: string
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Update: {
+          allocated_days?: number
+          carry_forward_days?: number | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type_id?: string
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_allocations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_allocations_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          attachment_url: string | null
+          created_at: string
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type_id: string
+          reason: string | null
+          rejection_reason: string | null
+          start_date: string
+          status: string
+          total_days: number
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type_id: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date: string
+          status?: string
+          total_days?: number
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type_id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          start_date?: string
+          status?: string
+          total_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_types: {
+        Row: {
+          carry_forward: boolean | null
+          code: string
+          color: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          is_paid: boolean | null
+          max_carry_forward_days: number | null
+          max_days_per_year: number | null
+          name: string
+          requires_approval: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          carry_forward?: boolean | null
+          code: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          max_carry_forward_days?: number | null
+          max_days_per_year?: number | null
+          name: string
+          requires_approval?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          carry_forward?: boolean | null
+          code?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          max_carry_forward_days?: number | null
+          max_days_per_year?: number | null
+          name?: string
+          requires_approval?: boolean | null
+          updated_at?: string
         }
         Relationships: []
       }

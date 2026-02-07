@@ -6,6 +6,8 @@ import { HorillaDashboard } from "@/components/horilla/HorillaDashboard";
 import { EmployeeDirectory } from "@/components/horilla/employee/EmployeeDirectory";
 import { RecruitmentDashboard } from "@/components/horilla/recruitment/RecruitmentDashboard";
 import { OnboardingDashboard } from "@/components/horilla/onboarding/OnboardingDashboard";
+import { AttendanceDashboard } from "@/components/horilla/attendance/AttendanceDashboard";
+import { LeaveDashboard } from "@/components/horilla/leave/LeaveDashboard";
 
 function PlaceholderModule({ name }: { name: string }) {
   return (
@@ -48,6 +50,10 @@ export default function HorillaHRMS() {
         return <RecruitmentDashboard />;
       case "onboarding":
         return <OnboardingDashboard />;
+      case "attendance":
+        return <AttendanceDashboard />;
+      case "leave":
+        return <LeaveDashboard />;
       default:
         return <PlaceholderModule name={moduleLabels[activeModule]} />;
     }

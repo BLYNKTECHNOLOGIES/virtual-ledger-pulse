@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,15 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-blue-600",
     bgColor: "bg-blue-100",
     permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
+  },
+  {
+    id: "ad-manager",
+    title: "Ad Manager",
+    url: "/ad-manager",
+    icon: Megaphone,
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
+    permissions: ["sales_view", "sales_manage"]
   }
 ];
 

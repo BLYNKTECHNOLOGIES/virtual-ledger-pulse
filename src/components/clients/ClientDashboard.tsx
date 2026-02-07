@@ -256,6 +256,15 @@ export function ClientDashboard() {
           const bDate = b.date_of_onboarding || b.created_at || '';
           return dir * aDate.localeCompare(bDate);
         }
+        case 'volume': {
+          const aVal = isBuyer
+            ? (clientOrderCounts?.get(a.id)?.totalSalesValue || 0)
+            : (clientOrderCounts?.get(a.id)?.totalPurchaseValue || 0);
+          const bVal = isBuyer
+            ? (clientOrderCounts?.get(b.id)?.totalSalesValue || 0)
+            : (clientOrderCounts?.get(b.id)?.totalPurchaseValue || 0);
+          return dir * (aVal - bVal);
+        }
         default:
           return 0;
       }
@@ -405,6 +414,8 @@ export function ClientDashboard() {
                         <SelectItem value="orders-asc">Orders: Least</SelectItem>
                         <SelectItem value="lastOrder-desc">Last Order: Newest</SelectItem>
                         <SelectItem value="lastOrder-asc">Last Order: Oldest</SelectItem>
+                        <SelectItem value="volume-desc">Volume: Highest</SelectItem>
+                        <SelectItem value="volume-asc">Volume: Lowest</SelectItem>
                       </SelectContent>
                     </Select>
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
@@ -544,6 +555,8 @@ export function ClientDashboard() {
                         <SelectItem value="orders-asc">Orders: Least</SelectItem>
                         <SelectItem value="lastOrder-desc">Last Order: Newest</SelectItem>
                         <SelectItem value="lastOrder-asc">Last Order: Oldest</SelectItem>
+                        <SelectItem value="volume-desc">Volume: Highest</SelectItem>
+                        <SelectItem value="volume-asc">Volume: Lowest</SelectItem>
                       </SelectContent>
                     </Select>
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>

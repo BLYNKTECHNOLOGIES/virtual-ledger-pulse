@@ -1,58 +1,105 @@
 
-import { Bell, Search, ArrowLeft } from "lucide-react";
+import { Bell, Moon, Settings, Globe, LayoutGrid, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { HorillaNotifications } from "./HorillaNotifications";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { HorillaModule } from "./HorillaSidebar";
 
 interface HorillaHeaderProps {
-  title: string;
+  activeModule: HorillaModule;
 }
 
-export function HorillaHeader({ title }: HorillaHeaderProps) {
+const moduleLabels: Record<HorillaModule, string> = {
+  dashboard: "Dashboard",
+  employee: "Employee",
+  recruitment: "Recruitment",
+  onboarding: "Onboarding",
+  attendance: "Attendance",
+  leave: "Leave",
+  payroll: "Payroll",
+  asset: "Asset",
+  performance: "Performance",
+  offboarding: "Offboarding",
+  helpdesk: "Helpdesk",
+};
+
+function RunningClock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <span className="text-sm font-mono text-gray-600 tabular-nums">
+      {time.toLocaleTimeString("en-US", { hour12: false })}
+    </span>
+  );
+}
+
+export function HorillaHeader({ activeModule }: HorillaHeaderProps) {
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
+    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0">
+      {/* Left: Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-sm">
+        <button
           onClick={() => navigate("/dashboard")}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-[#009C4A] hover:underline font-medium"
         >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-xl font-bold text-gray-800">{title}</h1>
+          Horilla
+        </button>
+        <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+        <span className="text-gray-700 font-medium">{moduleLabels[activeModule]}</span>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search..."
-            className="pl-9 w-64 h-9 bg-gray-50 border-gray-200 text-sm"
-          />
+      {/* Right: Clock + Icons + User */}
+      <div className="flex items-center gap-2">
+        <RunningClock />
+
+        <div className="flex items-center gap-0.5 ml-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-700">
+            <Moon className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-700">
+            <Settings className="h-4 w-4" />
+          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-gray-700 relative"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 flex items-center justify-center text-[9px] font-bold bg-red-500 text-white rounded-full">
+                3
+              </span>
+            </Button>
+            {showNotifications && (
+              <HorillaNotifications onClose={() => setShowNotifications(false)} />
+            )}
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-700">
+            <Globe className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-700">
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
         </div>
 
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative text-gray-500 hover:text-gray-700"
-            onClick={() => setShowNotifications(!showNotifications)}
-          >
-            <Bell className="h-5 w-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] bg-[#E8604C] text-white border-2 border-white">
-              3
-            </Badge>
-          </Button>
-          {showNotifications && (
-            <HorillaNotifications onClose={() => setShowNotifications(false)} />
-          )}
+        {/* User */}
+        <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200">
+          <div className="w-8 h-8 rounded-full bg-[#009C4A] flex items-center justify-center text-white text-xs font-bold">
+            AD
+          </div>
+          <div className="hidden md:block">
+            <p className="text-xs font-semibold text-gray-800 leading-tight">Admin Demo</p>
+            <p className="text-[10px] text-[#009C4A] leading-tight">● Online</p>
+          </div>
         </div>
       </div>
     </header>

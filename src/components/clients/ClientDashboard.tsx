@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Users, UserCheck, ShoppingCart } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Search, Users, UserCheck, ShoppingCart, ArrowUpDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
@@ -26,6 +27,8 @@ export function ClientDashboard() {
   const [sellerFilters, setSellerFilters] = useState<ClientFilters>(defaultFilters);
   const [buyerFiltersOpen, setBuyerFiltersOpen] = useState(false);
   const [sellerFiltersOpen, setSellerFiltersOpen] = useState(false);
+  const [buyerSort, setBuyerSort] = useState("onboarding-desc");
+  const [sellerSort, setSellerSort] = useState("onboarding-desc");
   const navigate = useNavigate();
 
   // Fetch clients
@@ -215,46 +218,85 @@ export function ClientDashboard() {
     return true;
   };
 
+  // Sort helper function
+  const applySorting = (
+    clientList: typeof clients,
+    sortValue: string,
+    isBuyer: boolean
+  ) => {
+    if (!clientList) return clientList;
+    const sorted = [...clientList];
+    const [field, direction] = sortValue.split('-');
+    const dir = direction === 'asc' ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      switch (field) {
+        case 'name':
+          return dir * a.name.localeCompare(b.name);
+        case 'orders': {
+          const aOrders = isBuyer
+            ? (clientOrderCounts?.get(a.id)?.salesOrderCount || 0)
+            : (clientOrderCounts?.get(a.id)?.purchaseOrderCount || 0);
+          const bOrders = isBuyer
+            ? (clientOrderCounts?.get(b.id)?.salesOrderCount || 0)
+            : (clientOrderCounts?.get(b.id)?.purchaseOrderCount || 0);
+          return dir * (aOrders - bOrders);
+        }
+        case 'lastOrder': {
+          const aDate = isBuyer
+            ? (clientOrderCounts?.get(a.id)?.lastSalesOrderDate || '')
+            : (clientOrderCounts?.get(a.id)?.lastPurchaseOrderDate || '');
+          const bDate = isBuyer
+            ? (clientOrderCounts?.get(b.id)?.lastSalesOrderDate || '')
+            : (clientOrderCounts?.get(b.id)?.lastPurchaseOrderDate || '');
+          return dir * aDate.localeCompare(bDate);
+        }
+        case 'onboarding': {
+          const aDate = a.date_of_onboarding || a.created_at || '';
+          const bDate = b.date_of_onboarding || b.created_at || '';
+          return dir * aDate.localeCompare(bDate);
+        }
+        default:
+          return 0;
+      }
+    });
+    return sorted;
+  };
+
   // Filter clients by type based on actual order history
   const filteredBuyers = useMemo(() => {
-    return clients?.filter(client => {
+    const filtered = clients?.filter(client => {
       const orderInfo = clientOrderCounts?.get(client.id);
-      // Show as buyer if they have sales orders (isBuyer) or are composite
-      // Also show clients with no orders yet that were added as buyers (is_buyer flag)
       const isBuyer = orderInfo?.isBuyer || orderInfo?.isComposite || 
                       ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_buyer);
       
       if (!isBuyer) return false;
 
-      // Search filter
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
 
-      // Apply advanced filters
       return applyFilters(client, orderInfo, buyerFilters, true);
     });
-  }, [clients, clientOrderCounts, searchTerm, buyerFilters]);
+    return applySorting(filtered, buyerSort, true);
+  }, [clients, clientOrderCounts, searchTerm, buyerFilters, buyerSort]);
 
   const filteredSellers = useMemo(() => {
-    return clients?.filter(client => {
+    const filtered = clients?.filter(client => {
       const orderInfo = clientOrderCounts?.get(client.id);
-      // Show as seller if they have purchase orders (isSeller) or are composite
-      // Also show clients with no orders yet that were added as sellers (is_seller flag)
       const isSeller = orderInfo?.isSeller || orderInfo?.isComposite ||
                        ((!orderInfo || orderInfo.clientType === 'Unknown') && client.is_seller);
       
       if (!isSeller) return false;
 
-      // Search filter
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;
 
-      // Apply advanced filters
       return applyFilters(client, orderInfo, sellerFilters, false);
     });
-  }, [clients, clientOrderCounts, searchTerm, sellerFilters]);
+    return applySorting(filtered, sellerSort, false);
+  }, [clients, clientOrderCounts, searchTerm, sellerFilters, sellerSort]);
 
   const getRiskBadge = (risk: string) => {
     const colors = {
@@ -349,6 +391,22 @@ export function ClientDashboard() {
                       isOpen={buyerFiltersOpen}
                       onToggle={() => setBuyerFiltersOpen(!buyerFiltersOpen)}
                     />
+                    <Select value={buyerSort} onValueChange={setBuyerSort}>
+                      <SelectTrigger className="w-[200px]">
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="onboarding-desc">Onboarded: Newest</SelectItem>
+                        <SelectItem value="onboarding-asc">Onboarded: Oldest</SelectItem>
+                        <SelectItem value="name-asc">Name: A-Z</SelectItem>
+                        <SelectItem value="name-desc">Name: Z-A</SelectItem>
+                        <SelectItem value="orders-desc">Orders: Most</SelectItem>
+                        <SelectItem value="orders-asc">Orders: Least</SelectItem>
+                        <SelectItem value="lastOrder-desc">Last Order: Newest</SelectItem>
+                        <SelectItem value="lastOrder-asc">Last Order: Oldest</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -472,6 +530,22 @@ export function ClientDashboard() {
                       isOpen={sellerFiltersOpen}
                       onToggle={() => setSellerFiltersOpen(!sellerFiltersOpen)}
                     />
+                    <Select value={sellerSort} onValueChange={setSellerSort}>
+                      <SelectTrigger className="w-[200px]">
+                        <ArrowUpDown className="h-4 w-4 mr-2" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="onboarding-desc">Onboarded: Newest</SelectItem>
+                        <SelectItem value="onboarding-asc">Onboarded: Oldest</SelectItem>
+                        <SelectItem value="name-asc">Name: A-Z</SelectItem>
+                        <SelectItem value="name-desc">Name: Z-A</SelectItem>
+                        <SelectItem value="orders-desc">Orders: Most</SelectItem>
+                        <SelectItem value="orders-asc">Orders: Least</SelectItem>
+                        <SelectItem value="lastOrder-desc">Last Order: Newest</SelectItem>
+                        <SelectItem value="lastOrder-asc">Last Order: Oldest</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />

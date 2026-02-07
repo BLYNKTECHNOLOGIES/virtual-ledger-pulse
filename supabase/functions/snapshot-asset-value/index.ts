@@ -75,8 +75,18 @@ serve(async (req) => {
     const weightedAvgCost = totalQty > 0 ? totalCost / totalQty : 0;
     const stockValuation = totalStockUnits * weightedAvgCost;
 
-    // 4. Total Asset Value
-    const totalAssetValue = totalBankBalance + totalGatewayBalance + stockValuation;
+    // 4. Unpaid TDS liability
+    const { data: unpaidTds } = await supabase
+      .from("tds_records")
+      .select("tds_amount")
+      .or("payment_status.is.null,payment_status.neq.PAID");
+
+    const totalUnpaidTds = unpaidTds?.reduce(
+      (sum: number, r: any) => sum + Number(r.tds_amount || 0), 0
+    ) || 0;
+
+    // 5. Total Asset Value (net of TDS liability)
+    const totalAssetValue = totalBankBalance + totalGatewayBalance + stockValuation - totalUnpaidTds;
 
     // 5. Store snapshot (upsert to handle re-runs on same day)
     const today = new Date().toISOString().split("T")[0];

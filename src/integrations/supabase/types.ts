@@ -1764,6 +1764,54 @@ export type Database = {
           },
         ]
       }
+      hr_employee_salary: {
+        Row: {
+          amount: number
+          component_id: string
+          created_at: string
+          effective_from: string | null
+          employee_id: string
+          id: string
+          is_active: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          component_id: string
+          created_at?: string
+          effective_from?: string | null
+          employee_id: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          component_id?: string
+          created_at?: string
+          effective_from?: string | null
+          employee_id?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_salary_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_salary_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_tags: {
         Row: {
           color: string | null
@@ -2325,6 +2373,143 @@ export type Database = {
           },
         ]
       }
+      hr_payroll_runs: {
+        Row: {
+          created_at: string
+          employee_count: number | null
+          id: string
+          notes: string | null
+          pay_period_end: string
+          pay_period_start: string
+          processed_by: string | null
+          run_date: string
+          status: string
+          title: string
+          total_deductions: number | null
+          total_gross: number | null
+          total_net: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          employee_count?: number | null
+          id?: string
+          notes?: string | null
+          pay_period_end: string
+          pay_period_start: string
+          processed_by?: string | null
+          run_date?: string
+          status?: string
+          title: string
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          employee_count?: number | null
+          id?: string
+          notes?: string | null
+          pay_period_end?: string
+          pay_period_start?: string
+          processed_by?: string | null
+          run_date?: string
+          status?: string
+          title?: string
+          total_deductions?: number | null
+          total_gross?: number | null
+          total_net?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payroll_runs_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_payslips: {
+        Row: {
+          created_at: string
+          deductions_breakdown: Json | null
+          earnings_breakdown: Json | null
+          employee_id: string
+          gross_salary: number
+          id: string
+          leave_days: number | null
+          net_salary: number
+          overtime_hours: number | null
+          payment_date: string | null
+          payment_reference: string | null
+          payroll_run_id: string
+          present_days: number | null
+          status: string | null
+          total_deductions: number
+          total_earnings: number
+          updated_at: string
+          working_days: number | null
+        }
+        Insert: {
+          created_at?: string
+          deductions_breakdown?: Json | null
+          earnings_breakdown?: Json | null
+          employee_id: string
+          gross_salary?: number
+          id?: string
+          leave_days?: number | null
+          net_salary?: number
+          overtime_hours?: number | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          payroll_run_id: string
+          present_days?: number | null
+          status?: string | null
+          total_deductions?: number
+          total_earnings?: number
+          updated_at?: string
+          working_days?: number | null
+        }
+        Update: {
+          created_at?: string
+          deductions_breakdown?: Json | null
+          earnings_breakdown?: Json | null
+          employee_id?: string
+          gross_salary?: number
+          id?: string
+          leave_days?: number | null
+          net_salary?: number
+          overtime_hours?: number | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          payroll_run_id?: string
+          present_days?: number | null
+          status?: string | null
+          total_deductions?: number
+          total_earnings?: number
+          updated_at?: string
+          working_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslips_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_policies: {
         Row: {
           attachments: string[] | null
@@ -2467,6 +2652,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_salary_components: {
+        Row: {
+          calculation_type: string | null
+          code: string
+          component_type: string
+          created_at: string
+          default_amount: number | null
+          id: string
+          is_active: boolean | null
+          is_fixed: boolean | null
+          is_taxable: boolean | null
+          name: string
+          percentage_of: string | null
+          updated_at: string
+        }
+        Insert: {
+          calculation_type?: string | null
+          code: string
+          component_type?: string
+          created_at?: string
+          default_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_fixed?: boolean | null
+          is_taxable?: boolean | null
+          name: string
+          percentage_of?: string | null
+          updated_at?: string
+        }
+        Update: {
+          calculation_type?: string | null
+          code?: string
+          component_type?: string
+          created_at?: string
+          default_amount?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_fixed?: boolean | null
+          is_taxable?: boolean | null
+          name?: string
+          percentage_of?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       hr_skills: {
         Row: {

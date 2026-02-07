@@ -341,14 +341,14 @@ export function useUsers() {
         throw new Error('You do not have permission to delete users');
       }
 
-      // Prevent deleting the system admin user (real admin)
-      if (userId === '06f5dad7-b024-4ea0-9da4-41c005501426' || userId === 'demo-admin-id') {
+      // Prevent self-deletion
+      if (userId === user.id || userId === 'demo-admin-id') {
         toast({
           title: "Warning",
-          description: "Cannot delete the system administrator account",
+          description: "You cannot delete your own account",
           variant: "destructive",
         });
-        return { success: false, error: "Cannot delete system administrator account" };
+        return { success: false, error: "Cannot delete your own account" };
       }
       
       // Use the new database function to handle deletion with proper permissions

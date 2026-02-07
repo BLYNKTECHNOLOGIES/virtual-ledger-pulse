@@ -60,6 +60,7 @@ import EMS from './pages/EMS';
 import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
+import AdManager from './pages/AdManager';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -539,6 +540,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <Layout>
                 <RiskManagement />
+              </Layout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/ad-manager",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <Layout>
+                <AdManager />
               </Layout>
             </AuthCheck>
           </AuthProvider>

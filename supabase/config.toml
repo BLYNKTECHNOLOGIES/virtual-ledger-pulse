@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.fetch-usdt-rate]
 verify_jwt = false
+
+[functions.binance-ads]
+verify_jwt = false

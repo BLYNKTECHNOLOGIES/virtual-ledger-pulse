@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.reset-password-with-otp]
 verify_jwt = false
+
+[functions.snapshot-daily-profit]
+verify_jwt = false

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistoryTab';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
 
@@ -703,6 +704,8 @@ export default function ProfitLoss() {
         </CardContent>
       </Card>
 
+      {/* Gross Profit History */}
+      <GrossProfitHistoryTab />
     </div>
   );
 }

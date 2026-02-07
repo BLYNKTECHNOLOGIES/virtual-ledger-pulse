@@ -825,6 +825,36 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_gross_profit_history: {
+        Row: {
+          avg_sales_rate: number
+          created_at: string
+          effective_purchase_rate: number
+          gross_profit: number
+          id: string
+          snapshot_date: string
+          total_sales_qty: number
+        }
+        Insert: {
+          avg_sales_rate?: number
+          created_at?: string
+          effective_purchase_rate?: number
+          gross_profit?: number
+          id?: string
+          snapshot_date: string
+          total_sales_qty?: number
+        }
+        Update: {
+          avg_sales_rate?: number
+          created_at?: string
+          effective_purchase_rate?: number
+          gross_profit?: number
+          id?: string
+          snapshot_date?: string
+          total_sales_qty?: number
+        }
+        Relationships: []
+      }
       debug_po_log: {
         Row: {
           created_at: string | null

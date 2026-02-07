@@ -1,53 +1,40 @@
 
-## Group Pending Settlements by Date within Each Payment Method
 
-### Current State
-Transactions within each payment method group are listed in a flat table without any date grouping. There is one "Select All" button per payment method that selects all transactions across all dates.
+# Add Sort Functionality to Client Directory
 
-### Planned Changes
+## What's changing
+A "Sort" dropdown will be added next to the Filter button in both Buyers and Sellers tabs. It will default to **Onboarded: Newest First** (matching the current database ordering by `created_at desc`).
 
-**File: `src/components/bams/payment-gateway/PendingSettlements.tsx`**
+## Sort Options
+- **Onboarded: Newest First** (default)
+- **Onboarded: Oldest First**
+- **Name: A-Z**
+- **Name: Z-A**
+- **Orders: Most First**
+- **Orders: Least First**
+- **Last Order: Newest First**
+- **Last Order: Oldest First**
 
-1. **Add date grouping logic** after the existing gateway grouping:
-   - Within each `GatewayGroup`, sort sales by `order_date` descending (latest first)
-   - Group them by date string (e.g., "2/6/2026", "2/5/2026") using `toLocaleDateString()`
-   - Create a helper type `DateGroup = { date: string; sales: PendingSale[]; totalAmount: number }`
+## UI Placement
+The sort dropdown will sit between the Filter button and the "Add New" button in both Buyers and Sellers sections, using the existing `Select` component with an `ArrowUpDown` icon.
 
-2. **Add per-date "Select All" functionality**:
-   - New handler `handleSelectDateGroup(sales: PendingSale[])` that toggles all sales within a specific date group
-   - Keep the existing gateway-level "Select All" which selects across all dates
+## Technical Details
 
-3. **Restructure the table rendering** within each gateway card:
-   - Instead of one flat table, render date sub-headers within the table body
-   - Each date sub-header row will span all columns and include:
-     - The formatted date (e.g., "6 Feb 2026")
-     - Transaction count for that date
-     - Subtotal amount for that date
-     - A "Select All" checkbox for that date group
-   - Transaction rows follow under their respective date header
+### File: `src/components/clients/ClientDashboard.tsx`
 
-### Visual Layout (per gateway card)
+1. **Add imports**: `ArrowUpDown` from lucide-react; `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem` from UI components.
 
-```text
-+----------------------------------------------------------+
-| UPI - pos.11375848@indus           ₹465,012  Select All  |
-|----------------------------------------------------------|
-| [Date Header] 6 Feb 2026 - 1 txn - ₹50,000  [] Select   |
-|   [] | Order | Client | Amount | Bank | Actions          |
-|   [] | 228.. | Shani  | 50,000 | VTX  | Settle Now       |
-|----------------------------------------------------------|
-| [Date Header] 5 Feb 2026 - 11 txn - ₹415,012 [] Select  |
-|   [] | Order | Client | Amount | Bank | Actions          |
-|   [] | 228.. | Parba  | 40,000 | VTX  | Settle Now       |
-|   [] | OFS.. | RITIK  | 20,000 | VTX  | Settle Now       |
-|   ...                                                    |
-+----------------------------------------------------------+
-```
+2. **Add state variables** (default: `onboarding` / `desc`):
+   - `buyerSort` and `sellerSort` of type `string` with values like `"onboarding-desc"`, `"name-asc"`, `"orders-desc"`, `"lastOrder-desc"`, etc.
+   - Using a single combined string avoids needing two state variables per tab.
 
-### Technical Details
+3. **Add a sort helper function** that takes the filtered array, sort value, `clientOrderCounts` map, and `isBuyer` flag:
+   - `name`: `localeCompare` on `client.name`
+   - `orders`: numeric compare on `salesOrderCount` or `purchaseOrderCount`
+   - `lastOrder`: date string compare on `lastSalesOrderDate` or `lastPurchaseOrderDate`
+   - `onboarding`: date string compare on `client.date_of_onboarding` or `client.created_at`
 
-- Remove the "Date" column from individual rows since dates are now shown as group headers
-- The date grouping is done client-side using a `useMemo` or inline grouping within the render
-- Date sub-header rows use `TableRow` with a single `TableCell` using `colSpan={7}` containing a flex layout with date label, count, amount, and checkbox
-- Gateway-level "Select All" remains unchanged and selects/deselects everything across all dates
-- Per-date "Select All" only toggles transactions within that specific date
+4. **Update `filteredBuyers` and `filteredSellers` useMemo** to apply sorting after filtering. Add sort state to dependency arrays.
+
+5. **Add `Select` dropdown** in both the Buyers toolbar (around line 346) and Sellers toolbar (around line 468) with the 8 sort options listed above.
+

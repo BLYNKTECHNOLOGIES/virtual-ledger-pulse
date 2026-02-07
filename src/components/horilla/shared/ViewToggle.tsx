@@ -17,7 +17,7 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange("card")}
         className={cn(
           "h-8 px-3 rounded-md transition-all",
-          view === "card" ? "bg-white shadow-sm text-[#E8604C]" : "text-gray-500 hover:text-gray-700"
+          view === "card" ? "bg-white shadow-sm text-[#009C4A]" : "text-gray-500 hover:text-gray-700"
         )}
       >
         <LayoutGrid className="h-4 w-4" />
@@ -28,7 +28,7 @@ export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
         onClick={() => onViewChange("list")}
         className={cn(
           "h-8 px-3 rounded-md transition-all",
-          view === "list" ? "bg-white shadow-sm text-[#E8604C]" : "text-gray-500 hover:text-gray-700"
+          view === "list" ? "bg-white shadow-sm text-[#009C4A]" : "text-gray-500 hover:text-gray-700"
         )}
       >
         <List className="h-4 w-4" />

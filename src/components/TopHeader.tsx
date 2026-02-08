@@ -1,4 +1,5 @@
 import { Settings, RotateCcw, Globe, Edit3, X, Search } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -63,7 +64,7 @@ export function TopHeader() {
   };
 
   return (
-    <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">
+    <header className="h-14 md:h-16 bg-background border-b-2 border-border flex items-center justify-between px-3 md:px-6 shadow-sm">
       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
         <button 
           onClick={handleDashboardClick}
@@ -95,6 +96,7 @@ export function TopHeader() {
         </form>
         
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <NotificationDropdown />
           
           <DropdownMenu>

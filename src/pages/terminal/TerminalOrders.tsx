@@ -163,22 +163,10 @@ export default function TerminalOrders() {
     });
   }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap]);
 
-  // Helper: open chat for an order row directly
+  // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
     e.stopPropagation();
-    setActiveChatConv({
-      orderNumber: order.binance_order_number,
-      counterpartyNickname: order.counterparty_nickname,
-      tradeType: order.trade_type,
-      asset: order.asset,
-      fiatUnit: order.fiat_unit,
-      amount: String(order.amount),
-      totalPrice: String(order.total_price),
-      orderStatus: order.order_status,
-      chatUnreadCount: unreadMap.get(order.binance_order_number) || 0,
-      createTime: order.binance_create_time ? new Date(order.binance_create_time).getTime() : 0,
-      source: 'active',
-    });
+    setSelectedOrder(order);
   };
 
   // ---- View routing ----

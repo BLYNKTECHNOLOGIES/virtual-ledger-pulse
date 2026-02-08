@@ -18,11 +18,12 @@ import {
   Settings,
   Activity,
 } from 'lucide-react';
+import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 
 const navItems = [
   { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard },
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone },
-  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart },
+  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true },
   { title: 'Automation', url: '/terminal/automation', icon: Bot, badge: 'Soon' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon' },
@@ -30,6 +31,14 @@ const navItems = [
 
 export function TerminalSidebar() {
   const location = useLocation();
+  const { data: activeOrdersData } = useBinanceActiveOrders();
+
+  // Count active orders for badge
+  const activeCount = (() => {
+    if (!activeOrdersData) return 0;
+    const list = activeOrdersData?.data || activeOrdersData?.list || [];
+    return Array.isArray(list) ? list.length : 0;
+  })();
 
   const isActive = (url: string) => {
     if (url === '/terminal') return location.pathname === '/terminal';
@@ -67,6 +76,11 @@ export function TerminalSidebar() {
                     <Link to={item.url}>
                       <item.icon className="h-3.5 w-3.5 shrink-0" />
                       <span className="flex-1">{item.title}</span>
+                      {item.showActiveCount && activeCount > 0 && (
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                          {activeCount}
+                        </span>
+                      )}
                       {item.badge && (
                         <span className="text-[8px] bg-sidebar-accent text-sidebar-foreground px-1.5 py-0.5 rounded font-medium uppercase tracking-wider">
                           {item.badge}

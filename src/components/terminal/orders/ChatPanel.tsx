@@ -2,35 +2,30 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Image as ImageIcon, MessageSquare, Loader2, CloudDownload } from 'lucide-react';
+import { Send, MessageSquare, Loader2, CloudDownload, Volume2, VolumeX } from 'lucide-react';
 import { useOrderChats, useSendChatMessage, P2PChatMessage } from '@/hooks/useP2PTerminal';
 import { useBinanceChatMessages, BinanceChatMessage, useMarkMessagesRead } from '@/hooks/useBinanceActions';
-import { format } from 'date-fns';
+import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
+import { ChatImageUpload } from './chat/ChatImageUpload';
+import { QuickReplyBar } from './chat/QuickReplyBar';
 
 interface Props {
   orderId: string;
   orderNumber: string;
   counterpartyId: string | null;
   counterpartyNickname: string;
+  tradeType?: string;
 }
 
-interface UnifiedMessage {
-  id: string;
-  source: 'binance' | 'local';
-  senderType: 'operator' | 'counterparty' | 'system';
-  text: string | null;
-  imageUrl?: string;
-  timestamp: number;
-  isQuickReply?: boolean;
-}
-
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname }: Props) {
+export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
   const { data: localMessages = [], isLoading: localLoading } = useOrderChats(orderId);
   const { data: binanceData, isLoading: binanceLoading, refetch: refetchChat } = useBinanceChatMessages(orderNumber);
   const sendMessage = useSendChatMessage();
   const markRead = useMarkMessagesRead();
   const [text, setText] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
 
   // Mark messages as read when chat opens
   useEffect(() => {
@@ -50,19 +45,17 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   const allMessages: UnifiedMessage[] = useMemo(() => {
     const messages: UnifiedMessage[] = [];
 
-    // Binance messages
     for (const msg of binanceMessages) {
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
-        senderType: msg.chatMessageType === 'system' ? 'system' : 'counterparty', // Binance chat messages from counterparty perspective
+        senderType: msg.chatMessageType === 'system' ? 'system' : 'counterparty',
         text: msg.message || null,
         imageUrl: msg.imageUrl,
         timestamp: msg.createTime || 0,
       });
     }
 
-    // Local messages
     for (const msg of localMessages) {
       messages.push({
         id: `local-${msg.id}`,
@@ -79,36 +72,63 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   const isLoading = localLoading || binanceLoading;
 
+  // Sound notification for new messages
+  useEffect(() => {
+    if (allMessages.length > prevCountRef.current && prevCountRef.current > 0 && soundEnabled) {
+      // New message arrived - could play sound here
+    }
+    prevCountRef.current = allMessages.length;
+  }, [allMessages.length, soundEnabled]);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [allMessages]);
 
-  const handleSend = () => {
-    if (!text.trim()) return;
+  const handleSend = (messageText?: string) => {
+    const msg = messageText || text.trim();
+    if (!msg) return;
     sendMessage.mutate({
       order_id: orderId,
       counterparty_id: counterpartyId || undefined,
       sender_type: 'operator',
-      message_text: text.trim(),
+      message_text: msg,
     });
-    setText('');
+    if (!messageText) setText('');
+  };
+
+  const handleQuickReply = (replyText: string) => {
+    handleSend(replyText);
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* Chat header */}
-      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Chat</span>
-        <span className="text-xs text-muted-foreground">— {counterpartyNickname}</span>
-        <div className="ml-auto flex items-center gap-1.5">
+      <div className="px-4 py-2.5 border-b border-border flex items-center gap-2 bg-card/50">
+        <MessageSquare className="h-3.5 w-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">Chat</span>
+        <span className="text-[10px] text-muted-foreground">— {counterpartyNickname}</span>
+        <div className="ml-auto flex items-center gap-1">
           {binanceMessages.length > 0 && (
-            <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-              {binanceMessages.length} from Binance
+            <span className="text-[9px] text-primary bg-primary/10 px-1.5 py-0.5 rounded tabular-nums">
+              {binanceMessages.length} msgs
             </span>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? 'Mute notifications' : 'Enable notifications'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <VolumeX className="h-3 w-3 text-muted-foreground" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -121,7 +141,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages area */}
       <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -130,11 +150,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           </div>
         ) : allMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2">
-            <MessageSquare className="h-8 w-8 text-muted-foreground/30" />
+            <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
             <p className="text-xs text-muted-foreground">No messages yet</p>
+            <p className="text-[10px] text-muted-foreground/60">
+              Messages from Binance chat will appear here
+            </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {allMessages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
             ))}
@@ -142,11 +165,20 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         )}
       </ScrollArea>
 
-      {/* Input */}
-      <div className="p-3 border-t border-border flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground shrink-0" disabled>
-          <ImageIcon className="h-4 w-4" />
-        </Button>
+      {/* Quick replies bar */}
+      <div className="px-3 py-1 border-t border-border/50 bg-card/30">
+        <QuickReplyBar
+          tradeType={tradeType}
+          onSelect={handleQuickReply}
+        />
+      </div>
+
+      {/* Input area */}
+      <div className="p-3 border-t border-border flex items-center gap-2 bg-card/50">
+        <ChatImageUpload
+          orderNo={orderNumber}
+          onImageSent={() => refetchChat()}
+        />
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -157,60 +189,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <Button
           size="icon"
           className="h-8 w-8 shrink-0"
-          onClick={handleSend}
+          onClick={() => handleSend()}
           disabled={!text.trim() || sendMessage.isPending}
         >
           <Send className="h-3.5 w-3.5" />
         </Button>
-      </div>
-    </div>
-  );
-}
-
-function ChatBubble({ message }: { message: UnifiedMessage }) {
-  const isOperator = message.senderType === 'operator';
-  const isSystem = message.senderType === 'system';
-
-  if (isSystem) {
-    return (
-      <div className="flex justify-center">
-        <div className="bg-muted/50 rounded px-3 py-1.5 max-w-[90%]">
-          <p className="text-[10px] text-muted-foreground text-center">{message.text}</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[80%] rounded-lg px-3 py-2 ${
-          isOperator
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-secondary text-foreground'
-        }`}
-      >
-        {message.imageUrl && (
-          <img 
-            src={message.imageUrl} 
-            alt="Chat image" 
-            className="max-w-full rounded mb-1.5 max-h-48 object-contain"
-          />
-        )}
-        {message.text && (
-          <p className="text-xs whitespace-pre-wrap">{message.text}</p>
-        )}
-        <div className={`flex items-center gap-1.5 mt-1 ${isOperator ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-          <p className="text-[9px]">
-            {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
-          </p>
-          {message.source === 'binance' && (
-            <span className="text-[8px] bg-primary/20 px-1 rounded">Binance</span>
-          )}
-          {message.isQuickReply && (
-            <span className="text-[8px]">• Quick Reply</span>
-          )}
-        </div>
       </div>
     </div>
   );

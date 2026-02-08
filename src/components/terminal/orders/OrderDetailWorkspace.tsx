@@ -51,6 +51,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
             orderNumber={order.binance_order_number}
             counterpartyId={order.counterparty_id}
             counterpartyNickname={order.counterparty_nickname}
+            tradeType={order.trade_type}
           />
         </div>
 

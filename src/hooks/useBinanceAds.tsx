@@ -78,7 +78,8 @@ export function useBinanceReferencePrice(asset: string, tradeType: string) {
   return useQuery({
     queryKey: ['binance-ref-price', asset, tradeType],
     queryFn: () => callBinanceAds('getReferencePrice', { assets: [asset], tradeType }),
-    staleTime: 30 * 1000,
+    staleTime: 15 * 1000, // 15s — price ranges change frequently
+    refetchInterval: 60 * 1000, // Auto-refresh every 60s
   });
 }
 

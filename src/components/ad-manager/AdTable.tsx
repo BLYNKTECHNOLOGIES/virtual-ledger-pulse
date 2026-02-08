@@ -44,7 +44,7 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
           <TableRow key={ad.advNo}>
             <TableCell className="font-mono text-xs">{ad.advNo?.slice(-8) || '—'}</TableCell>
             <TableCell>
-              <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-green-600' : 'bg-red-500'}>
+              <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>
                 {ad.tradeType}
               </Badge>
             </TableCell>
@@ -80,7 +80,7 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant={ad.advStatus === 1 ? 'default' : 'secondary'} className={ad.advStatus === 1 ? 'bg-emerald-600' : ''}>
+              <Badge variant={ad.advStatus === 1 ? 'default' : 'secondary'} className={ad.advStatus === 1 ? 'bg-success text-white' : ''}>
                 {ad.advStatus === 1 ? 'Active' : 'Inactive'}
               </Badge>
             </TableCell>
@@ -100,9 +100,9 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
                   disabled={isTogglingStatus}
                 >
                   {ad.advStatus === 1 ? (
-                    <PowerOff className="h-3.5 w-3.5 text-red-500" />
+                    <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
                   ) : (
-                    <Power className="h-3.5 w-3.5 text-green-600" />
+                    <Power className="h-3.5 w-3.5 text-trade-buy" />
                   )}
                 </Button>
               </div>

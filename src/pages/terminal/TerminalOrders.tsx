@@ -148,7 +148,7 @@ export default function TerminalOrders() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            {rawOrders.length} orders
+            {displayOrders.length} of {rawOrders.length} orders
           </Badge>
           <Button
             variant="outline"

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Palette, Check } from "lucide-react";
+import { Moon, Sun, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function ThemeToggle() {
@@ -23,13 +21,11 @@ export function ThemeToggle() {
 
   const handleThemeSelect = (themeId: string) => {
     setSelectedTheme(themeId);
-    // Apply theme logic here
     if (themeId === "dark") {
       document.documentElement.classList.add("dark");
     } else if (themeId === "light") {
       document.documentElement.classList.remove("dark");
     } else {
-      // Auto theme - check system preference
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       if (prefersDark) {
         document.documentElement.classList.add("dark");
@@ -42,10 +38,18 @@ export function ThemeToggle() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-          <Palette className="h-4 w-4 mr-2" />
-          Switch Theme
-        </DropdownMenuItem>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="p-2 border-2 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200"
+          aria-label="Toggle theme"
+        >
+          {selectedTheme === "dark" ? (
+            <Moon className="h-5 w-5" />
+          ) : (
+            <Sun className="h-5 w-5" />
+          )}
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>

@@ -143,16 +143,17 @@ serve(async (req) => {
 
       // ==================== ORDERS ====================
       case "getOrderHistory": {
-        const params = new URLSearchParams();
-        if (payload.tradeType) params.set("tradeType", payload.tradeType);
-        if (payload.startTimestamp) params.set("startTimestamp", String(payload.startTimestamp));
-        if (payload.endTimestamp) params.set("endTimestamp", String(payload.endTimestamp));
-        params.set("page", String(payload.page || 1));
-        params.set("rows", String(payload.rows || 100));
+        const body: Record<string, any> = {
+          page: payload.page || 1,
+          rows: payload.rows || 100,
+        };
+        if (payload.tradeType) body.tradeType = payload.tradeType;
+        if (payload.startTimestamp) body.startTimestamp = payload.startTimestamp;
+        if (payload.endTimestamp) body.endTimestamp = payload.endTimestamp;
 
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
-        console.log("getOrderHistory URL:", url);
-        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`;
+        console.log("getOrderHistory URL:", url, "body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("getOrderHistory response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
@@ -374,12 +375,25 @@ serve(async (req) => {
         );
     }
 
-    const isError = result?.code && result.code !== "000000" && result.code !== 200;
+    // Detect proxy/CDN errors (HTML responses, non-200 status in raw result)
+    const isProxyError = result?.raw && (typeof result.raw === 'string' && (result.raw.includes('<!DOCTYPE') || result.raw.includes('<HTML')));
+    const isStatusError = result?.status && result.status >= 400;
+    const isBinanceError = result?.code && result.code !== "000000" && result.code !== 200;
+    const isError = isProxyError || isStatusError || isBinanceError;
+
+    const errorMessage = isProxyError 
+      ? `Proxy returned HTTP ${result.status || 'error'} (CloudFront/WAF block)` 
+      : isBinanceError 
+        ? (result.message || "Binance API error")
+        : isStatusError
+          ? `Proxy returned HTTP ${result.status}`
+          : undefined;
+
     return new Response(
       JSON.stringify({ 
         success: !isError, 
-        data: result,
-        ...(isError ? { error: result.message || "Binance API error" } : {})
+        data: isError ? null : result,
+        ...(isError ? { error: errorMessage } : {})
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -7,11 +7,47 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ShoppingCart, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
-import { useBinanceOrderHistory, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
+import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
+import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { useP2POrders, useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { format } from 'date-fns';
+
+/** Map listActiveOrders response items to C2COrderHistoryItem for sync */
+function mapActiveOrderToHistoryItem(o: any): C2COrderHistoryItem {
+  return {
+    orderNumber: o.orderNumber,
+    advNo: o.advNo || '',
+    tradeType: o.tradeType,
+    asset: o.asset || 'USDT',
+    fiatUnit: o.fiat || 'INR',
+    orderStatus: mapOrderStatusCode(o.orderStatus),
+    amount: o.amount || '0',
+    totalPrice: o.totalPrice || '0',
+    unitPrice: o.unitPrice || '0',
+    commission: o.commission || '0',
+    counterPartNickName: o.tradeType === 'BUY' ? o.sellerNickname : o.buyerNickname,
+    createTime: o.createTime || 0,
+    payMethodName: o.payMethodName || undefined,
+  };
+}
+
+/** Convert numeric orderStatus to string status */
+function mapOrderStatusCode(code: number | string): string {
+  if (typeof code === 'string') return code;
+  const statusMap: Record<number, string> = {
+    1: 'PENDING',
+    2: 'TRADING',
+    3: 'BUYER_PAYED',
+    4: 'BUYER_PAYED',
+    5: 'COMPLETED',
+    6: 'APPEAL',
+    7: 'CANCELLED',
+    8: 'CANCELLED',
+  };
+  return statusMap[code] || 'TRADING';
+}
 
 export default function TerminalOrders() {
   const [tradeFilter, setTradeFilter] = useState<string>('all');
@@ -19,23 +55,23 @@ export default function TerminalOrders() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
 
-  // Fetch from Binance
-  const now = Date.now();
-  const { data: binanceData, isLoading: binanceLoading, refetch, isFetching } = useBinanceOrderHistory({
-    startTimestamp: now - 30 * 24 * 60 * 60 * 1000,
-    endTimestamp: now,
-    rows: 100,
-  });
+  // Fetch active orders from Binance (working endpoint)
+  const { data: activeOrdersData, isLoading: binanceLoading, refetch, isFetching } = useBinanceActiveOrders();
 
   // Sync to local DB
   const syncOrders = useSyncOrders();
-  const binanceOrders: C2COrderHistoryItem[] = binanceData?.data || [];
+  
+  const binanceOrders: C2COrderHistoryItem[] = useMemo(() => {
+    const rawOrders = activeOrdersData?.data || activeOrdersData || [];
+    if (!Array.isArray(rawOrders)) return [];
+    return rawOrders.map(mapActiveOrderToHistoryItem);
+  }, [activeOrdersData]);
 
   useEffect(() => {
     if (binanceOrders.length > 0 && !syncOrders.isPending) {
       syncOrders.mutate(binanceOrders);
     }
-  }, [binanceOrders.length]); // Only sync when binance data changes
+  }, [binanceOrders.length]);
 
   // Local DB orders with filters
   const localFilters = useMemo(() => ({

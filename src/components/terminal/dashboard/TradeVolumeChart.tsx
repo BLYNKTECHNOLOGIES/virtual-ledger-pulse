@@ -43,7 +43,7 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" />
+            <Activity className="h-4 w-4 text-accent-yellow" />
             Trade Volume
           </CardTitle>
           {!isLoading && (

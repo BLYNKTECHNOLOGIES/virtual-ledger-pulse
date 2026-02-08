@@ -25,6 +25,7 @@ export interface BinanceAd {
     payId: number;
     payType: string;
     identifier: string;
+    tradeMethodName?: string;
   }>;
   autoReplyMsg?: string;
   remarks?: string;

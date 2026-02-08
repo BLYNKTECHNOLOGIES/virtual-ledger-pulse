@@ -115,11 +115,24 @@ serve(async (req) => {
       }
 
       case "getPaymentMethods": {
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/paymentMethod/listByUserId`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders });
-        const text = await response.text();
-        console.log("getPaymentMethods response:", response.status, text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        // Try primary path first, then fallback
+        const paths = [
+          `/api/sapi/v1/c2c/paymentMethod/list`,
+          `/api/sapi/v1/c2c/paymentMethod/listByUserId`,
+          `/api/bapi/c2c/v1/private/paymentMethod/list`,
+        ];
+        let finalResult: any = null;
+        for (const path of paths) {
+          const url = `${BINANCE_PROXY_URL}${path}`;
+          console.log("getPaymentMethods trying:", url);
+          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({}) });
+          const text = await response.text();
+          console.log("getPaymentMethods response:", response.status, text.substring(0, 800));
+          try { finalResult = JSON.parse(text); } catch { finalResult = { raw: text, status: response.status }; }
+          // If we got a valid response (not 404), use it
+          if (response.status !== 404 && !(finalResult?.status === 404)) break;
+        }
+        result = finalResult;
         break;
       }
 

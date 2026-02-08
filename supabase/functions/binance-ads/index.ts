@@ -85,16 +85,13 @@ serve(async (req) => {
 
       case "updateAdStatus": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-        // Try multiple parameter formats for compatibility
+        // Binance expects advNos as a comma-separated string, not an array
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
-        const body: Record<string, any> = {
+        const advNosStr = advNosList.join(",");
+        const body = {
+          advNos: advNosStr,
           advStatus: Number(payload.advStatus),
         };
-        // Send both formats - advNos (array) and advNo (single string)
-        if (advNosList.length === 1) {
-          body.advNo = advNosList[0];
-        }
-        body.advNos = advNosList;
         console.log("updateAdStatus request body:", JSON.stringify(body));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();

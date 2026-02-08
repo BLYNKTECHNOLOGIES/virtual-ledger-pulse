@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinancePaymentMethods } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinancePaymentMethods, useBinanceReferencePrice } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
@@ -56,6 +56,39 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   const [showPayMethodPicker, setShowPayMethodPicker] = useState(false);
 
   const isBuyAd = form.tradeType === 'BUY';
+
+  // ─── Dynamic Price Range from Binance ────────────────────────
+  const { data: refPriceData, isLoading: isLoadingRefPrice, refetch: refetchRefPrice, dataUpdatedAt: refPriceUpdatedAt } = useBinanceReferencePrice(
+    form.asset,
+    form.tradeType
+  );
+
+  const priceRange = useMemo(() => {
+    const refData = refPriceData?.data;
+    if (!Array.isArray(refData) || refData.length === 0) return null;
+    const ref = Number(refData[0]?.referencePrice);
+    if (!ref || isNaN(ref)) return null;
+    // Binance allows approximately ±20% from reference price for ad placement
+    const LOWER_BOUND_PCT = 0.80;
+    const UPPER_BOUND_PCT = 1.20;
+    return {
+      referencePrice: ref,
+      min: Math.round(ref * LOWER_BOUND_PCT * 100) / 100,
+      max: Math.round(ref * UPPER_BOUND_PCT * 100) / 100,
+      priceScale: refData[0]?.priceScale || 2,
+    };
+  }, [refPriceData]);
+
+  const isPriceOutOfRange = useMemo(() => {
+    if (form.priceType !== 1 || !priceRange || !form.price) return false;
+    const p = Number(form.price);
+    return p < priceRange.min || p > priceRange.max;
+  }, [form.priceType, form.price, priceRange]);
+
+  const refPriceAgeSeconds = useMemo(() => {
+    if (!refPriceUpdatedAt) return null;
+    return Math.floor((Date.now() - refPriceUpdatedAt) / 1000);
+  }, [refPriceUpdatedAt]);
 
   useEffect(() => {
     if (editingAd) {
@@ -185,7 +218,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     if (!form.minSingleTransAmount || Number(form.minSingleTransAmount) <= 0) return 'Min order limit is required';
     if (!form.maxSingleTransAmount || Number(form.maxSingleTransAmount) <= 0) return 'Max order limit is required';
     if (Number(form.minSingleTransAmount) >= Number(form.maxSingleTransAmount)) return 'Min order must be less than max order';
-    if (form.priceType === 1 && (!form.price || Number(form.price) <= 0)) return 'Price is required for fixed type';
+    if (form.priceType === 1) {
+      if (!form.price || Number(form.price) <= 0) return 'Price is required for fixed type';
+      if (!priceRange) return 'Unable to fetch Binance price range — please retry';
+      if (isPriceOutOfRange) return `Price must be between ${priceRange.min} – ${priceRange.max} ${form.fiatUnit}`;
+    }
     if (form.priceType === 2 && (!form.priceFloatingRatio || Number(form.priceFloatingRatio) === 0)) return 'Floating ratio is required';
     if (form.selectedPayMethods.length === 0) return 'At least one payment method is required';
     return null;
@@ -257,7 +294,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   const adjustPrice = (delta: number) => {
     const current = Number(form.price) || 0;
-    setForm({ ...form, price: String(Math.max(0, current + delta)) });
+    let next = current + delta;
+    if (priceRange) {
+      next = Math.max(priceRange.min, Math.min(priceRange.max, next));
+    }
+    setForm({ ...form, price: String(Math.max(0, next)) });
   };
 
   const isSubmitting = postAd.isPending || updateAd.isPending;
@@ -316,7 +357,32 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
           {/* Price Section */}
           <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Price</Label>
+            {/* Reference Price Header */}
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Price</Label>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {isLoadingRefPrice ? (
+                  <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3 animate-spin" /> Loading price…</span>
+                ) : priceRange ? (
+                  <>
+                    <span>Ref: <span className="font-semibold text-foreground">₹{priceRange.referencePrice}</span></span>
+                    <span className="text-muted-foreground/60">|</span>
+                    <span>Range: <span className="font-medium text-foreground">{priceRange.min} – {priceRange.max}</span></span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()} title="Refresh price range">
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                  </>
+                ) : (
+                  <span className="flex items-center gap-1 text-destructive">
+                    <AlertTriangle className="h-3 w-3" /> Unable to fetch price range
+                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => refetchRefPrice()}>
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                  </span>
+                )}
+              </div>
+            </div>
+
             <Select value={String(form.priceType)} onValueChange={(v) => setForm({ ...form, priceType: Number(v) as 1 | 2 })} disabled={isEditing}>
               <SelectTrigger className={`w-[160px] ${isEditing ? 'opacity-60' : ''}`}><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -336,14 +402,32 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   <Input
                     type="number"
                     step="0.01"
+                    min={priceRange?.min}
+                    max={priceRange?.max}
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className="text-center"
+                    className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
                   <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(0.5)}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {priceRange && (
+                  <p className={cn(
+                    "text-[11px] mt-1",
+                    isPriceOutOfRange ? "text-destructive font-medium" : "text-muted-foreground"
+                  )}>
+                    {isPriceOutOfRange
+                      ? `⚠ Price must be between ${priceRange.min} – ${priceRange.max} ${form.fiatUnit}`
+                      : `Allowed range: ${priceRange.min} – ${priceRange.max} ${form.fiatUnit}`
+                    }
+                  </p>
+                )}
+                {!priceRange && !isLoadingRefPrice && (
+                  <p className="text-[11px] mt-1 text-destructive flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Unable to fetch Binance price range — submission blocked
+                  </p>
+                )}
               </div>
             ) : (
               <div>
@@ -355,6 +439,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
                   placeholder="e.g., 1.5 for 1.5% above market"
                 />
+                {priceRange && (
+                  <p className="text-[11px] mt-1 text-muted-foreground">
+                    Reference price: ₹{priceRange.referencePrice}
+                  </p>
+                )}
               </div>
             )}
           </div>

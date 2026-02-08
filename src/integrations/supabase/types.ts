@@ -3814,6 +3814,311 @@ export type Database = {
           },
         ]
       }
+      p2p_chat_media: {
+        Row: {
+          chat_message_id: string
+          created_at: string
+          expires_at: string | null
+          file_size_bytes: number | null
+          file_type: string
+          file_url: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          chat_message_id: string
+          created_at?: string
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          file_type?: string
+          file_url: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          chat_message_id?: string
+          created_at?: string
+          expires_at?: string | null
+          file_size_bytes?: number | null
+          file_type?: string
+          file_url?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_chat_media_chat_message_id_fkey"
+            columns: ["chat_message_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_order_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_chat_media_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_order_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      p2p_counterparties: {
+        Row: {
+          binance_nickname: string
+          created_at: string
+          first_seen_at: string
+          flag_reason: string | null
+          id: string
+          is_flagged: boolean
+          last_seen_at: string
+          notes: string | null
+          payment_identifiers: Json | null
+          total_buy_orders: number
+          total_sell_orders: number
+          total_volume_inr: number
+          updated_at: string
+        }
+        Insert: {
+          binance_nickname: string
+          created_at?: string
+          first_seen_at?: string
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean
+          last_seen_at?: string
+          notes?: string | null
+          payment_identifiers?: Json | null
+          total_buy_orders?: number
+          total_sell_orders?: number
+          total_volume_inr?: number
+          updated_at?: string
+        }
+        Update: {
+          binance_nickname?: string
+          created_at?: string
+          first_seen_at?: string
+          flag_reason?: string | null
+          id?: string
+          is_flagged?: boolean
+          last_seen_at?: string
+          notes?: string | null
+          payment_identifiers?: Json | null
+          total_buy_orders?: number
+          total_sell_orders?: number
+          total_volume_inr?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      p2p_order_chats: {
+        Row: {
+          counterparty_id: string | null
+          created_at: string
+          id: string
+          is_quick_reply: boolean
+          message_text: string | null
+          order_id: string
+          quick_reply_template_id: string | null
+          sender_type: string
+          sent_by_user_id: string | null
+        }
+        Insert: {
+          counterparty_id?: string | null
+          created_at?: string
+          id?: string
+          is_quick_reply?: boolean
+          message_text?: string | null
+          order_id: string
+          quick_reply_template_id?: string | null
+          sender_type?: string
+          sent_by_user_id?: string | null
+        }
+        Update: {
+          counterparty_id?: string | null
+          created_at?: string
+          id?: string
+          is_quick_reply?: boolean
+          message_text?: string | null
+          order_id?: string
+          quick_reply_template_id?: string | null
+          sender_type?: string
+          sent_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_order_chats_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_counterparties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_order_chats_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_order_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      p2p_order_records: {
+        Row: {
+          amount: number
+          asset: string
+          assigned_operator_id: string | null
+          binance_adv_no: string | null
+          binance_create_time: number | null
+          binance_order_number: string
+          cancelled_at: string | null
+          commission: number
+          completed_at: string | null
+          counterparty_id: string | null
+          counterparty_nickname: string
+          created_at: string
+          fiat_unit: string
+          id: string
+          is_repeat_client: boolean
+          order_status: string
+          order_type: string | null
+          pay_method_name: string | null
+          repeat_order_count: number
+          synced_at: string
+          total_price: number
+          trade_type: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          asset?: string
+          assigned_operator_id?: string | null
+          binance_adv_no?: string | null
+          binance_create_time?: number | null
+          binance_order_number: string
+          cancelled_at?: string | null
+          commission?: number
+          completed_at?: string | null
+          counterparty_id?: string | null
+          counterparty_nickname: string
+          created_at?: string
+          fiat_unit?: string
+          id?: string
+          is_repeat_client?: boolean
+          order_status?: string
+          order_type?: string | null
+          pay_method_name?: string | null
+          repeat_order_count?: number
+          synced_at?: string
+          total_price?: number
+          trade_type: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          asset?: string
+          assigned_operator_id?: string | null
+          binance_adv_no?: string | null
+          binance_create_time?: number | null
+          binance_order_number?: string
+          cancelled_at?: string | null
+          commission?: number
+          completed_at?: string | null
+          counterparty_id?: string | null
+          counterparty_nickname?: string
+          created_at?: string
+          fiat_unit?: string
+          id?: string
+          is_repeat_client?: boolean
+          order_status?: string
+          order_type?: string | null
+          pay_method_name?: string | null
+          repeat_order_count?: number
+          synced_at?: string
+          total_price?: number
+          trade_type?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_order_records_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_counterparties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      p2p_order_types: {
+        Row: {
+          auto_assign_rules: Json | null
+          color: string
+          created_at: string
+          icon_name: string | null
+          id: string
+          is_active: boolean
+          label: string
+          name: string
+          notification_escalation: boolean
+        }
+        Insert: {
+          auto_assign_rules?: Json | null
+          color?: string
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          name: string
+          notification_escalation?: boolean
+        }
+        Update: {
+          auto_assign_rules?: Json | null
+          color?: string
+          created_at?: string
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          name?: string
+          notification_escalation?: boolean
+        }
+        Relationships: []
+      }
+      p2p_quick_replies: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          message_text: string
+          order_type: string | null
+          sort_order: number
+          trade_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          message_text: string
+          order_type?: string | null
+          sort_order?: number
+          trade_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          message_text?: string
+          order_type?: string | null
+          sort_order?: number
+          trade_type?: string | null
+        }
+        Relationships: []
+      }
       password_reset_tokens: {
         Row: {
           created_at: string | null
@@ -6874,6 +7179,24 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      sync_p2p_order: {
+        Args: {
+          p_adv_no: string
+          p_amount: number
+          p_asset: string
+          p_commission: number
+          p_create_time: number
+          p_fiat: string
+          p_nickname: string
+          p_order_number: string
+          p_pay_method: string
+          p_status: string
+          p_total_price: number
+          p_trade_type: string
+          p_unit_price: number
+        }
+        Returns: Json
+      }
       sync_usdt_stock: { Args: never; Returns: undefined }
       update_risk_flag_status: {
         Args: {
@@ -6987,6 +7310,10 @@ export type Database = {
           p_username?: string
         }
         Returns: Json
+      }
+      upsert_p2p_counterparty: {
+        Args: { p_nickname: string; p_trade_type: string; p_volume: number }
+        Returns: string
       }
       user_has_function: {
         Args: { _function_key: string; _user_id: string }

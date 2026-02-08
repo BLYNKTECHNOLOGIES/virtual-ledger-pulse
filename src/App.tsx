@@ -65,6 +65,9 @@ import AdManager from './pages/AdManager';
 import TerminalDashboard from './pages/terminal/TerminalDashboard';
 import TerminalOrders from './pages/terminal/TerminalOrders';
 import TerminalAutomation from './pages/terminal/TerminalAutomation';
+import TerminalUsers from './pages/terminal/TerminalUsers';
+import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
+import TerminalSettings from './pages/terminal/TerminalSettings';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -615,6 +618,48 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAutomation />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/users",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalUsers />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/analytics",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAnalytics />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/settings",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalSettings />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

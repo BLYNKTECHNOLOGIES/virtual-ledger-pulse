@@ -74,6 +74,41 @@ export type Database = {
           },
         ]
       }
+      ad_payment_methods: {
+        Row: {
+          binance_ad_id: string
+          binance_pay_id: number | null
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          payment_method_id: string
+        }
+        Insert: {
+          binance_ad_id: string
+          binance_pay_id?: number | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          payment_method_id: string
+        }
+        Update: {
+          binance_ad_id?: string
+          binance_pay_id?: number | null
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          payment_method_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_payment_methods_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods_master"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_value_history: {
         Row: {
           created_at: string
@@ -4032,6 +4067,42 @@ export type Database = {
           type?: string
           updated_at?: string
           upi_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_methods_master: {
+        Row: {
+          binance_identifier: string
+          binance_pay_type: string
+          color_accent: string | null
+          created_at: string
+          icon_label: string | null
+          id: string
+          is_active: boolean
+          method_name: string
+          sort_order: number | null
+        }
+        Insert: {
+          binance_identifier: string
+          binance_pay_type: string
+          color_accent?: string | null
+          created_at?: string
+          icon_label?: string | null
+          id?: string
+          is_active?: boolean
+          method_name: string
+          sort_order?: number | null
+        }
+        Update: {
+          binance_identifier?: string
+          binance_pay_type?: string
+          color_accent?: string | null
+          created_at?: string
+          icon_label?: string | null
+          id?: string
+          is_active?: boolean
+          method_name?: string
+          sort_order?: number | null
         }
         Relationships: []
       }

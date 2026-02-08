@@ -38,7 +38,7 @@ function binanceToOrderRecord(o: any): P2POrderRecord {
     fiat_unit: o.fiat || 'INR',
     amount: parseFloat(o.amount || '0'),
     total_price: parseFloat(o.totalPrice || '0'),
-    unit_price: 0,
+    unit_price: parseFloat(o.unitPrice || o.price || '0') || (parseFloat(o.totalPrice || '0') / parseFloat(o.amount || '1')),
     commission: parseFloat(o.commission || '0'),
     order_status: status,
     pay_method_name: o.payMethodName || null,

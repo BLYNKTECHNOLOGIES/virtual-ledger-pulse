@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, History, User, BarChart3, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
@@ -131,12 +132,17 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
 }
 
 function CounterpartyProfile({ counterparty, order, binanceStats }: { counterparty: any; order: P2POrderRecord; binanceStats: any }) {
-  // Parse Binance stats from API response
+  // Parse Binance stats — API returns fields like completedOrderNum, finishRateLatest30Day, etc.
   const stats = binanceStats?.data || binanceStats;
-  const hasApiStats = stats && (stats.totalOrderCount !== undefined || stats.orderCount !== undefined || stats.monthFinishRate !== undefined);
+  const hasApiStats = stats && (
+    stats.completedOrderNum !== undefined ||
+    stats.completedOrderNumOfLatest30day !== undefined ||
+    stats.registerDays !== undefined
+  );
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* User identity */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
           <User className="h-5 w-5 text-primary" />
@@ -147,36 +153,76 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
         </div>
       </div>
 
-      {/* Binance API Stats */}
+      {/* Registration & join info */}
+      {hasApiStats && stats.registerDays !== undefined && (
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          <span>Joined {stats.registerDays} days ago</span>
+        </div>
+      )}
+
+      {/* Binance Trading Stats */}
       {hasApiStats && (
         <div className="space-y-3 pt-3 border-t border-border">
           <div className="flex items-center gap-1.5 mb-2">
             <BarChart3 className="h-3 w-3 text-primary" />
-            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Binance Stats</span>
+            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Trading Stats</span>
           </div>
-          {stats.totalOrderCount !== undefined && (
-            <StatRow label="Total Orders" value={String(stats.totalOrderCount)} />
-          )}
-          {stats.orderCount !== undefined && (
-            <StatRow label="Order Count" value={String(stats.orderCount)} />
-          )}
-          {stats.totalCompletedCount !== undefined && (
-            <StatRow label="Completed" value={String(stats.totalCompletedCount)} />
-          )}
-          {stats.monthFinishRate !== undefined && (
-            <StatRow label="30d Completion" value={`${(stats.monthFinishRate * 100).toFixed(1)}%`} />
-          )}
-          {stats.monthOrderCount !== undefined && (
-            <StatRow label="30d Orders" value={String(stats.monthOrderCount)} />
-          )}
-          {stats.positiveRate !== undefined && (
-            <StatRow label="Positive Rate" value={`${(stats.positiveRate * 100).toFixed(1)}%`} />
-          )}
-          {stats.avgReleaseTime !== undefined && (
-            <StatRow label="Avg Release" value={`${Math.round(stats.avgReleaseTime / 60)}min`} />
-          )}
-          {stats.avgPayTime !== undefined && (
-            <StatRow label="Avg Pay Time" value={`${Math.round(stats.avgPayTime / 60)}min`} />
+
+          {/* Key stat cards */}
+          <div className="grid grid-cols-2 gap-2">
+            {stats.completedOrderNum !== undefined && (
+              <StatCard label="All Trades" value={`${stats.completedOrderNum}`} />
+            )}
+            {stats.completedOrderNumOfLatest30day !== undefined && (
+              <StatCard label="30d Trades" value={`${stats.completedOrderNumOfLatest30day}`} />
+            )}
+            {stats.finishRateLatest30Day !== undefined && (
+              <StatCard label="30d Completion" value={`${(stats.finishRateLatest30Day * 100).toFixed(1)}%`} />
+            )}
+            {stats.finishRate !== undefined && (
+              <StatCard label="Overall Rate" value={`${(stats.finishRate * 100).toFixed(1)}%`} />
+            )}
+          </div>
+
+          {/* Timing stats */}
+          <div className="space-y-2 pt-2">
+            {stats.avgReleaseTimeOfLatest30day !== undefined && (
+              <StatRow
+                label="Avg Release (30d)"
+                value={stats.avgReleaseTimeOfLatest30day === 0
+                  ? '0 min'
+                  : `${(stats.avgReleaseTimeOfLatest30day / 60).toFixed(1)} min`}
+              />
+            )}
+            {stats.avgReleaseTime !== undefined && stats.avgReleaseTime > 0 && (
+              <StatRow
+                label="Avg Release (All)"
+                value={`${(stats.avgReleaseTime / 60).toFixed(1)} min`}
+              />
+            )}
+            {stats.avgPayTimeOfLatest30day !== undefined && (
+              <StatRow
+                label="Avg Pay Time (30d)"
+                value={`${(stats.avgPayTimeOfLatest30day / 60).toFixed(1)} min`}
+              />
+            )}
+            {stats.avgPayTime !== undefined && stats.avgPayTime > 0 && (
+              <StatRow
+                label="Avg Pay Time (All)"
+                value={`${(stats.avgPayTime / 60).toFixed(1)} min`}
+              />
+            )}
+          </div>
+
+          {/* Relationship with us */}
+          {stats.numberOfTradesWithCounterpartyCompleted30day !== undefined && (
+            <div className="pt-2 border-t border-border/50">
+              <StatRow
+                label="Trades with us (30d)"
+                value={String(stats.numberOfTradesWithCounterpartyCompleted30day)}
+              />
+            </div>
           )}
         </div>
       )}
@@ -193,6 +239,15 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
           <StatRow label="Last Seen" value={new Date(counterparty.last_seen_at).toLocaleDateString('en-IN')} />
         </div>
       )}
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-secondary/50 rounded-md px-2.5 py-2 text-center">
+      <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-sm font-bold text-foreground tabular-nums">{value}</p>
     </div>
   );
 }

@@ -1,21 +1,61 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShoppingCart, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
+import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
-import { useP2POrders, useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { format } from 'date-fns';
 
-/** Map listActiveOrders response items to C2COrderHistoryItem for sync */
-function mapActiveOrderToHistoryItem(o: any): C2COrderHistoryItem {
+/** Convert numeric orderStatus to string */
+function mapOrderStatusCode(code: number | string): string {
+  if (typeof code === 'string') return code;
+  const statusMap: Record<number, string> = {
+    1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
+    5: 'COMPLETED', 6: 'APPEAL', 7: 'CANCELLED', 8: 'CANCELLED',
+  };
+  return statusMap[code] || 'TRADING';
+}
+
+/** Convert raw Binance active order to display-ready P2POrderRecord shape */
+function binanceToOrderRecord(o: any): P2POrderRecord {
+  const status = mapOrderStatusCode(o.orderStatus);
+  return {
+    id: o.orderNumber,
+    binance_order_number: o.orderNumber,
+    binance_adv_no: o.advNo || null,
+    counterparty_id: null,
+    counterparty_nickname: o.tradeType === 'BUY' ? (o.sellerNickname || '') : (o.buyerNickname || ''),
+    trade_type: o.tradeType,
+    asset: o.asset || 'USDT',
+    fiat_unit: o.fiat || 'INR',
+    amount: parseFloat(o.amount || '0'),
+    total_price: parseFloat(o.totalPrice || '0'),
+    unit_price: 0,
+    commission: parseFloat(o.commission || '0'),
+    order_status: status,
+    pay_method_name: o.payMethodName || null,
+    binance_create_time: o.createTime || null,
+    is_repeat_client: false,
+    repeat_order_count: 0,
+    assigned_operator_id: null,
+    order_type: null,
+    synced_at: new Date().toISOString(),
+    completed_at: null,
+    cancelled_at: null,
+    created_at: new Date().toISOString(),
+  };
+}
+
+/** Convert to C2COrderHistoryItem for sync */
+function toSyncItem(o: any): C2COrderHistoryItem {
   return {
     orderNumber: o.orderNumber,
     advNo: o.advNo || '',
@@ -33,55 +73,57 @@ function mapActiveOrderToHistoryItem(o: any): C2COrderHistoryItem {
   };
 }
 
-/** Convert numeric orderStatus to string status */
-function mapOrderStatusCode(code: number | string): string {
-  if (typeof code === 'string') return code;
-  const statusMap: Record<number, string> = {
-    1: 'PENDING',
-    2: 'TRADING',
-    3: 'BUYER_PAYED',
-    4: 'BUYER_PAYED',
-    5: 'COMPLETED',
-    6: 'APPEAL',
-    7: 'CANCELLED',
-    8: 'CANCELLED',
-  };
-  return statusMap[code] || 'TRADING';
-}
-
 export default function TerminalOrders() {
   const [tradeFilter, setTradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
 
-  // Fetch active orders from Binance (working endpoint)
-  const { data: activeOrdersData, isLoading: binanceLoading, refetch, isFetching } = useBinanceActiveOrders();
-
-  // Sync to local DB
+  const { data: activeOrdersData, isLoading, refetch, isFetching } = useBinanceActiveOrders();
   const syncOrders = useSyncOrders();
-  
-  const binanceOrders: C2COrderHistoryItem[] = useMemo(() => {
-    const rawOrders = activeOrdersData?.data || activeOrdersData || [];
-    if (!Array.isArray(rawOrders)) return [];
-    return rawOrders.map(mapActiveOrderToHistoryItem);
+
+  // Extract raw orders array from Binance response
+  const rawOrders: any[] = useMemo(() => {
+    const d = activeOrdersData?.data || activeOrdersData;
+    if (Array.isArray(d)) return d;
+    return [];
   }, [activeOrdersData]);
 
+  // Background sync to local DB (fire-and-forget)
   useEffect(() => {
-    if (binanceOrders.length > 0 && !syncOrders.isPending) {
-      syncOrders.mutate(binanceOrders);
+    if (rawOrders.length > 0 && !syncOrders.isPending) {
+      syncOrders.mutate(rawOrders.map(toSyncItem));
     }
-  }, [binanceOrders.length]);
+  }, [rawOrders.length]);
 
-  // Local DB orders with filters
-  const localFilters = useMemo(() => ({
-    tradeType: tradeFilter !== 'all' ? tradeFilter : undefined,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-    search: search || undefined,
-  }), [tradeFilter, statusFilter, search]);
+  // Convert to display records and apply client-side filters
+  const displayOrders: P2POrderRecord[] = useMemo(() => {
+    let filtered = rawOrders;
 
-  const { data: orders = [], isLoading: localLoading } = useP2POrders(localFilters);
-  const isLoading = binanceLoading || localLoading;
+    if (tradeFilter !== 'all') {
+      filtered = filtered.filter(o => o.tradeType === tradeFilter);
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(o => {
+        const s = mapOrderStatusCode(o.orderStatus);
+        if (statusFilter === 'active') {
+          return !s.includes('COMPLETED') && !s.includes('CANCEL');
+        }
+        return s.includes(statusFilter.toUpperCase());
+      });
+    }
+
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(o => {
+        const nick = o.tradeType === 'BUY' ? o.sellerNickname : o.buyerNickname;
+        return (nick || '').toLowerCase().includes(q) || (o.orderNumber || '').includes(q);
+      });
+    }
+
+    return filtered.map(binanceToOrderRecord);
+  }, [rawOrders, tradeFilter, statusFilter, search]);
 
   if (selectedOrder) {
     return (
@@ -105,6 +147,9 @@ export default function TerminalOrders() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            {rawOrders.length} orders
+          </Badge>
           <Button
             variant="outline"
             size="sm"
@@ -113,7 +158,7 @@ export default function TerminalOrders() {
             disabled={isFetching}
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-            Sync
+            Refresh
           </Button>
         </div>
       </div>
@@ -155,12 +200,12 @@ export default function TerminalOrders() {
             <div className="p-6 space-y-3">
               {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : orders.length === 0 ? (
+          ) : displayOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <ShoppingCart className="h-10 w-10 text-muted-foreground/20 mb-3" />
               <p className="text-sm text-muted-foreground">No orders found</p>
               <p className="text-[11px] text-muted-foreground/60 mt-1">
-                Orders will appear after syncing from Binance
+                {rawOrders.length > 0 ? 'No orders match current filters' : 'Orders will appear after syncing from Binance'}
               </p>
             </div>
           ) : (
@@ -172,14 +217,12 @@ export default function TerminalOrders() {
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Amount</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Price</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Payment</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Client</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((order) => (
+                  {displayOrders.map((order) => (
                     <TableRow
                       key={order.id}
                       className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
@@ -213,19 +256,7 @@ export default function TerminalOrders() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-[11px] text-muted-foreground">
-                          {order.pay_method_name || '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
                         <OrderStatusBadge status={order.order_status} />
-                      </TableCell>
-                      <TableCell>
-                        <CounterpartyBadge
-                          isRepeat={order.is_repeat_client}
-                          repeatCount={order.repeat_order_count}
-                          tradeType={order.trade_type}
-                        />
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-[11px] text-muted-foreground tabular-nums">
@@ -256,6 +287,7 @@ function OrderStatusBadge({ status }: { status: string }) {
   else if (s.includes('APPEAL')) { label = 'Appeal'; className = 'border-destructive/30 text-destructive bg-destructive/5'; }
   else if (s.includes('BUYER_PAYED')) { label = 'Paid'; className = 'border-primary/30 text-primary bg-primary/5'; }
   else if (s.includes('TRADING')) { label = 'Trading'; className = 'border-trade-pending/30 text-trade-pending bg-trade-pending/5'; }
+  else if (s.includes('PENDING')) { label = 'Pending'; className = 'border-trade-pending/30 text-trade-pending bg-trade-pending/5'; }
 
   return <Badge variant="outline" className={`text-[10px] ${className}`}>{label}</Badge>;
 }

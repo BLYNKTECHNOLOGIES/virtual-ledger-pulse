@@ -79,12 +79,6 @@ export default {
 				'trade-buy': 'hsl(var(--trade-buy, var(--success)))',
 				'trade-sell': 'hsl(var(--trade-sell, var(--destructive)))',
 				'trade-pending': 'hsl(var(--trade-pending, var(--warning)))',
-				'accent-yellow': {
-					DEFAULT: 'hsl(var(--accent-yellow, 45 95% 49%))',
-					hover: 'hsl(var(--accent-yellow-hover, 44 100% 65%))',
-					pressed: 'hsl(var(--accent-yellow-pressed, 42 100% 38%))',
-					tint: 'hsl(var(--accent-yellow-tint, 45 40% 12%))',
-				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

@@ -80,7 +80,7 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant={ad.advStatus === 1 ? 'default' : 'secondary'} className={ad.advStatus === 1 ? 'bg-accent-yellow text-accent-yellow-pressed border-transparent' : ''}>
+              <Badge variant={ad.advStatus === 1 ? 'default' : 'secondary'} className={ad.advStatus === 1 ? 'bg-success text-white' : ''}>
                 {ad.advStatus === 1 ? 'Active' : 'Inactive'}
               </Badge>
             </TableCell>

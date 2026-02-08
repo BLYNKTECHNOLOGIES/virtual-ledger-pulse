@@ -19,7 +19,7 @@ export function CounterpartyBadge({ isRepeat, repeatCount, tradeType }: Props) {
 
   if (repeatCount >= 10) {
     return (
-      <Badge className="text-[10px] gap-1 bg-accent-yellow-tint text-accent-yellow border border-accent-yellow/30">
+      <Badge className="text-[10px] gap-1 bg-trade-pending/15 text-trade-pending border border-trade-pending/30">
         <Zap className="h-2.5 w-2.5" />
         High Frequency
       </Badge>

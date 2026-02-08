@@ -89,12 +89,33 @@ export default function TerminalOrders() {
   const { data: historyOrders = [] } = useBinanceOrderHistory();
   const syncOrders = useSyncOrders();
 
-  // Extract raw orders array from Binance response
+  // Extract raw orders array — prefer active orders, fallback to history
   const rawOrders: any[] = useMemo(() => {
     const d = activeOrdersData?.data || activeOrdersData;
-    if (Array.isArray(d)) return d;
+    if (Array.isArray(d) && d.length > 0) return d;
+    // Fallback: use order history data when active orders endpoint fails
+    if (Array.isArray(historyOrders) && historyOrders.length > 0) {
+      return historyOrders.map((o: any) => ({
+        orderNumber: o.orderNumber,
+        advNo: o.advNo,
+        tradeType: o.tradeType,
+        asset: o.asset || 'USDT',
+        fiat: o.fiat || o.fiatUnit || 'INR',
+        amount: o.amount,
+        totalPrice: o.totalPrice,
+        unitPrice: o.unitPrice,
+        commission: o.commission,
+        orderStatus: o.orderStatus,
+        createTime: o.createTime,
+        payMethodName: o.payMethodName,
+        counterPartNickName: o.counterPartNickName,
+        buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
+        sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
+        additionalKycVerify: o.additionalKycVerify ?? 0,
+      }));
+    }
     return [];
-  }, [activeOrdersData]);
+  }, [activeOrdersData, historyOrders]);
 
   // Build a map of order history statuses for enrichment
   const historyStatusMap = useMemo(() => {

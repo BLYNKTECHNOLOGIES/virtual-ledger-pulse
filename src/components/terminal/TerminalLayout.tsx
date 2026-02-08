@@ -14,9 +14,9 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
           <div className="hidden md:block">
             <TerminalSidebar />
           </div>
-          <SidebarInset className="flex flex-col flex-1 min-w-0">
+           <SidebarInset className="flex flex-col flex-1 min-w-0">
             <TerminalHeader />
-            <main className="flex-1 overflow-auto bg-background">
+            <main className="flex-1 overflow-auto">
               {children}
             </main>
           </SidebarInset>

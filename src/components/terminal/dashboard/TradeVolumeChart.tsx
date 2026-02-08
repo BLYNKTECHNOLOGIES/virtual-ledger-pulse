@@ -66,29 +66,30 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
               <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="buyGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(145, 63%, 42%)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(145, 63%, 42%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#22C55E" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="sellGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#EF4444" stopOpacity={0.25} />
+                    <stop offset="100%" stopColor="#EF4444" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 16%)" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(215, 8%, 52%)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 8%, 52%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#232734" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#6B7285' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#6B7285' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}k`} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(220, 18%, 10%)',
-                    border: '1px solid hsl(220, 14%, 16%)',
-                    borderRadius: '8px',
+                    backgroundColor: '#1E2230',
+                    border: '1px solid #2A2F3A',
+                    borderRadius: '6px',
                     fontSize: '11px',
-                    color: 'hsl(214, 10%, 85%)',
+                    color: '#E6EAF2',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                   }}
                   formatter={(value: number, name: string) => [`₹${value.toLocaleString('en-IN')}`, name === 'buy' ? 'Buy' : 'Sell']}
                 />
-                <Area type="monotone" dataKey="buy" stroke="hsl(145, 63%, 42%)" fill="url(#buyGrad)" strokeWidth={1.5} />
-                <Area type="monotone" dataKey="sell" stroke="hsl(0, 72%, 51%)" fill="url(#sellGrad)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="buy" stroke="#22C55E" fill="url(#buyGrad)" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="sell" stroke="#EF4444" fill="url(#sellGrad)" strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

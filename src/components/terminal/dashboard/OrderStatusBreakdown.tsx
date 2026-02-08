@@ -44,16 +44,17 @@ export function OrderStatusBreakdown({ orders, isLoading }: Props) {
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 16%)" />
-                <XAxis dataKey="status" tick={{ fontSize: 9, fill: 'hsl(215, 8%, 52%)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(215, 8%, 52%)' }} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#232734" vertical={false} />
+                <XAxis dataKey="status" tick={{ fontSize: 9, fill: '#6B7285' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#6B7285' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(220, 18%, 10%)',
-                    border: '1px solid hsl(220, 14%, 16%)',
-                    borderRadius: '8px',
+                    backgroundColor: '#1E2230',
+                    border: '1px solid #2A2F3A',
+                    borderRadius: '6px',
                     fontSize: '11px',
-                    color: 'hsl(214, 10%, 85%)',
+                    color: '#E6EAF2',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                   }}
                 />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]}>
@@ -83,12 +84,12 @@ function normalizeStatus(raw: string): string {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'Completed': return 'hsl(145, 63%, 42%)';
-    case 'Cancelled': return 'hsl(215, 8%, 35%)';
-    case 'Appeal': return 'hsl(0, 72%, 51%)';
-    case 'Paid': return 'hsl(199, 89%, 48%)';
-    case 'Trading': return 'hsl(38, 92%, 50%)';
-    case 'Pending': return 'hsl(38, 92%, 50%)';
-    default: return 'hsl(215, 8%, 52%)';
+    case 'Completed': return '#22C55E';
+    case 'Cancelled': return '#6B7280';
+    case 'Appeal': return '#EF4444';
+    case 'Paid': return '#3B82F6';
+    case 'Trading': return '#F59E0B';
+    case 'Pending': return '#FBBF24';
+    default: return '#6B7285';
   }
 }

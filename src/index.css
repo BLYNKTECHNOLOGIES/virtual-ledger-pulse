@@ -108,50 +108,65 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  /* P2P Trading Terminal — refined institutional dark theme */
+  /* ═══════════════════════════════════════════════════════
+     P2P TRADING TERMINAL — Dark Exchange Theme
+     Completely isolated from the main white enterprise theme.
+     All terminal components must consume ONLY these tokens.
+     ═══════════════════════════════════════════════════════ */
   .terminal {
-    --background: 225 25% 5%;
-    --foreground: 210 20% 90%;
-    --card: 225 22% 8%;
-    --card-foreground: 210 20% 92%;
-    --popover: 225 24% 9%;
-    --popover-foreground: 210 20% 92%;
-    --primary: 210 100% 56%;
-    --primary-foreground: 225 25% 5%;
-    --secondary: 225 18% 12%;
-    --secondary-foreground: 210 20% 82%;
-    --muted: 225 16% 11%;
-    --muted-foreground: 215 12% 50%;
-    --accent: 225 18% 14%;
-    --accent-foreground: 210 20% 90%;
-    --destructive: 0 68% 52%;
+    /* ── Base backgrounds (layered dark surfaces) ── */
+    --background: 225 22% 7%;       /* #0F1115 — primary app bg */
+    --foreground: 225 25% 91%;      /* #E6EAF2 — primary text */
+
+    /* ── Panel / container surfaces ── */
+    --card: 225 20% 9%;             /* #171A23 — card bg */
+    --card-foreground: 225 25% 91%;
+    --popover: 225 18% 13%;         /* #1E2230 — modal / popover bg */
+    --popover-foreground: 225 25% 91%;
+
+    /* ── Accent / interactive ── */
+    --primary: 217 91% 60%;         /* #3B82F6 — finance blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 18% 11%;       /* #151821 — secondary surface */
+    --secondary-foreground: 225 18% 78%;
+    --muted: 225 16% 10%;           /* subtle dark surface */
+    --muted-foreground: 225 12% 48%; /* #6B7285 */
+    --accent: 225 18% 13%;          /* hover / selected surface */
+    --accent-foreground: 225 25% 91%;
+
+    /* ── Status / semantic ── */
+    --destructive: 0 84% 60%;       /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
-    --border: 225 16% 14%;
-    --input: 225 18% 12%;
-    --ring: 210 100% 56%;
+    --success: 142 71% 45%;         /* #22C55E */
+    --warning: 38 92% 50%;          /* #F59E0B */
+    --info: 199 89% 48%;            /* #38BDF8 */
 
-    /* Trading semantics */
-    --success: 152 60% 44%;
-    --warning: 42 88% 56%;
-    --info: 210 100% 56%;
-    --trade-buy: 152 60% 44%;
-    --trade-sell: 0 68% 52%;
-    --trade-pending: 42 88% 56%;
+    /* ── Borders ── */
+    --border: 225 14% 17%;          /* #2A2F3A */
+    --input: 225 18% 11%;           /* input bg = secondary */
+    --ring: 217 91% 60%;            /* focus ring = primary */
 
-    --chart-1: 210 100% 56%;
-    --chart-2: 152 60% 44%;
-    --chart-3: 42 88% 56%;
+    /* ── Trading semantics ── */
+    --trade-buy: 142 64% 40%;       /* #16A34A */
+    --trade-sell: 0 72% 51%;        /* #DC2626 */
+    --trade-pending: 45 93% 47%;    /* #FBBF24 */
+
+    /* ── Charts ── */
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
     --chart-4: 270 60% 58%;
-    --chart-5: 0 68% 52%;
+    --chart-5: 0 72% 51%;
 
-    --sidebar-background: 225 28% 4%;
-    --sidebar-foreground: 215 12% 58%;
-    --sidebar-primary: 210 100% 56%;
-    --sidebar-primary-foreground: 225 25% 5%;
-    --sidebar-accent: 225 20% 10%;
-    --sidebar-accent-foreground: 210 20% 88%;
-    --sidebar-border: 225 18% 11%;
-    --sidebar-ring: 210 100% 56%;
+    /* ── Sidebar ── */
+    --sidebar-background: 225 25% 5%;  /* #12151C — deepest layer */
+    --sidebar-foreground: 225 12% 52%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 225 18% 10%;
+    --sidebar-accent-foreground: 225 25% 88%;
+    --sidebar-border: 225 16% 12%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -189,6 +204,65 @@
     width: 100% !important;
     max-width: 100% !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   TERMINAL-SPECIFIC COMPONENT OVERRIDES
+   Only active inside .terminal wrapper — never bleeds
+   into the main enterprise theme.
+   ═══════════════════════════════════════════════════════ */
+
+/* Scrollbar inside terminal */
+.terminal ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.terminal ::-webkit-scrollbar-track {
+  background: hsl(225 22% 7%);
+}
+.terminal ::-webkit-scrollbar-thumb {
+  background: hsl(225 14% 17%);
+  border-radius: 3px;
+}
+.terminal ::-webkit-scrollbar-thumb:hover {
+  background: hsl(225 14% 24%);
+}
+
+/* Dense table rows for exchange-style data */
+.terminal table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.terminal thead tr {
+  background: hsl(225 18% 10%);
+}
+.terminal thead th {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  color: hsl(225 12% 48%);
+  border-bottom: 1px solid hsl(225 14% 17%);
+}
+.terminal tbody tr {
+  transition: background-color 0.1s ease;
+}
+.terminal tbody tr:hover {
+  background: hsla(0 0% 100% / 0.03);
+}
+.terminal tbody td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid hsl(225 14% 13%);
+  font-size: 12px;
+}
+
+/* Tabular nums for financial data */
+.terminal .tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
 .modern-card {

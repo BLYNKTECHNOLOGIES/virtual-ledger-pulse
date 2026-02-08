@@ -17,7 +17,10 @@ export default function AdManager() {
   // Compute advStatus filter based on tab
   const effectiveFilters: AdFilters = {
     ...filters,
-    advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE : activeTab === 'inactive' ? BINANCE_AD_STATUS.OFFLINE : filters.advStatus,
+    advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE
+      : activeTab === 'inactive' ? BINANCE_AD_STATUS.OFFLINE
+      : activeTab === 'private' ? BINANCE_AD_STATUS.PRIVATE
+      : filters.advStatus,
   };
 
   const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters);
@@ -77,6 +80,7 @@ export default function AdManager() {
         <TabsList>
           <TabsTrigger value="all">All Ads</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="private">Private</TabsTrigger>
           <TabsTrigger value="inactive">Inactive</TabsTrigger>
         </TabsList>
 
@@ -85,7 +89,7 @@ export default function AdManager() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center justify-between">
                 <span>
-                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : 'All'} Ads
+                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : 'All'} Ads
                 </span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {total} ad{total !== 1 ? 's' : ''} found

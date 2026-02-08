@@ -1,8 +1,8 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Power, PowerOff } from 'lucide-react';
-import { BinanceAd } from '@/hooks/useBinanceAds';
+import { Edit, Power, PowerOff, Lock } from 'lucide-react';
+import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { format } from 'date-fns';
 
@@ -80,8 +80,15 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
               </div>
             </TableCell>
             <TableCell>
-              <Badge variant={ad.advStatus === 1 ? 'default' : 'secondary'} className={ad.advStatus === 1 ? 'bg-success text-white' : ''}>
-                {ad.advStatus === 1 ? 'Active' : 'Inactive'}
+              <Badge
+                variant={getAdStatusVariant(ad.advStatus)}
+                className={
+                  ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success text-white'
+                  : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500'
+                  : ''
+                }
+              >
+                {getAdStatusLabel(ad.advStatus)}
               </Badge>
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
@@ -98,9 +105,12 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
                   className="h-8 w-8"
                   onClick={() => onToggleStatus(ad.advNo, ad.advStatus)}
                   disabled={isTogglingStatus}
+                  title={ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'Take Offline' : 'Go Online'}
                 >
-                  {ad.advStatus === 1 ? (
+                  {ad.advStatus === BINANCE_AD_STATUS.ONLINE ? (
                     <PowerOff className="h-3.5 w-3.5 text-trade-sell" />
+                  ) : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? (
+                    <Lock className="h-3.5 w-3.5 text-amber-500" />
                   ) : (
                     <Power className="h-3.5 w-3.5 text-trade-buy" />
                   )}

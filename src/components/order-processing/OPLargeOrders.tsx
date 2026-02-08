@@ -31,16 +31,16 @@ export function OPLargeOrders() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-500/10 rounded-lg">
+          <div className="p-2.5 bg-amber-500/10 rounded-xl">
             <TrendingUp className="h-6 w-6 text-amber-500" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-100">Large Orders</h2>
-            <p className="text-gray-400">Orders above ₹50,000</p>
+            <p className="text-sm text-gray-500">Orders above ₹50,000</p>
           </div>
         </div>
-        <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        <Button variant="outline" className="border-gray-700 text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 gap-2">
+          <RefreshCw className="h-4 w-4" /> Refresh
         </Button>
       </div>
 
@@ -51,18 +51,18 @@ export function OPLargeOrders() {
           { label: 'Processing', value: processing, color: 'text-blue-400' },
           { label: 'Completed', value: completed, color: 'text-emerald-400' },
         ].map((stat) => (
-          <Card key={stat.label} className="bg-gray-900/60 border-gray-800">
-            <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-gray-400">{stat.label}</p>
-              <p className={`text-2xl font-bold mt-1 ${stat.color || 'text-gray-100'}`}>{stat.value}</p>
+          <Card key={stat.label} className="bg-[#111827] border-gray-800/60 shadow-none">
+            <CardContent className="pt-5 pb-4">
+              <p className="text-sm text-gray-500">{stat.label}</p>
+              <p className={`text-3xl font-bold mt-1 ${stat.color || 'text-gray-100'}`}>{stat.value}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Round-Robin Assignment */}
-      <Card className="bg-gray-900/60 border-gray-800">
-        <CardContent className="pt-6">
+      <Card className="bg-[#111827] border-gray-800/60 shadow-none">
+        <CardContent className="pt-6 pb-5">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5 text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-100">Round-Robin Assignment</h3>
@@ -73,11 +73,11 @@ export function OPLargeOrders() {
                 key={name}
                 variant="outline"
                 className={i === currentRotation
-                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 px-4 py-2'
-                  : 'bg-gray-800 text-gray-400 border-gray-700 px-4 py-2'
+                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/30 px-4 py-2 text-sm'
+                  : 'bg-gray-800/60 text-gray-400 border-gray-700 px-4 py-2 text-sm'
                 }
               >
-                {i === currentRotation ? `NEXT → ${name}` : `#${i + 1} ${name}`}
+                {i === currentRotation ? `NEXT → ${name} (Large Sales)` : `#${i + 1} ${name} (Large Sales)`}
               </Badge>
             ))}
           </div>

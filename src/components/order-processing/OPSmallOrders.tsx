@@ -29,16 +29,16 @@ export function OPSmallOrders() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
+          <div className="p-2.5 bg-blue-500/10 rounded-xl">
             <TrendingDown className="h-6 w-6 text-blue-400" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-100">Small Orders</h2>
-            <p className="text-gray-400">Orders below ₹500</p>
+            <p className="text-sm text-gray-500">Orders below ₹500</p>
           </div>
         </div>
-        <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
-          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        <Button variant="outline" className="border-gray-700 text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 gap-2">
+          <RefreshCw className="h-4 w-4" /> Refresh
         </Button>
       </div>
 
@@ -49,10 +49,10 @@ export function OPSmallOrders() {
           { label: 'Processing', value: processing, color: 'text-blue-400' },
           { label: 'Completed', value: completed, color: 'text-emerald-400' },
         ].map((stat) => (
-          <Card key={stat.label} className="bg-gray-900/60 border-gray-800">
-            <CardContent className="pt-4 pb-4">
-              <p className="text-sm text-gray-400">{stat.label}</p>
-              <p className={`text-2xl font-bold mt-1 ${stat.color || 'text-gray-100'}`}>{stat.value}</p>
+          <Card key={stat.label} className="bg-[#111827] border-gray-800/60 shadow-none">
+            <CardContent className="pt-5 pb-4">
+              <p className="text-sm text-gray-500">{stat.label}</p>
+              <p className={`text-3xl font-bold mt-1 ${stat.color || 'text-gray-100'}`}>{stat.value}</p>
             </CardContent>
           </Card>
         ))}

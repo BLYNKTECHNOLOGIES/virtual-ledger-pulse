@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.binance-ads]
 verify_jwt = false
+
+[functions.auto-reply-engine]
+verify_jwt = false

@@ -127,12 +127,12 @@
     /* ── Accent / interactive ── */
     --primary: 217 91% 60%;         /* #3B82F6 — finance blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 225 18% 11%;       /* #151821 — secondary surface */
-    --secondary-foreground: 225 18% 85%;
-    --muted: 225 16% 13%;           /* subtle dark surface */
-    --muted-foreground: 225 12% 62%; /* #8B92A5 — readable muted text */
-    --accent: 225 18% 15%;          /* hover / selected surface */
-    --accent-foreground: 225 25% 91%;
+    --secondary: 225 18% 14%;       /* secondary surface */
+    --secondary-foreground: 225 18% 90%;
+    --muted: 225 16% 15%;           /* subtle dark surface */
+    --muted-foreground: 225 10% 72%; /* #A8AEBB — high-contrast muted text */
+    --accent: 225 18% 16%;          /* hover / selected surface */
+    --accent-foreground: 225 25% 93%;
 
     /* ── Status / semantic ── */
     --destructive: 0 84% 60%;       /* #EF4444 */

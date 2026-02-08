@@ -8,7 +8,7 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { PastInteractionsPanel } from './PastInteractionsPanel';
 import { useP2PCounterparty } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus } from '@/hooks/useBinanceActions';
 
 interface Props {
   order: P2POrderRecord;
@@ -20,28 +20,41 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: counterparty } = useP2PCounterparty(order.counterparty_id);
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
+  const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
 
-  console.log('[OrderDetailWorkspace] liveDetail:', JSON.stringify(liveDetail?.data ? { orderStatus: liveDetail.data.orderStatus, tradeStatus: liveDetail.data.tradeStatus, status: liveDetail.data.status } : null));
-
-  // Use live status from order detail API if available, otherwise fall back to list status
+  // Use live status: prefer history (returns string status like "COMPLETED"),
+  // then detail endpoint, then fall back to list status
   const liveOrder = useMemo(() => {
-    if (!liveDetail?.data) return order;
-    const detail = liveDetail.data;
     const numStatusMap: Record<number, string> = {
       1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
       5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
     };
-    // getUserOrderDetail may return orderStatus as string ("COMPLETED") or number
-    // Also check tradeStatus and status fields as fallbacks
-    const raw = detail.orderStatus ?? detail.tradeStatus ?? detail.status;
+
     let liveStatus = order.order_status;
-    if (typeof raw === 'number') {
-      liveStatus = numStatusMap[raw] || order.order_status;
-    } else if (typeof raw === 'string' && raw.length > 0) {
-      liveStatus = raw.toUpperCase();
+
+    // Priority 1: Order history returns status as string (most reliable)
+    if (historyOrder?.orderStatus && typeof historyOrder.orderStatus === 'string') {
+      liveStatus = historyOrder.orderStatus.toUpperCase();
     }
-    return { ...order, order_status: liveStatus };
-  }, [order, liveDetail]);
+    // Priority 2: Order detail endpoint
+    else if (liveDetail?.data) {
+      const detail = liveDetail.data;
+      const raw = detail.orderStatus ?? detail.tradeStatus ?? detail.status;
+      if (typeof raw === 'number') {
+        liveStatus = numStatusMap[raw] || liveStatus;
+      } else if (typeof raw === 'string' && raw.length > 0) {
+        liveStatus = raw.toUpperCase();
+      }
+    }
+
+    // Also get unit price from history if available
+    let unitPrice = order.unit_price;
+    if (historyOrder?.unitPrice) {
+      unitPrice = parseFloat(historyOrder.unitPrice) || unitPrice;
+    }
+
+    return { ...order, order_status: liveStatus, unit_price: unitPrice };
+  }, [order, liveDetail, historyOrder]);
 
   // Extract counterparty verified name from live detail
   const counterpartyVerifiedName = useMemo(() => {

@@ -113,10 +113,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     }
 
     const adData: Record<string, any> = {
-      asset: form.asset,
-      fiatUnit: form.fiatUnit,
-      tradeType: form.tradeType,
-      priceType: form.priceType,
       initAmount: Number(form.initAmount),
       minSingleTransAmount: Number(form.minSingleTransAmount),
       maxSingleTransAmount: Number(form.maxSingleTransAmount),
@@ -128,6 +124,21 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
     };
 
+    // These fields are immutable after creation but required for new ads
+    if (!isEditing) {
+      adData.asset = form.asset;
+      adData.fiatUnit = form.fiatUnit;
+      adData.tradeType = form.tradeType;
+      adData.priceType = form.priceType;
+    } else {
+      // For update, include advNo and the original immutable values
+      adData.advNo = editingAd!.advNo;
+      adData.asset = editingAd!.asset;
+      adData.fiatUnit = editingAd!.fiatUnit;
+      adData.tradeType = editingAd!.tradeType;
+      adData.priceType = editingAd!.priceType;
+    }
+
     if (form.priceType === 1) {
       adData.price = Number(form.price);
     } else {
@@ -137,8 +148,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     if (form.autoReplyMsg) adData.autoReplyMsg = form.autoReplyMsg;
     if (form.remarks) adData.remarks = form.remarks;
 
-    if (isEditing && editingAd) {
-      adData.advNo = editingAd.advNo;
+    if (isEditing) {
       updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
     } else {
       postAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
@@ -150,12 +160,30 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     setForm({ ...form, price: String(Math.max(0, current + delta)) });
   };
 
-  const availablePayMethods = paymentMethodsData?.data || [];
+  // Merge available methods from API with methods already on the ad (for edit mode)
+  const apiPayMethods = Array.isArray(paymentMethodsData?.data) ? paymentMethodsData.data : [];
+  
+  // Build a unified list: start with API methods, add any ad methods not already present
+  const availablePayMethods = (() => {
+    const methods = [...apiPayMethods];
+    // In edit mode, the ad's existing trade methods should always be available
+    if (editingAd?.tradeMethods) {
+      for (const tm of editingAd.tradeMethods) {
+        const alreadyExists = methods.some((m: any) => 
+          (m.id && m.id === tm.payId) || (m.identifier && m.identifier === tm.identifier)
+        );
+        if (!alreadyExists) {
+          methods.push({ id: tm.payId, payType: tm.payType, identifier: tm.identifier, tradeMethodName: tm.payType });
+        }
+      }
+    }
+    return methods;
+  })();
 
   const togglePayMethod = (method: { payId: number; payType: string; identifier: string }) => {
-    const exists = form.selectedPayMethods.find(m => m.payId === method.payId);
+    const exists = form.selectedPayMethods.find(m => m.payId === method.payId || m.identifier === method.identifier);
     if (exists) {
-      setForm({ ...form, selectedPayMethods: form.selectedPayMethods.filter(m => m.payId !== method.payId) });
+      setForm({ ...form, selectedPayMethods: form.selectedPayMethods.filter(m => m.payId !== method.payId && m.identifier !== method.identifier) });
     } else if (form.selectedPayMethods.length < 5) {
       setForm({ ...form, selectedPayMethods: [...form.selectedPayMethods, method] });
     } else {
@@ -177,49 +205,54 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Trade Type</Label>
-              <Select value={form.tradeType} onValueChange={(v) => setForm({ ...form, tradeType: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.tradeType} onValueChange={(v) => setForm({ ...form, tradeType: v })} disabled={isEditing}>
+                <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="BUY">Buy</SelectItem>
                   <SelectItem value="SELL">Sell</SelectItem>
                 </SelectContent>
               </Select>
+              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
             <div>
               <Label>Asset</Label>
-              <Select value={form.asset} onValueChange={(v) => setForm({ ...form, asset: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.asset} onValueChange={(v) => setForm({ ...form, asset: v })} disabled={isEditing}>
+                <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="USDT">USDT</SelectItem>
                   <SelectItem value="BTC">BTC</SelectItem>
                   <SelectItem value="ETH">ETH</SelectItem>
                   <SelectItem value="BNB">BNB</SelectItem>
                   <SelectItem value="USDC">USDC</SelectItem>
+                  <SelectItem value="FDUSD">FDUSD</SelectItem>
                 </SelectContent>
               </Select>
+              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
             <div>
               <Label>Fiat Currency</Label>
-              <Select value={form.fiatUnit} onValueChange={(v) => setForm({ ...form, fiatUnit: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.fiatUnit} onValueChange={(v) => setForm({ ...form, fiatUnit: v })} disabled={isEditing}>
+                <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="INR">INR</SelectItem>
                   <SelectItem value="USD">USD</SelectItem>
                 </SelectContent>
               </Select>
+              {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
           </div>
 
           {/* Price Section */}
           <div className="space-y-3 rounded-lg border p-4">
             <Label className="text-base font-semibold">Price</Label>
-            <Select value={String(form.priceType)} onValueChange={(v) => setForm({ ...form, priceType: Number(v) as 1 | 2 })}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <Select value={String(form.priceType)} onValueChange={(v) => setForm({ ...form, priceType: Number(v) as 1 | 2 })} disabled={isEditing}>
+              <SelectTrigger className={`w-[160px] ${isEditing ? 'opacity-60' : ''}`}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">Fixed</SelectItem>
                 <SelectItem value="2">Floating</SelectItem>
               </SelectContent>
             </Select>
+            {isEditing && <p className="text-[10px] text-muted-foreground">Price type cannot change after creation</p>}
 
             {form.priceType === 1 ? (
               <div>
@@ -304,13 +337,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             {Array.isArray(availablePayMethods) && availablePayMethods.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {availablePayMethods
-                  .filter((m: any) => !form.selectedPayMethods.find(s => s.payId === m.id))
+                  .filter((m: any) => !form.selectedPayMethods.find(s => s.payId === (m.id || m.payId) || s.identifier === m.identifier))
                   .map((m: any) => (
                     <Badge
-                      key={m.id}
+                      key={m.id || m.identifier}
                       variant="outline"
                       className="cursor-pointer hover:bg-accent"
-                      onClick={() => togglePayMethod({ payId: m.id, payType: m.tradeMethodName || m.payType, identifier: m.identifier || '' })}
+                      onClick={() => togglePayMethod({ payId: m.id || m.payId || 0, payType: m.tradeMethodName || m.payType, identifier: m.identifier || '' })}
                     >
                       <Plus className="h-3 w-3 mr-1" />
                       {m.tradeMethodName || m.payType}

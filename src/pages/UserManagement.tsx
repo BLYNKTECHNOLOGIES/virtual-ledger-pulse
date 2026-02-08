@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2 } from "lucide-react";
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2, Terminal } from "lucide-react";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
@@ -14,6 +14,7 @@ import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
 import { PendingRegistrationsTab } from "@/components/user-management/PendingRegistrationsTab";
 import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordDialog";
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
+import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -380,7 +381,7 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Pending Approvals
@@ -396,6 +397,10 @@ export default function UserManagement() {
             <TabsTrigger value="functions" className="flex items-center gap-2">
               <Settings2 className="h-4 w-4" />
               Functions
+            </TabsTrigger>
+            <TabsTrigger value="terminal" className="flex items-center gap-2">
+              <Terminal className="h-4 w-4" />
+              Terminal Access
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -718,6 +723,13 @@ export default function UserManagement() {
           <TabsContent value="functions" className="space-y-4">
             <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
               <FunctionsTab />
+            </PermissionGate>
+          </TabsContent>
+
+          {/* Terminal Access Tab */}
+          <TabsContent value="terminal" className="space-y-4">
+            <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
+              <TerminalAccessTab />
             </PermissionGate>
           </TabsContent>
         </Tabs>

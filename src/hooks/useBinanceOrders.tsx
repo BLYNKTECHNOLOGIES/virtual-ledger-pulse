@@ -31,7 +31,9 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
   });
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'API call failed');
-  return data.data;
+  // Binance responses nest data in result.data for paginated endpoints
+  const result = data.data;
+  return result;
 }
 
 export function useBinanceOrderHistory(filters: OrderHistoryFilters) {

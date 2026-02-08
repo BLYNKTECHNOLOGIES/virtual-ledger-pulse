@@ -131,6 +131,15 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-amber-600",
     bgColor: "bg-amber-100",
     permissions: ["sales_view", "sales_manage"]
+  },
+  {
+    id: "order-processing",
+    title: "Order Processing",
+    url: "/order-processing",
+    icon: Network,
+    color: "text-amber-600",
+    bgColor: "bg-amber-100",
+    permissions: ["sales_view", "sales_manage"]
   }
 ];
 

@@ -4,11 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+
+const TERMINAL_ROLES = {
+  ADMIN: "1b88841c-bced-47e4-b09d-9b442f4bcdd7",
+  OPERATOR: "ac815807-39db-4c83-ab25-8783e10d0f64",
+  VIEWER: "e1f3e3e6-45b5-4932-b70b-d85402a32545",
+};
 
 interface Role {
   id: string;
@@ -37,6 +44,9 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [terminalAccess, setTerminalAccess] = useState(false);
+  const [currentTerminalRoleId, setCurrentTerminalRoleId] = useState<string | null>(null);
+  const [terminalRoleId, setTerminalRoleId] = useState<string>(TERMINAL_ROLES.OPERATOR);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -55,8 +65,18 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       setRoles(data || []);
     };
 
+    const fetchTerminalAccess = async () => {
+      const { data, error } = await supabase.rpc('get_terminal_user_roles', { p_user_id: user.id });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        setTerminalAccess(true);
+        setCurrentTerminalRoleId(data[0].role_id);
+        setTerminalRoleId(data[0].role_id);
+      }
+    };
+
     fetchRoles();
-  }, []);
+    fetchTerminalAccess();
+  }, [user.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +111,41 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             metadata: { old_role_id: initialRoleId, new_role_id: formData.role_id }
           });
         }
+
+        // Handle terminal access changes
+        const hadAccess = !!currentTerminalRoleId;
+        if (terminalAccess && !hadAccess) {
+          // Determine terminal role: if ERP role is Admin, auto-assign terminal Admin
+          const selectedErpRole = roles.find(r => r.id === formData.role_id);
+          const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin'
+            ? TERMINAL_ROLES.ADMIN
+            : terminalRoleId;
+          const sessionStr = localStorage.getItem('userSession');
+          const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+          await supabase.rpc("assign_terminal_role", {
+            p_user_id: user.id,
+            p_role_id: autoTerminalRoleId,
+            p_assigned_by: assignedBy,
+          });
+        } else if (!terminalAccess && hadAccess) {
+          await supabase.rpc("remove_terminal_role", {
+            p_user_id: user.id,
+            p_role_id: currentTerminalRoleId!,
+          });
+        } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
+          // Role changed: remove old, assign new
+          await supabase.rpc("remove_terminal_role", {
+            p_user_id: user.id,
+            p_role_id: currentTerminalRoleId!,
+          });
+          const sessionStr = localStorage.getItem('userSession');
+          const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+          await supabase.rpc("assign_terminal_role", {
+            p_user_id: user.id,
+            p_role_id: terminalRoleId,
+            p_assigned_by: assignedBy,
+          });
+        }
         
         toast({
           title: "Success",
@@ -104,7 +159,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             description: "Your role has been updated. The page will refresh to apply new permissions.",
           });
           
-          // Small delay to let the user see the toast, then reload
           setTimeout(() => {
             window.location.reload();
           }, 1500);
@@ -193,7 +247,14 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select value={formData.role_id} onValueChange={(value) => setFormData({ ...formData, role_id: value })}>
+            <Select value={formData.role_id} onValueChange={(value) => {
+              setFormData({ ...formData, role_id: value });
+              const selectedRole = roles.find(r => r.id === value);
+              if (selectedRole?.name?.toLowerCase() === 'admin') {
+                setTerminalAccess(true);
+                setTerminalRoleId(TERMINAL_ROLES.ADMIN);
+              }
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
@@ -223,6 +284,35 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
                 <SelectItem value="SUSPENDED">Suspended</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="terminal-access" className="text-sm font-medium">Terminal Access</Label>
+                <p className="text-xs text-muted-foreground">Grant access to the P2P Trading Terminal</p>
+              </div>
+              <Switch
+                id="terminal-access"
+                checked={terminalAccess}
+                onCheckedChange={setTerminalAccess}
+              />
+            </div>
+            {terminalAccess && (
+              <div className="space-y-1">
+                <Label htmlFor="terminal-role" className="text-xs">Terminal Role</Label>
+                <Select value={terminalRoleId} onValueChange={setTerminalRoleId}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={TERMINAL_ROLES.ADMIN}>Admin</SelectItem>
+                    <SelectItem value={TERMINAL_ROLES.OPERATOR}>Operator</SelectItem>
+                    <SelectItem value={TERMINAL_ROLES.VIEWER}>Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

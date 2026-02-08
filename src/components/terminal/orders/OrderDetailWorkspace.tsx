@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, History, User, BarChart3 } from 'lucide-react';
+import { MessageSquare, History, User, BarChart3, ArrowLeft } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
@@ -25,6 +25,9 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
         <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <span className="text-xs font-medium text-foreground">
             Order #{order.binance_order_number.slice(-8)}
           </span>
@@ -32,9 +35,6 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
             {order.trade_type}
           </span>
         </div>
-        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onClose}>
-          Close
-        </Button>
       </div>
 
       {/* 3-panel layout */}

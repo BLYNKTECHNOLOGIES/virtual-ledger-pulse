@@ -35,16 +35,16 @@ export function OPStaffManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-500/10 rounded-lg">
+          <div className="p-2.5 bg-amber-500/10 rounded-xl">
             <Users className="h-6 w-6 text-amber-500" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-100">Staff Management</h2>
-            <p className="text-gray-400">Manage team members and their roles</p>
+            <p className="text-sm text-gray-500">Manage team members and their roles</p>
           </div>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-black font-medium">
-          <Plus className="h-4 w-4 mr-2" /> Add Staff
+        <Button className="bg-amber-500 hover:bg-amber-600 text-black font-semibold gap-2">
+          <Plus className="h-4 w-4" /> Add Staff
         </Button>
       </div>
 
@@ -55,11 +55,11 @@ export function OPStaffManagement() {
             placeholder="Search by name or email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 bg-gray-900/50 border-gray-700 text-gray-200 placeholder:text-gray-500"
+            className="pl-10 bg-[#111827] border-gray-800 text-gray-200 placeholder:text-gray-600 h-11 focus:border-amber-500/50"
           />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-[180px] bg-gray-900/50 border-gray-700 text-gray-200">
+          <SelectTrigger className="w-[180px] bg-[#111827] border-gray-800 text-gray-300 h-11">
             <SelectValue placeholder="All Roles" />
           </SelectTrigger>
           <SelectContent>
@@ -72,28 +72,34 @@ export function OPStaffManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((member) => (
-          <Card key={member.id} className="bg-gray-900/60 border-gray-800">
-            <CardContent className="pt-6">
+          <Card key={member.id} className="bg-[#111827] border-gray-800/60 shadow-none">
+            <CardContent className="pt-6 pb-5">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
+                  <div className="w-12 h-12 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 font-bold border border-amber-500/20">
                     U
                   </div>
                   <div>
-                    <p className="font-medium text-gray-200">{member.name}</p>
-                    <p className="text-sm text-gray-500">{member.email}</p>
+                    <p className="font-semibold text-gray-200">{member.name}</p>
+                    <p className="text-xs text-gray-500">{member.email}</p>
                   </div>
                 </div>
-                <div className={`w-3 h-3 rounded-full mt-1 ${member.isActive ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full mt-2 ${member.isActive ? 'bg-emerald-400' : 'bg-gray-600'}`} />
               </div>
 
-              <Badge variant="outline" className={`mb-4 ${member.role === 'SMALL_SALES' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}`}>
+              <Badge
+                variant="outline"
+                className={`mb-4 text-xs px-3 py-1 ${member.role === 'SMALL_SALES'
+                  ? 'bg-blue-500/15 text-blue-400 border-blue-500/25'
+                  : 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                }`}
+              >
                 {member.role.replace('_', ' ')}
               </Badge>
 
-              <div className="flex items-center gap-2 mt-4">
+              <div className="flex items-center gap-2 mt-3">
                 <Select value={member.role} onValueChange={(v) => updateRole(member.id, v)}>
-                  <SelectTrigger className="flex-1 bg-gray-800 border-gray-700 text-gray-300 h-9">
+                  <SelectTrigger className="flex-1 bg-[#0d1321] border-gray-700 text-gray-300 h-9 text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -104,7 +110,10 @@ export function OPStaffManagement() {
                 <Button
                   size="icon"
                   variant="outline"
-                  className={`h-9 w-9 ${member.isActive ? 'border-red-600 text-red-400 hover:bg-red-600/20' : 'border-emerald-600 text-emerald-400 hover:bg-emerald-600/20'}`}
+                  className={`h-9 w-9 ${member.isActive
+                    ? 'border-red-600/60 text-red-400 hover:bg-red-500/10'
+                    : 'border-emerald-600/60 text-emerald-400 hover:bg-emerald-500/10'
+                  }`}
                   onClick={() => toggleActive(member.id)}
                 >
                   <Power className="h-4 w-4" />

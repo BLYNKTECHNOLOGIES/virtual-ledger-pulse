@@ -567,9 +567,7 @@ const router = createBrowserRouter([
         <QueryProvider>
           <AuthProvider>
             <AuthCheck>
-              <Layout>
-                <OrderProcessing />
-              </Layout>
+              <OrderProcessing />
             </AuthCheck>
           </AuthProvider>
         </QueryProvider>

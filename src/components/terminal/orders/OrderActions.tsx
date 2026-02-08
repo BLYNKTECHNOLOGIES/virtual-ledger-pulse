@@ -38,13 +38,13 @@ export function OrderActions({ orderNumber, orderStatus, tradeType }: Props) {
         <MarkAsPaidAction orderNumber={orderNumber} />
       )}
 
-      {/* Release Coin - SELL order in Pending Release state */}
+      {/* Release Coin - SELL order in Pending Release state (buyer has paid, we verify & release) */}
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
         <ReleaseCoinAction orderNumber={orderNumber} />
       )}
 
-      {/* Cancel - only in Pending Payment state */}
-      {opStatus === 'Pending Payment' && (
+      {/* Cancel - only BUY orders in Pending Payment state (sellers can't cancel their own sell ads) */}
+      {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
         <CancelOrderAction orderNumber={orderNumber} />
       )}
     </div>

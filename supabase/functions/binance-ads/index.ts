@@ -277,27 +277,23 @@ serve(async (req) => {
 
       // ==================== CHAT ====================
       case "getChatMessages": {
-        // POST to avoid WAF 403 on GET requests
-        const chatBody: Record<string, any> = {
-          orderNo: payload.orderNo,
-          page: payload.page || 1,
-          rows: payload.rows || 50,
-        };
-        if (payload.chatMessageType) chatBody.chatMessageType = payload.chatMessageType;
-        if (payload.sort) chatBody.sort = payload.sort;
-        if (payload.order) chatBody.order = payload.order;
-        if (payload.id) chatBody.id = payload.id;
-
+        // GET endpoint — proxy requires query params, not POST body
         const chatParams = new URLSearchParams();
+        chatParams.set("orderNo", payload.orderNo);
+        chatParams.set("page", String(payload.page || 1));
+        chatParams.set("rows", String(payload.rows || 50));
+        if (payload.chatMessageType) chatParams.set("chatMessageType", payload.chatMessageType);
+        if (payload.sort) chatParams.set("sort", payload.sort);
+        if (payload.order) chatParams.set("order", payload.order);
+        if (payload.id) chatParams.set("id", String(payload.id));
         chatParams.set("timestamp", Date.now().toString());
         chatParams.set("recvWindow", "60000");
 
         const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
         console.log("getChatMessages URL:", chatUrl);
         const response = await fetch(chatUrl, {
-          method: "POST",
-          headers: { ...proxyHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify(chatBody),
+          method: "GET",
+          headers: proxyHeaders,
         });
         const text = await response.text();
         console.log("getChatMessages response:", response.status, text.substring(0, 800));

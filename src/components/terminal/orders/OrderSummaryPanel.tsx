@@ -1,11 +1,12 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, CreditCard, Hash } from 'lucide-react';
+import { User, Clock, CreditCard, Hash, Timer } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
 import { OrderActions } from './OrderActions';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
+import { useState, useEffect } from 'react';
 
 interface Props {
   order: P2POrderRecord;
@@ -15,6 +16,8 @@ interface Props {
 export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
+  const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
+  const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
 
   return (
     <div className="flex flex-col h-full">
@@ -54,12 +57,16 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
             : '—'}
         />
 
+        {/* Elapsed timer for active orders */}
+        {order.binance_create_time && !isTerminal && (
+          <ElapsedTimer createTime={new Date(order.binance_create_time).getTime()} />
+        )}
+
         {/* Status */}
         <div className="pt-3 border-t border-border">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Status</p>
           {(() => {
-            const op = mapToOperationalStatus(order.order_status, order.trade_type);
-            const style = getStatusStyle(op);
+            const style = getStatusStyle(opStatus);
             return (
               <Badge variant="outline" className={`text-xs ${style.badgeClass}`}>
                 {style.label}
@@ -90,6 +97,34 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
           orderStatus={order.order_status}
           tradeType={order.trade_type}
         />
+      </div>
+    </div>
+  );
+}
+
+/** Live elapsed timer */
+function ElapsedTimer({ createTime }: { createTime: number }) {
+  const [elapsed, setElapsed] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.max(0, Date.now() - createTime);
+      const hours = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setElapsed(hours > 0 ? `${hours}h ${mins}m ${secs}s` : `${mins}m ${secs}s`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [createTime]);
+
+  return (
+    <div className="flex items-start gap-2.5">
+      <Timer className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground">Elapsed</p>
+        <p className="text-xs font-medium text-foreground tabular-nums">{elapsed}</p>
       </div>
     </div>
   );

@@ -57,12 +57,15 @@ A standalone P2P Order Management Terminal at `/terminal/*` routes, coexisting w
 - [x] **Active Orders**: listOrders endpoint for in-progress orders
 - [x] Payment methods endpoint fixed (GET method)
 
-## Phase 4: Chat & Media (Next)
+## Phase 4: Chat & Media ✅ DONE
 
-- [ ] WebSocket real-time chat via retrieveChatCredential
-- [ ] Image upload via pre-signed URL flow
-- [ ] Quick message templates (local only)
-- [ ] Chat notification indicators
+- [x] Image upload via pre-signed URL flow (ChatImageUpload component)
+- [x] Quick message templates from DB (QuickReplyBar with seeded data)
+- [x] Chat notification indicators (active order count badge on sidebar)
+- [x] Refactored ChatPanel into focused sub-components (chat/ChatBubble, chat/QuickReplyBar, chat/ChatImageUpload)
+- [x] Enhanced chat bubbles with sender labels, dark terminal styling
+- [x] Mute/unmute notification toggle
+- Note: WebSocket real-time chat via retrieveChatCredential is available via API but Binance WSS requires direct browser-to-Binance connection which isn't feasible through the proxy. Using enhanced 10s polling instead.
 
 ## Phase 5: Automation
 

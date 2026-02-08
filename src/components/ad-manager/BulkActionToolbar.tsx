@@ -32,7 +32,7 @@ export function BulkActionToolbar({
 
       <div className="h-4 w-px bg-border mx-1" />
 
-      <Button variant="outline" size="sm" onClick={onBulkEditLimits}>
+      <Button variant="outline" size="sm" onClick={onBulkEditLimits} className="text-foreground border-border">
         <Edit className="h-3.5 w-3.5 mr-1.5" />
         Edit Order Limits
       </Button>
@@ -43,6 +43,7 @@ export function BulkActionToolbar({
         onClick={onBulkFloatingPrice}
         disabled={!allFloating}
         title={!allFloating ? 'All selected ads must be floating price type' : 'Adjust floating price ratio'}
+        className="text-foreground border-border disabled:text-muted-foreground"
       >
         <Percent className="h-3.5 w-3.5 mr-1.5" />
         Adjust Floating %

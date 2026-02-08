@@ -17,29 +17,39 @@ import {
   Bot,
   Settings,
   Activity,
+  Users,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
+import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
 
-const navItems = [
-  { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard },
-  { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone },
-  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true },
-  { title: 'Automation', url: '/terminal/automation', icon: Bot },
-  { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon' },
-  { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon' },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  showActiveCount?: boolean;
+  badge?: string;
+  requiredPermission?: TerminalPermission;
+}
+
+const navItems: NavItem[] = [
+  { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard, requiredPermission: 'terminal_dashboard_view' },
+  { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone, requiredPermission: 'terminal_ads_view' },
+  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true, requiredPermission: 'terminal_orders_view' },
+  { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_automation_view' },
+  { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon', requiredPermission: 'terminal_analytics_view' },
+  { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
+  { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon', requiredPermission: 'terminal_settings_view' },
 ];
 
 export function TerminalSidebar() {
   const location = useLocation();
   const { data: activeOrdersData } = useBinanceActiveOrders();
+  const { hasPermission, terminalPermissions, isLoading } = useTerminalAuth();
 
-  // Count active orders for badge
   const activeCount = (() => {
     if (!activeOrdersData) return 0;
     const list = activeOrdersData?.data || activeOrdersData?.list || [];
     if (!Array.isArray(list)) return 0;
-    // Only count truly active orders (status 1-3: pending, trading, buyer notified)
-    // Status 4+ can include completed/cancelled orders returned by listOrders
     return list.filter((o: any) => {
       const s = typeof o.orderStatus === 'number' ? o.orderStatus : 0;
       return s >= 1 && s <= 3;
@@ -50,6 +60,15 @@ export function TerminalSidebar() {
     if (url === '/terminal') return location.pathname === '/terminal';
     return location.pathname.startsWith(url);
   };
+
+  // If no terminal role assigned, show all nav items (unrestricted until role is assigned)
+  const showAll = !isLoading && terminalPermissions.length === 0;
+
+  const visibleItems = navItems.filter((item) => {
+    if (showAll) return true;
+    if (!item.requiredPermission) return true;
+    return hasPermission(item.requiredPermission);
+  });
 
   return (
     <Sidebar className="border-r border-sidebar-border">
@@ -72,7 +91,7 @@ export function TerminalSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

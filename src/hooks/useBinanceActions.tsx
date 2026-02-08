@@ -104,6 +104,28 @@ export function useBinanceOrderDetail(orderNumber: string | null) {
     queryFn: () => callBinanceAds('getOrderDetail', { orderNumber }),
     enabled: !!orderNumber,
     staleTime: 10 * 1000,
+    retry: 1, // Don't retry excessively if endpoint is blocked
+  });
+}
+
+/** Fetch single-order status from order history (reliable fallback) */
+export function useBinanceOrderLiveStatus(orderNumber: string | null) {
+  return useQuery({
+    queryKey: ['binance-order-live-status', orderNumber],
+    queryFn: async () => {
+      // Use getOrderHistory with a wide window — it returns orderStatus as a string
+      const result = await callBinanceAds('getOrderHistory', {
+        rows: 100,
+        startTimestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days
+        endTimestamp: Date.now(),
+      });
+      const orders = result?.data || result || [];
+      if (!Array.isArray(orders)) return null;
+      return orders.find((o: any) => o.orderNumber === orderNumber) || null;
+    },
+    enabled: !!orderNumber,
+    staleTime: 15 * 1000,
+    refetchInterval: 20 * 1000, // Poll every 20s for status changes
   });
 }
 

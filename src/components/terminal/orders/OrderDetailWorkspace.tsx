@@ -21,17 +21,25 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
 
+  console.log('[OrderDetailWorkspace] liveDetail:', JSON.stringify(liveDetail?.data ? { orderStatus: liveDetail.data.orderStatus, tradeStatus: liveDetail.data.tradeStatus, status: liveDetail.data.status } : null));
+
   // Use live status from order detail API if available, otherwise fall back to list status
   const liveOrder = useMemo(() => {
     if (!liveDetail?.data) return order;
     const detail = liveDetail.data;
-    const statusMap: Record<number, string> = {
+    const numStatusMap: Record<number, string> = {
       1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
       5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
     };
-    const liveStatus = typeof detail.orderStatus === 'number'
-      ? (statusMap[detail.orderStatus] || order.order_status)
-      : (typeof detail.orderStatus === 'string' ? detail.orderStatus : order.order_status);
+    // getUserOrderDetail may return orderStatus as string ("COMPLETED") or number
+    // Also check tradeStatus and status fields as fallbacks
+    const raw = detail.orderStatus ?? detail.tradeStatus ?? detail.status;
+    let liveStatus = order.order_status;
+    if (typeof raw === 'number') {
+      liveStatus = numStatusMap[raw] || order.order_status;
+    } else if (typeof raw === 'string' && raw.length > 0) {
+      liveStatus = raw.toUpperCase();
+    }
     return { ...order, order_status: liveStatus };
   }, [order, liveDetail]);
 

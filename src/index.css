@@ -146,7 +146,7 @@
 }
 
 .modern-card {
-  @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+  @apply bg-card rounded-xl border border-border shadow-sm;
 }
 
 .modern-card:hover {

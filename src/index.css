@@ -128,10 +128,10 @@
     --primary: 217 91% 60%;         /* #3B82F6 — finance blue */
     --primary-foreground: 0 0% 100%;
     --secondary: 225 18% 11%;       /* #151821 — secondary surface */
-    --secondary-foreground: 225 18% 78%;
-    --muted: 225 16% 10%;           /* subtle dark surface */
-    --muted-foreground: 225 12% 48%; /* #6B7285 */
-    --accent: 225 18% 13%;          /* hover / selected surface */
+    --secondary-foreground: 225 18% 85%;
+    --muted: 225 16% 13%;           /* subtle dark surface */
+    --muted-foreground: 225 12% 62%; /* #8B92A5 — readable muted text */
+    --accent: 225 18% 15%;          /* hover / selected surface */
     --accent-foreground: 225 25% 91%;
 
     /* ── Status / semantic ── */

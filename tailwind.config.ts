@@ -75,7 +75,10 @@ export default {
 				'crypto-ethereum': 'hsl(var(--crypto-ethereum))',
 				'success': 'hsl(var(--success))',
 				'warning': 'hsl(var(--warning))',
-				'info': 'hsl(var(--info))'
+				'info': 'hsl(var(--info))',
+				'trade-buy': 'hsl(var(--trade-buy, var(--success)))',
+				'trade-sell': 'hsl(var(--trade-sell, var(--destructive)))',
+				'trade-pending': 'hsl(var(--trade-pending, var(--warning)))',
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

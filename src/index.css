@@ -107,6 +107,52 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* P2P Trading Terminal — institutional dark theme */
+  .terminal {
+    --background: 220 20% 7%;
+    --foreground: 214 10% 85%;
+    --card: 220 18% 10%;
+    --card-foreground: 214 10% 88%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 214 10% 88%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 220 20% 7%;
+    --secondary: 220 16% 14%;
+    --secondary-foreground: 214 10% 85%;
+    --muted: 220 14% 13%;
+    --muted-foreground: 215 8% 52%;
+    --accent: 220 16% 16%;
+    --accent-foreground: 214 10% 88%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 16%;
+    --input: 220 16% 14%;
+    --ring: 199 89% 48%;
+
+    /* Trading semantics */
+    --success: 145 63% 42%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+    --trade-buy: 145 63% 42%;
+    --trade-sell: 0 72% 51%;
+    --trade-pending: 38 92% 50%;
+
+    --chart-1: 199 89% 48%;
+    --chart-2: 145 63% 42%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 280 65% 55%;
+    --chart-5: 0 72% 51%;
+
+    --sidebar-background: 220 22% 6%;
+    --sidebar-foreground: 214 10% 72%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 220 20% 7%;
+    --sidebar-accent: 220 16% 12%;
+    --sidebar-accent-foreground: 214 10% 85%;
+    --sidebar-border: 220 14% 14%;
+    --sidebar-ring: 199 89% 48%;
+  }
 }
 
 /* Prevent right overflow and force full width */

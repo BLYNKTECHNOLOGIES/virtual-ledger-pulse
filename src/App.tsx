@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
 import { ContactPage } from './components/website/pages/ContactPage';
@@ -61,6 +62,7 @@ import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
+import TerminalDashboard from './pages/terminal/TerminalDashboard';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -555,6 +557,35 @@ const router = createBrowserRouter([
               <Layout>
                 <AdManager />
               </Layout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    // P2P Trading Terminal routes
+    {
+      path: "/terminal",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalDashboard />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/ads",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <AdManager />
+              </TerminalLayout>
             </AuthCheck>
           </AuthProvider>
         </QueryProvider>

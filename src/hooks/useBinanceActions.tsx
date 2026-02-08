@@ -129,6 +129,25 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   });
 }
 
+/** Fetch recent order history for bulk status enrichment on list view */
+export function useBinanceOrderHistory() {
+  return useQuery({
+    queryKey: ['binance-order-history-bulk'],
+    queryFn: async () => {
+      const result = await callBinanceAds('getOrderHistory', {
+        rows: 100,
+        startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days
+        endTimestamp: Date.now(),
+      });
+      const orders = result?.data || result || [];
+      if (!Array.isArray(orders)) return [];
+      return orders as Array<{ orderNumber: string; orderStatus: string; [k: string]: any }>;
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+}
+
 // ==================== COUNTERPARTY STATS ====================
 
 export function useCounterpartyBinanceStats(orderNumber: string | null) {

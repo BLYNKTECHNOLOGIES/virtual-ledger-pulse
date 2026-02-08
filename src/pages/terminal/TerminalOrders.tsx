@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ShoppingCart, RefreshCw, Search } from 'lucide-react';
-import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
+import { useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
@@ -81,6 +81,7 @@ export default function TerminalOrders() {
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
 
   const { data: activeOrdersData, isLoading, refetch, isFetching } = useBinanceActiveOrders();
+  const { data: historyOrders = [] } = useBinanceOrderHistory();
   const syncOrders = useSyncOrders();
 
   // Extract raw orders array from Binance response
@@ -90,6 +91,17 @@ export default function TerminalOrders() {
     return [];
   }, [activeOrdersData]);
 
+  // Build a map of order history statuses for enrichment
+  const historyStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of historyOrders) {
+      if (o.orderNumber && o.orderStatus) {
+        map.set(o.orderNumber, String(o.orderStatus).toUpperCase());
+      }
+    }
+    return map;
+  }, [historyOrders]);
+
   // Background sync to local DB (fire-and-forget)
   useEffect(() => {
     if (rawOrders.length > 0 && !syncOrders.isPending) {
@@ -97,18 +109,24 @@ export default function TerminalOrders() {
     }
   }, [rawOrders.length]);
 
-  // Convert to display records and apply client-side filters
+  // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
-    let filtered = rawOrders;
+    // First enrich raw orders with history status (history returns reliable string statuses)
+    let enriched = rawOrders.map(o => {
+      const historyStatus = historyStatusMap.get(o.orderNumber);
+      if (historyStatus) {
+        return { ...o, _resolvedStatus: historyStatus };
+      }
+      return { ...o, _resolvedStatus: mapOrderStatusCode(o.orderStatus) };
+    });
 
     if (tradeFilter !== 'all') {
-      filtered = filtered.filter(o => o.tradeType === tradeFilter);
+      enriched = enriched.filter(o => o.tradeType === tradeFilter);
     }
 
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(o => {
-        const s = mapOrderStatusCode(o.orderStatus);
-        const op = mapToOperationalStatus(s, o.tradeType || 'BUY');
+      enriched = enriched.filter(o => {
+        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
         if (statusFilter === 'active') {
           return op !== 'Completed' && op !== 'Cancelled' && op !== 'Expired';
         }
@@ -120,14 +138,19 @@ export default function TerminalOrders() {
 
     if (search) {
       const q = search.toLowerCase();
-      filtered = filtered.filter(o => {
+      enriched = enriched.filter(o => {
         const nick = o.tradeType === 'BUY' ? o.sellerNickname : o.buyerNickname;
         return (nick || '').toLowerCase().includes(q) || (o.orderNumber || '').includes(q);
       });
     }
 
-    return filtered.map(binanceToOrderRecord);
-  }, [rawOrders, tradeFilter, statusFilter, search]);
+    return enriched.map(o => {
+      const record = binanceToOrderRecord(o);
+      // Override status with the resolved (history-enriched) status
+      record.order_status = o._resolvedStatus;
+      return record;
+    });
+  }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap]);
 
   if (selectedOrder) {
     return (

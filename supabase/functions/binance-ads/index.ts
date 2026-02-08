@@ -339,6 +339,20 @@ serve(async (req) => {
         break;
       }
 
+      case "sendChatMessage": {
+        // POST /sapi/v1/c2c/chat/sendChatMessage
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
+        const response = await fetch(url, { method: "POST", headers: { ...proxyHeaders, "Content-Type": "application/json" }, body: JSON.stringify({
+          orderNo: payload.orderNo,
+          message: payload.message,
+          chatMessageType: payload.chatMessageType || "text",
+        }) });
+        const text = await response.text();
+        console.log("sendChatMessage response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       case "getRiskWarningTips": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/getRiskWarningTips`;
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({

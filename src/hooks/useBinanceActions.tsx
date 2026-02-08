@@ -213,6 +213,19 @@ export function useMarkMessagesRead() {
   });
 }
 
+export function useSendBinanceChatMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderNo, message }: { orderNo: string; message: string }) => {
+      return callBinanceAds('sendChatMessage', { orderNo, message, chatMessageType: 'text' });
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['binance-chat-messages', variables.orderNo] });
+    },
+    onError: (err: Error) => toast.error(`Send failed: ${err.message}`),
+  });
+}
+
 // ==================== MERCHANT ====================
 
 export function useMerchantOnline() {

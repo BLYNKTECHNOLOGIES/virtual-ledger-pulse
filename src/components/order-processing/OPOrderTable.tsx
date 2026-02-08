@@ -65,16 +65,6 @@ export function OPOrderTable({ orders, showAssignedTo = false, onAccept, onCompl
                 {showAssignedTo && <td className="py-4 px-5 text-gray-400">{order.assignedTo || '–'}</td>}
                 <td className="py-4 px-5 text-gray-500 text-[13px]">{format(new Date(order.createdAt), 'dd MMM, HH:mm')}</td>
                 <td className="py-4 px-5 text-right">
-                  {order.status === 'Pending' && onAccept && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-emerald-600/60 text-emerald-400 hover:bg-emerald-500/10 h-8 px-4 text-xs font-medium gap-1.5"
-                      onClick={() => onAccept(order.id)}
-                    >
-                      <Play className="h-3 w-3" /> Accept
-                    </Button>
-                  )}
                   {order.status === 'Processing' && onComplete && (
                     <Button
                       size="sm"

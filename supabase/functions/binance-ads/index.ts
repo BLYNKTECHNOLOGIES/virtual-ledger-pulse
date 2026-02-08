@@ -277,17 +277,11 @@ serve(async (req) => {
 
       // ==================== CHAT ====================
       case "getChatMessages": {
-        // GET endpoint — proxy requires query params, not POST body
+        // GET with minimal params — proxy adds timestamp/signature automatically
         const chatParams = new URLSearchParams();
         chatParams.set("orderNo", payload.orderNo);
         chatParams.set("page", String(payload.page || 1));
         chatParams.set("rows", String(payload.rows || 50));
-        if (payload.chatMessageType) chatParams.set("chatMessageType", payload.chatMessageType);
-        if (payload.sort) chatParams.set("sort", payload.sort);
-        if (payload.order) chatParams.set("order", payload.order);
-        if (payload.id) chatParams.set("id", String(payload.id));
-        chatParams.set("timestamp", Date.now().toString());
-        chatParams.set("recvWindow", "60000");
 
         const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
         console.log("getChatMessages URL:", chatUrl);
@@ -336,13 +330,19 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST /sapi/v1/c2c/chat/sendChatMessage
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
-        const response = await fetch(url, { method: "POST", headers: { ...proxyHeaders, "Content-Type": "application/json" }, body: JSON.stringify({
+        // POST relay for sending chat messages
+        const sendChatBody = {
           orderNo: payload.orderNo,
           message: payload.message,
           chatMessageType: payload.chatMessageType || "text",
-        }) });
+        };
+        const sendChatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
+        console.log("sendChatMessage URL (POST relay):", sendChatUrl, JSON.stringify(sendChatBody));
+        const response = await fetch(sendChatUrl, {
+          method: "POST",
+          headers: { ...proxyHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify(sendChatBody),
+        });
         const text = await response.text();
         console.log("sendChatMessage response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }

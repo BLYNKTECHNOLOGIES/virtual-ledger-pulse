@@ -3844,6 +3844,92 @@ export type Database = {
           },
         ]
       }
+      p2p_auto_reply_log: {
+        Row: {
+          error_message: string | null
+          executed_at: string
+          id: string
+          message_sent: string
+          order_number: string
+          rule_id: string | null
+          status: string
+          trigger_event: string
+        }
+        Insert: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          message_sent: string
+          order_number: string
+          rule_id?: string | null
+          status?: string
+          trigger_event: string
+        }
+        Update: {
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          message_sent?: string
+          order_number?: string
+          rule_id?: string | null
+          status?: string
+          trigger_event?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_auto_reply_log_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_auto_reply_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      p2p_auto_reply_rules: {
+        Row: {
+          conditions: Json | null
+          created_at: string
+          created_by: string | null
+          delay_seconds: number
+          id: string
+          is_active: boolean
+          message_template: string
+          name: string
+          priority: number
+          trade_type: string | null
+          trigger_event: string
+          updated_at: string
+        }
+        Insert: {
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          delay_seconds?: number
+          id?: string
+          is_active?: boolean
+          message_template: string
+          name: string
+          priority?: number
+          trade_type?: string | null
+          trigger_event: string
+          updated_at?: string
+        }
+        Update: {
+          conditions?: Json | null
+          created_at?: string
+          created_by?: string | null
+          delay_seconds?: number
+          id?: string
+          is_active?: boolean
+          message_template?: string
+          name?: string
+          priority?: number
+          trade_type?: string | null
+          trigger_event?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       p2p_chat_media: {
         Row: {
           chat_message_id: string
@@ -3936,6 +4022,45 @@ export type Database = {
           total_buy_orders?: number
           total_sell_orders?: number
           total_volume_inr?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      p2p_merchant_schedules: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          end_time: string
+          id: string
+          is_active: boolean
+          name: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_time?: string
           updated_at?: string
         }
         Relationships: []

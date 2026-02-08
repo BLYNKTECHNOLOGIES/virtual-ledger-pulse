@@ -24,7 +24,7 @@ const navItems = [
   { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard },
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone },
   { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true },
-  { title: 'Automation', url: '/terminal/automation', icon: Bot, badge: 'Soon' },
+  { title: 'Automation', url: '/terminal/automation', icon: Bot },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon' },
 ];

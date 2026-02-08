@@ -30,6 +30,7 @@ serve(async (req) => {
       "x-proxy-token": BINANCE_PROXY_TOKEN,
       "x-api-key": BINANCE_API_KEY,
       "x-api-secret": BINANCE_API_SECRET,
+      "clientType": "web",
     };
 
     let result: any;
@@ -85,11 +86,10 @@ serve(async (req) => {
 
       case "updateAdStatus": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-        // Binance expects advNos as a comma-separated string, not an array
+        // Per official docs: advNos is an array of strings, advStatus is a number
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
-        const advNosStr = advNosList.join(",");
         const body = {
-          advNos: advNosStr,
+          advNos: advNosList.map(String),
           advStatus: Number(payload.advStatus),
         };
         console.log("updateAdStatus request body:", JSON.stringify(body));

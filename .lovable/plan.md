@@ -67,11 +67,14 @@ A standalone P2P Order Management Terminal at `/terminal/*` routes, coexisting w
 - [x] Mute/unmute notification toggle
 - Note: WebSocket real-time chat via retrieveChatCredential is available via API but Binance WSS requires direct browser-to-Binance connection which isn't feasible through the proxy. Using enhanced 10s polling instead.
 
-## Phase 5: Automation
+## Phase 5: Automation ✅ DONE
 
-- [ ] Auto-reply workflow builder
-- [ ] Triggers: order received, payment marked, timer breach
-- [ ] Merchant online/offline scheduling
+- [x] Auto-reply workflow builder (CRUD rules with trigger, trade type, delay, priority, template vars)
+- [x] Triggers: order received, payment marked, order completed, timer breach
+- [x] Merchant online/offline scheduling (day-of-week time windows, go_online/go_offline/take_rest actions)
+- [x] Execution log viewer with status indicators
+- [x] DB schema: p2p_auto_reply_rules, p2p_auto_reply_log, p2p_merchant_schedules
+- [ ] Execution engine edge function (polls orders and triggers auto-replies — next iteration)
 
 ## Phase 6: User Sync & Permissions
 

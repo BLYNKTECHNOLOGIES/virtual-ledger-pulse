@@ -5,12 +5,30 @@ import { useToast } from '@/hooks/use-toast';
 // Binance C2C ad status codes
 export const BINANCE_AD_STATUS = {
   ONLINE: 1,
-  OFFLINE: 3,  // Binance uses 3 for offline/inactive, NOT 2
+  PRIVATE: 2,   // Visible only via direct link
+  OFFLINE: 3,   // Binance uses 3 for offline/inactive, NOT 2
 } as const;
+
+export function getAdStatusLabel(status: number): string {
+  switch (status) {
+    case BINANCE_AD_STATUS.ONLINE: return 'Active';
+    case BINANCE_AD_STATUS.PRIVATE: return 'Private';
+    case BINANCE_AD_STATUS.OFFLINE: return 'Inactive';
+    default: return `Unknown (${status})`;
+  }
+}
+
+export function getAdStatusVariant(status: number): 'default' | 'secondary' | 'outline' {
+  switch (status) {
+    case BINANCE_AD_STATUS.ONLINE: return 'default';
+    case BINANCE_AD_STATUS.PRIVATE: return 'outline';
+    default: return 'secondary';
+  }
+}
 
 export interface BinanceAd {
   advNo: string;
-  advStatus: number; // 1 = online, 3 = offline
+  advStatus: number; // 1 = online, 2 = private, 3 = offline
   asset: string;
   fiatUnit: string;
   tradeType: string; // BUY or SELL

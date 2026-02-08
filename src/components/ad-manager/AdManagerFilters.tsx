@@ -55,7 +55,8 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         <SelectContent>
           <SelectItem value="all">All Status</SelectItem>
           <SelectItem value="1">Active</SelectItem>
-          <SelectItem value="2">Inactive</SelectItem>
+          <SelectItem value="2">Private</SelectItem>
+          <SelectItem value="3">Inactive</SelectItem>
         </SelectContent>
       </Select>
 

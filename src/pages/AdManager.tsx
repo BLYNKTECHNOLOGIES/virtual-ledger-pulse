@@ -6,7 +6,7 @@ import { Plus, Megaphone } from 'lucide-react';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdTable } from '@/components/ad-manager/AdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
-import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd } from '@/hooks/useBinanceAds';
+import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export default function AdManager() {
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 20 });
@@ -17,7 +17,7 @@ export default function AdManager() {
   // Compute advStatus filter based on tab
   const effectiveFilters: AdFilters = {
     ...filters,
-    advStatus: activeTab === 'active' ? 1 : activeTab === 'inactive' ? 2 : filters.advStatus,
+    advStatus: activeTab === 'active' ? BINANCE_AD_STATUS.ONLINE : activeTab === 'inactive' ? BINANCE_AD_STATUS.OFFLINE : filters.advStatus,
   };
 
   const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters);
@@ -37,7 +37,7 @@ export default function AdManager() {
   };
 
   const handleToggleStatus = (advNo: string, currentStatus: number) => {
-    const newStatus = currentStatus === 1 ? 2 : 1;
+    const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE ? BINANCE_AD_STATUS.OFFLINE : BINANCE_AD_STATUS.ONLINE;
     updateStatus.mutate({ advNos: [advNo], advStatus: newStatus });
   };
 

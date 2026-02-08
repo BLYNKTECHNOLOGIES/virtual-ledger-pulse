@@ -32,6 +32,7 @@ const moreNavItems = [
   { title: "P&L", url: "/profit-loss", icon: TrendingUp },
   { title: "Financials", url: "/financials", icon: Package },
   { title: "Statistics", url: "/statistics", icon: TrendingUp },
+  { title: "Order Processing", url: "/order-processing", icon: Package },
 ];
 
 export function MobileBottomNav() {

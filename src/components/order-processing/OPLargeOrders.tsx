@@ -1,0 +1,93 @@
+
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, TrendingUp, Users } from 'lucide-react';
+import { OPOrderTable } from './OPOrderTable';
+import { mockOrders, defaultSettings } from './mockData';
+import { useToast } from '@/hooks/use-toast';
+
+export function OPLargeOrders() {
+  const [orders, setOrders] = useState(mockOrders.filter(o => o.orderType === 'large'));
+  const [currentRotation] = useState(0);
+  const { toast } = useToast();
+
+  const pending = orders.filter(o => o.status === 'Pending').length;
+  const processing = orders.filter(o => o.status === 'Processing').length;
+  const completed = orders.filter(o => o.status === 'Completed').length;
+
+  const handleAccept = (id: string) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Processing' as const } : o));
+    toast({ title: 'Order accepted' });
+  };
+
+  const handleComplete = (id: string) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Completed' as const } : o));
+    toast({ title: 'Order completed' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-amber-500/10 rounded-lg">
+            <TrendingUp className="h-6 w-6 text-amber-500" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-100">Large Orders</h2>
+            <p className="text-gray-400">Orders above ₹50,000</p>
+          </div>
+        </div>
+        <Button variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
+          <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Total Orders', value: orders.length },
+          { label: 'Pending', value: pending, color: 'text-yellow-400' },
+          { label: 'Processing', value: processing, color: 'text-blue-400' },
+          { label: 'Completed', value: completed, color: 'text-emerald-400' },
+        ].map((stat) => (
+          <Card key={stat.label} className="bg-gray-900/60 border-gray-800">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-sm text-gray-400">{stat.label}</p>
+              <p className={`text-2xl font-bold mt-1 ${stat.color || 'text-gray-100'}`}>{stat.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Round-Robin Assignment */}
+      <Card className="bg-gray-900/60 border-gray-800">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-5 w-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-gray-100">Round-Robin Assignment</h3>
+          </div>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {defaultSettings.rotationOrder.map((name, i) => (
+              <Badge
+                key={name}
+                variant="outline"
+                className={i === currentRotation
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 px-4 py-2'
+                  : 'bg-gray-800 text-gray-400 border-gray-700 px-4 py-2'
+                }
+              >
+                {i === currentRotation ? `NEXT → ${name}` : `#${i + 1} ${name}`}
+              </Badge>
+            ))}
+          </div>
+          <p className="text-sm text-gray-500">
+            New large orders will be assigned to <span className="text-amber-400 font-medium">{defaultSettings.rotationOrder[currentRotation]}</span> next.
+          </p>
+        </CardContent>
+      </Card>
+
+      <OPOrderTable orders={orders} showAssignedTo onAccept={handleAccept} onComplete={handleComplete} />
+    </div>
+  );
+}

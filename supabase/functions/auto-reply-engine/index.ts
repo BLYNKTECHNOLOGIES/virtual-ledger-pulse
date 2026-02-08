@@ -123,7 +123,7 @@ serve(async (req) => {
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
       method: "POST",
       headers: proxyHeaders,
-      body: JSON.stringify({ page: 1, rows: 50 }),
+      body: JSON.stringify({ pageNumber: 1, pageSize: 50 }),
     });
     const activeData = await activeRes.json();
     const activeOrders: BinanceOrder[] = activeData?.data || [];
@@ -134,7 +134,7 @@ serve(async (req) => {
       {
         method: "POST",
         headers: proxyHeaders,
-        body: JSON.stringify({ page: 1, rows: 20 }),
+        body: JSON.stringify({ pageNumber: 1, pageSize: 20 }),
       }
     );
     const historyData = await historyRes.json();

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { History, ExternalLink } from 'lucide-react';
 import { useCounterpartyOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { format } from 'date-fns';
+import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 
 interface Props {
   counterpartyId: string | null;
@@ -49,7 +50,8 @@ export function PastInteractionsPanel({ counterpartyId, currentOrderId, onSelect
 }
 
 function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () => void }) {
-  const statusColor = getStatusColor(order.order_status);
+  const op = mapToOperationalStatus(order.order_status, order.trade_type);
+  const style = getStatusStyle(op);
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
 
   return (
@@ -71,8 +73,8 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
         <span className="text-xs font-medium text-foreground tabular-nums">
           ₹{Number(order.total_price).toLocaleString('en-IN')}
         </span>
-        <Badge variant="outline" className={`text-[9px] ${statusColor}`}>
-          {normalizeStatus(order.order_status)}
+        <Badge variant="outline" className={`text-[9px] ${style.badgeClass}`}>
+          {style.label}
         </Badge>
       </div>
 
@@ -88,23 +90,4 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
       </div>
     </button>
   );
-}
-
-function normalizeStatus(raw: string): string {
-  const s = raw.toUpperCase();
-  if (s.includes('COMPLETED')) return 'Completed';
-  if (s.includes('CANCEL')) return 'Cancelled';
-  if (s.includes('APPEAL')) return 'Appeal';
-  if (s.includes('BUYER_PAYED')) return 'Paid';
-  if (s.includes('TRADING')) return 'Trading';
-  return raw;
-}
-
-function getStatusColor(raw: string): string {
-  const s = raw.toUpperCase();
-  if (s.includes('COMPLETED')) return 'border-trade-buy/30 text-trade-buy';
-  if (s.includes('CANCEL')) return 'border-muted-foreground/30 text-muted-foreground';
-  if (s.includes('APPEAL')) return 'border-destructive/30 text-destructive';
-  if (s.includes('BUYER_PAYED')) return 'border-primary/30 text-primary';
-  return 'border-trade-pending/30 text-trade-pending';
 }

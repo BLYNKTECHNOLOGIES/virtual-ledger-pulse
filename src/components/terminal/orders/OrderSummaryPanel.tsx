@@ -5,6 +5,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
 import { OrderActions } from './OrderActions';
 import { format } from 'date-fns';
+import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 
 interface Props {
   order: P2POrderRecord;
@@ -56,9 +57,15 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
         {/* Status */}
         <div className="pt-3 border-t border-border">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Status</p>
-          <Badge variant="outline" className="text-xs">
-            {order.order_status}
-          </Badge>
+          {(() => {
+            const op = mapToOperationalStatus(order.order_status, order.trade_type);
+            const style = getStatusStyle(op);
+            return (
+              <Badge variant="outline" className={`text-xs ${style.badgeClass}`}>
+                {style.label}
+              </Badge>
+            );
+          })()}
         </div>
 
         {/* Ad reference */}

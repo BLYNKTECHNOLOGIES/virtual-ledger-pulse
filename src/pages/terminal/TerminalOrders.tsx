@@ -54,6 +54,7 @@ function binanceToOrderRecord(o: any): P2POrderRecord {
     completed_at: null,
     cancelled_at: null,
     created_at: new Date().toISOString(),
+    additional_kyc_verify: o.additionalKycVerify ?? 0,
   };
 }
 

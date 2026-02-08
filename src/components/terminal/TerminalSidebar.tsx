@@ -40,8 +40,8 @@ export function TerminalSidebar() {
     <Sidebar className="border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-3.5 border-b border-sidebar-border">
         <Link to="/terminal" className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <span className="text-primary font-bold text-[9px] tracking-tight">P2P</span>
+          <div className="h-7 w-7 rounded bg-accent-yellow-tint border border-accent-yellow/20 flex items-center justify-center">
+            <span className="text-accent-yellow font-bold text-[9px] tracking-tight">P2P</span>
           </div>
           <div>
             <h1 className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight">Terminal</h1>

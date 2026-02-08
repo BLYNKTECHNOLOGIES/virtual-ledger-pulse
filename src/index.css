@@ -125,14 +125,20 @@
     --popover-foreground: 225 25% 91%;
 
     /* ── Accent / interactive ── */
-    --primary: 217 91% 60%;         /* #3B82F6 — finance blue */
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 95% 49%;          /* #F0B90B — Binance accent yellow */
+    --primary-foreground: 225 25% 7%;  /* dark text on yellow */
     --secondary: 225 18% 11%;       /* #151821 — secondary surface */
     --secondary-foreground: 225 18% 78%;
     --muted: 225 16% 10%;           /* subtle dark surface */
     --muted-foreground: 225 12% 48%; /* #6B7285 */
-    --accent: 225 18% 13%;          /* hover / selected surface */
-    --accent-foreground: 225 25% 91%;
+    --accent: 45 40% 12%;           /* #3A2F05 — soft yellow tint surface */
+    --accent-foreground: 45 95% 49%;
+
+    /* ── Accent yellow palette (locked) ── */
+    --accent-yellow: 45 95% 49%;         /* #F0B90B — primary accent */
+    --accent-yellow-hover: 44 100% 65%;  /* #FFD24C — hover state */
+    --accent-yellow-pressed: 42 100% 38%;/* #C99400 — pressed state */
+    --accent-yellow-tint: 45 40% 12%;    /* #3A2F05 — subtle highlight */
 
     /* ── Status / semantic ── */
     --destructive: 0 84% 60%;       /* #EF4444 */
@@ -144,29 +150,29 @@
     /* ── Borders ── */
     --border: 225 14% 17%;          /* #2A2F3A */
     --input: 225 18% 11%;           /* input bg = secondary */
-    --ring: 217 91% 60%;            /* focus ring = primary */
+    --ring: 45 95% 49%;             /* focus ring = accent yellow */
 
     /* ── Trading semantics ── */
     --trade-buy: 142 64% 40%;       /* #16A34A */
     --trade-sell: 0 72% 51%;        /* #DC2626 */
-    --trade-pending: 45 93% 47%;    /* #FBBF24 */
+    --trade-pending: 45 95% 49%;    /* #F0B90B — accent yellow */
 
     /* ── Charts ── */
-    --chart-1: 217 91% 60%;
+    --chart-1: 45 95% 49%;          /* accent yellow as lead series */
     --chart-2: 142 71% 45%;
-    --chart-3: 38 92% 50%;
+    --chart-3: 217 91% 60%;
     --chart-4: 270 60% 58%;
     --chart-5: 0 72% 51%;
 
     /* ── Sidebar ── */
     --sidebar-background: 225 25% 5%;  /* #12151C — deepest layer */
     --sidebar-foreground: 225 12% 52%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 225 18% 10%;
-    --sidebar-accent-foreground: 225 25% 88%;
+    --sidebar-primary: 45 95% 49%;     /* accent yellow */
+    --sidebar-primary-foreground: 225 25% 7%;
+    --sidebar-accent: 45 40% 12%;      /* soft yellow tint */
+    --sidebar-accent-foreground: 45 95% 49%;
     --sidebar-border: 225 16% 12%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-ring: 45 95% 49%;
   }
 }
 

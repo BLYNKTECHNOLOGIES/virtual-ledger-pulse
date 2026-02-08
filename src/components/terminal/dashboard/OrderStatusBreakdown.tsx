@@ -29,7 +29,7 @@ export function OrderStatusBreakdown({ orders, isLoading }: Props) {
     <Card className="bg-card border-border">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-foreground flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary" />
+          <BarChart3 className="h-4 w-4 text-accent-yellow" />
           Order Status Breakdown
         </CardTitle>
       </CardHeader>
@@ -88,8 +88,8 @@ function getStatusColor(status: string): string {
     case 'Cancelled': return '#6B7280';
     case 'Appeal': return '#EF4444';
     case 'Paid': return '#3B82F6';
-    case 'Trading': return '#F59E0B';
-    case 'Pending': return '#FBBF24';
+    case 'Trading': return '#F0B90B';
+    case 'Pending': return '#F0B90B';
     default: return '#6B7285';
   }
 }

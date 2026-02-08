@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Power, PowerOff, Lock } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
@@ -11,9 +12,11 @@ interface AdTableProps {
   onEdit: (ad: BinanceAd) => void;
   onToggleStatus: (advNo: string, currentStatus: number) => void;
   isTogglingStatus: boolean;
+  selectedAdvNos: Set<string>;
+  onSelectionChange: (advNos: Set<string>) => void;
 }
 
-export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTableProps) {
+export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange }: AdTableProps) {
   if (!ads || ads.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -22,10 +25,36 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
     );
   }
 
+  const allSelected = ads.length > 0 && ads.every(ad => selectedAdvNos.has(ad.advNo));
+  const someSelected = ads.some(ad => selectedAdvNos.has(ad.advNo)) && !allSelected;
+
+  const toggleAll = () => {
+    if (allSelected) {
+      onSelectionChange(new Set());
+    } else {
+      onSelectionChange(new Set(ads.map(ad => ad.advNo)));
+    }
+  };
+
+  const toggleOne = (advNo: string) => {
+    const next = new Set(selectedAdvNos);
+    if (next.has(advNo)) next.delete(advNo);
+    else next.add(advNo);
+    onSelectionChange(next);
+  };
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10">
+            <Checkbox
+              checked={allSelected}
+              ref={(el) => { if (el) (el as any).indeterminate = someSelected; }}
+              onCheckedChange={toggleAll}
+              aria-label="Select all ads"
+            />
+          </TableHead>
           <TableHead>Ad ID</TableHead>
           <TableHead>Type</TableHead>
           <TableHead>Asset</TableHead>
@@ -41,7 +70,14 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
       </TableHeader>
       <TableBody>
         {ads.map((ad) => (
-          <TableRow key={ad.advNo}>
+          <TableRow key={ad.advNo} data-state={selectedAdvNos.has(ad.advNo) ? 'selected' : undefined}>
+            <TableCell>
+              <Checkbox
+                checked={selectedAdvNos.has(ad.advNo)}
+                onCheckedChange={() => toggleOne(ad.advNo)}
+                aria-label={`Select ad ${ad.advNo}`}
+              />
+            </TableCell>
             <TableCell className="font-mono text-xs">{ad.advNo?.slice(-8) || '—'}</TableCell>
             <TableCell>
               <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>

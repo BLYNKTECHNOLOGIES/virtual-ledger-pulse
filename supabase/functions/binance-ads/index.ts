@@ -136,6 +136,24 @@ serve(async (req) => {
         break;
       }
 
+      case "getOrderHistory": {
+        // GET /sapi/v1/c2c/orderMatch/listUserOrderHistory
+        const params = new URLSearchParams();
+        if (payload.tradeType) params.set("tradeType", payload.tradeType);
+        if (payload.startTimestamp) params.set("startTimestamp", String(payload.startTimestamp));
+        if (payload.endTimestamp) params.set("endTimestamp", String(payload.endTimestamp));
+        params.set("page", String(payload.page || 1));
+        params.set("rows", String(payload.rows || 100));
+
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
+        console.log("getOrderHistory URL:", url);
+        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getOrderHistory response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),

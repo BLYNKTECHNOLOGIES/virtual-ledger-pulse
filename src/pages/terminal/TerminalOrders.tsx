@@ -85,9 +85,12 @@ export default function TerminalOrders() {
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
 
-  const { data: activeOrdersData, isLoading, refetch, isFetching } = useBinanceActiveOrders();
-  const { data: historyOrders = [] } = useBinanceOrderHistory();
+  const { data: activeOrdersData, isLoading: activeLoading, refetch, isFetching } = useBinanceActiveOrders();
+  const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
   const syncOrders = useSyncOrders();
+
+  // Only show loading if BOTH sources are still loading
+  const isLoading = activeLoading && historyLoading;
 
   // Extract raw orders array — prefer active orders, fallback to history
   const rawOrders: any[] = useMemo(() => {

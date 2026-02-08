@@ -297,13 +297,12 @@ serve(async (req) => {
       }
 
       case "getChatCredential": {
-        // POST relay for retrieveChatCredential (GET blocked by CloudFront)
+        // GET endpoint for retrieveChatCredential
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
-        console.log("getChatCredential URL (POST relay):", url);
+        console.log("getChatCredential URL (GET):", url);
         const response = await fetch(url, { 
-          method: "POST", 
-          headers: { ...proxyHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          method: "GET", 
+          headers: proxyHeaders,
         });
         const text = await response.text();
         console.log("getChatCredential response:", response.status, text.substring(0, 500));

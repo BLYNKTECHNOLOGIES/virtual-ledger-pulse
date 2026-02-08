@@ -2,10 +2,13 @@
 // These are the only methods operators can manually select for BUY ads.
 // For SELL ads, methods are fetched live from Binance account.
 
+// IMPORTANT: identifier and binancePayType values MUST match exact Binance API values.
+// Verified from actual Binance C2C API responses.
+
 export interface PaymentMethodConfig {
-  identifier: string; // Binance identifier key
+  identifier: string; // Binance identifier key (must match API exactly)
   label: string; // Display name
-  binancePayType: string; // Binance payType value
+  binancePayType: string; // Binance payType value (same as identifier)
   colorAccent: string; // HSL accent color for left border/icon tint
   bgColor: string; // Background highlight when selected
   iconLabel: string; // Short icon text when no SVG available
@@ -15,9 +18,9 @@ export interface PaymentMethodConfig {
 // Binance identifiers mapped from actual API responses
 export const ALLOWED_BUY_PAYMENT_METHODS: PaymentMethodConfig[] = [
   {
-    identifier: 'SpecificBank',
+    identifier: 'BankIndia',
     label: 'Bank Transfer (India)',
-    binancePayType: 'SpecificBank',
+    binancePayType: 'BankIndia',
     colorAccent: '217 91% 60%',
     bgColor: 'hsl(217 91% 60% / 0.08)',
     iconLabel: 'NEFT',
@@ -69,18 +72,18 @@ export const ALLOWED_BUY_PAYMENT_METHODS: PaymentMethodConfig[] = [
     sortOrder: 6,
   },
   {
-    identifier: 'GooglePay',
+    identifier: 'GPay',
     label: 'Google Pay (GPay)',
-    binancePayType: 'GooglePay',
+    binancePayType: 'GPay',
     colorAccent: '217 89% 61%',
     bgColor: 'hsl(217 89% 61% / 0.08)',
     iconLabel: 'GPay',
     sortOrder: 7,
   },
   {
-    identifier: 'IMPS-PAN',
+    identifier: 'IMPSPan',
     label: 'IMPS - PAN',
-    binancePayType: 'IMPS-PAN',
+    binancePayType: 'IMPSPan',
     colorAccent: '24 95% 53%',
     bgColor: 'hsl(24 95% 53% / 0.08)',
     iconLabel: 'IMPS',
@@ -105,9 +108,9 @@ export const ALLOWED_BUY_PAYMENT_METHODS: PaymentMethodConfig[] = [
     sortOrder: 10,
   },
   {
-    identifier: 'UPI-PAN',
-    label: 'UPI-PAN',
-    binancePayType: 'UPI-PAN',
+    identifier: 'UPIPan',
+    label: 'UPI - PAN',
+    binancePayType: 'UPIPan',
     colorAccent: '142 71% 45%',
     bgColor: 'hsl(142 71% 45% / 0.08)',
     iconLabel: 'UPI',

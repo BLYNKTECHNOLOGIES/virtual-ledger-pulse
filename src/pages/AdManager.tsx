@@ -10,6 +10,7 @@ import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
+import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export default function AdManager() {
@@ -38,6 +39,7 @@ export default function AdManager() {
 
   const ads: BinanceAd[] = data?.data || data?.list || [];
   const total = data?.total || ads.length;
+  const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
 
   const selectedAds = useMemo(() => ads.filter(ad => selectedAdvNos.has(ad.advNo)), [ads, selectedAdvNos]);
 
@@ -59,6 +61,9 @@ export default function AdManager() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Rest Timer Banner — visible to all when active */}
+      <RestTimerBanner onlineAds={onlineAds} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -70,10 +75,12 @@ export default function AdManager() {
             <p className="text-xs text-muted-foreground">Manage your Binance P2P merchant ads</p>
           </div>
         </div>
-        <Button size="sm" onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-1.5" />
-          Create Ad
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-1.5" />
+            Create Ad
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

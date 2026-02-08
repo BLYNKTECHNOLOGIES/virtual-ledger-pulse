@@ -42,21 +42,21 @@ export default function AdManager() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-100 rounded-lg">
-            <Megaphone className="h-6 w-6 text-amber-600" />
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Megaphone className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Ad Manager</h1>
-            <p className="text-sm text-muted-foreground">Manage your Binance P2P merchant ads</p>
+            <h1 className="text-lg font-semibold text-foreground">Ads Manager</h1>
+            <p className="text-xs text-muted-foreground">Manage your Binance P2P merchant ads</p>
           </div>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Ad
+        <Button size="sm" onClick={handleCreate}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Create Ad
         </Button>
       </div>
 
@@ -95,7 +95,7 @@ export default function AdManager() {
             <CardContent>
               {isLoading ? (
                 <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               ) : (
                 <AdTable

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { CheckCircle, Unlock, XCircle, Shield, Loader2 } from 'lucide-react';
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder } from '@/hooks/useBinanceActions';
+import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 
 interface Props {
   orderNumber: string;
@@ -23,27 +24,27 @@ interface Props {
 }
 
 export function OrderActions({ orderNumber, orderStatus, tradeType }: Props) {
-  const status = orderStatus.toUpperCase();
-  const isActive = !status.includes('COMPLETED') && !status.includes('CANCEL');
-  
-  if (!isActive) return null;
+  const opStatus = mapToOperationalStatus(orderStatus, tradeType);
+
+  // Hide actions for terminal states
+  if (['Completed', 'Cancelled', 'Expired'].includes(opStatus)) return null;
 
   return (
     <div className="pt-3 border-t border-border space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
       
-      {/* Mark as Paid - available when status is TRADING and we are the buyer */}
-      {status.includes('TRADING') && tradeType === 'BUY' && (
+      {/* Mark as Paid - BUY order in Pending Payment state */}
+      {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
         <MarkAsPaidAction orderNumber={orderNumber} />
       )}
 
-      {/* Release Coin - available when BUYER_PAYED and we are the seller */}
-      {status.includes('BUYER_PAYED') && tradeType === 'SELL' && (
+      {/* Release Coin - SELL order in Pending Release state */}
+      {opStatus === 'Pending Release' && tradeType === 'SELL' && (
         <ReleaseCoinAction orderNumber={orderNumber} />
       )}
 
-      {/* Cancel - available in early stages */}
-      {(status.includes('TRADING') || status.includes('PENDING')) && (
+      {/* Cancel - only in Pending Payment state */}
+      {opStatus === 'Pending Payment' && (
         <CancelOrderAction orderNumber={orderNumber} />
       )}
     </div>

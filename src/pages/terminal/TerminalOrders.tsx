@@ -13,6 +13,7 @@ import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { format } from 'date-fns';
+import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
 /** Convert numeric orderStatus to string */
 function mapOrderStatusCode(code: number | string): string {
@@ -107,10 +108,13 @@ export default function TerminalOrders() {
     if (statusFilter !== 'all') {
       filtered = filtered.filter(o => {
         const s = mapOrderStatusCode(o.orderStatus);
+        const op = mapToOperationalStatus(s, o.tradeType || 'BUY');
         if (statusFilter === 'active') {
-          return !s.includes('COMPLETED') && !s.includes('CANCEL');
+          return op !== 'Completed' && op !== 'Cancelled' && op !== 'Expired';
         }
-        return s.includes(statusFilter.toUpperCase());
+        if (statusFilter === 'completed') return op === 'Completed';
+        if (statusFilter === 'cancelled') return op === 'Cancelled';
+        return true;
       });
     }
 
@@ -177,8 +181,8 @@ export default function TerminalOrders() {
           <TabsList className="h-8 bg-secondary">
             <TabsTrigger value="all" className="text-[11px] h-6 px-3">All Status</TabsTrigger>
             <TabsTrigger value="active" className="text-[11px] h-6 px-3">Active</TabsTrigger>
-            <TabsTrigger value="COMPLETED" className="text-[11px] h-6 px-3">Completed</TabsTrigger>
-            <TabsTrigger value="CANCEL" className="text-[11px] h-6 px-3">Cancelled</TabsTrigger>
+            <TabsTrigger value="completed" className="text-[11px] h-6 px-3">Completed</TabsTrigger>
+            <TabsTrigger value="cancelled" className="text-[11px] h-6 px-3">Cancelled</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -256,7 +260,7 @@ export default function TerminalOrders() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <OrderStatusBadge status={order.order_status} />
+                        <OrderStatusBadge status={order.order_status} tradeType={order.trade_type} />
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-[11px] text-muted-foreground tabular-nums">
@@ -277,17 +281,8 @@ export default function TerminalOrders() {
   );
 }
 
-function OrderStatusBadge({ status }: { status: string }) {
-  const s = status.toUpperCase();
-  let label = status;
-  let className = 'border-muted-foreground/30 text-muted-foreground';
-
-  if (s.includes('COMPLETED')) { label = 'Completed'; className = 'border-trade-buy/30 text-trade-buy bg-trade-buy/5'; }
-  else if (s.includes('CANCEL')) { label = 'Cancelled'; className = 'border-muted-foreground/30 text-muted-foreground'; }
-  else if (s.includes('APPEAL')) { label = 'Appeal'; className = 'border-destructive/30 text-destructive bg-destructive/5'; }
-  else if (s.includes('BUYER_PAYED')) { label = 'Paid'; className = 'border-primary/30 text-primary bg-primary/5'; }
-  else if (s.includes('TRADING')) { label = 'Trading'; className = 'border-trade-pending/30 text-trade-pending bg-trade-pending/5'; }
-  else if (s.includes('PENDING')) { label = 'Pending'; className = 'border-trade-pending/30 text-trade-pending bg-trade-pending/5'; }
-
-  return <Badge variant="outline" className={`text-[10px] ${className}`}>{label}</Badge>;
+function OrderStatusBadge({ status, tradeType }: { status: string; tradeType: string }) {
+  const operational = mapToOperationalStatus(status, tradeType);
+  const style = getStatusStyle(operational);
+  return <Badge variant="outline" className={`text-[10px] ${style.badgeClass}`}>{style.label}</Badge>;
 }

@@ -145,12 +145,12 @@ serve(async (req) => {
       case "getOrderHistory": {
         // POST relay: proxy converts POST body → signed GET for Binance
         const ohBody: Record<string, any> = {
-          pageNumber: payload.page || 1,
-          pageSize: payload.rows || 100,
+          page: payload.page || 1,
+          rows: payload.rows || 100,
         };
         if (payload.tradeType) ohBody.tradeType = payload.tradeType;
-        if (payload.startTimestamp) ohBody.startTime = payload.startTimestamp;
-        if (payload.endTimestamp) ohBody.endTime = payload.endTimestamp;
+        if (payload.startTimestamp) ohBody.startTimestamp = payload.startTimestamp;
+        if (payload.endTimestamp) ohBody.endTimestamp = payload.endTimestamp;
 
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`;
         console.log("getOrderHistory URL (POST relay):", url, JSON.stringify(ohBody));
@@ -164,8 +164,8 @@ serve(async (req) => {
       case "listActiveOrders": {
         // POST /sapi/v1/c2c/orderMatch/listOrders
         const body: Record<string, any> = {
-          pageNumber: payload.page || 1,
-          pageSize: payload.rows || 50,
+          page: payload.page || 1,
+          rows: payload.rows || 50,
         };
         if (payload.advNo) body.advNo = payload.advNo;
         if (payload.asset) body.asset = payload.asset;

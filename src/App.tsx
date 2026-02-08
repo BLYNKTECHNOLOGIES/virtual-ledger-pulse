@@ -63,6 +63,7 @@ import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
 import TerminalDashboard from './pages/terminal/TerminalDashboard';
+import TerminalOrders from './pages/terminal/TerminalOrders';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -585,6 +586,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <AdManager />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/orders",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalOrders />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

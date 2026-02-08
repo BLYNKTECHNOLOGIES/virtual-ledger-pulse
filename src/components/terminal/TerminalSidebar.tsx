@@ -22,7 +22,7 @@ import {
 const navItems = [
   { title: 'Dashboard', url: '/terminal', icon: LayoutDashboard },
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone },
-  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, badge: 'Soon' },
+  { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart },
   { title: 'Automation', url: '/terminal/automation', icon: Bot, badge: 'Soon' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon' },

@@ -90,9 +90,9 @@ export const ALLOWED_BUY_PAYMENT_METHODS: PaymentMethodConfig[] = [
     sortOrder: 8,
   },
   {
-    identifier: 'LightningUPI',
+    identifier: 'UPIQRCode',
     label: 'Lightning UPI',
-    binancePayType: 'LightningUPI',
+    binancePayType: 'UPIQRCode',
     colorAccent: '48 96% 53%',
     bgColor: 'hsl(48 96% 53% / 0.08)',
     iconLabel: '⚡UPI',

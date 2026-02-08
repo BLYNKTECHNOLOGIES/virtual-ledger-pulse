@@ -277,21 +277,30 @@ serve(async (req) => {
 
       // ==================== CHAT ====================
       case "getChatMessages": {
-        // GET /sapi/v1/c2c/chat/retrieveChatMessagesWithPagination
-        const params = new URLSearchParams();
-        params.set("orderNo", payload.orderNo);
-        params.set("page", String(payload.page || 1));
-        params.set("rows", String(payload.rows || 50));
-        if (payload.chatMessageType) params.set("chatMessageType", payload.chatMessageType);
-        if (payload.sort) params.set("sort", payload.sort);
-        if (payload.order) params.set("order", payload.order);
-        if (payload.id) params.set("id", String(payload.id));
+        // POST to avoid WAF 403 on GET requests
+        const chatBody: Record<string, any> = {
+          orderNo: payload.orderNo,
+          page: payload.page || 1,
+          rows: payload.rows || 50,
+        };
+        if (payload.chatMessageType) chatBody.chatMessageType = payload.chatMessageType;
+        if (payload.sort) chatBody.sort = payload.sort;
+        if (payload.order) chatBody.order = payload.order;
+        if (payload.id) chatBody.id = payload.id;
 
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${params.toString()}`;
-        console.log("getChatMessages URL:", url);
-        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const chatParams = new URLSearchParams();
+        chatParams.set("timestamp", Date.now().toString());
+        chatParams.set("recvWindow", "60000");
+
+        const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
+        console.log("getChatMessages URL:", chatUrl);
+        const response = await fetch(chatUrl, {
+          method: "POST",
+          headers: { ...proxyHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify(chatBody),
+        });
         const text = await response.text();
-        console.log("getChatMessages response:", response.status, text.substring(0, 500));
+        console.log("getChatMessages response:", response.status, text.substring(0, 800));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

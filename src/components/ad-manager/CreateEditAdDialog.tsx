@@ -49,7 +49,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     buyerRegDaysLimit: 0,
     buyerBtcPositionLimit: 0,
     takerAdditionalKycRequired: 0,
-    selectedPayMethods: [] as Array<{ payId: number; payType: string; identifier: string }>,
+    selectedPayMethods: [] as Array<{ payId?: number; payType: string; identifier: string; tradeMethodName?: string }>,
   });
 
   const [payMethodSearch, setPayMethodSearch] = useState('');
@@ -155,7 +155,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     }
   }, [isBuyAd, buyAdPayMethods, sellAdPayMethods, payMethodSearch, form.selectedPayMethods]);
 
-  const togglePayMethod = (method: { payId: number; payType: string; identifier: string }) => {
+  const togglePayMethod = (method: { payId?: number; payType: string; identifier: string; tradeMethodName?: string }) => {
     const exists = form.selectedPayMethods.find(
       m => (m.payId && m.payId === method.payId) || m.identifier === method.identifier
     );
@@ -163,7 +163,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       setForm({
         ...form,
         selectedPayMethods: form.selectedPayMethods.filter(
-          m => !(m.payId === method.payId && m.identifier === method.identifier)
+          m => m.identifier !== method.identifier
         ),
       });
     } else if (form.selectedPayMethods.length < 5) {
@@ -201,12 +201,17 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     // For BUY ads, Binance only needs identifier+payType (no payId).
     // For SELL ads, payId from user's configured methods is required.
     const tradeMethods = form.selectedPayMethods.map(m => {
-      if (isBuyAd) {
-        // BUY ads: only send identifier and payType, no payId
-        return { identifier: m.identifier, payType: m.payType || m.identifier };
+      // Resolve label from our config for tradeMethodName
+      const config = resolvePaymentMethod(m.identifier);
+      const base: Record<string, any> = {
+        identifier: m.identifier,
+        payType: m.payType || m.identifier,
+        tradeMethodName: m.tradeMethodName || config?.label || m.identifier,
+      };
+      if (!isBuyAd && m.payId) {
+        base.payId = m.payId;
       }
-      // SELL ads: include payId from Binance account
-      return { payId: m.payId, identifier: m.identifier, payType: m.payType };
+      return base;
     });
 
     const adData: Record<string, any> = {
@@ -496,9 +501,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                               backgroundColor: selected ? config.bgColor : undefined,
                             }}
                             onClick={() => togglePayMethod({
-                              payId: 0,
                               payType: config.binancePayType,
                               identifier: config.identifier,
+                              tradeMethodName: config.label,
                             })}
                           >
                             <div className="flex items-center gap-2">

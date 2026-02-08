@@ -77,6 +77,7 @@ serve(async (req) => {
 
       case "updateAd": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/update`;
+        console.log("updateAd request body:", JSON.stringify(payload.adData).substring(0, 1000));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(payload.adData) });
         const text = await response.text();
         console.log("updateAd response:", response.status, text.substring(0, 500));

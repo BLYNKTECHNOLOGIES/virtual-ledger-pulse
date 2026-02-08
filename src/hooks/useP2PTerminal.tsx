@@ -42,6 +42,7 @@ export interface P2POrderRecord {
   completed_at: string | null;
   cancelled_at: string | null;
   created_at: string;
+  additional_kyc_verify?: number; // 0=none, 1=pending, 2=verified
   // Joined
   counterparty?: P2PCounterparty;
 }

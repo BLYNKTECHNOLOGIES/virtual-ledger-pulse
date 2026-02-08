@@ -96,6 +96,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
           orderNumber={order.binance_order_number}
           orderStatus={order.order_status}
           tradeType={order.trade_type}
+          additionalKycVerify={order.additional_kyc_verify}
         />
       </div>
     </div>

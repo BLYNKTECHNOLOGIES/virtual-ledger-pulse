@@ -85,6 +85,22 @@ export function useCheckCancelAllowed() {
   });
 }
 
+/** Confirm order verified (seller verifies buyer identity before showing payment details) */
+export function useConfirmOrderVerified() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orderNumber }: { orderNumber: string }) => {
+      return callBinanceAds('confirmOrderVerified', { orderNumber });
+    },
+    onSuccess: () => {
+      toast.success('Order verified — payment details shared with buyer');
+      queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
+    },
+    onError: (err: Error) => toast.error(`Verification failed: ${err.message}`),
+  });
+}
+
 // ==================== ACTIVE ORDERS ====================
 
 export function useBinanceActiveOrders(filters?: { tradeType?: string; asset?: string }) {

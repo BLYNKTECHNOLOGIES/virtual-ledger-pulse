@@ -388,6 +388,18 @@ serve(async (req) => {
         break;
       }
 
+      case "confirmOrderVerified": {
+        // POST /sapi/v1/c2c/orderMatch/confirmOrderVerified
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/confirmOrderVerified`;
+        const body = { orderNumber: payload.orderNumber };
+        console.log("confirmOrderVerified body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("confirmOrderVerified response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),

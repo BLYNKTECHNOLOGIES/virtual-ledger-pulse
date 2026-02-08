@@ -13,26 +13,43 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2 } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder } from '@/hooks/useBinanceActions';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck } from 'lucide-react';
+import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 
 interface Props {
   orderNumber: string;
   orderStatus: string;
   tradeType: string;
+  additionalKycVerify?: number; // 0=none, 1=pending verification, 2=verified
 }
 
-export function OrderActions({ orderNumber, orderStatus, tradeType }: Props) {
+export function OrderActions({ orderNumber, orderStatus, tradeType, additionalKycVerify }: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 
   // Hide actions for terminal states
   if (['Completed', 'Cancelled', 'Expired'].includes(opStatus)) return null;
 
+  // For SELL orders: if additionalKycVerify is 1 (pending), seller must verify before buyer sees payment details
+  const needsVerification = tradeType === 'SELL' && additionalKycVerify === 1;
+
   return (
     <div className="pt-3 border-t border-border space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
       
+      {/* Verify Order - SELL order with pending KYC verification */}
+      {needsVerification && opStatus === 'Pending Payment' && (
+        <VerifyOrderAction orderNumber={orderNumber} />
+      )}
+
+      {/* Already verified indicator */}
+      {tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment' && (
+        <div className="flex items-center gap-1.5 text-trade-buy bg-trade-buy/5 border border-trade-buy/20 rounded-md px-2.5 py-1.5">
+          <UserCheck className="h-3 w-3" />
+          <span className="text-[10px] font-medium">Order Verified</span>
+        </div>
+      )}
+
       {/* Mark as Paid - BUY order in Pending Payment state */}
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
         <MarkAsPaidAction orderNumber={orderNumber} />
@@ -48,6 +65,45 @@ export function OrderActions({ orderNumber, orderStatus, tradeType }: Props) {
         <CancelOrderAction orderNumber={orderNumber} />
       )}
     </div>
+  );
+}
+
+function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
+  const verifyOrder = useConfirmOrderVerified();
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          size="sm"
+          className="w-full h-8 text-xs gap-1.5 bg-trade-buy hover:bg-trade-buy/90 text-white"
+          disabled={verifyOrder.isPending}
+        >
+          {verifyOrder.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />}
+          Verify Order
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <UserCheck className="h-4 w-4 text-trade-buy" />
+            Verify Buyer
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Verifying this order will share your payment details with the buyer. Only proceed after confirming the buyer's identity.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-trade-buy hover:bg-trade-buy/90"
+            onClick={() => verifyOrder.mutate({ orderNumber })}
+          >
+            Confirm & Verify
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

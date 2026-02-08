@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, TrendingDown, TrendingUp, Users, Settings as SettingsIcon, Megaphone, LogOut, Bell, Sun, Moon, Network } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, TrendingDown, TrendingUp, Users, Settings as SettingsIcon, Megaphone, LogOut, Bell, Network } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -27,7 +27,6 @@ const navItems = [
 
 export default function OrderProcessing() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isDark, setIsDark] = useState(true);
   const { user, logout } = useAuth();
 
   const renderContent = () => {
@@ -38,7 +37,7 @@ export default function OrderProcessing() {
       case 'large-orders': return <OPLargeOrders />;
       case 'staff': return <OPStaffManagement />;
       case 'settings': return <OPSettings />;
-      case 'ad-manager': return <AdManager darkMode />;
+      case 'ad-manager': return <div className="dark"><AdManager darkMode /></div>;
       default: return <OPDashboard />;
     }
   };
@@ -116,14 +115,6 @@ export default function OrderProcessing() {
               <p className="text-sm text-gray-500">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-gray-400 hover:text-gray-200 hover:bg-gray-800 h-9 w-9"
-                onClick={() => setIsDark(!isDark)}
-              >
-                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
               <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-200 hover:bg-gray-800 h-9 w-9 relative">
                 <Bell className="h-4 w-4" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full" />

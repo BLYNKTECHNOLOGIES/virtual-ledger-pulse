@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, CloudDownload, Volume2, VolumeX, Bell } from 'lucide-react';
-import { useOrderChats, useSendChatMessage, P2PChatMessage } from '@/hooks/useP2PTerminal';
-import { useBinanceChatMessages, BinanceChatMessage, useMarkMessagesRead, useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
+import { BinanceChatMessage } from '@/hooks/useBinanceActions';
+import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -21,11 +21,7 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
-  const { data: localMessages = [], isLoading: localLoading } = useOrderChats(orderId);
-  const { data: binanceData, isLoading: binanceLoading, refetch: refetchChat } = useBinanceChatMessages(orderNumber);
-  const sendMessage = useSendChatMessage();
-  const sendBinanceMessage = useSendBinanceChatMessage();
-  const markRead = useMarkMessagesRead();
+  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -33,7 +29,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
-  const prevBinanceIdsRef = useRef<Set<string>>(new Set());
+  const prevBinanceIdsRef = useRef<Set<number>>(new Set());
   const isInitialLoadRef = useRef(true);
 
   // Persist sound preference
@@ -41,25 +37,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);
 
-  // Mark messages as read when chat opens
-  useEffect(() => {
-    if (orderNumber) {
-      markRead.mutate({ orderNo: orderNumber });
-    }
-  }, [orderNumber]);
-
-  // Parse Binance chat messages
-  const binanceMessages: BinanceChatMessage[] = useMemo(() => {
-    if (!binanceData) return [];
-    const list = binanceData?.data || binanceData?.list || [];
-    return Array.isArray(list) ? list : [];
-  }, [binanceData]);
-
-  // Merge and sort all messages
+  // Build unified messages from WebSocket data
   const allMessages: UnifiedMessage[] = useMemo(() => {
     const messages: UnifiedMessage[] = [];
 
-    for (const msg of binanceMessages) {
+    for (const msg of wsMessages) {
       const msgType = msg.type || msg.chatMessageType || 'text';
       const isSelf = msg.self === true;
       messages.push({
@@ -72,53 +54,40 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       });
     }
 
-    for (const msg of localMessages) {
-      messages.push({
-        id: `local-${msg.id}`,
-        source: 'local',
-        senderType: msg.sender_type === 'operator' ? 'operator' : 'counterparty',
-        text: msg.message_text,
-        timestamp: new Date(msg.created_at).getTime(),
-        isQuickReply: msg.is_quick_reply,
-      });
-    }
-
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [binanceMessages, localMessages]);
-
-  const isLoading = localLoading || binanceLoading;
+  }, [wsMessages]);
 
   // New message detection & sound notification
   useEffect(() => {
-    const currentBinanceIds = new Set(binanceMessages.map((m) => String(m.id)));
+    const currentIds = new Set(wsMessages.map((m) => m.id));
 
     if (isInitialLoadRef.current) {
       isInitialLoadRef.current = false;
-      prevBinanceIdsRef.current = currentBinanceIds;
+      prevBinanceIdsRef.current = currentIds;
       prevCountRef.current = allMessages.length;
       return;
     }
 
-    // Detect genuinely new Binance messages (counterparty)
-    const newMessages = binanceMessages.filter(
-      (m) => !prevBinanceIdsRef.current.has(String(m.id)) && (m.type || m.chatMessageType) !== 'system'
+    // Detect genuinely new counterparty messages
+    const newMessages = wsMessages.filter(
+      (m) => !prevBinanceIdsRef.current.has(m.id) && m.type !== 'system' && !m.self
     );
 
     if (newMessages.length > 0 && soundEnabled) {
       playMessageSound('message');
-      // Toast for new counterparty messages
       const latest = newMessages[newMessages.length - 1];
-      if (latest.message) {
+      const latestText = latest.content || latest.message;
+      if (latestText) {
         toast.info(`New message from ${counterpartyNickname}`, {
-          description: latest.message.substring(0, 80),
+          description: latestText.substring(0, 80),
           duration: 4000,
         });
       }
     }
 
-    prevBinanceIdsRef.current = currentBinanceIds;
+    prevBinanceIdsRef.current = currentIds;
     prevCountRef.current = allMessages.length;
-  }, [binanceMessages, allMessages.length, soundEnabled, counterpartyNickname]);
+  }, [wsMessages, allMessages.length, soundEnabled, counterpartyNickname]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -131,28 +100,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     const msg = messageText || text.trim();
     if (!msg) return;
     
-    // Send via Binance API (will appear in counterparty's chat)
-    sendBinanceMessage.mutate(
-      { orderNo: orderNumber, message: msg },
-      {
-        onSuccess: () => {
-          // Refetch to show our sent message from Binance
-          refetchChat();
-        },
-      }
-    );
-    
-    // Also store locally (best-effort, don't block on failure)
-    try {
-      sendMessage.mutate({
-        order_id: orderId,
-        counterparty_id: counterpartyId || undefined,
-        sender_type: 'operator',
-        message_text: msg,
-      });
-    } catch {
-      // Local storage is optional; Binance send is what matters
-    }
+    // Send via WebSocket
+    wsSendMessage(orderNumber, msg);
     if (!messageText) setText('');
   };
 
@@ -161,7 +110,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   };
 
   const counterpartyMsgCount = allMessages.filter(
-    (m) => m.senderType === 'counterparty' && m.source === 'binance'
+    (m) => m.senderType === 'counterparty'
   ).length;
 
   return (
@@ -177,9 +126,24 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               {counterpartyMsgCount} msgs
             </Badge>
           )}
-          <div className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1 py-0.5">
-            <div className="h-1.5 w-1.5 rounded-full bg-trade-buy animate-pulse" />
-            <span className="text-[8px] text-muted-foreground">10s</span>
+          {/* WebSocket status indicator */}
+          <div className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1.5 py-0.5" title={isConnected ? 'WebSocket connected' : isConnecting ? 'Connecting...' : 'Disconnected'}>
+            {isConnected ? (
+              <>
+                <Wifi className="h-2.5 w-2.5 text-trade-buy" />
+                <span className="text-[8px] text-trade-buy font-medium">Live</span>
+              </>
+            ) : isConnecting ? (
+              <>
+                <Loader2 className="h-2.5 w-2.5 text-warning animate-spin" />
+                <span className="text-[8px] text-warning">Connecting</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="h-2.5 w-2.5 text-destructive" />
+                <span className="text-[8px] text-destructive">Offline</span>
+              </>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -194,21 +158,19 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               <VolumeX className="h-3 w-3" />
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => refetchChat()}
-            title="Refresh chat from Binance"
-          >
-            <CloudDownload className="h-3 w-3 text-muted-foreground" />
-          </Button>
         </div>
       </div>
 
+      {/* Connection error banner */}
+      {wsError && (
+        <div className="px-3 py-1.5 bg-destructive/10 border-b border-destructive/20">
+          <p className="text-[10px] text-destructive">{wsError}</p>
+        </div>
+      )}
+
       {/* Messages area */}
       <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
-        {isLoading ? (
+        {wsMessages.length === 0 && isConnecting ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
             <p className="text-xs text-muted-foreground">Loading messages...</p>
@@ -218,7 +180,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
             <p className="text-xs text-muted-foreground">No messages yet</p>
             <p className="text-[10px] text-muted-foreground/60">
-              Messages from Binance chat will appear here
+              Messages will appear here in real-time via WebSocket
             </p>
           </div>
         ) : (
@@ -243,7 +205,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <div className="flex items-center gap-2">
           <ChatImageUpload
             orderNo={orderNumber}
-            onImageSent={() => refetchChat()}
+            onImageSent={() => {}}
           />
           <Input
             value={text}
@@ -256,13 +218,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => handleSend()}
-            disabled={!text.trim() || sendBinanceMessage.isPending}
+            disabled={!text.trim() || !isConnected}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
-          💡 Messages are stored locally. Binance chat messages are synced via API polling.
+          {isConnected ? '🟢 Real-time WebSocket connection active' : '⏳ Connecting to Binance chat...'}
         </p>
       </div>
     </div>

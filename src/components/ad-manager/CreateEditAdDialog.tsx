@@ -308,12 +308,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Ad' : 'Create New Ad'}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 overflow-y-auto flex-1 pr-2">
           {/* Trade Type & Asset */}
           <div className="grid grid-cols-3 gap-4">
             <div>

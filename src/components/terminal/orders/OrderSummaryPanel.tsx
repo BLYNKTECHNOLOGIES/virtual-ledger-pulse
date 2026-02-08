@@ -8,9 +8,10 @@ import { format } from 'date-fns';
 
 interface Props {
   order: P2POrderRecord;
+  counterpartyVerifiedName?: string;
 }
 
-export function OrderSummaryPanel({ order }: Props) {
+export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
 
@@ -38,6 +39,9 @@ export function OrderSummaryPanel({ order }: Props) {
       <div className="flex-1 overflow-auto p-4 space-y-4">
         <InfoRow icon={Hash} label="Order ID" value={order.binance_order_number} mono />
         <InfoRow icon={User} label="Counterparty" value={order.counterparty_nickname} />
+        {counterpartyVerifiedName && (
+          <InfoRow icon={User} label="Verified Name" value={counterpartyVerifiedName} />
+        )}
         {order.pay_method_name && (
           <InfoRow icon={CreditCard} label="Payment" value={order.pay_method_name} />
         )}

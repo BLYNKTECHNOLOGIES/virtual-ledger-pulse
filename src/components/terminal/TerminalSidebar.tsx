@@ -38,10 +38,11 @@ export function TerminalSidebar() {
     if (!activeOrdersData) return 0;
     const list = activeOrdersData?.data || activeOrdersData?.list || [];
     if (!Array.isArray(list)) return 0;
-    // Only count truly active orders (status 1-4: pending, trading, buyer paid)
+    // Only count truly active orders (status 1-3: pending, trading, buyer notified)
+    // Status 4+ can include completed/cancelled orders returned by listOrders
     return list.filter((o: any) => {
       const s = typeof o.orderStatus === 'number' ? o.orderStatus : 0;
-      return s >= 1 && s <= 4;
+      return s >= 1 && s <= 3;
     }).length;
   })();
 

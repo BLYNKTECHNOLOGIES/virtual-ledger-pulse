@@ -61,7 +61,6 @@ import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
-import OrderProcessing from './pages/OrderProcessing';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -556,18 +555,6 @@ const router = createBrowserRouter([
               <Layout>
                 <AdManager />
               </Layout>
-            </AuthCheck>
-          </AuthProvider>
-        </QueryProvider>
-      ),
-    },
-    {
-      path: "/order-processing",
-      element: (
-        <QueryProvider>
-          <AuthProvider>
-            <AuthCheck>
-              <OrderProcessing />
             </AuthCheck>
           </AuthProvider>
         </QueryProvider>

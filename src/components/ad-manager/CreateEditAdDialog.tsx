@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { X, Plus, Minus } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
 import { BinanceAd, usePostAd, useUpdateAd, useBinancePaymentMethods } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
+import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
+import { cn } from '@/lib/utils';
 
 interface CreateEditAdDialogProps {
   open: boolean;
@@ -27,7 +29,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
-  const { data: paymentMethodsData } = useBinancePaymentMethods();
+  const { data: paymentMethodsData, isLoading: isLoadingPayMethods, refetch: refetchPayMethods } = useBinancePaymentMethods();
   const isEditing = !!editingAd;
 
   const [form, setForm] = useState({
@@ -49,6 +51,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     takerAdditionalKycRequired: 0,
     selectedPayMethods: [] as Array<{ payId: number; payType: string; identifier: string }>,
   });
+
+  const [payMethodSearch, setPayMethodSearch] = useState('');
+  const [showPayMethodPicker, setShowPayMethodPicker] = useState(false);
+
+  const isBuyAd = form.tradeType === 'BUY';
 
   useEffect(() => {
     if (editingAd) {
@@ -92,7 +99,86 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
         selectedPayMethods: [],
       });
     }
+    setShowPayMethodPicker(false);
+    setPayMethodSearch('');
   }, [editingAd, open]);
+
+  // ─── Payment Methods Logic ────────────────────────────────────
+  // BUY ads: select from our allowed whitelist only
+  // SELL ads: fetch from Binance account API only
+
+  const binanceAccountMethods = useMemo(() => {
+    const raw = paymentMethodsData?.data;
+    if (!Array.isArray(raw)) return [];
+    return raw;
+  }, [paymentMethodsData]);
+
+  // For SELL ads: build list from Binance account methods
+  const sellAdPayMethods = useMemo(() => {
+    return binanceAccountMethods.map((m: any) => ({
+      payId: m.id || m.payId || 0,
+      payType: m.tradeMethodName || m.payType || '',
+      identifier: m.identifier || m.tradeMethodName || '',
+      name: m.name || '',
+      accountNo: m.accountNo || '',
+    }));
+  }, [binanceAccountMethods]);
+
+  // For BUY ads: use our allowed whitelist
+  const buyAdPayMethods = useMemo(() => {
+    return ALLOWED_BUY_PAYMENT_METHODS.map(m => ({
+      payId: 0, // Will be mapped when sending to Binance
+      payType: m.binancePayType,
+      identifier: m.identifier,
+      config: m,
+    }));
+  }, []);
+
+  // Filtered list for the picker dialog
+  const filteredPickerMethods = useMemo(() => {
+    const search = payMethodSearch.toLowerCase();
+    if (isBuyAd) {
+      return buyAdPayMethods
+        .filter(m => {
+          const config = resolvePaymentMethod(m.identifier);
+          const label = config?.label || m.payType;
+          return label.toLowerCase().includes(search);
+        })
+        .filter(m => !form.selectedPayMethods.some(s => s.identifier === m.identifier || s.payType === m.payType));
+    } else {
+      return sellAdPayMethods
+        .filter((m: any) => {
+          const label = m.payType || m.identifier;
+          return label.toLowerCase().includes(search);
+        })
+        .filter((m: any) => !form.selectedPayMethods.some(s => s.payId === m.payId));
+    }
+  }, [isBuyAd, buyAdPayMethods, sellAdPayMethods, payMethodSearch, form.selectedPayMethods]);
+
+  const togglePayMethod = (method: { payId: number; payType: string; identifier: string }) => {
+    const exists = form.selectedPayMethods.find(
+      m => (m.payId && m.payId === method.payId) || m.identifier === method.identifier
+    );
+    if (exists) {
+      setForm({
+        ...form,
+        selectedPayMethods: form.selectedPayMethods.filter(
+          m => !(m.payId === method.payId && m.identifier === method.identifier)
+        ),
+      });
+    } else if (form.selectedPayMethods.length < 5) {
+      setForm({ ...form, selectedPayMethods: [...form.selectedPayMethods, method] });
+    } else {
+      toast({ title: 'Limit Reached', description: 'Maximum 5 payment methods allowed', variant: 'destructive' });
+    }
+  };
+
+  // Check if a method is selected
+  const isMethodSelected = (method: { payId: number; identifier: string }) => {
+    return form.selectedPayMethods.some(
+      s => (s.payId && s.payId === method.payId) || s.identifier === method.identifier
+    );
+  };
 
   const validate = (): string | null => {
     if (!form.initAmount || Number(form.initAmount) <= 0) return 'Total quantity is required';
@@ -124,14 +210,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
     };
 
-    // These fields are immutable after creation but required for new ads
     if (!isEditing) {
       adData.asset = form.asset;
       adData.fiatUnit = form.fiatUnit;
       adData.tradeType = form.tradeType;
       adData.priceType = form.priceType;
     } else {
-      // For update, include advNo and the original immutable values
       adData.advNo = editingAd!.advNo;
       adData.asset = editingAd!.asset;
       adData.fiatUnit = editingAd!.fiatUnit;
@@ -160,38 +244,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     setForm({ ...form, price: String(Math.max(0, current + delta)) });
   };
 
-  // Merge available methods from API with methods already on the ad (for edit mode)
-  const apiPayMethods = Array.isArray(paymentMethodsData?.data) ? paymentMethodsData.data : [];
-  
-  // Build a unified list: start with API methods, add any ad methods not already present
-  const availablePayMethods = (() => {
-    const methods = [...apiPayMethods];
-    // In edit mode, the ad's existing trade methods should always be available
-    if (editingAd?.tradeMethods) {
-      for (const tm of editingAd.tradeMethods) {
-        const alreadyExists = methods.some((m: any) => 
-          (m.id && m.id === tm.payId) || (m.identifier && m.identifier === tm.identifier)
-        );
-        if (!alreadyExists) {
-          methods.push({ id: tm.payId, payType: tm.payType, identifier: tm.identifier, tradeMethodName: tm.payType });
-        }
-      }
-    }
-    return methods;
-  })();
-
-  const togglePayMethod = (method: { payId: number; payType: string; identifier: string }) => {
-    const exists = form.selectedPayMethods.find(m => m.payId === method.payId || m.identifier === method.identifier);
-    if (exists) {
-      setForm({ ...form, selectedPayMethods: form.selectedPayMethods.filter(m => m.payId !== method.payId && m.identifier !== method.identifier) });
-    } else if (form.selectedPayMethods.length < 5) {
-      setForm({ ...form, selectedPayMethods: [...form.selectedPayMethods, method] });
-    } else {
-      toast({ title: 'Limit Reached', description: 'Maximum 5 payment methods allowed', variant: 'destructive' });
-    }
-  };
-
   const isSubmitting = postAd.isPending || updateAd.isPending;
+
+  // Sell ads: warn if no Binance payment methods
+  const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,7 +261,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label>Trade Type</Label>
-              <Select value={form.tradeType} onValueChange={(v) => setForm({ ...form, tradeType: v })} disabled={isEditing}>
+              <Select value={form.tradeType} onValueChange={(v) => setForm({ ...form, tradeType: v, selectedPayMethods: [] })} disabled={isEditing}>
                 <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="BUY">Buy</SelectItem>
@@ -323,37 +379,210 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             </div>
           </div>
 
-          {/* Payment Methods */}
+          {/* ─── Payment Methods ─────────────────────────────────────── */}
           <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Payment Method</Label>
-            <div className="flex flex-wrap gap-2">
-              {form.selectedPayMethods.map((m) => (
-                <Badge key={m.payId} variant="default" className="gap-1 cursor-pointer" onClick={() => togglePayMethod(m)}>
-                  {m.payType || m.identifier}
-                  <X className="h-3 w-3" />
-                </Badge>
-              ))}
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Payment Method</Label>
+              <span className="text-xs text-muted-foreground">
+                {isBuyAd ? 'Select from allowed methods' : 'Fetched from Binance account'}
+              </span>
             </div>
-            {Array.isArray(availablePayMethods) && availablePayMethods.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {availablePayMethods
-                  .filter((m: any) => !form.selectedPayMethods.find(s => s.payId === (m.id || m.payId) || s.identifier === m.identifier))
-                  .map((m: any) => (
-                    <Badge
-                      key={m.id || m.identifier}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-accent"
-                      onClick={() => togglePayMethod({ payId: m.id || m.payId || 0, payType: m.tradeMethodName || m.payType, identifier: m.identifier || '' })}
+
+            {/* Selected methods display */}
+            {form.selectedPayMethods.length > 0 && (
+              <div className="space-y-2">
+                {form.selectedPayMethods.map((m) => {
+                  const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
+                  const accentColor = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';
+                  const label = config?.label || m.payType || m.identifier;
+                  const iconLabel = config?.iconLabel || label.slice(0, 3).toUpperCase();
+
+                  return (
+                    <div
+                      key={m.identifier || m.payId}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                      style={{ borderLeftWidth: 4, borderLeftColor: accentColor }}
                     >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {m.tradeMethodName || m.payType}
-                    </Badge>
-                  ))}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold" style={{ color: accentColor }}>{iconLabel}</span>
+                        <span className="text-sm font-medium">{label}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => togglePayMethod(m)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No payment methods loaded. They will be fetched from Binance.</p>
             )}
+
+            {/* No methods warning for SELL ads */}
+            {noSellMethods && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  No payment methods configured on Binance account. Please add payment methods on Binance first.
+                </p>
+              </div>
+            )}
+
+            {/* Add button / Picker */}
+            {form.selectedPayMethods.length < 5 && !noSellMethods && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPayMethodPicker(true)}
+                className="gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add
+              </Button>
+            )}
+
             <p className="text-xs text-muted-foreground">Select up to 5 methods</p>
+
+            {/* Payment Method Picker Dialog */}
+            <Dialog open={showPayMethodPicker} onOpenChange={setShowPayMethodPicker}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Select payment method</DialogTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {isBuyAd ? 'Select Payment Method (Up to 5 methods)' : 'Select up to 5 methods'}
+                  </p>
+                </DialogHeader>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={isBuyAd ? 'Enter a payment method' : 'Search'}
+                    value={payMethodSearch}
+                    onChange={(e) => setPayMethodSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* Methods list */}
+                <div className="max-h-[350px] overflow-y-auto space-y-2">
+                  {isBuyAd ? (
+                    // ── BUY AD: Show whitelisted methods ──
+                    ALLOWED_BUY_PAYMENT_METHODS
+                      .filter(m => m.label.toLowerCase().includes(payMethodSearch.toLowerCase()))
+                      .map(config => {
+                        const selected = isMethodSelected({ payId: 0, identifier: config.identifier });
+                        const accentColor = `hsl(${config.colorAccent})`;
+
+                        return (
+                          <div
+                            key={config.identifier}
+                            className={cn(
+                              'flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
+                              selected && 'ring-1 ring-primary'
+                            )}
+                            style={{
+                              borderLeftWidth: 4,
+                              borderLeftColor: accentColor,
+                              backgroundColor: selected ? config.bgColor : undefined,
+                            }}
+                            onClick={() => togglePayMethod({
+                              payId: 0,
+                              payType: config.binancePayType,
+                              identifier: config.identifier,
+                            })}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold" style={{ color: accentColor }}>
+                                {config.iconLabel}
+                              </span>
+                              <span className="text-sm">{config.label}</span>
+                            </div>
+                            <Checkbox checked={selected} className="pointer-events-none" />
+                          </div>
+                        );
+                      })
+                  ) : (
+                    // ── SELL AD: Show Binance account methods ──
+                    <>
+                      {isLoadingPayMethods ? (
+                        <div className="flex justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                        </div>
+                      ) : sellAdPayMethods.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-8">
+                          <AlertTriangle className="h-8 w-8 text-amber-500" />
+                          <p className="text-sm text-muted-foreground text-center">
+                            No payment methods configured on Binance account
+                          </p>
+                        </div>
+                      ) : (
+                        sellAdPayMethods
+                          .filter((m: any) => (m.payType || m.identifier).toLowerCase().includes(payMethodSearch.toLowerCase()))
+                          .map((m: any) => {
+                            const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
+                            const accentColor = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';
+                            const label = config?.label || m.payType || m.identifier;
+                            const iconLabel = config?.iconLabel || label.slice(0, 3).toUpperCase();
+                            const selected = isMethodSelected(m);
+
+                            return (
+                              <div
+                                key={m.payId || m.identifier}
+                                className={cn(
+                                  'flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors',
+                                  selected && 'ring-1 ring-primary'
+                                )}
+                                style={{
+                                  borderLeftWidth: 4,
+                                  borderLeftColor: accentColor,
+                                  backgroundColor: selected && config ? config.bgColor : undefined,
+                                }}
+                                onClick={() => togglePayMethod({
+                                  payId: m.payId,
+                                  payType: m.payType,
+                                  identifier: m.identifier,
+                                })}
+                              >
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold" style={{ color: accentColor }}>
+                                      {iconLabel}
+                                    </span>
+                                    <span className="text-sm font-medium">{label}</span>
+                                  </div>
+                                  {m.name && (
+                                    <div className="flex items-center gap-4 ml-8">
+                                      <span className="text-[10px] text-muted-foreground">Name: <strong>{m.name}</strong></span>
+                                      {m.accountNo && (
+                                        <span className="text-[10px] text-muted-foreground">{m.accountNo}</span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <Checkbox checked={selected} className="pointer-events-none" />
+                              </div>
+                            );
+                          })
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Footer actions */}
+                <div className="flex items-center justify-between pt-2">
+                  {!isBuyAd && (
+                    <Button variant="outline" size="sm" onClick={() => refetchPayMethods()} className="gap-1">
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      Refresh
+                    </Button>
+                  )}
+                  <div className="ml-auto">
+                    <Button size="sm" onClick={() => setShowPayMethodPicker(false)}>
+                      Confirm
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <div>
               <Label>Payment Time Limit</Label>
@@ -437,7 +666,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
+          <Button onClick={handleSubmit} disabled={isSubmitting || noSellMethods}>
             {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Post'}
           </Button>
         </DialogFooter>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Power, PowerOff } from 'lucide-react';
 import { BinanceAd } from '@/hooks/useBinanceAds';
+import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { format } from 'date-fns';
 
 interface AdTableProps {
@@ -67,11 +68,9 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
               ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')} ~ ₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
             </TableCell>
             <TableCell>
-              <div className="flex flex-wrap gap-1 max-w-[150px]">
+              <div className="flex flex-wrap gap-1 max-w-[180px]">
                 {(ad.tradeMethods || []).slice(0, 3).map((m, i) => (
-                  <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">
-                    {m.payType || m.identifier}
-                  </Badge>
+                  <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
                 ))}
                 {(ad.tradeMethods || []).length > 3 && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">

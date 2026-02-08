@@ -105,9 +105,9 @@ export default function OrderProcessing() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 ml-[220px] flex flex-col min-h-screen">
+      <div className="flex-1 ml-[220px] flex flex-col h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-[#0a0e17]/90 backdrop-blur-md border-b border-gray-800/40 px-8 py-4">
+        <header className="shrink-0 z-20 bg-[#0a0e17]/90 backdrop-blur-md border-b border-gray-800/40 px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-100">
@@ -144,7 +144,7 @@ export default function OrderProcessing() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-8">
+        <main className="flex-1 overflow-auto p-8">
           {renderContent()}
         </main>
       </div>

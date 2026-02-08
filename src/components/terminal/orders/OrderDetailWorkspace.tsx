@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +8,7 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { PastInteractionsPanel } from './PastInteractionsPanel';
 import { useP2PCounterparty } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail } from '@/hooks/useBinanceActions';
 
 interface Props {
   order: P2POrderRecord;
@@ -19,6 +19,21 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'history'>('profile');
   const { data: counterparty } = useP2PCounterparty(order.counterparty_id);
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
+  const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
+
+  // Use live status from order detail API if available, otherwise fall back to list status
+  const liveOrder = useMemo(() => {
+    if (!liveDetail?.data) return order;
+    const detail = liveDetail.data;
+    const statusMap: Record<number, string> = {
+      1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
+      5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
+    };
+    const liveStatus = typeof detail.orderStatus === 'number'
+      ? (statusMap[detail.orderStatus] || order.order_status)
+      : (typeof detail.orderStatus === 'string' ? detail.orderStatus : order.order_status);
+    return { ...order, order_status: liveStatus };
+  }, [order, liveDetail]);
 
   return (
     <div className="flex flex-col h-full">
@@ -41,7 +56,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Order Summary + Actions */}
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
-          <OrderSummaryPanel order={order} />
+          <OrderSummaryPanel order={liveOrder} />
         </div>
 
         {/* Middle: Chat */}

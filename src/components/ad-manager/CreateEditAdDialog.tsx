@@ -198,11 +198,22 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       return;
     }
 
+    // For BUY ads, Binance only needs identifier+payType (no payId).
+    // For SELL ads, payId from user's configured methods is required.
+    const tradeMethods = form.selectedPayMethods.map(m => {
+      if (isBuyAd) {
+        // BUY ads: only send identifier and payType, no payId
+        return { identifier: m.identifier, payType: m.payType || m.identifier };
+      }
+      // SELL ads: include payId from Binance account
+      return { payId: m.payId, identifier: m.identifier, payType: m.payType };
+    });
+
     const adData: Record<string, any> = {
       initAmount: Number(form.initAmount),
       minSingleTransAmount: Number(form.minSingleTransAmount),
       maxSingleTransAmount: Number(form.maxSingleTransAmount),
-      tradeMethods: form.selectedPayMethods,
+      tradeMethods,
       payTimeLimit: form.payTimeLimit,
       onlineNow: form.onlineNow,
       buyerRegDaysLimit: form.buyerRegDaysLimit,

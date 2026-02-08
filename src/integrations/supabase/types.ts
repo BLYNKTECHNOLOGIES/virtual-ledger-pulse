@@ -3885,6 +3885,38 @@ export type Database = {
           },
         ]
       }
+      p2p_auto_reply_processed: {
+        Row: {
+          id: string
+          order_number: string
+          processed_at: string
+          rule_id: string | null
+          trigger_event: string
+        }
+        Insert: {
+          id?: string
+          order_number: string
+          processed_at?: string
+          rule_id?: string | null
+          trigger_event: string
+        }
+        Update: {
+          id?: string
+          order_number?: string
+          processed_at?: string
+          rule_id?: string | null
+          trigger_event?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_auto_reply_processed_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_auto_reply_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       p2p_auto_reply_rules: {
         Row: {
           conditions: Json | null

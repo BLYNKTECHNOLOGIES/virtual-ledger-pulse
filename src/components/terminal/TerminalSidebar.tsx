@@ -37,7 +37,12 @@ export function TerminalSidebar() {
   const activeCount = (() => {
     if (!activeOrdersData) return 0;
     const list = activeOrdersData?.data || activeOrdersData?.list || [];
-    return Array.isArray(list) ? list.length : 0;
+    if (!Array.isArray(list)) return 0;
+    // Only count truly active orders (status 1-4: pending, trading, buyer paid)
+    return list.filter((o: any) => {
+      const s = typeof o.orderStatus === 'number' ? o.orderStatus : 0;
+      return s >= 1 && s <= 4;
+    }).length;
   })();
 
   const isActive = (url: string) => {

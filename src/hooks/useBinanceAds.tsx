@@ -2,9 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Binance C2C ad status codes
+export const BINANCE_AD_STATUS = {
+  ONLINE: 1,
+  OFFLINE: 3,  // Binance uses 3 for offline/inactive, NOT 2
+} as const;
+
 export interface BinanceAd {
   advNo: string;
-  advStatus: number; // 1 = online, 2 = offline
+  advStatus: number; // 1 = online, 3 = offline
   asset: string;
   fiatUnit: string;
   tradeType: string; // BUY or SELL

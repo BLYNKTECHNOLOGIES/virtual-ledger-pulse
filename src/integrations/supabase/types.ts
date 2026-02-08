@@ -109,6 +109,36 @@ export type Database = {
           },
         ]
       }
+      ad_rest_timer: {
+        Row: {
+          created_at: string
+          deactivated_ad_nos: string[] | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          started_at: string
+          started_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          deactivated_ad_nos?: string[] | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          started_at?: string
+          started_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          deactivated_ad_nos?: string[] | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          started_at?: string
+          started_by?: string | null
+        }
+        Relationships: []
+      }
       asset_value_history: {
         Row: {
           created_at: string

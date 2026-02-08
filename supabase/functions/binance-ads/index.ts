@@ -143,18 +143,18 @@ serve(async (req) => {
 
       // ==================== ORDERS ====================
       case "getOrderHistory": {
-        // This endpoint only supports GET. If CloudFront blocks it,
-        // the proxy WAF/CloudFront rules need to be updated.
-        const ohParams = new URLSearchParams();
-        ohParams.set("page", String(payload.page || 1));
-        ohParams.set("rows", String(payload.rows || 100));
-        if (payload.tradeType) ohParams.set("tradeType", payload.tradeType);
-        if (payload.startTimestamp) ohParams.set("startTimestamp", String(payload.startTimestamp));
-        if (payload.endTimestamp) ohParams.set("endTimestamp", String(payload.endTimestamp));
+        // POST relay: proxy converts POST body → signed GET for Binance
+        const ohBody: Record<string, any> = {
+          page: payload.page || 1,
+          rows: payload.rows || 100,
+        };
+        if (payload.tradeType) ohBody.tradeType = payload.tradeType;
+        if (payload.startTimestamp) ohBody.startTimestamp = payload.startTimestamp;
+        if (payload.endTimestamp) ohBody.endTimestamp = payload.endTimestamp;
 
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${ohParams.toString()}`;
-        console.log("getOrderHistory URL:", url);
-        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`;
+        console.log("getOrderHistory URL (POST relay):", url, JSON.stringify(ohBody));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(ohBody) });
         const text = await response.text();
         console.log("getOrderHistory response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }

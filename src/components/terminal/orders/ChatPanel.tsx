@@ -236,7 +236,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type a message..."
-            className="h-8 text-xs bg-secondary border-border"
+            className="h-8 text-xs bg-background text-foreground border-border placeholder:text-muted-foreground"
           />
           <Button
             size="icon"

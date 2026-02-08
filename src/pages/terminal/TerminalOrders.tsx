@@ -19,7 +19,7 @@ function mapOrderStatusCode(code: number | string): string {
   if (typeof code === 'string') return code;
   const statusMap: Record<number, string> = {
     1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
-    5: 'COMPLETED', 6: 'APPEAL', 7: 'CANCELLED', 8: 'CANCELLED',
+    5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
   };
   return statusMap[code] || 'TRADING';
 }

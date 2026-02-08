@@ -132,15 +132,27 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     if (!msg) return;
     
     // Send via Binance API (will appear in counterparty's chat)
-    sendBinanceMessage.mutate({ orderNo: orderNumber, message: msg });
+    sendBinanceMessage.mutate(
+      { orderNo: orderNumber, message: msg },
+      {
+        onSuccess: () => {
+          // Refetch to show our sent message from Binance
+          refetchChat();
+        },
+      }
+    );
     
-    // Also store locally for our records
-    sendMessage.mutate({
-      order_id: orderId,
-      counterparty_id: counterpartyId || undefined,
-      sender_type: 'operator',
-      message_text: msg,
-    });
+    // Also store locally (best-effort, don't block on failure)
+    try {
+      sendMessage.mutate({
+        order_id: orderId,
+        counterparty_id: counterpartyId || undefined,
+        sender_type: 'operator',
+        message_text: msg,
+      });
+    } catch {
+      // Local storage is optional; Binance send is what matters
+    }
     if (!messageText) setText('');
   };
 
@@ -244,7 +256,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => handleSend()}
-            disabled={!text.trim() || sendMessage.isPending}
+            disabled={!text.trim() || sendBinanceMessage.isPending}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>

@@ -35,6 +35,14 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
     return { ...order, order_status: liveStatus };
   }, [order, liveDetail]);
 
+  // Extract counterparty verified name from live detail
+  const counterpartyVerifiedName = useMemo(() => {
+    const detail = liveDetail?.data;
+    if (!detail) return undefined;
+    // For BUY orders, counterparty is the seller; for SELL orders, counterparty is the buyer
+    return order.trade_type === 'BUY' ? detail.sellerName : detail.buyerName;
+  }, [liveDetail, order.trade_type]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -56,7 +64,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Order Summary + Actions */}
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
-          <OrderSummaryPanel order={liveOrder} />
+          <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} />
         </div>
 
         {/* Middle: Chat */}

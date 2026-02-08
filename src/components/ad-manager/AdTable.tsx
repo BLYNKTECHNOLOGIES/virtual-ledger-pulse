@@ -55,7 +55,7 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus }: AdTab
             <TableCell className="font-semibold">
               ₹{Number(ad.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               {ad.priceType === 2 && ad.priceFloatingRatio && (
-                <span className="text-xs text-muted-foreground ml-1">({ad.priceFloatingRatio}%)</span>
+                <span className="text-xs text-muted-foreground ml-1">({Number(ad.priceFloatingRatio).toFixed(2)}%)</span>
               )}
             </TableCell>
             <TableCell>

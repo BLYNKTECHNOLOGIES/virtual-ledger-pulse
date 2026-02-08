@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinancePaymentMethods, useBinanceReferencePrice } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
-  const { data: paymentMethodsData, isLoading: isLoadingPayMethods, refetch: refetchPayMethods } = useBinancePaymentMethods();
+  // Fetch ALL SELL ads to extract available payment methods from the merchant's account
+  const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
   const isEditing = !!editingAd;
 
   const [form, setForm] = useState({
@@ -138,24 +139,28 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   // ─── Payment Methods Logic ────────────────────────────────────
   // BUY ads: select from our allowed whitelist only
-  // SELL ads: fetch from Binance account API only
+  // SELL ads: extract unique payment methods from existing SELL ads (proxy doesn't support listByUserId)
 
-  const binanceAccountMethods = useMemo(() => {
-    const raw = paymentMethodsData?.data;
-    if (!Array.isArray(raw)) return [];
-    return raw;
-  }, [paymentMethodsData]);
-
-  // For SELL ads: build list from Binance account methods
   const sellAdPayMethods = useMemo(() => {
-    return binanceAccountMethods.map((m: any) => ({
-      payId: m.id || m.payId || 0,
-      payType: m.tradeMethodName || m.payType || '',
-      identifier: m.identifier || m.tradeMethodName || '',
-      name: m.name || '',
-      accountNo: m.accountNo || '',
-    }));
-  }, [binanceAccountMethods]);
+    const ads: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    const methodMap = new Map<string, any>();
+    for (const ad of ads) {
+      if (Array.isArray(ad.tradeMethods)) {
+        for (const m of ad.tradeMethods) {
+          const key = m.identifier || m.payType;
+          if (key && !methodMap.has(key)) {
+            methodMap.set(key, {
+              payId: m.payId || 0,
+              payType: m.payType || m.identifier || '',
+              identifier: m.identifier || m.payType || '',
+              tradeMethodName: m.tradeMethodName || m.payType || m.identifier || '',
+            });
+          }
+        }
+      }
+    }
+    return Array.from(methodMap.values());
+  }, [sellAdsData]);
 
   // For BUY ads: use our allowed whitelist
   const buyAdPayMethods = useMemo(() => {
@@ -489,7 +494,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             <div className="flex items-center justify-between">
               <Label className="text-base font-semibold">Payment Method</Label>
               <span className="text-xs text-muted-foreground">
-                {isBuyAd ? 'Select from allowed methods' : 'Fetched from Binance account'}
+                {isBuyAd ? 'Select from allowed methods' : 'From existing SELL ads'}
               </span>
             </div>
 
@@ -526,7 +531,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                 <p className="text-xs text-amber-600 dark:text-amber-400">
-                  No payment methods configured on Binance account. Please add payment methods on Binance first.
+                  No payment methods found in existing SELL ads. Please create a SELL ad on Binance first.
                 </p>
               </div>
             )}
@@ -606,7 +611,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                         );
                       })
                   ) : (
-                    // ── SELL AD: Show Binance account methods ──
+                    // ── SELL AD: Show payment methods extracted from existing ads ──
                     <>
                       {isLoadingPayMethods ? (
                         <div className="flex justify-center py-8">
@@ -616,7 +621,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                         <div className="flex flex-col items-center gap-2 py-8">
                           <AlertTriangle className="h-8 w-8 text-amber-500" />
                           <p className="text-sm text-muted-foreground text-center">
-                            No payment methods configured on Binance account
+                            No payment methods found. Create a SELL ad on Binance first to populate available methods.
                           </p>
                         </div>
                       ) : (
@@ -675,7 +680,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                 {/* Footer actions */}
                 <div className="flex items-center justify-between pt-2">
                   {!isBuyAd && (
-                    <Button variant="outline" size="sm" onClick={() => refetchPayMethods()} className="gap-1">
+                    <Button variant="outline" size="sm" onClick={() => {}} className="gap-1 invisible">
                       <RefreshCw className="h-3.5 w-3.5" />
                       Refresh
                     </Button>

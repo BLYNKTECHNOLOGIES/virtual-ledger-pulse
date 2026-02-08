@@ -309,8 +309,7 @@ serve(async (req) => {
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         
         // Append relay connection info for the frontend WebSocket hook
-        const proxyHost = BINANCE_PROXY_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
-        const relayUrl = `ws://${proxyHost.replace(/:3000$/, "")}:8080`;
+        const relayUrl = "wss://relay.rewarnd.com";
         const relayToken = BINANCE_PROXY_TOKEN;
         if (result && typeof result === "object") {
           result._relay = { relayUrl, relayToken };

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Clock, CreditCard, Hash } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
+import { OrderActions } from './OrderActions';
 import { format } from 'date-fns';
 
 interface Props {
@@ -35,18 +36,11 @@ export function OrderSummaryPanel({ order }: Props) {
       </div>
 
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Order ID */}
         <InfoRow icon={Hash} label="Order ID" value={order.binance_order_number} mono />
-
-        {/* Counterparty */}
         <InfoRow icon={User} label="Counterparty" value={order.counterparty_nickname} />
-
-        {/* Payment Method */}
         {order.pay_method_name && (
           <InfoRow icon={CreditCard} label="Payment" value={order.pay_method_name} />
         )}
-
-        {/* Time */}
         <InfoRow
           icon={Clock}
           label="Created"
@@ -78,6 +72,13 @@ export function OrderSummaryPanel({ order }: Props) {
             <p className="text-xs text-foreground tabular-nums">{Number(order.commission).toFixed(4)} {order.asset}</p>
           </div>
         )}
+
+        {/* Order Actions */}
+        <OrderActions
+          orderNumber={order.binance_order_number}
+          orderStatus={order.order_status}
+          tradeType={order.trade_type}
+        />
       </div>
     </div>
   );

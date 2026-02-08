@@ -24,7 +24,6 @@ serve(async (req) => {
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
-    // The proxy handles signing internally — we pass API key & secret as headers
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "x-proxy-token": BINANCE_PROXY_TOKEN,
@@ -36,6 +35,7 @@ serve(async (req) => {
     let result: any;
 
     switch (action) {
+      // ==================== ADS ====================
       case "listAds": {
         const body: Record<string, any> = {
           page: payload.page || 1,
@@ -87,7 +87,6 @@ serve(async (req) => {
 
       case "updateAdStatus": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-        // Per official docs: advNos is an array of strings, advStatus is a number
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
         const body = {
           advNos: advNosList.map(String),
@@ -115,8 +114,9 @@ serve(async (req) => {
       }
 
       case "getPaymentMethods": {
-        // Try primary path first, then fallback
+        // Per doc: GET /sapi/v1/c2c/paymentMethod/getPayMethodByUserId
         const paths = [
+          `/api/sapi/v1/c2c/paymentMethod/getPayMethodByUserId`,
           `/api/sapi/v1/c2c/paymentMethod/list`,
           `/api/sapi/v1/c2c/paymentMethod/listByUserId`,
           `/api/bapi/c2c/v1/private/paymentMethod/list`,
@@ -125,19 +125,24 @@ serve(async (req) => {
         for (const path of paths) {
           const url = `${BINANCE_PROXY_URL}${path}`;
           console.log("getPaymentMethods trying:", url);
-          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({}) });
+          // First path is GET per API doc, rest are POST
+          const method = path.includes("getPayMethodByUserId") ? "GET" : "POST";
+          const response = await fetch(url, { 
+            method, 
+            headers: proxyHeaders, 
+            ...(method === "POST" ? { body: JSON.stringify({}) } : {}),
+          });
           const text = await response.text();
           console.log("getPaymentMethods response:", response.status, text.substring(0, 800));
           try { finalResult = JSON.parse(text); } catch { finalResult = { raw: text, status: response.status }; }
-          // If we got a valid response (not 404), use it
           if (response.status !== 404 && !(finalResult?.status === 404)) break;
         }
         result = finalResult;
         break;
       }
 
+      // ==================== ORDERS ====================
       case "getOrderHistory": {
-        // GET /sapi/v1/c2c/orderMatch/listUserOrderHistory
         const params = new URLSearchParams();
         if (payload.tradeType) params.set("tradeType", payload.tradeType);
         if (payload.startTimestamp) params.set("startTimestamp", String(payload.startTimestamp));
@@ -150,6 +155,214 @@ serve(async (req) => {
         const response = await fetch(url, { method: "GET", headers: proxyHeaders });
         const text = await response.text();
         console.log("getOrderHistory response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "listActiveOrders": {
+        // POST /sapi/v1/c2c/orderMatch/listOrders
+        const body: Record<string, any> = {
+          page: payload.page || 1,
+          rows: payload.rows || 50,
+        };
+        if (payload.advNo) body.advNo = payload.advNo;
+        if (payload.asset) body.asset = payload.asset;
+        if (payload.tradeType) body.tradeType = payload.tradeType;
+        if (payload.startDate) body.startDate = payload.startDate;
+        if (payload.endDate) body.endDate = payload.endDate;
+
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`;
+        console.log("listActiveOrders URL:", url);
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("listActiveOrders response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getOrderDetail": {
+        // POST /sapi/v1/c2c/orderMatch/getUserOrderDetail
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          adOrderNo: payload.orderNumber,
+        }) });
+        const text = await response.text();
+        console.log("getOrderDetail response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "markOrderAsPaid": {
+        // POST /sapi/v1/c2c/orderMatch/markOrderAsPaid
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`;
+        const body: Record<string, any> = { orderNumber: payload.orderNumber };
+        if (payload.payId) body.payId = payload.payId;
+        console.log("markOrderAsPaid body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("markOrderAsPaid response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "releaseCoin": {
+        // POST /sapi/v1/c2c/orderMatch/releaseCoin
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
+        const body: Record<string, any> = {
+          orderNumber: payload.orderNumber,
+        };
+        if (payload.authType) body.authType = payload.authType;
+        if (payload.code) body.code = payload.code;
+        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
+        if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
+        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
+        console.log("releaseCoin body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("releaseCoin response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "cancelOrder": {
+        // POST /sapi/v1/c2c/orderMatch/cancelOrder
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;
+        const body: Record<string, any> = {
+          orderNumber: payload.orderNumber,
+        };
+        if (payload.orderCancelReasonCode !== undefined) body.orderCancelReasonCode = payload.orderCancelReasonCode;
+        if (payload.orderCancelAdditionalInfo) body.orderCancelAdditionalInfo = payload.orderCancelAdditionalInfo;
+        console.log("cancelOrder body:", JSON.stringify(body));
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("cancelOrder response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "checkIfAllowedCancelOrder": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/checkIfAllowedCancelOrder`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          orderNumber: payload.orderNumber,
+        }) });
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      // ==================== COUNTERPARTY ====================
+      case "queryCounterPartyStats": {
+        // POST /sapi/v1/c2c/orderMatch/queryCounterPartyOrderStatistic
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/queryCounterPartyOrderStatistic`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          orderNumber: payload.orderNumber,
+        }) });
+        const text = await response.text();
+        console.log("queryCounterPartyStats response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getUserOrderSummary": {
+        // GET /sapi/v1/c2c/orderMatch/getUserOrderSummary
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderSummary`;
+        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getUserOrderSummary response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      // ==================== CHAT ====================
+      case "getChatMessages": {
+        // GET /sapi/v1/c2c/chat/retrieveChatMessagesWithPagination
+        const params = new URLSearchParams();
+        params.set("orderNo", payload.orderNo);
+        params.set("page", String(payload.page || 1));
+        params.set("rows", String(payload.rows || 50));
+        if (payload.chatMessageType) params.set("chatMessageType", payload.chatMessageType);
+        if (payload.sort) params.set("sort", payload.sort);
+        if (payload.order) params.set("order", payload.order);
+        if (payload.id) params.set("id", String(payload.id));
+
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${params.toString()}`;
+        console.log("getChatMessages URL:", url);
+        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getChatMessages response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getChatCredential": {
+        // GET /sapi/v1/c2c/chat/retrieveChatCredential
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
+        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getChatCredential response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getChatImageUploadUrl": {
+        // POST /sapi/v1/c2c/chat/image/pre-signed-url
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/image/pre-signed-url`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          imageName: payload.imageName,
+        }) });
+        const text = await response.text();
+        console.log("getChatImageUploadUrl response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "markOrderMessagesRead": {
+        // POST /sapi/v1/c2c/chat/markOrderMessagesAsRead
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          orderNo: payload.orderNo,
+          userId: payload.userId,
+        }) });
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getRiskWarningTips": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/getRiskWarningTips`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+          orderNo: payload.orderNo,
+          fiat: payload.fiat,
+          scene: payload.scene,
+        }) });
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      // ==================== MERCHANT ====================
+      case "merchantOnline": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/merchant/getOnline`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders });
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "merchantOffline": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/merchant/getOffline`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders });
+        const text = await response.text();
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      // ==================== USER ====================
+      case "getUserDetail": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/user/userDetail`;
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getUserDetail response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

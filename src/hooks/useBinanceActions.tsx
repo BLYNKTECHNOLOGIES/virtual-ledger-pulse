@@ -179,12 +179,18 @@ export function useCounterpartyBinanceStats(orderNumber: string | null) {
 
 export interface BinanceChatMessage {
   id: number;
-  chatMessageType: string; // "text" | "image"
-  message?: string;
+  type: string; // "text" | "image" | "system"
+  content?: string;
+  message?: string; // legacy fallback
   imageUrl?: string;
+  thumbnailUrl?: string;
   createTime: number;
+  self?: boolean;
+  fromNickName?: string;
   senderUserId?: number;
   receiverUserId?: number;
+  // Keep for backward compat
+  chatMessageType?: string;
 }
 
 export function useBinanceChatMessages(orderNo: string | null) {

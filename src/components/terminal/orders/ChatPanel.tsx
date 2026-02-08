@@ -60,12 +60,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     const messages: UnifiedMessage[] = [];
 
     for (const msg of binanceMessages) {
+      const msgType = msg.type || msg.chatMessageType || 'text';
+      const isSelf = msg.self === true;
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
-        senderType: msg.chatMessageType === 'system' ? 'system' : 'counterparty',
-        text: msg.message || null,
-        imageUrl: msg.imageUrl,
+        senderType: msgType === 'system' ? 'system' : (isSelf ? 'operator' : 'counterparty'),
+        text: msg.content || msg.message || null,
+        imageUrl: msg.imageUrl || msg.thumbnailUrl || undefined,
         timestamp: msg.createTime || 0,
       });
     }
@@ -99,7 +101,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
     // Detect genuinely new Binance messages (counterparty)
     const newMessages = binanceMessages.filter(
-      (m) => !prevBinanceIdsRef.current.has(String(m.id)) && m.chatMessageType !== 'system'
+      (m) => !prevBinanceIdsRef.current.has(String(m.id)) && (m.type || m.chatMessageType) !== 'system'
     );
 
     if (newMessages.length > 0 && soundEnabled) {

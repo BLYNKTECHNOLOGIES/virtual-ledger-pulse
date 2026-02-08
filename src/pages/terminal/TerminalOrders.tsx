@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShoppingCart, RefreshCw, Search } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare } from 'lucide-react';
 import { useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
+import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
+import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
@@ -79,6 +81,8 @@ export default function TerminalOrders() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
+  const [showChatInbox, setShowChatInbox] = useState(false);
+  const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
 
   const { data: activeOrdersData, isLoading, refetch, isFetching } = useBinanceActiveOrders();
   const { data: historyOrders = [] } = useBinanceOrderHistory();
@@ -102,6 +106,20 @@ export default function TerminalOrders() {
     return map;
   }, [historyOrders]);
 
+  // Build a map of unread chat counts from active orders
+  const unreadMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of rawOrders) {
+      if (o.chatUnreadCount > 0) {
+        map.set(o.orderNumber, o.chatUnreadCount);
+      }
+    }
+    return map;
+  }, [rawOrders]);
+
+  const totalUnread = useMemo(() =>
+    Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
+
   // Background sync to local DB (fire-and-forget)
   useEffect(() => {
     if (rawOrders.length > 0 && !syncOrders.isPending) {
@@ -111,13 +129,9 @@ export default function TerminalOrders() {
 
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
-    // First enrich raw orders with history status (history returns reliable string statuses)
     let enriched = rawOrders.map(o => {
       const historyStatus = historyStatusMap.get(o.orderNumber);
-      if (historyStatus) {
-        return { ...o, _resolvedStatus: historyStatus };
-      }
-      return { ...o, _resolvedStatus: mapOrderStatusCode(o.orderStatus) };
+      return { ...o, _resolvedStatus: historyStatus || mapOrderStatusCode(o.orderStatus) };
     });
 
     if (tradeFilter !== 'all') {
@@ -127,9 +141,7 @@ export default function TerminalOrders() {
     if (statusFilter !== 'all') {
       enriched = enriched.filter(o => {
         const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
-        if (statusFilter === 'active') {
-          return op !== 'Completed' && op !== 'Cancelled' && op !== 'Expired';
-        }
+        if (statusFilter === 'active') return op !== 'Completed' && op !== 'Cancelled' && op !== 'Expired';
         if (statusFilter === 'completed') return op === 'Completed';
         if (statusFilter === 'cancelled') return op === 'Cancelled';
         return true;
@@ -146,11 +158,48 @@ export default function TerminalOrders() {
 
     return enriched.map(o => {
       const record = binanceToOrderRecord(o);
-      // Override status with the resolved (history-enriched) status
       record.order_status = o._resolvedStatus;
       return record;
     });
   }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap]);
+
+  // Helper: open chat for an order row directly
+  const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActiveChatConv({
+      orderNumber: order.binance_order_number,
+      counterpartyNickname: order.counterparty_nickname,
+      tradeType: order.trade_type,
+      asset: order.asset,
+      fiatUnit: order.fiat_unit,
+      amount: String(order.amount),
+      totalPrice: String(order.total_price),
+      orderStatus: order.order_status,
+      chatUnreadCount: unreadMap.get(order.binance_order_number) || 0,
+      createTime: order.binance_create_time ? new Date(order.binance_create_time).getTime() : 0,
+      source: 'active',
+    });
+  };
+
+  // ---- View routing ----
+  if (activeChatConv) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <ChatThreadView conversation={activeChatConv} onBack={() => setActiveChatConv(null)} />
+      </div>
+    );
+  }
+
+  if (showChatInbox) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <ChatInbox
+          onClose={() => setShowChatInbox(false)}
+          onOpenChat={(conv) => { setShowChatInbox(false); setActiveChatConv(conv); }}
+        />
+      </div>
+    );
+  }
 
   if (selectedOrder) {
     return (
@@ -177,6 +226,20 @@ export default function TerminalOrders() {
           <Badge variant="outline" className="text-[10px] text-muted-foreground">
             {displayOrders.length} of {rawOrders.length} orders
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5 relative"
+            onClick={() => setShowChatInbox(true)}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Chat
+            {totalUnread > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
+                <span className="text-[9px] font-bold text-destructive-foreground">{totalUnread}</span>
+              </span>
+            )}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -245,6 +308,7 @@ export default function TerminalOrders() {
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Amount</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Price</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium text-center w-[50px]">Chat</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Time</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -284,6 +348,22 @@ export default function TerminalOrders() {
                       </TableCell>
                       <TableCell>
                         <OrderStatusBadge status={order.order_status} tradeType={order.trade_type} />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <button
+                          onClick={(e) => openChatForOrder(order, e)}
+                          className="relative inline-flex items-center justify-center h-7 w-7 rounded hover:bg-secondary transition-colors"
+                          title="Open chat"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                          {(unreadMap.get(order.binance_order_number) || 0) > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
+                              <span className="text-[8px] font-bold text-destructive-foreground">
+                                {unreadMap.get(order.binance_order_number)}
+                              </span>
+                            </span>
+                          )}
+                        </button>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-[11px] text-muted-foreground tabular-nums">

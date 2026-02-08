@@ -4274,6 +4274,108 @@ export type Database = {
         }
         Relationships: []
       }
+      p2p_terminal_role_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission: Database["public"]["Enums"]["terminal_permission"]
+          role_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission: Database["public"]["Enums"]["terminal_permission"]
+          role_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission?: Database["public"]["Enums"]["terminal_permission"]
+          role_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_terminal_role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_terminal_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      p2p_terminal_roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      p2p_terminal_user_roles: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          role_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          role_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_terminal_user_roles_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_terminal_user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_terminal_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "p2p_terminal_user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_reset_tokens: {
         Row: {
           created_at: string | null
@@ -6912,6 +7014,10 @@ export type Database = {
         }
         Returns: string
       }
+      assign_terminal_role: {
+        Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
+        Returns: undefined
+      }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean
@@ -7188,6 +7294,20 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_terminal_permissions: {
+        Args: { p_user_id: string }
+        Returns: {
+          permission: string
+        }[]
+      }
+      get_terminal_user_roles: {
+        Args: { p_user_id: string }
+        Returns: {
+          role_description: string
+          role_id: string
+          role_name: string
+        }[]
+      }
       get_transactions_with_closing_balance: {
         Args: {
           p_bank_account_id?: string
@@ -7274,6 +7394,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_terminal_roles: {
+        Args: never
+        Returns: {
+          description: string
+          id: string
+          is_default: boolean
+          name: string
+          permissions: string[]
+        }[]
+      }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined
@@ -7326,9 +7456,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      remove_terminal_role: {
+        Args: { p_role_id: string; p_user_id: string }
+        Returns: undefined
+      }
       reverse_payment_gateway_settlement: {
         Args: { p_settlement_id: string }
         Returns: Json
+      }
+      save_terminal_role: {
+        Args: {
+          p_description?: string
+          p_name?: string
+          p_permissions?: string[]
+          p_role_id?: string
+        }
+        Returns: string
       }
       sync_existing_payment_methods_with_bank_status: {
         Args: never
@@ -7587,6 +7730,20 @@ export type Database = {
         | "ems_manage"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
+      terminal_permission:
+        | "terminal_dashboard_view"
+        | "terminal_ads_view"
+        | "terminal_ads_manage"
+        | "terminal_orders_view"
+        | "terminal_orders_manage"
+        | "terminal_orders_actions"
+        | "terminal_automation_view"
+        | "terminal_automation_manage"
+        | "terminal_analytics_view"
+        | "terminal_settings_view"
+        | "terminal_settings_manage"
+        | "terminal_users_view"
+        | "terminal_users_manage"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7795,6 +7952,21 @@ export const Constants = {
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],
+      terminal_permission: [
+        "terminal_dashboard_view",
+        "terminal_ads_view",
+        "terminal_ads_manage",
+        "terminal_orders_view",
+        "terminal_orders_manage",
+        "terminal_orders_actions",
+        "terminal_automation_view",
+        "terminal_automation_manage",
+        "terminal_analytics_view",
+        "terminal_settings_view",
+        "terminal_settings_manage",
+        "terminal_users_view",
+        "terminal_users_manage",
+      ],
     },
   },
 } as const

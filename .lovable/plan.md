@@ -76,11 +76,13 @@ A standalone P2P Order Management Terminal at `/terminal/*` routes, coexisting w
 - [x] DB schema: p2p_auto_reply_rules, p2p_auto_reply_log, p2p_merchant_schedules
 - [ ] Execution engine edge function (polls orders and triggers auto-replies — next iteration)
 
-## Phase 6: User Sync & Permissions
+## Phase 6: User Sync & Permissions ✅ DONE
 
-- [ ] Identity-level sync from parent website
-- [ ] Local role architecture with granular permissions
-- [ ] Permission-gated UI
+- [x] Identity-level sync from parent website (TerminalAuthProvider wraps layout, syncs user from parent useAuth)
+- [x] Local role architecture with granular permissions (terminal_permission enum, p2p_terminal_roles/permissions/user_roles tables, SECURITY DEFINER RPCs)
+- [x] Permission-gated UI (TerminalPermissionGate component, sidebar permission filtering, header user identity with role badges)
+- [x] Seeded default roles: Admin (all perms), Operator (ads/orders/automation), Viewer (read-only)
+- [x] Users & Roles nav item added for terminal user management
 
 ---
 

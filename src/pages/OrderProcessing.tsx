@@ -38,7 +38,7 @@ export default function OrderProcessing() {
       case 'large-orders': return <OPLargeOrders />;
       case 'staff': return <OPStaffManagement />;
       case 'settings': return <OPSettings />;
-      case 'ad-manager': return <div className="bg-white rounded-xl"><AdManager /></div>;
+      case 'ad-manager': return <AdManager darkMode />;
       default: return <OPDashboard />;
     }
   };

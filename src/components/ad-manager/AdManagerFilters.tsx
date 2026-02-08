@@ -9,16 +9,21 @@ interface AdManagerFiltersProps {
   onFiltersChange: (filters: AdFilters) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  darkMode?: boolean;
 }
 
-export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefreshing }: AdManagerFiltersProps) {
+export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefreshing, darkMode = false }: AdManagerFiltersProps) {
+  const d = darkMode;
+  const selectCls = d ? 'bg-[#0d1321] border-gray-700 text-gray-300' : '';
+  const inputCls = d ? 'bg-[#0d1321] border-gray-700 text-gray-300' : '';
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Select
         value={filters.asset || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, asset: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className={`w-[130px] ${selectCls}`}>
           <SelectValue placeholder="Asset" />
         </SelectTrigger>
         <SelectContent>
@@ -35,7 +40,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.tradeType || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, tradeType: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className={`w-[130px] ${selectCls}`}>
           <SelectValue placeholder="Trade Type" />
         </SelectTrigger>
         <SelectContent>
@@ -49,7 +54,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.advStatus !== null && filters.advStatus !== undefined ? String(filters.advStatus) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, advStatus: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className={`w-[130px] ${selectCls}`}>
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -63,7 +68,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.priceType !== null && filters.priceType !== undefined ? String(filters.priceType) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, priceType: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className={`w-[140px] ${selectCls}`}>
           <SelectValue placeholder="Price Type" />
         </SelectTrigger>
         <SelectContent>
@@ -77,15 +82,15 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         type="date"
         value={filters.startDate || ''}
         onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value, page: 1 })}
-        className="w-[150px]"
+        className={`w-[150px] ${inputCls}`}
         placeholder="Start Date"
       />
-      <span className="text-muted-foreground">→</span>
+      <span className={d ? 'text-gray-600' : 'text-muted-foreground'}>→</span>
       <Input
         type="date"
         value={filters.endDate || ''}
         onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value, page: 1 })}
-        className="w-[150px]"
+        className={`w-[150px] ${inputCls}`}
         placeholder="End Date"
       />
 
@@ -93,6 +98,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         variant="outline"
         size="sm"
         onClick={() => onFiltersChange({ page: 1, rows: 20 })}
+        className={d ? 'border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200' : ''}
       >
         Reset
       </Button>
@@ -102,6 +108,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         size="icon"
         onClick={onRefresh}
         disabled={isRefreshing}
+        className={d ? 'border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200' : ''}
       >
         <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
       </Button>

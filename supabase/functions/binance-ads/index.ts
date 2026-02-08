@@ -308,6 +308,14 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getChatCredential response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        
+        // Append relay connection info for the frontend WebSocket hook
+        const proxyHost = BINANCE_PROXY_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        const relayUrl = `ws://${proxyHost.replace(/:3000$/, "")}:8080`;
+        const relayToken = BINANCE_PROXY_TOKEN;
+        if (result && typeof result === "object") {
+          result._relay = { relayUrl, relayToken };
+        }
         break;
       }
 

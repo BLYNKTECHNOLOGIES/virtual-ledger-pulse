@@ -72,8 +72,8 @@ export function useBinanceChatWebSocket(
     try {
       // Get credentials + relay info from edge function
       const credResult = await callBinanceAds('getChatCredential');
-      const credData = credResult?.data || credResult;
-      const relay: RelayInfo | undefined = credResult?._relay;
+      const credData = credResult?.data?.data || credResult?.data || credResult;
+      const relay: RelayInfo | undefined = credResult?.data?._relay || credResult?._relay;
 
       if (!credData?.chatWssUrl || !credData?.listenKey || !credData?.listenToken) {
         throw new Error('Invalid chat credentials received');

@@ -216,44 +216,38 @@ export function useBinanceChatWebSocket(
     };
   }, [connect]);
 
-  // Send message via WebSocket
-  const sendMessage = useCallback((orderNo: string, content: string) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      toast.error('Chat not connected. Retrying...');
-      connect();
-      return;
-    }
-
-    const messagePayload = {
+  // Send message via REST API (Binance WS is receive-only for chat)
+  const sendMessage = useCallback(async (orderNo: string, content: string) => {
+    // Optimistically add to local messages immediately
+    const optimisticMsg: BinanceChatMessage = {
+      id: Date.now(),
       type: 'text',
-      orderNo,
       content,
-      uuid: generateUUID(),
-      clientType: 'web',
+      message: content,
+      createTime: Date.now(),
+      self: true,
+      fromNickName: 'You',
     };
+    setMessages((prev) => [...prev, optimisticMsg]);
 
     try {
-      ws.send(JSON.stringify(messagePayload));
-      console.log('📤 Message sent via WebSocket:', content);
-
-      // Optimistically add to local messages
-      const optimisticMsg: BinanceChatMessage = {
-        id: Date.now(),
-        type: 'text',
-        content,
+      const result = await callBinanceAds('sendChatMessage', {
+        orderNo,
         message: content,
-        createTime: Date.now(),
-        self: true,
-        fromNickName: 'You',
-      };
-
-      setMessages((prev) => [...prev, optimisticMsg]);
+        chatMessageType: 'text',
+      });
+      const code = result?.data?.code || result?.code;
+      if (code && code !== '000000') {
+        console.error('sendChatMessage failed:', result);
+        toast.error('Message may not have been delivered');
+      } else {
+        console.log('📤 Message sent via REST API:', content);
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
       toast.error('Failed to send message');
     }
-  }, [connect]);
+  }, []);
 
   return { messages, isConnected, isConnecting, sendMessage, error };
 }

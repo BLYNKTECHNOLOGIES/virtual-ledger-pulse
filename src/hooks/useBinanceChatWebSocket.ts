@@ -56,6 +56,25 @@ export function useBinanceChatWebSocket(
   const pollIntervalRef = useRef(5000); // Start at 5s
   const maxReconnectAttempts = 5;
 
+  // ---- Fetch sessionId via the session-aware message list endpoint ----
+  const fetchSessionId = useCallback(async (orderNo: string) => {
+    if (sessionIdRef.current) return; // Already have it
+    try {
+      const result = await callBinanceAds('getChatSessionMessages', {
+        orderNo,
+        page: 1,
+        rows: 1,
+      });
+      const messages = result?.data?.data?.messages || result?.data?.messages || [];
+      if (Array.isArray(messages) && messages.length > 0 && messages[0].sessionId) {
+        sessionIdRef.current = messages[0].sessionId;
+        console.log('✅ Captured sessionId:', sessionIdRef.current);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sessionId:', err);
+    }
+  }, []);
+
   // ---- Fetch chat history via REST ----
   const fetchChatHistory = useCallback(async (orderNo: string) => {
     try {
@@ -67,11 +86,6 @@ export function useBinanceChatWebSocket(
       });
       const list = result?.data?.data || result?.data || result?.list || [];
       if (Array.isArray(list) && list.length > 0) {
-        // Try to capture sessionId from history messages
-        const msgWithSession = list.find((m: any) => m.sessionId);
-        if (msgWithSession) {
-          sessionIdRef.current = msgWithSession.sessionId;
-        }
         setMessages((prev) => {
           // Merge server messages with any pending optimistic messages
           const pendingMsgs = prev.filter((m) => m._status === 'sending');
@@ -80,8 +94,8 @@ export function useBinanceChatWebSocket(
           const remainingPending = pendingMsgs.filter((m) => !serverIds.has(m.id));
           return [...list, ...remainingPending];
         });
-        pollIntervalRef.current = 5000; // Reset interval on new data
-        return true; // had data
+        pollIntervalRef.current = 5000;
+        return true;
       }
       return false;
     } catch (err) {
@@ -94,7 +108,8 @@ export function useBinanceChatWebSocket(
   useEffect(() => {
     if (!activeOrderNo) return;
 
-    // Initial fetch
+    // Initial fetch — get sessionId + chat history in parallel
+    fetchSessionId(activeOrderNo);
     fetchChatHistory(activeOrderNo);
 
     const poll = async () => {
@@ -109,8 +124,9 @@ export function useBinanceChatWebSocket(
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
       pollIntervalRef.current = 5000;
+      sessionIdRef.current = null; // Reset on order change
     };
-  }, [activeOrderNo, fetchChatHistory]);
+  }, [activeOrderNo, fetchChatHistory, fetchSessionId]);
 
   // ---- Connect to WebSocket via relay (for real-time push) ----
   const connect = useCallback(async () => {

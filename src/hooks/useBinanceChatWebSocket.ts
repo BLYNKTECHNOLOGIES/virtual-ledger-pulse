@@ -50,7 +50,8 @@ export function useBinanceChatWebSocket(
           rows: 50,
           sort: 'asc',
         });
-        const list = result?.data || result?.list || [];
+        // Response shape: { data: { code, data: [...messages], ... } }
+        const list = result?.data?.data || result?.data || result?.list || [];
         if (Array.isArray(list)) {
           setMessages(list);
         }
@@ -121,11 +122,19 @@ export function useBinanceChatWebSocket(
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('WS message received:', data);
+          const rawData = event.data;
+          // Silently ignore empty or heartbeat frames
+          if (!rawData || rawData === '{}' || rawData === 'pong') return;
+          
+          const data = JSON.parse(rawData);
+          
+          // Ignore empty objects (heartbeat frames forwarded by relay)
+          if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
 
           // Handle pong
           if (data.type === 'pong' || data.e === 'pong') return;
+
+          console.log('WS message received:', data);
 
           // Handle new chat message
           if (data.e === 'chat' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card') {

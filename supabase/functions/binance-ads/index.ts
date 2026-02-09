@@ -277,18 +277,17 @@ serve(async (req) => {
 
       // ==================== CHAT ====================
       case "getChatMessages": {
-        // POST relay — proxy reads body, adds timestamp/signature, forwards as GET to Binance
-        const chatBody = {
+        // GET endpoint — same pattern as retrieveChatCredential
+        const chatParams = new URLSearchParams({
           orderNo: payload.orderNo,
           page: String(payload.page || 1),
           rows: String(payload.rows || 50),
-        };
-        const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination`;
-        console.log("getChatMessages URL (POST relay):", chatUrl, JSON.stringify(chatBody));
+        });
+        const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
+        console.log("getChatMessages URL (GET):", chatUrl);
         const response = await fetch(chatUrl, {
-          method: "POST",
-          headers: { ...proxyHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify(chatBody),
+          method: "GET",
+          headers: proxyHeaders,
         });
         const text = await response.text();
         console.log("getChatMessages response:", response.status, text.substring(0, 800));

@@ -258,8 +258,8 @@ export function useBinanceChatWebSocket(
     };
   }, [connect]);
 
-  // ---- Send message via REST API (no sessionId needed) ----
-  const sendMessage = useCallback(async (orderNo: string, content: string) => {
+  // ---- Send message via WebSocket (try without sessionId first, then with if available) ----
+  const sendMessage = useCallback((orderNo: string, content: string) => {
     const tempId = Date.now();
     const optimisticMsg: TrackedMessage = {
       id: tempId,
@@ -280,26 +280,35 @@ export function useBinanceChatWebSocket(
       );
     };
 
-    try {
-      const result = await callBinanceAds('sendChatMessage', {
-        orderNo,
-        content,
-        contentType: 'TEXT',
-      });
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      markStatus('failed');
+      toast.error('Chat not connected');
+      return;
+    }
 
-      const data = result?.data || result;
-      if (data?.code === '000000' || data?.success) {
-        console.log('📤 Message sent via REST:', data);
-        markStatus('sent');
-        // Trigger fast poll to see the message in history
-        pollIntervalRef.current = 2000;
-      } else {
-        console.error('sendChatMessage failed:', data);
-        markStatus('failed');
-        toast.error('Message delivery failed');
+    try {
+      // Build payload — include sessionId only if we have it
+      const payload: Record<string, any> = {
+        content,
+        msgType: 'U_TEXT',
+        order: { orderNo },
+        timestamp: Date.now(),
+      };
+
+      // Only include sessionId if we actually have one (empty string causes ILLEGAL_PARAM)
+      if (sessionIdRef.current) {
+        payload.sessionId = sessionIdRef.current;
       }
+
+      ws.send(JSON.stringify(payload));
+      console.log('📤 WS send payload:', JSON.stringify(payload));
+      markStatus('sent');
+
+      // Trigger fast poll to confirm delivery
+      pollIntervalRef.current = 2000;
     } catch (err) {
-      console.error('sendChatMessage error:', err);
+      console.error('WS send error:', err);
       markStatus('failed');
       toast.error('Message may not have been delivered');
     }

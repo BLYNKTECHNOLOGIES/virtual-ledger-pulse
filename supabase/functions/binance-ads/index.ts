@@ -6,6 +6,40 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Retry wrapper for transient network errors (connection closed, timeouts)
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2,
+  delayMs = 500
+): Promise<Response> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      return response;
+    } catch (err) {
+      lastError = err as Error;
+      const msg = (err as Error).message || "";
+      // Only retry on transient network errors
+      if (
+        msg.includes("connection closed") ||
+        msg.includes("ConnectionReset") ||
+        msg.includes("SendRequest") ||
+        msg.includes("ECONNRESET")
+      ) {
+        console.warn(`fetchWithRetry: attempt ${attempt + 1} failed (${msg}), retrying in ${delayMs}ms...`);
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+          continue;
+        }
+      }
+      throw err; // Non-transient error, throw immediately
+    }
+  }
+  throw lastError;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -285,7 +319,7 @@ serve(async (req) => {
         });
         const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
         console.log("getChatMessages URL (GET):", chatUrl);
-        const response = await fetch(chatUrl, {
+        const response = await fetchWithRetry(chatUrl, {
           method: "GET",
           headers: proxyHeaders,
         });
@@ -308,7 +342,7 @@ serve(async (req) => {
         const sendHeaders = { ...proxyHeaders };
         // Remove Content-Type — body is empty
         delete sendHeaders["Content-Type"];
-        const response = await fetch(sendUrl, {
+        const response = await fetchWithRetry(sendUrl, {
           method: "POST",
           headers: sendHeaders,
         });

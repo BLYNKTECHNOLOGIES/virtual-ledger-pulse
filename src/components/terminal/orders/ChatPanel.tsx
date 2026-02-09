@@ -5,7 +5,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
-import { useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -22,7 +21,6 @@ interface Props {
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
-  const restSend = useSendBinanceChatMessage();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -106,10 +104,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     setIsSending(true);
     
     try {
-      // Send via REST through edge function → proxy → Binance (form-urlencoded)
-      await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
+      // Send via WebSocket through relay → Binance WS
+      wsSendMessage(orderNumber, msg);
     } catch (err) {
-      // Error handled by mutation onError
+      // Error handled by WS hook
     } finally {
       setIsSending(false);
     }

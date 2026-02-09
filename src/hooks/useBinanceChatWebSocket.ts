@@ -48,6 +48,7 @@ export function useBinanceChatWebSocket(
 
   const wsRef = useRef<WebSocket | null>(null);
   const relayInfoRef = useRef<RelayInfo | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -66,6 +67,11 @@ export function useBinanceChatWebSocket(
       });
       const list = result?.data?.data || result?.data || result?.list || [];
       if (Array.isArray(list) && list.length > 0) {
+        // Try to capture sessionId from history messages
+        const msgWithSession = list.find((m: any) => m.sessionId);
+        if (msgWithSession) {
+          sessionIdRef.current = msgWithSession.sessionId;
+        }
         setMessages((prev) => {
           // Merge server messages with any pending optimistic messages
           const pendingMsgs = prev.filter((m) => m._status === 'sending');
@@ -173,15 +179,21 @@ export function useBinanceChatWebSocket(
 
           // Handle new chat message — also trigger a fast poll
           // Binance sends messages with fields like content/orderNo/id but no standard "type" wrapper
-          const isChatMessage = data.e === 'chat' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && data.orderNo && data.id);
+          const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
           if (isChatMessage) {
-            const msgId = Number(data.id || data.E) || Date.now();
+            // Capture sessionId for sending messages
+            if (data.sessionId) {
+              sessionIdRef.current = data.sessionId;
+            }
+
+            const msgId = Number(data.id || data.msgId || data.E) || Date.now();
+            const orderNo = data.orderNo || data.order?.orderNo || '';
             const newMsg: TrackedMessage = {
               id: msgId,
-              type: data.type || data.chatMessageType || 'text',
+              type: data.type || data.msgType === 'U_TEXT' ? 'text' : data.msgType === 'U_IMAGE' ? 'image' : (data.chatMessageType || 'text'),
               content: data.content || data.message || '',
               message: data.content || data.message || '',
-              createTime: data.createTime || data.E || Date.now(),
+              createTime: data.createTime || data.timestamp || data.E || Date.now(),
               self: data.self === true || data.self === 'true',
               fromNickName: data.fromNickName || data.senderNickName || '',
               imageUrl: data.imageUrl,
@@ -196,6 +208,11 @@ export function useBinanceChatWebSocket(
 
             // Reset poll interval for fast refresh after WS event
             pollIntervalRef.current = 3000;
+          }
+
+          // Capture sessionId from confirmation frames
+          if (data.scenario !== undefined && data.localId) {
+            console.log('📨 Message confirmed by Binance, msgId:', data.msgId);
           }
 
           if (data.e === 'orderStatus' || data.type === 'orderStatusUpdate') {
@@ -284,22 +301,28 @@ export function useBinanceChatWebSocket(
     // Primary: send via WebSocket if connected
     if (ws && ws.readyState === WebSocket.OPEN) {
       try {
+        const localId = generateUUID();
         const messagePayload = {
-          type: 'text',
-          orderNo,
           content,
-          uuid: generateUUID(),
-          clientType: 'web',
+          localId,
+          msgType: 'U_TEXT',
+          order: { orderNo, hasOngoingOrder: false },
+          refMsgIds: null,
+          self: true,
+          sendStatus: 0,
+          sessionId: sessionIdRef.current || '',
+          sessionType: 'PRIVATE',
+          timestamp: Date.now(),
         };
         ws.send(JSON.stringify(messagePayload));
-        console.log('📤 Message sent via WebSocket:', content);
+        console.log('📤 Message sent via WebSocket (Binance format):', messagePayload);
         markStatus('sent');
 
         // Trigger fast poll to confirm delivery
         pollIntervalRef.current = 2000;
         return;
       } catch (wsErr) {
-        console.warn('WebSocket send failed, falling back to REST:', wsErr);
+        console.warn('WebSocket send failed:', wsErr);
       }
     }
 

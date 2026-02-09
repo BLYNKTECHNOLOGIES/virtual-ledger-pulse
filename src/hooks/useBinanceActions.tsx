@@ -135,7 +135,8 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
         startTimestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days
         endTimestamp: Date.now(),
       });
-      const orders = result?.data || result || [];
+      // Response shape: { data: { code, data: [...orders] } }
+      const orders = result?.data?.data || result?.data || result || [];
       if (!Array.isArray(orders)) return null;
       return orders.find((o: any) => o.orderNumber === orderNumber) || null;
     },
@@ -155,7 +156,8 @@ export function useBinanceOrderHistory() {
         startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days
         endTimestamp: Date.now(),
       });
-      const orders = result?.data || result || [];
+      // Response shape: { data: { code, data: [...orders] } }
+      const orders = result?.data?.data || result?.data || result || [];
       if (!Array.isArray(orders)) return [];
       return orders as Array<{ orderNumber: string; orderStatus: string; [k: string]: any }>;
     },

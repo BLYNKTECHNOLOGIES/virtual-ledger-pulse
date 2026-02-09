@@ -330,25 +330,71 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST endpoint — params MUST be in query string, body MUST be empty
-        // Binance C2C chat send routes based on query params, not JSON body
-        const sendParams = new URLSearchParams({
-          orderNo: payload.orderNo,
-          content: payload.content,
-          contentType: payload.contentType || "TEXT",
-        });
-        const sendUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`;
-        console.log("sendChatMessage URL (POST, query params):", sendUrl);
-        const sendHeaders = { ...proxyHeaders };
-        // Remove Content-Type — body is empty
-        delete sendHeaders["Content-Type"];
-        const response = await fetchWithRetry(sendUrl, {
-          method: "POST",
-          headers: sendHeaders,
-        });
-        const text = await response.text();
-        console.log("sendChatMessage response:", response.status, text.substring(0, 800));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        // Route through proxy (Indian IP needed for p2p.binance.com geo-routing)
+        const orderNo = payload.orderNo;
+        const content = payload.content;
+        const contentType = payload.contentType || "TEXT";
+
+        if (!orderNo || !content) {
+          result = { code: "INVALID", message: "Missing orderNo or content" };
+          break;
+        }
+
+        // Try multiple parameter name combinations through the proxy
+        // The proxy signs and forwards to p2p.binance.com
+        const paramVariants = [
+          // Variant 1: orderNo + content + contentType (original)
+          { label: "content+contentType", params: `orderNo=${orderNo}&content=${encodeURIComponent(content)}&contentType=${contentType}` },
+          // Variant 2: orderNo + message (maybe param name is 'message')
+          { label: "message param", params: `orderNo=${orderNo}&message=${encodeURIComponent(content)}` },
+          // Variant 3: orderNo + content only (no contentType)
+          { label: "content only", params: `orderNo=${orderNo}&content=${encodeURIComponent(content)}` },
+          // Variant 4: orderNumber instead of orderNo
+          { label: "orderNumber+content", params: `orderNumber=${orderNo}&content=${encodeURIComponent(content)}&contentType=${contentType}` },
+        ];
+
+        let lastError = "";
+        let success = false;
+
+        for (const variant of paramVariants) {
+          try {
+            const sendUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${variant.params}`;
+            console.log(`sendChatMessage trying variant "${variant.label}": ${sendUrl}`);
+            
+            const resp = await fetchWithRetry(sendUrl, {
+              method: "POST",
+              headers: { ...proxyHeaders, "Content-Type": "" },
+            });
+            const txt = await resp.text();
+            console.log(`sendChatMessage "${variant.label}" → ${resp.status}: ${txt.substring(0, 500)}`);
+
+            if (resp.status === 200 || resp.status === 201) {
+              try { result = JSON.parse(txt); } catch { result = { raw: txt }; }
+              success = true;
+              console.log(`✅ sendChatMessage SUCCESS via "${variant.label}"`);
+              break;
+            }
+
+            // Parse error for logging
+            try {
+              const errData = JSON.parse(txt);
+              lastError = `"${variant.label}": ${resp.status} ${errData.code || ""} ${errData.msg || errData.message || ""}`.trim();
+              // If we get a non-404 error code (like 400), endpoint exists - log details
+              if (resp.status === 400) {
+                console.log(`⚠️ 400 response for "${variant.label}" - endpoint exists, param issue: ${txt.substring(0, 300)}`);
+              }
+            } catch {
+              lastError = `"${variant.label}": ${resp.status} (HTML/non-JSON)`;
+            }
+          } catch (err) {
+            lastError = `"${variant.label}": ${(err as Error).message}`;
+          }
+        }
+
+        if (!success) {
+          console.error("sendChatMessage ALL variants failed. Last:", lastError);
+          result = { code: "SEND_FAILED", message: `All send attempts failed. Last: ${lastError}` };
+        }
         break;
       }
 

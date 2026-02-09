@@ -216,7 +216,7 @@ export function useBinanceChatWebSocket(
     };
   }, [connect]);
 
-  // Send message via REST API (Binance WS is receive-only for chat)
+  // Send message via WebSocket (primary) with REST fallback
   const sendMessage = useCallback(async (orderNo: string, content: string) => {
     // Optimistically add to local messages immediately
     const optimisticMsg: BinanceChatMessage = {
@@ -230,6 +230,27 @@ export function useBinanceChatWebSocket(
     };
     setMessages((prev) => [...prev, optimisticMsg]);
 
+    const ws = wsRef.current;
+
+    // Primary: send via WebSocket if connected
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        const messagePayload = {
+          type: 'text',
+          orderNo,
+          content,
+          uuid: generateUUID(),
+          clientType: 'web',
+        };
+        ws.send(JSON.stringify(messagePayload));
+        console.log('📤 Message sent via WebSocket:', content);
+        return;
+      } catch (wsErr) {
+        console.warn('WebSocket send failed, falling back to REST:', wsErr);
+      }
+    }
+
+    // Fallback: send via REST API
     try {
       const result = await callBinanceAds('sendChatMessage', {
         orderNo,
@@ -238,13 +259,13 @@ export function useBinanceChatWebSocket(
       });
       const code = result?.data?.code || result?.code;
       if (code && code !== '000000') {
-        console.error('sendChatMessage failed:', result);
+        console.error('sendChatMessage REST fallback failed:', result);
         toast.error('Message may not have been delivered');
       } else {
-        console.log('📤 Message sent via REST API:', content);
+        console.log('📤 Message sent via REST fallback:', content);
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
+      console.error('Failed to send message (REST fallback):', err);
       toast.error('Failed to send message');
     }
   }, []);

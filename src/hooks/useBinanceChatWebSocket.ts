@@ -18,7 +18,6 @@ interface UseBinanceChatWebSocketReturn {
   messages: TrackedMessage[];
   isConnected: boolean;
   isConnecting: boolean;
-  canSend: boolean; // true once sessionId is captured
   sendMessage: (orderNo: string, content: string) => void;
   error: string | null;
 }
@@ -45,7 +44,6 @@ export function useBinanceChatWebSocket(
   const [messages, setMessages] = useState<TrackedMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [canSend, setCanSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -62,7 +60,6 @@ export function useBinanceChatWebSocket(
   const captureSessionId = useCallback((data: any) => {
     if (data.sessionId && !sessionIdRef.current) {
       sessionIdRef.current = data.sessionId;
-      setCanSend(true);
       console.log('✅ Captured sessionId:', sessionIdRef.current);
     }
   }, []);
@@ -267,10 +264,9 @@ export function useBinanceChatWebSocket(
   // Reset sessionId when order changes
   useEffect(() => {
     sessionIdRef.current = null;
-    setCanSend(false);
   }, [activeOrderNo]);
 
-  // ---- Send message via WebSocket (requires sessionId from incoming frames) ----
+  // ---- Send message via WebSocket ----
   const sendMessage = useCallback((orderNo: string, content: string) => {
     const tempId = Date.now();
     const optimisticMsg: TrackedMessage = {
@@ -299,23 +295,24 @@ export function useBinanceChatWebSocket(
       return;
     }
 
-    if (!sessionIdRef.current) {
-      markStatus('failed');
-      toast.error('Chat session not ready — waiting for counterparty activity');
-      return;
-    }
-
     try {
       const localId = generateUUID();
-      const payload = {
+      // Binance P2P chat WS payload — flat orderNo, scenario "c2c", no nested order object
+      const payload: Record<string, any> = {
+        chatMessageType: 'text',
         content,
         localId,
         msgType: 'U_TEXT',
-        order: { orderNo },
-        sessionId: sessionIdRef.current,
+        orderNo,
+        scenario: 'c2c',
         sessionType: 'PRIVATE',
         timestamp: Date.now(),
+        uuid: localId,
       };
+      // Include sessionId if captured from incoming frames
+      if (sessionIdRef.current) {
+        payload.sessionId = sessionIdRef.current;
+      }
 
       ws.send(JSON.stringify(payload));
       console.log('📤 WS send payload:', JSON.stringify(payload));
@@ -329,5 +326,5 @@ export function useBinanceChatWebSocket(
     }
   }, []);
 
-  return { messages, isConnected, isConnecting, canSend, sendMessage, error };
+  return { messages, isConnected, isConnecting, sendMessage, error };
 }

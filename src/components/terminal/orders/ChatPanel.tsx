@@ -106,15 +106,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     setIsSending(true);
     
     try {
-      if (isConnected) {
-        // Primary: send via WebSocket (reliable, session-based)
-        wsSendMessage(orderNumber, msg);
-      } else {
-        // Fallback: send via REST (may fail due to Binance SAPI limitations)
-        await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
-      }
+      // Send via REST through edge function → proxy → Binance (form-urlencoded)
+      await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
     } catch (err) {
-      // Error already handled by mutation onError or WS sendMessage
+      // Error handled by mutation onError
     } finally {
       setIsSending(false);
     }

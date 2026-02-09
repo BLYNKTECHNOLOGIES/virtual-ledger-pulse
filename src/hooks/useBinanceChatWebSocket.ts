@@ -93,7 +93,18 @@ export function useBinanceChatWebSocket(
 
       const ws = new WebSocket(wsUrl);
 
+      // Timeout if connection doesn't open within 10s
+      const connectTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          console.error('WebSocket connection timed out after 10s');
+          setError('Connection timed out. Check relay server.');
+          setIsConnecting(false);
+          ws.close();
+        }
+      }, 10000);
+
       ws.onopen = () => {
+        clearTimeout(connectTimeout);
         console.log('✅ Chat WebSocket connected via relay');
         setIsConnected(true);
         setIsConnecting(false);

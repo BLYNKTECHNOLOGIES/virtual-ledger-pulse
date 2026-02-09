@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const { messages: wsMessages, isConnected, isConnecting, canSend, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -218,13 +218,18 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => handleSend()}
-            disabled={!text.trim() || !isConnected}
+            disabled={!text.trim() || !isConnected || !canSend}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
         </div>
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
-          {isConnected ? '🟢 Real-time WebSocket connection active' : '⏳ Connecting to Binance chat...'}
+          {!isConnected 
+            ? '⏳ Connecting to Binance chat...' 
+            : !canSend 
+              ? '🟡 Connected — waiting for chat session (counterparty must send first)' 
+              : '🟢 Real-time chat active'
+          }
         </p>
       </div>
     </div>

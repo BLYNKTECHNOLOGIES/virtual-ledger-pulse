@@ -18,8 +18,17 @@ interface UseBinanceChatWebSocketReturn {
   messages: TrackedMessage[];
   isConnected: boolean;
   isConnecting: boolean;
+  canSend: boolean; // true once sessionId is captured
   sendMessage: (orderNo: string, content: string) => void;
   error: string | null;
+}
+
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /** Safely convert WS event.data to string (handles Blob, ArrayBuffer, string) */
@@ -36,19 +45,27 @@ export function useBinanceChatWebSocket(
   const [messages, setMessages] = useState<TrackedMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [canSend, setCanSend] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const relayInfoRef = useRef<RelayInfo | null>(null);
-  const sessionIdRef = useRef<string | null>(null); // Still captured from WS for future use
+  const sessionIdRef = useRef<string | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pollIntervalRef = useRef(5000); // Start at 5s
+  const pollIntervalRef = useRef(5000);
   const maxReconnectAttempts = 5;
 
-  // sessionId no longer needed — we use REST sendMessage instead of WS send
+  // Helper to capture sessionId from any frame that contains it
+  const captureSessionId = useCallback((data: any) => {
+    if (data.sessionId && !sessionIdRef.current) {
+      sessionIdRef.current = data.sessionId;
+      setCanSend(true);
+      console.log('✅ Captured sessionId:', sessionIdRef.current);
+    }
+  }, []);
 
   // ---- Fetch chat history via REST ----
   const fetchChatHistory = useCallback(async (orderNo: string) => {
@@ -62,10 +79,8 @@ export function useBinanceChatWebSocket(
       const list = result?.data?.data || result?.data || result?.list || [];
       if (Array.isArray(list) && list.length > 0) {
         setMessages((prev) => {
-          // Merge server messages with any pending optimistic messages
           const pendingMsgs = prev.filter((m) => m._status === 'sending');
           const serverIds = new Set(list.map((m: BinanceChatMessage) => m.id));
-          // Remove optimistic messages that now exist on server
           const remainingPending = pendingMsgs.filter((m) => !serverIds.has(m.id));
           return [...list, ...remainingPending];
         });
@@ -83,12 +98,10 @@ export function useBinanceChatWebSocket(
   useEffect(() => {
     if (!activeOrderNo) return;
 
-    // Initial fetch
     fetchChatHistory(activeOrderNo);
 
     const poll = async () => {
       await fetchChatHistory(activeOrderNo);
-      // Exponential backoff up to 30s
       pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
       pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
     };
@@ -155,28 +168,22 @@ export function useBinanceChatWebSocket(
         try {
           const rawData = await wsDataToString(event.data);
 
-          // Silently ignore heartbeat / empty / pong frames
           if (!rawData || rawData.trim() === '{}' || rawData.trim() === '' || rawData === 'pong') return;
 
           const data = JSON.parse(rawData);
 
-          // Ignore empty objects (heartbeat frames forwarded by relay)
           if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
           if (data.type === 'pong' || data.e === 'pong') return;
 
+          // Always try to capture sessionId from ANY frame
+          captureSessionId(data);
+
           console.log('WS message received:', data);
 
-          // Handle new chat message — also trigger a fast poll
-          // Binance sends messages with fields like content/orderNo/id but no standard "type" wrapper
+          // Handle new chat message
           const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
           if (isChatMessage) {
-            // Capture sessionId for sending messages
-            if (data.sessionId) {
-              sessionIdRef.current = data.sessionId;
-            }
-
             const msgId = Number(data.id || data.msgId || data.E) || Date.now();
-            const orderNo = data.orderNo || data.order?.orderNo || '';
             const newMsg: TrackedMessage = {
               id: msgId,
               type: data.type || data.msgType === 'U_TEXT' ? 'text' : data.msgType === 'U_IMAGE' ? 'image' : (data.chatMessageType || 'text'),
@@ -195,7 +202,6 @@ export function useBinanceChatWebSocket(
               return [...prev, newMsg];
             });
 
-            // Reset poll interval for fast refresh after WS event
             pollIntervalRef.current = 3000;
           }
 
@@ -242,7 +248,7 @@ export function useBinanceChatWebSocket(
       setError(err instanceof Error ? err.message : 'Connection failed');
       setIsConnecting(false);
     }
-  }, []);
+  }, [captureSessionId]);
 
   // Connect on mount, cleanup on unmount
   useEffect(() => {
@@ -258,7 +264,13 @@ export function useBinanceChatWebSocket(
     };
   }, [connect]);
 
-  // ---- Send message via WebSocket (try without sessionId first, then with if available) ----
+  // Reset sessionId when order changes
+  useEffect(() => {
+    sessionIdRef.current = null;
+    setCanSend(false);
+  }, [activeOrderNo]);
+
+  // ---- Send message via WebSocket (requires sessionId from incoming frames) ----
   const sendMessage = useCallback((orderNo: string, content: string) => {
     const tempId = Date.now();
     const optimisticMsg: TrackedMessage = {
@@ -287,25 +299,28 @@ export function useBinanceChatWebSocket(
       return;
     }
 
+    if (!sessionIdRef.current) {
+      markStatus('failed');
+      toast.error('Chat session not ready — waiting for counterparty activity');
+      return;
+    }
+
     try {
-      // Build payload — include sessionId only if we have it
-      const payload: Record<string, any> = {
+      const localId = generateUUID();
+      const payload = {
         content,
+        localId,
         msgType: 'U_TEXT',
         order: { orderNo },
+        sessionId: sessionIdRef.current,
+        sessionType: 'PRIVATE',
         timestamp: Date.now(),
       };
-
-      // Only include sessionId if we actually have one (empty string causes ILLEGAL_PARAM)
-      if (sessionIdRef.current) {
-        payload.sessionId = sessionIdRef.current;
-      }
 
       ws.send(JSON.stringify(payload));
       console.log('📤 WS send payload:', JSON.stringify(payload));
       markStatus('sent');
 
-      // Trigger fast poll to confirm delivery
       pollIntervalRef.current = 2000;
     } catch (err) {
       console.error('WS send error:', err);
@@ -314,5 +329,5 @@ export function useBinanceChatWebSocket(
     }
   }, []);
 
-  return { messages, isConnected, isConnecting, sendMessage, error };
+  return { messages, isConnected, isConnecting, canSend, sendMessage, error };
 }

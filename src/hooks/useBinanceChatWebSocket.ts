@@ -172,7 +172,9 @@ export function useBinanceChatWebSocket(
           console.log('WS message received:', data);
 
           // Handle new chat message — also trigger a fast poll
-          if (data.e === 'chat' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card') {
+          // Binance sends messages with fields like content/orderNo/id but no standard "type" wrapper
+          const isChatMessage = data.e === 'chat' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && data.orderNo && data.id);
+          if (isChatMessage) {
             const msgId = Number(data.id || data.E) || Date.now();
             const newMsg: TrackedMessage = {
               id: msgId,
@@ -301,26 +303,8 @@ export function useBinanceChatWebSocket(
       }
     }
 
-    // Fallback: send via REST API
-    try {
-      const result = await callBinanceAds('sendChatMessage', {
-        orderNo,
-        message: content,
-        chatMessageType: 'text',
-      });
-      const code = result?.data?.code || result?.code;
-      if (code && code !== '000000') {
-        console.error('sendChatMessage REST fallback failed:', result);
-        markFailed();
-      } else {
-        console.log('📤 Message sent via REST fallback:', content);
-        markStatus('sent');
-        pollIntervalRef.current = 2000;
-      }
-    } catch (err) {
-      console.error('Failed to send message (REST fallback):', err);
-      markFailed();
-    }
+    // No REST fallback — Binance C2C chat send endpoint only works via WebSocket
+    markFailed();
   }, []);
 
   return { messages, isConnected, isConnecting, sendMessage, error };

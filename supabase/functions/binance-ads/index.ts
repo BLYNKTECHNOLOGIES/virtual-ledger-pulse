@@ -296,18 +296,21 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST endpoint — sends chat message via REST (no sessionId needed)
-        const sendUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage`;
-        const sendBody = {
+        // POST endpoint — params MUST be in query string, body MUST be empty
+        // Binance C2C chat send routes based on query params, not JSON body
+        const sendParams = new URLSearchParams({
           orderNo: payload.orderNo,
           content: payload.content,
           contentType: payload.contentType || "TEXT",
-        };
-        console.log("sendChatMessage URL (POST):", sendUrl, "body:", JSON.stringify(sendBody));
+        });
+        const sendUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`;
+        console.log("sendChatMessage URL (POST, query params):", sendUrl);
+        const sendHeaders = { ...proxyHeaders };
+        // Remove Content-Type — body is empty
+        delete sendHeaders["Content-Type"];
         const response = await fetch(sendUrl, {
           method: "POST",
-          headers: { ...proxyHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify(sendBody),
+          headers: sendHeaders,
         });
         const text = await response.text();
         console.log("sendChatMessage response:", response.status, text.substring(0, 800));
@@ -360,25 +363,7 @@ serve(async (req) => {
         break;
       }
 
-      case "sendChatMessage": {
-        // POST relay for sending chat messages
-        const sendChatBody = {
-          orderNo: payload.orderNo,
-          message: payload.message,
-          chatMessageType: payload.chatMessageType || "text",
-        };
-        const sendChatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
-        console.log("sendChatMessage URL (POST relay):", sendChatUrl, JSON.stringify(sendChatBody));
-        const response = await fetch(sendChatUrl, {
-          method: "POST",
-          headers: { ...proxyHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify(sendChatBody),
-        });
-        const text = await response.text();
-        console.log("sendChatMessage response:", response.status, text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
-        break;
-      }
+      // Duplicate sendChatMessage case removed — handled above
 
       case "getRiskWarningTips": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/getRiskWarningTips`;

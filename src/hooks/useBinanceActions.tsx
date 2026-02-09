@@ -241,7 +241,7 @@ export function useSendBinanceChatMessage() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ orderNo, message }: { orderNo: string; message: string }) => {
-      return callBinanceAds('sendChatMessage', { orderNo, message, chatMessageType: 'text' });
+      return callBinanceAds('sendChatMessage', { orderNo, content: message, contentType: 'TEXT' });
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['binance-chat-messages', variables.orderNo] });

@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff } from 'lucide-react';
-import { BinanceChatMessage } from '@/hooks/useBinanceActions';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
+import { useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -21,7 +21,8 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const { messages: wsMessages, isConnected, isConnecting, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const restSend = useSendBinanceChatMessage();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -96,13 +97,22 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     }
   }, [allMessages]);
 
-  const handleSend = (messageText?: string) => {
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async (messageText?: string) => {
     const msg = messageText || text.trim();
-    if (!msg) return;
-    
-    // Send via WebSocket
-    wsSendMessage(orderNumber, msg);
+    if (!msg || isSending) return;
     if (!messageText) setText('');
+    setIsSending(true);
+    
+    try {
+      // Send via REST (query string params, no body) — correct Binance C2C format
+      await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
+    } catch (err) {
+      // Error already handled by mutation onError
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleQuickReply = (replyText: string) => {
@@ -218,7 +228,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             size="icon"
             className="h-8 w-8 shrink-0"
             onClick={() => handleSend()}
-            disabled={!text.trim() || !isConnected}
+            disabled={!text.trim() || isSending}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>

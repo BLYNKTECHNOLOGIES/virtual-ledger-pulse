@@ -7,8 +7,15 @@ interface RelayInfo {
   relayToken: string;
 }
 
+type MessageStatus = 'sending' | 'sent' | 'failed';
+
+interface TrackedMessage extends BinanceChatMessage {
+  _status?: MessageStatus;
+  _tempId?: number;
+}
+
 interface UseBinanceChatWebSocketReturn {
-  messages: BinanceChatMessage[];
+  messages: TrackedMessage[];
   isConnected: boolean;
   isConnecting: boolean;
   sendMessage: (orderNo: string, content: string) => void;
@@ -23,10 +30,18 @@ function generateUUID(): string {
   });
 }
 
+/** Safely convert WS event.data to string (handles Blob, ArrayBuffer, string) */
+async function wsDataToString(data: any): Promise<string> {
+  if (typeof data === 'string') return data;
+  if (data instanceof Blob) return await data.text();
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  return String(data);
+}
+
 export function useBinanceChatWebSocket(
   activeOrderNo: string | null
 ): UseBinanceChatWebSocketReturn {
-  const [messages, setMessages] = useState<BinanceChatMessage[]>([]);
+  const [messages, setMessages] = useState<TrackedMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,34 +51,62 @@ export function useBinanceChatWebSocket(
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollIntervalRef = useRef(5000); // Start at 5s
   const maxReconnectAttempts = 5;
 
-  // Fetch chat history via REST on order change
+  // ---- Fetch chat history via REST ----
+  const fetchChatHistory = useCallback(async (orderNo: string) => {
+    try {
+      const result = await callBinanceAds('getChatMessages', {
+        orderNo,
+        page: 1,
+        rows: 50,
+        sort: 'asc',
+      });
+      const list = result?.data?.data || result?.data || result?.list || [];
+      if (Array.isArray(list) && list.length > 0) {
+        setMessages((prev) => {
+          // Merge server messages with any pending optimistic messages
+          const pendingMsgs = prev.filter((m) => m._status === 'sending');
+          const serverIds = new Set(list.map((m: BinanceChatMessage) => m.id));
+          // Remove optimistic messages that now exist on server
+          const remainingPending = pendingMsgs.filter((m) => !serverIds.has(m.id));
+          return [...list, ...remainingPending];
+        });
+        pollIntervalRef.current = 5000; // Reset interval on new data
+        return true; // had data
+      }
+      return false;
+    } catch (err) {
+      console.error('Failed to fetch chat history:', err);
+      return false;
+    }
+  }, []);
+
+  // ---- Polling loop for live updates ----
   useEffect(() => {
     if (!activeOrderNo) return;
 
-    const fetchHistory = async () => {
-      try {
-        const result = await callBinanceAds('getChatMessages', {
-          orderNo: activeOrderNo,
-          page: 1,
-          rows: 50,
-          sort: 'asc',
-        });
-        // Response shape: { data: { code, data: [...messages], ... } }
-        const list = result?.data?.data || result?.data || result?.list || [];
-        if (Array.isArray(list)) {
-          setMessages(list);
-        }
-      } catch (err) {
-        console.error('Failed to fetch chat history:', err);
-      }
+    // Initial fetch
+    fetchChatHistory(activeOrderNo);
+
+    const poll = async () => {
+      await fetchChatHistory(activeOrderNo);
+      // Exponential backoff up to 30s
+      pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
+      pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
     };
 
-    fetchHistory();
-  }, [activeOrderNo]);
+    pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
 
-  // Connect to WebSocket via relay
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      pollIntervalRef.current = 5000;
+    };
+  }, [activeOrderNo, fetchChatHistory]);
+
+  // ---- Connect to WebSocket via relay (for real-time push) ----
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -71,7 +114,6 @@ export function useBinanceChatWebSocket(
     setError(null);
 
     try {
-      // Get credentials + relay info from edge function
       const credResult = await callBinanceAds('getChatCredential');
       const credData = credResult?.data?.data || credResult?.data || credResult;
       const relay: RelayInfo | undefined = credResult?.data?._relay || credResult?._relay;
@@ -85,19 +127,14 @@ export function useBinanceChatWebSocket(
 
       relayInfoRef.current = relay;
 
-      // Build the Binance target URL
       const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
-
-      // Connect through relay instead of directly to Binance
       const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
       console.log('Connecting to Binance Chat via relay...');
 
       const ws = new WebSocket(wsUrl);
 
-      // Timeout if connection doesn't open within 10s
       const connectTimeout = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN) {
-          console.error('WebSocket connection timed out after 10s');
           setError('Connection timed out. Check relay server.');
           setIsConnecting(false);
           ws.close();
@@ -112,7 +149,6 @@ export function useBinanceChatWebSocket(
         setError(null);
         reconnectAttemptsRef.current = 0;
 
-        // Keepalive ping every 30s
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ping' }));
@@ -120,26 +156,25 @@ export function useBinanceChatWebSocket(
         }, 30000);
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
-          const rawData = event.data;
-          // Silently ignore empty or heartbeat frames
-          if (!rawData || rawData === '{}' || rawData === 'pong') return;
-          
+          const rawData = await wsDataToString(event.data);
+
+          // Silently ignore heartbeat / empty / pong frames
+          if (!rawData || rawData.trim() === '{}' || rawData.trim() === '' || rawData === 'pong') return;
+
           const data = JSON.parse(rawData);
-          
+
           // Ignore empty objects (heartbeat frames forwarded by relay)
           if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
-
-          // Handle pong
           if (data.type === 'pong' || data.e === 'pong') return;
 
           console.log('WS message received:', data);
 
-          // Handle new chat message
+          // Handle new chat message — also trigger a fast poll
           if (data.e === 'chat' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card') {
             const msgId = Number(data.id || data.E) || Date.now();
-            const newMsg: BinanceChatMessage = {
+            const newMsg: TrackedMessage = {
               id: msgId,
               type: data.type || data.chatMessageType || 'text',
               content: data.content || data.message || '',
@@ -156,19 +191,20 @@ export function useBinanceChatWebSocket(
               if (exists) return prev;
               return [...prev, newMsg];
             });
+
+            // Reset poll interval for fast refresh after WS event
+            pollIntervalRef.current = 3000;
           }
 
-          // Handle order status updates
           if (data.e === 'orderStatus' || data.type === 'orderStatusUpdate') {
             console.log('Order status update via WS:', data);
           }
-        } catch (err) {
-          console.warn('Failed to parse WS message:', event.data);
+        } catch {
+          // Truly unparseable — ignore silently
         }
       };
 
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
+      ws.onerror = () => {
         setError('WebSocket connection error');
         setIsConnecting(false);
       };
@@ -183,11 +219,9 @@ export function useBinanceChatWebSocket(
           pingIntervalRef.current = null;
         }
 
-        // Reconnect with exponential backoff
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})...`);
           reconnectTimerRef.current = setTimeout(() => connect(), delay);
         } else {
           setError('Max reconnection attempts reached. Please refresh.');
@@ -216,19 +250,32 @@ export function useBinanceChatWebSocket(
     };
   }, [connect]);
 
-  // Send message via WebSocket (primary) with REST fallback
+  // ---- Send message: WS primary, REST fallback, with delivery tracking ----
   const sendMessage = useCallback(async (orderNo: string, content: string) => {
-    // Optimistically add to local messages immediately
-    const optimisticMsg: BinanceChatMessage = {
-      id: Date.now(),
+    const tempId = Date.now();
+    const optimisticMsg: TrackedMessage = {
+      id: tempId,
       type: 'text',
       content,
       message: content,
       createTime: Date.now(),
       self: true,
       fromNickName: 'You',
+      _status: 'sending',
+      _tempId: tempId,
     };
     setMessages((prev) => [...prev, optimisticMsg]);
+
+    const markStatus = (status: MessageStatus) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._tempId === tempId ? { ...m, _status: status } : m))
+      );
+    };
+
+    const markFailed = () => {
+      markStatus('failed');
+      toast.error('Message may not have been delivered');
+    };
 
     const ws = wsRef.current;
 
@@ -244,6 +291,10 @@ export function useBinanceChatWebSocket(
         };
         ws.send(JSON.stringify(messagePayload));
         console.log('📤 Message sent via WebSocket:', content);
+        markStatus('sent');
+
+        // Trigger fast poll to confirm delivery
+        pollIntervalRef.current = 2000;
         return;
       } catch (wsErr) {
         console.warn('WebSocket send failed, falling back to REST:', wsErr);
@@ -260,13 +311,15 @@ export function useBinanceChatWebSocket(
       const code = result?.data?.code || result?.code;
       if (code && code !== '000000') {
         console.error('sendChatMessage REST fallback failed:', result);
-        toast.error('Message may not have been delivered');
+        markFailed();
       } else {
         console.log('📤 Message sent via REST fallback:', content);
+        markStatus('sent');
+        pollIntervalRef.current = 2000;
       }
     } catch (err) {
       console.error('Failed to send message (REST fallback):', err);
-      toast.error('Failed to send message');
+      markFailed();
     }
   }, []);
 

@@ -295,16 +295,22 @@ serve(async (req) => {
         break;
       }
 
-      case "getChatSessionList": {
-        // GET endpoint — returns chat sessions with sessionId for each order
-        const sessUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatSessionList?page=${payload.page || 1}&rows=${payload.rows || 20}`;
-        console.log("getChatSessionList URL (GET):", sessUrl);
-        const response = await fetch(sessUrl, {
-          method: "GET",
-          headers: proxyHeaders,
+      case "sendChatMessage": {
+        // POST endpoint — sends chat message via REST (no sessionId needed)
+        const sendUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage`;
+        const sendBody = {
+          orderNo: payload.orderNo,
+          content: payload.content,
+          contentType: payload.contentType || "TEXT",
+        };
+        console.log("sendChatMessage URL (POST):", sendUrl, "body:", JSON.stringify(sendBody));
+        const response = await fetch(sendUrl, {
+          method: "POST",
+          headers: { ...proxyHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify(sendBody),
         });
         const text = await response.text();
-        console.log("getChatSessionList response:", response.status, text.substring(0, 800));
+        console.log("sendChatMessage response:", response.status, text.substring(0, 800));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

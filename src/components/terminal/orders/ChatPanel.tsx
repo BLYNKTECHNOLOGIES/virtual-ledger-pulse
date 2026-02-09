@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
   const restSend = useSendBinanceChatMessage();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -106,10 +106,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     setIsSending(true);
     
     try {
-      // Send via REST (query string params, no body) — correct Binance C2C format
-      await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
+      if (isConnected) {
+        // Primary: send via WebSocket (reliable, session-based)
+        wsSendMessage(orderNumber, msg);
+      } else {
+        // Fallback: send via REST (may fail due to Binance SAPI limitations)
+        await restSend.mutateAsync({ orderNo: orderNumber, message: msg });
+      }
     } catch (err) {
-      // Error already handled by mutation onError
+      // Error already handled by mutation onError or WS sendMessage
     } finally {
       setIsSending(false);
     }

@@ -295,6 +295,26 @@ serve(async (req) => {
         break;
       }
 
+      case "getChatSessionMessages": {
+        // POST endpoint — returns messages WITH sessionId (needed for WS send)
+        const listUrl = `${BINANCE_PROXY_URL}/api/bapi/c2c/v1/friendly/binance-chat/message/list`;
+        const listBody = {
+          orderNo: payload.orderNo,
+          page: payload.page || 1,
+          rows: payload.rows || 20,
+        };
+        console.log("getChatSessionMessages URL (POST):", listUrl);
+        const response = await fetch(listUrl, {
+          method: "POST",
+          headers: { ...proxyHeaders, "Content-Type": "application/json" },
+          body: JSON.stringify(listBody),
+        });
+        const text = await response.text();
+        console.log("getChatSessionMessages response:", response.status, text.substring(0, 800));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       case "getChatCredential": {
         // GET endpoint for retrieveChatCredential
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatCredential`;

@@ -56,20 +56,24 @@ export function useBinanceChatWebSocket(
   const pollIntervalRef = useRef(5000); // Start at 5s
   const maxReconnectAttempts = 5;
 
-  // ---- Fetch sessionId via the session-aware message list endpoint ----
+  // ---- Fetch sessionId via the chat session list endpoint ----
   const fetchSessionId = useCallback(async (orderNo: string) => {
     if (sessionIdRef.current) return; // Already have it
     try {
-      const result = await callBinanceAds('getChatSessionMessages', {
-        orderNo,
+      const result = await callBinanceAds('getChatSessionList', {
         page: 1,
-        rows: 1,
+        rows: 50,
       });
-      const messages = result?.data?.data?.messages || result?.data?.messages || [];
-      if (Array.isArray(messages) && messages.length > 0 && messages[0].sessionId) {
-        sessionIdRef.current = messages[0].sessionId;
-        console.log('✅ Captured sessionId:', sessionIdRef.current);
+      const sessions = result?.data?.data || result?.data || [];
+      if (Array.isArray(sessions)) {
+        const match = sessions.find((s: any) => s.orderNo === orderNo);
+        if (match?.sessionId) {
+          sessionIdRef.current = match.sessionId;
+          console.log('✅ Captured sessionId from session list:', sessionIdRef.current);
+          return;
+        }
       }
+      console.warn('⚠️ sessionId not found in session list for order:', orderNo);
     } catch (err) {
       console.error('Failed to fetch sessionId:', err);
     }

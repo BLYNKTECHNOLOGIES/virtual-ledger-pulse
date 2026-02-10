@@ -395,12 +395,13 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
 
-      // Payload per Binance doc: same as text but type=image, content=imageUrl
+      // Binance image message payload — include imageUrl field explicitly
       const imgPayload = {
         type: 'image',
         uuid: String(now),
         orderNo,
         content: imageUrl,
+        imageUrl: imageUrl,
         self: true,
         clientType: 'web',
         createTime: now,

@@ -14,10 +14,14 @@ import { useBinanceOrderHistory, computeOrderStats, C2COrderHistoryItem } from '
 export default function TerminalDashboard() {
   const [period, setPeriod] = useState<TimePeriod>('30d');
 
-  const timestamps = getTimestampsForPeriod(period);
+  // Memoize timestamps so the query key stays stable between renders
+  const timestamps = useMemo(() => getTimestampsForPeriod(period), [period]);
+  const stableStart = useMemo(() => timestamps.startTimestamp, [timestamps]);
+  const stableEnd = useMemo(() => timestamps.endTimestamp, [timestamps]);
+
   const { data: orderData, isLoading: ordersLoading, refetch, isFetching } = useBinanceOrderHistory({
-    startTimestamp: timestamps.startTimestamp,
-    endTimestamp: timestamps.endTimestamp,
+    startTimestamp: stableStart,
+    endTimestamp: stableEnd,
     rows: 100,
   });
 

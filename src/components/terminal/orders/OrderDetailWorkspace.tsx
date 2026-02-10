@@ -175,22 +175,12 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
               <StatCard
                 label="All Trades"
                 value={`${stats.completedOrderNum}`}
-                subValues={
-                  (stats.buyCompletedOrderNum !== undefined || stats.sellCompletedOrderNum !== undefined)
-                    ? `Buy ${stats.buyCompletedOrderNum ?? 0} | Sell ${stats.sellCompletedOrderNum ?? 0}`
-                    : undefined
-                }
               />
             )}
             {stats.completedOrderNumOfLatest30day !== undefined && (
               <StatCard
                 label="30d Trades"
                 value={`${stats.completedOrderNumOfLatest30day}`}
-                subValues={
-                  (stats.buyCompletedOrderNumOfLatest30day !== undefined || stats.sellCompletedOrderNumOfLatest30day !== undefined)
-                    ? `Buy ${stats.buyCompletedOrderNumOfLatest30day ?? 0} | Sell ${stats.sellCompletedOrderNumOfLatest30day ?? 0}`
-                    : undefined
-                }
               />
             )}
             {stats.finishRateLatest30Day !== undefined && (

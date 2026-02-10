@@ -20,8 +20,9 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
 
-  // Extract payment time limit from live detail (in minutes)
-  const payTimeLimit = liveDetail?.payTimeLimit || liveDetail?.paymentTimeLimit;
+  // Use Binance's exact expectedPayTime for countdown, or fall back to payTimeLimit calculation
+  const expectedPayTimeMs = liveDetail?.expectedPayTime;
+  const payTimeLimit = liveDetail?.confirmPayedExpireMinute || liveDetail?.payTimeLimit || liveDetail?.paymentTimeLimit;
   const createTimeMs = order.binance_create_time
     ? new Date(order.binance_create_time).getTime()
     : null;
@@ -64,13 +65,18 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
             : '—'}
         />
 
-        {/* Countdown timer for active orders — uses payTimeLimit from Binance order detail */}
-        {createTimeMs && !isTerminal && payTimeLimit && (
-          <CountdownTimer createTime={createTimeMs} payTimeLimitMinutes={payTimeLimit} />
+        {/* Countdown timer for active orders — uses expectedPayTime or payTimeLimit from Binance */}
+        {!isTerminal && expectedPayTimeMs && (
+          <CountdownTimer expiryTime={expectedPayTimeMs} payTimeLimitMinutes={payTimeLimit} />
         )}
 
-        {/* Fallback: elapsed timer if no payTimeLimit available */}
-        {createTimeMs && !isTerminal && !payTimeLimit && (
+        {/* Fallback: countdown from payTimeLimit if no expectedPayTime */}
+        {!isTerminal && !expectedPayTimeMs && createTimeMs && payTimeLimit && (
+          <CountdownTimer expiryTime={createTimeMs + payTimeLimit * 60 * 1000} payTimeLimitMinutes={payTimeLimit} />
+        )}
+
+        {/* Fallback: elapsed timer if nothing available */}
+        {createTimeMs && !isTerminal && !expectedPayTimeMs && !payTimeLimit && (
           <ElapsedTimer createTime={createTimeMs} />
         )}
 
@@ -116,12 +122,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
 }
 
 /** Countdown timer based on Binance payTimeLimit */
-function CountdownTimer({ createTime, payTimeLimitMinutes }: { createTime: number; payTimeLimitMinutes: number }) {
+function CountdownTimer({ expiryTime, payTimeLimitMinutes }: { expiryTime: number; payTimeLimitMinutes?: number }) {
   const [remaining, setRemaining] = useState('');
   const [isExpired, setIsExpired] = useState(false);
   const [urgency, setUrgency] = useState<'normal' | 'warning' | 'critical'>('normal');
-
-  const expiryTime = createTime + payTimeLimitMinutes * 60 * 1000;
 
   useEffect(() => {
     const update = () => {
@@ -163,7 +167,7 @@ function CountdownTimer({ createTime, payTimeLimitMinutes }: { createTime: numbe
       )}
       <div className="min-w-0">
         <p className="text-[10px] text-muted-foreground">
-          {isExpired ? 'Payment Window' : `Time Remaining (${payTimeLimitMinutes}min window)`}
+          {isExpired ? 'Payment Window' : `Time Remaining${payTimeLimitMinutes ? ` (${payTimeLimitMinutes}min window)` : ''}`}
         </p>
         <p className={`text-xs font-medium tabular-nums ${colorClass}`}>{remaining}</p>
       </div>

@@ -272,9 +272,9 @@ export default function TerminalOrders() {
       <div className="flex flex-wrap items-center gap-3">
         <Tabs value={tradeFilter} onValueChange={setTradeFilter}>
           <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All</TabsTrigger>
-            <TabsTrigger value="BUY" className="text-[11px] h-6 px-3">Buy</TabsTrigger>
-            <TabsTrigger value="SELL" className="text-[11px] h-6 px-3">Sell</TabsTrigger>
+            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All ({rawOrders.length})</TabsTrigger>
+            <TabsTrigger value="BUY" className="text-[11px] h-6 px-3">Buy ({rawOrders.filter(o => o.tradeType === 'BUY').length})</TabsTrigger>
+            <TabsTrigger value="SELL" className="text-[11px] h-6 px-3">Sell ({rawOrders.filter(o => o.tradeType === 'SELL').length})</TabsTrigger>
           </TabsList>
         </Tabs>
 

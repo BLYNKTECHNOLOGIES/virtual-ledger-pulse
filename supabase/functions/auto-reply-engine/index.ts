@@ -52,8 +52,8 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
   const status = (order.orderStatus || "").toUpperCase();
 
-  // order_received: any active order (not completed/cancelled)
-  if (!status.includes("COMPLETED") && !status.includes("CANCEL") && !status.includes("APPEAL")) {
+  // order_received: any active order (not completed/cancelled/appealed)
+  if (!status.includes("COMPLETED") && !status.includes("CANCEL") && !status.includes("APPEAL") && !status.includes("EXPIRED")) {
     events.push("order_received");
   }
 
@@ -67,10 +67,25 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
     events.push("order_completed");
   }
 
+  // order_cancelled
+  if (status.includes("CANCEL")) {
+    events.push("order_cancelled");
+  }
+
+  // order_appealed
+  if (status.includes("APPEAL")) {
+    events.push("order_appealed");
+  }
+
   // timer_breach: order older than 15 minutes and still active
   const ageMinutes = (Date.now() - order.createTime) / 60000;
   if (ageMinutes > 15 && !status.includes("COMPLETED") && !status.includes("CANCEL")) {
     events.push("timer_breach");
+  }
+
+  // payment_pending: order older than 5 minutes, no payment yet (status 1 or similar)
+  if (ageMinutes > 5 && (status === "1" || status === "" || status.includes("PENDING")) && !status.includes("PAID")) {
+    events.push("payment_pending");
   }
 
   return events;
@@ -183,17 +198,17 @@ serve(async (req) => {
           const message = renderTemplate(rule.message_template, order);
 
           try {
-            // Send via Binance Chat API
+            // Send via Binance Chat API — use same route as binance-ads sendChatMessage
+            const sendParams = new URLSearchParams({
+              orderNo: order.orderNumber,
+              content: message,
+              contentType: "TEXT",
+            });
             const sendRes = await fetch(
-              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`,
+              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`,
               {
                 method: "POST",
                 headers: proxyHeaders,
-                body: JSON.stringify({
-                  orderNo: order.orderNumber,
-                  message,
-                  chatMessageType: "text",
-                }),
               }
             );
             const sendResult = await sendRes.json();

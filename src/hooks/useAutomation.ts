@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 export interface AutoReplyRule {
   id: string;
   name: string;
-  trigger_event: 'order_received' | 'payment_marked' | 'order_completed' | 'timer_breach';
+  trigger_event: 'order_received' | 'payment_marked' | 'order_completed' | 'timer_breach' | 'order_cancelled' | 'order_appealed' | 'payment_pending';
   trade_type: 'BUY' | 'SELL' | null;
   message_template: string;
   delay_seconds: number;
@@ -44,8 +44,11 @@ export interface MerchantSchedule {
 const TRIGGER_LABELS: Record<string, string> = {
   order_received: 'Order Received',
   payment_marked: 'Payment Marked',
+  payment_pending: 'Payment Pending (5min+)',
   order_completed: 'Order Completed',
-  timer_breach: 'Timer Breach',
+  order_cancelled: 'Order Cancelled',
+  order_appealed: 'Appeal Raised',
+  timer_breach: 'Timer Breach (15min+)',
 };
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

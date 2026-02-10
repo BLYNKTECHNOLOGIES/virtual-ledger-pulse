@@ -1,11 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const BINANCE_BASE = "https://api.binance.com";
 
 async function fetchWithRetry(
   url: string,
@@ -65,46 +66,56 @@ serve(async (req) => {
       "clientType": "web",
     };
 
+    // Helper: call proxy with params as URL query string (proxy passes these through for SAPI)
+    async function proxyCall(path: string, params: Record<string, string> = {}): Promise<any> {
+      const qs = new URLSearchParams(params).toString();
+      const url = qs
+        ? `${BINANCE_PROXY_URL}/api${path}?${qs}`
+        : `${BINANCE_PROXY_URL}/api${path}`;
+      console.log(`proxyCall POST ${path} params:`, Object.keys(params));
+      const res = await fetchWithRetry(url, {
+        method: "POST",
+        headers: proxyHeaders,
+      });
+      const text = await res.text();
+      console.log(`proxyCall response ${res.status}:`, text.substring(0, 500));
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { error: text };
+      }
+    }
+
     let result: any;
 
     switch (action) {
       // ===== GET ALL BALANCES (Funding + Spot) =====
       case "getBalances": {
-        // Fetch funding wallet balances
-        const fundingUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/asset/get-funding-asset`;
-        const fundingRes = await fetchWithRetry(fundingUrl, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify({}),
-        });
-        const fundingText = await fundingRes.text();
-        console.log("Funding response status:", fundingRes.status);
-        let fundingData: any[] = [];
-        try {
-          fundingData = JSON.parse(fundingText);
-          if (!Array.isArray(fundingData)) fundingData = [];
-        } catch { fundingData = []; }
+        // Funding wallet (SAPI - no params needed)
+        const fundingData = await proxyCall("/sapi/v1/asset/get-funding-asset");
+        const fundingList = Array.isArray(fundingData) ? fundingData : [];
 
-        // Fetch spot account balances
-        const spotUrl = `${BINANCE_PROXY_URL}/api/api/v3/account`;
-        const spotRes = await fetchWithRetry(spotUrl, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify({}),
-        });
-        const spotText = await spotRes.text();
-        console.log("Spot response status:", spotRes.status);
+        // Spot account (GET via proxy)
         let spotData: any = {};
         try {
+          const spotUrl = `${BINANCE_PROXY_URL}/api/api/v3/account`;
+          const spotRes = await fetchWithRetry(spotUrl, {
+            method: "GET",
+            headers: proxyHeaders,
+          });
+          const spotText = await spotRes.text();
+          console.log("Spot response status:", spotRes.status);
           spotData = JSON.parse(spotText);
-        } catch { spotData = {}; }
+        } catch (e) {
+          console.error("Spot account error:", e);
+        }
 
         const spotBalances: any[] = spotData?.balances || [];
 
-        // Merge balances by asset
-        const assetMap = new Map<string, { asset: string; funding_free: number; funding_locked: number; funding_freeze: number; spot_free: number; spot_locked: number; }>();
+        // Merge balances
+        const assetMap = new Map<string, { asset: string; funding_free: number; funding_locked: number; funding_freeze: number; spot_free: number; spot_locked: number }>();
 
-        for (const item of fundingData) {
+        for (const item of fundingList) {
           const asset = item.asset;
           const existing = assetMap.get(asset) || { asset, funding_free: 0, funding_locked: 0, funding_freeze: 0, spot_free: 0, spot_locked: 0 };
           existing.funding_free = parseFloat(item.free || "0");
@@ -117,14 +128,13 @@ serve(async (req) => {
           const asset = item.asset;
           const free = parseFloat(item.free || "0");
           const locked = parseFloat(item.locked || "0");
-          if (free === 0 && locked === 0) continue; // Skip zero spot balances
+          if (free === 0 && locked === 0) continue;
           const existing = assetMap.get(asset) || { asset, funding_free: 0, funding_locked: 0, funding_freeze: 0, spot_free: 0, spot_locked: 0 };
           existing.spot_free = free;
           existing.spot_locked = locked;
           assetMap.set(asset, existing);
         }
 
-        // Convert to array with totals
         const balances = Array.from(assetMap.values())
           .map((b) => ({
             ...b,
@@ -135,145 +145,133 @@ serve(async (req) => {
           .filter((b) => b.total_balance > 0)
           .sort((a, b) => b.total_balance - a.total_balance);
 
-        result = { balances, raw_funding: fundingData, raw_spot: spotBalances };
+        result = { balances, raw_funding: fundingList, raw_spot: spotBalances };
         break;
       }
 
-      // ===== INTERNAL TRANSFER (Funding <-> Spot) =====
+      // ===== INTERNAL TRANSFER =====
       case "transfer": {
         const { asset, amount, type } = payload;
-        // type: FUNDING_MAIN (funding→spot) or MAIN_FUNDING (spot→funding)
-        if (!asset || !amount || !type) {
-          throw new Error("Missing required fields: asset, amount, type");
-        }
-        const transferUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/asset/transfer`;
-        const transferRes = await fetchWithRetry(transferUrl, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify({ type, asset, amount: String(amount) }),
-        });
-        const transferText = await transferRes.text();
-        console.log("Transfer response:", transferRes.status, transferText);
-        result = JSON.parse(transferText);
+        if (!asset || !amount || !type) throw new Error("Missing required fields: asset, amount, type");
+        result = await proxyCall("/sapi/v1/asset/transfer", { type, asset, amount: String(amount) });
         break;
       }
 
-      // ===== SPOT MARKET ORDER =====
-      case "spotOrder": {
-        const { symbol, side, quantity, quoteOrderQty } = payload;
-        if (!symbol || !side) {
-          throw new Error("Missing required fields: symbol, side");
-        }
-        
-        const orderBody: any = {
-          symbol,
-          side, // BUY or SELL
-          type: "MARKET",
-        };
-        
-        // For BUY with quoteOrderQty (spend X USDT), for SELL with quantity
-        if (quoteOrderQty) {
-          orderBody.quoteOrderQty = String(quoteOrderQty);
-        } else if (quantity) {
-          orderBody.quantity = String(quantity);
-        } else {
-          throw new Error("Either quantity or quoteOrderQty must be provided");
-        }
-
-        const orderUrl = `${BINANCE_PROXY_URL}/api/api/v3/order`;
-        const orderRes = await fetchWithRetry(orderUrl, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify(orderBody),
-        });
-        const orderText = await orderRes.text();
-        console.log("Spot order response:", orderRes.status, orderText);
-        result = JSON.parse(orderText);
-        break;
-      }
-
-      // ===== AUTO-TRANSFER + SPOT ORDER (seamless) =====
+      // ===== TRADE (Convert API via proxy) =====
+      case "spotOrder":
       case "executeTradeWithTransfer": {
         const { symbol, side, quantity, quoteOrderQty, transferAsset } = payload;
-        
-        // Determine which asset needs to be in spot wallet
-        // For BUY BTCUSDT: need USDT in spot. For SELL BTCUSDT: need BTC in spot.
-        const assetToTransfer = transferAsset;
-        
-        if (!assetToTransfer) {
-          throw new Error("transferAsset is required");
-        }
 
-        // Step 1: Check funding wallet for this asset
-        const fundCheckUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/asset/get-funding-asset`;
-        const fundCheckRes = await fetchWithRetry(fundCheckUrl, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify({ asset: assetToTransfer }),
-        });
-        const fundCheckData = JSON.parse(await fundCheckRes.text());
-        const fundingBalance = Array.isArray(fundCheckData) 
-          ? fundCheckData.find((f: any) => f.asset === assetToTransfer)
-          : null;
-        
+        // Parse pair
+        const knownQuotes = ["USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB"];
+        let base = "", quote = "";
+        for (const q of knownQuotes) {
+          if (symbol.endsWith(q)) { quote = q; base = symbol.slice(0, -q.length); break; }
+        }
+        if (!base || !quote) throw new Error(`Cannot parse pair: ${symbol}`);
+
+        let fromAsset: string, toAsset: string, fromAmount: string;
+        if (side === "BUY") {
+          fromAsset = quote; toAsset = base;
+          fromAmount = quoteOrderQty || quantity;
+        } else {
+          fromAsset = base; toAsset = quote;
+          fromAmount = quantity || quoteOrderQty;
+        }
+        if (!fromAmount) throw new Error("Amount is required");
+
+        // Step 1: Auto-transfer from Funding→Spot
         let transferResult = null;
-        const fundingFree = parseFloat(fundingBalance?.free || "0");
-        
-        if (fundingFree > 0) {
-          // Transfer all available from funding to spot
-          const trUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/asset/transfer`;
-          const trRes = await fetchWithRetry(trUrl, {
-            method: "POST",
-            headers: proxyHeaders,
-            body: JSON.stringify({
+        let fundingTransferred = false;
+        const assetToCheck = transferAsset || fromAsset;
+
+        try {
+          const fundCheckData = await proxyCall("/sapi/v1/asset/get-funding-asset", { asset: assetToCheck });
+          const fundingBalance = Array.isArray(fundCheckData)
+            ? fundCheckData.find((f: any) => f.asset === assetToCheck)
+            : null;
+          const fundingFree = parseFloat(fundingBalance?.free || "0");
+
+          if (fundingFree > 0) {
+            transferResult = await proxyCall("/sapi/v1/asset/transfer", {
               type: "FUNDING_MAIN",
-              asset: assetToTransfer,
+              asset: assetToCheck,
               amount: String(fundingFree),
-            }),
-          });
-          transferResult = JSON.parse(await trRes.text());
-          console.log("Auto-transfer result:", JSON.stringify(transferResult));
-          
-          // Small delay to let balance settle
-          await new Promise((r) => setTimeout(r, 500));
+            });
+            console.log("Auto-transfer result:", JSON.stringify(transferResult));
+            fundingTransferred = true;
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        } catch (e) {
+          console.error("Transfer error:", e);
         }
 
-        // Step 2: Execute the spot market order
-        const orderBody2: any = {
-          symbol,
-          side,
-          type: "MARKET",
-        };
-        if (quoteOrderQty) {
-          orderBody2.quoteOrderQty = String(quoteOrderQty);
-        } else if (quantity) {
-          orderBody2.quantity = String(quantity);
-        }
-
-        const orderUrl2 = `${BINANCE_PROXY_URL}/api/api/v3/order`;
-        const orderRes2 = await fetchWithRetry(orderUrl2, {
-          method: "POST",
-          headers: proxyHeaders,
-          body: JSON.stringify(orderBody2),
+        // Step 2: Get Convert quote (params as query string)
+        console.log(`Convert: fromAsset=${fromAsset}, toAsset=${toAsset}, fromAmount=${fromAmount}`);
+        const quoteData = await proxyCall("/sapi/v1/convert/getQuote", {
+          fromAsset,
+          toAsset,
+          fromAmount: String(fromAmount),
+          walletType: "SPOT",
         });
-        const orderResult = JSON.parse(await orderRes2.text());
-        console.log("Trade result:", JSON.stringify(orderResult));
+
+        if (quoteData?.code && quoteData.code < 0) {
+          throw new Error(quoteData.msg || `Convert quote failed: ${quoteData.code}`);
+        }
+        if (!quoteData?.quoteId) {
+          throw new Error(`Convert quote failed: ${JSON.stringify(quoteData)}`);
+        }
+
+        // Step 3: Accept the quote
+        const acceptData = await proxyCall("/sapi/v1/convert/acceptQuote", {
+          quoteId: quoteData.quoteId,
+        });
+
+        if (acceptData?.code && acceptData.code < 0) {
+          throw new Error(acceptData.msg || `Convert accept failed: ${acceptData.code}`);
+        }
 
         result = {
           transfer: transferResult,
-          order: orderResult,
-          fundingTransferred: fundingFree > 0,
+          order: {
+            orderId: acceptData?.orderId || quoteData?.quoteId,
+            status: acceptData?.orderStatus || "PROCESS",
+            executedQty: quoteData?.toAmount || "0",
+            cummulativeQuoteQty: fromAmount,
+            symbol, side, fromAsset, toAsset,
+            fromAmount: String(fromAmount),
+            toAmount: quoteData?.toAmount,
+            ratio: quoteData?.ratio,
+            inverseRatio: quoteData?.inverseRatio,
+          },
+          fundingTransferred,
+          method: "CONVERT",
         };
         break;
       }
 
-      // ===== GET SPOT TICKER PRICE =====
+      // ===== SPOT ORDER via proxy query params (api/v3) =====
+      case "spotOrderDirect": {
+        const { symbol, side, quantity, quoteOrderQty } = payload;
+        if (!symbol || !side) throw new Error("Missing: symbol, side");
+        const params: Record<string, string> = { symbol, side, type: "MARKET" };
+        if (quoteOrderQty) params.quoteOrderQty = String(quoteOrderQty);
+        else if (quantity) params.quantity = String(quantity);
+        else throw new Error("Either quantity or quoteOrderQty required");
+
+        const qs = new URLSearchParams(params).toString();
+        const url = `${BINANCE_PROXY_URL}/api/api/v3/order?${qs}`;
+        const res = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders });
+        result = JSON.parse(await res.text());
+        break;
+      }
+
+      // ===== TICKER PRICE (public) =====
       case "getTickerPrice": {
         const { symbol } = payload;
-        // Public endpoint - call Binance directly (no auth needed)
         const tickerUrl = symbol
-          ? `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
-          : `https://api.binance.com/api/v3/ticker/price`;
+          ? `${BINANCE_BASE}/api/v3/ticker/price?symbol=${symbol}`
+          : `${BINANCE_BASE}/api/v3/ticker/price`;
         const tickerRes = await fetchWithRetry(tickerUrl, {
           method: "GET",
           headers: { "Content-Type": "application/json" },

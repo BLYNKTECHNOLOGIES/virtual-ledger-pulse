@@ -148,16 +148,17 @@ export function useExecuteTrade() {
         throw new Error(errMsg);
       }
 
-      // 3. Update trade log with results
+      // 3. Update trade log with results (handles both spot and convert responses)
       if (tradeId) {
-        const executedQty = parseFloat(order?.executedQty || "0");
-        const cummQuoteQty = parseFloat(order?.cummulativeQuoteQty || "0");
-        const avgPrice = executedQty > 0 ? cummQuoteQty / executedQty : 0;
+        const executedQty = parseFloat(order?.executedQty || order?.toAmount || "0");
+        const cummQuoteQty = parseFloat(order?.cummulativeQuoteQty || order?.fromAmount || "0");
+        const avgPrice = order?.ratio ? parseFloat(order.ratio) : (executedQty > 0 ? cummQuoteQty / executedQty : 0);
+        const orderStatus = order?.status || order?.orderStatus || "FILLED";
 
         await supabase
           .from("spot_trade_history")
           .update({
-            status: order?.status === "FILLED" ? "FILLED" : "PARTIAL",
+            status: orderStatus === "FILLED" || orderStatus === "SUCCESS" || orderStatus === "ACCEPT_SUCCESS" ? "FILLED" : "PARTIAL",
             binance_order_id: String(order?.orderId || ""),
             executed_price: avgPrice,
             quantity: executedQty,

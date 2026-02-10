@@ -495,13 +495,13 @@ serve(async (req) => {
       }
 
       case "confirmOrderVerified": {
-        // POST /sapi/v1/c2c/orderMatch/confirmOrderVerified
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/confirmOrderVerified`;
+        // POST /sapi/v1/c2c/orderMatch/verifiedAdditionalKyc (API doc #30)
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/verifiedAdditionalKyc`;
         const body = { orderNumber: payload.orderNumber };
-        console.log("confirmOrderVerified body:", JSON.stringify(body));
+        console.log("verifiedAdditionalKyc body:", JSON.stringify(body));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
-        console.log("confirmOrderVerified response:", response.status, text.substring(0, 500));
+        console.log("verifiedAdditionalKyc response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

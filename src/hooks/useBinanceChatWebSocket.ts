@@ -155,11 +155,9 @@ export function useBinanceChatWebSocket(
         setError(null);
         reconnectAttemptsRef.current = 0;
 
-        pingIntervalRef.current = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, 30000);
+        // Use WebSocket protocol-level ping instead of text frame
+        // The relay already handles WS pings/pongs natively
+        // No manual ping needed - relay.js bridges protocol pings
       };
 
       ws.onmessage = async (event) => {
@@ -297,16 +295,12 @@ export function useBinanceChatWebSocket(
     }
 
     try {
-      // Binance official send format (from Binance support docs PDF)
+      // Minimal payload - only fields from Binance docs that are essential
       const payload = {
         type: 'text',
         uuid: String(Date.now()),
         orderNo,
         content,
-        self: true,
-        clientType: 'web',
-        createTime: Date.now(),
-        sendStatus: 0,
       };
 
       ws.send(JSON.stringify(payload));

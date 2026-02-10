@@ -297,7 +297,7 @@ export function useBinanceChatWebSocket(
     }
 
     try {
-      // Binance official send format (from Binance support docs)
+      // Binance official send format (from Binance support docs PDF)
       const payload = {
         type: 'text',
         uuid: String(Date.now()),
@@ -313,13 +313,21 @@ export function useBinanceChatWebSocket(
       console.log('📤 WS send payload:', JSON.stringify(payload));
       markStatus('sent');
 
+      // Immediately poll to verify delivery after 2s
       pollIntervalRef.current = 2000;
+      setTimeout(() => {
+        fetchChatHistory(orderNo).then((found) => {
+          if (found) {
+            console.log('✅ Post-send poll: chat history refreshed');
+          }
+        });
+      }, 2000);
     } catch (err) {
       console.error('WS send error:', err);
       markStatus('failed');
       toast.error('Message may not have been delivered');
     }
-  }, []);
+  }, [fetchChatHistory]);
 
   return { messages, isConnected, isConnecting, sendMessage, error };
 }

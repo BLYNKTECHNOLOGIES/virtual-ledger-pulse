@@ -57,6 +57,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       // Step 2: Upload the image to the pre-signed URL (PUT)
       const uploadResponse = await fetch(preSignedUrl, {
         method: 'PUT',
+        headers: { 'Content-Type': file.type || 'image/jpeg' },
         body: file,
       });
 

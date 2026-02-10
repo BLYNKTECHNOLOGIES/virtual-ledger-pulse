@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
   { title: 'Ads Manager', url: '/terminal/ads', icon: Megaphone, requiredPermission: 'terminal_ads_view' },
   { title: 'Orders', url: '/terminal/orders', icon: ShoppingCart, showActiveCount: true, requiredPermission: 'terminal_orders_view' },
   { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_automation_view' },
-  { title: 'Analytics', url: '/terminal/analytics', icon: Activity, badge: 'Soon', requiredPermission: 'terminal_analytics_view' },
+  { title: 'Analytics', url: '/terminal/analytics', icon: Activity, requiredPermission: 'terminal_analytics_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon', requiredPermission: 'terminal_settings_view' },
 ];

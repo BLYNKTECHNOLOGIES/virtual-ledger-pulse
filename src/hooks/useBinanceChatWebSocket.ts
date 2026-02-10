@@ -75,6 +75,36 @@ export function useBinanceChatWebSocket(
     }
   }, []);
 
+  // ---- Pre-fetch groupId for an order (so we can send before receiving) ----
+  const fetchGroupId = useCallback(async (orderNo: string) => {
+    if (groupIdMapRef.current.has(orderNo)) return; // Already have it
+    try {
+      console.log('🔍 Pre-fetching groupId for order:', orderNo);
+      const result = await callBinanceAds('getChatGroupId', { orderNo });
+      const data = result?.data?.data || result?.data || result;
+      // Try to extract groupId from response
+      const gid = data?.groupId || data?.chatGroupId;
+      if (gid) {
+        groupIdMapRef.current.set(orderNo, gid);
+        console.log('✅ Pre-fetched groupId:', gid, 'for order:', orderNo);
+      } else {
+        // Try from group list if returned as array
+        const groups = data?.groups || data?.list || (Array.isArray(data) ? data : []);
+        for (const g of groups) {
+          const id = g?.groupId || g?.chatGroupId;
+          const topic = g?.topicId || g?.orderNo;
+          if (id && (!topic || topic === orderNo)) {
+            groupIdMapRef.current.set(orderNo, id);
+            console.log('✅ Pre-fetched groupId from list:', id, 'for order:', orderNo);
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not pre-fetch groupId:', err);
+    }
+  }, []);
+
   // ---- Fetch chat history via REST ----
   const fetchChatHistory = useCallback(async (orderNo: string) => {
     try {
@@ -121,6 +151,8 @@ export function useBinanceChatWebSocket(
   useEffect(() => {
     if (!activeOrderNo) return;
 
+    // Pre-fetch groupId so we can send messages even before receiving any
+    fetchGroupId(activeOrderNo);
     fetchChatHistory(activeOrderNo);
 
     const poll = async () => {
@@ -135,7 +167,7 @@ export function useBinanceChatWebSocket(
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
       pollIntervalRef.current = 5000;
     };
-  }, [activeOrderNo, fetchChatHistory]);
+  }, [activeOrderNo, fetchChatHistory, fetchGroupId]);
 
   // ---- Connect to WebSocket via relay (for real-time push) ----
   const connect = useCallback(async () => {

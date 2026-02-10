@@ -94,32 +94,45 @@ export default function TerminalOrders() {
   // Only show loading if BOTH sources are still loading
   const isLoading = activeLoading && historyLoading;
 
-  // Extract raw orders array — prefer active orders, fallback to history
+  // Merge active orders + history orders, deduplicating by orderNumber
   const rawOrders: any[] = useMemo(() => {
+    const orderMap = new Map<string, any>();
+
+    // Active orders first (they have richer data like chatUnreadCount)
     const d = activeOrdersData?.data || activeOrdersData;
-    if (Array.isArray(d) && d.length > 0) return d;
-    // Fallback: use order history data when active orders endpoint fails
-    if (Array.isArray(historyOrders) && historyOrders.length > 0) {
-      return historyOrders.map((o: any) => ({
-        orderNumber: o.orderNumber,
-        advNo: o.advNo,
-        tradeType: o.tradeType,
-        asset: o.asset || 'USDT',
-        fiat: o.fiat || o.fiatUnit || 'INR',
-        amount: o.amount,
-        totalPrice: o.totalPrice,
-        unitPrice: o.unitPrice,
-        commission: o.commission,
-        orderStatus: o.orderStatus,
-        createTime: o.createTime,
-        payMethodName: o.payMethodName,
-        counterPartNickName: o.counterPartNickName,
-        buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
-        sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
-        additionalKycVerify: o.additionalKycVerify ?? 0,
-      }));
+    const activeList = Array.isArray(d) ? d : [];
+    for (const o of activeList) {
+      if (o.orderNumber) orderMap.set(o.orderNumber, o);
     }
-    return [];
+
+    // Then fill in from history (won't overwrite active orders)
+    if (Array.isArray(historyOrders)) {
+      for (const o of historyOrders as any[]) {
+        if (o.orderNumber && !orderMap.has(o.orderNumber)) {
+          orderMap.set(o.orderNumber, {
+            orderNumber: o.orderNumber,
+            advNo: o.advNo,
+            tradeType: o.tradeType,
+            asset: o.asset || 'USDT',
+            fiat: o.fiat || o.fiatUnit || 'INR',
+            amount: o.amount,
+            totalPrice: o.totalPrice,
+            unitPrice: o.unitPrice,
+            commission: o.commission,
+            orderStatus: o.orderStatus,
+            createTime: o.createTime,
+            payMethodName: o.payMethodName,
+            counterPartNickName: o.counterPartNickName,
+            buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
+            sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
+            additionalKycVerify: o.additionalKycVerify ?? 0,
+          });
+        }
+      }
+    }
+
+    // Sort by createTime descending
+    return Array.from(orderMap.values()).sort((a, b) => (b.createTime || 0) - (a.createTime || 0));
   }, [activeOrdersData, historyOrders]);
 
   // Build a map of order history statuses for enrichment

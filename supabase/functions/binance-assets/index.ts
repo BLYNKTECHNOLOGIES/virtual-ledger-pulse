@@ -157,95 +157,77 @@ serve(async (req) => {
         break;
       }
 
-      // ===== TRADE (Convert API via proxy) =====
-      case "spotOrder":
+      // ===== SPOT MARKET ORDER =====
+      case "spotOrder": {
+        const { symbol, side, quantity, quoteOrderQty } = payload;
+        if (!symbol || !side) throw new Error("Missing: symbol, side");
+        const params: Record<string, string> = { symbol, side, type: "MARKET" };
+        if (quoteOrderQty) params.quoteOrderQty = String(quoteOrderQty);
+        else if (quantity) params.quantity = String(quantity);
+        else throw new Error("Either quantity or quoteOrderQty required");
+
+        const qs2 = new URLSearchParams(params).toString();
+        const url2 = `${BINANCE_PROXY_URL}/api/api/v3/order?${qs2}`;
+        const res2 = await fetchWithRetry(url2, { method: "POST", headers: proxyHeaders });
+        result = JSON.parse(await res2.text());
+        break;
+      }
+
+      // ===== AUTO-TRANSFER + SPOT ORDER =====
       case "executeTradeWithTransfer": {
         const { symbol, side, quantity, quoteOrderQty, transferAsset } = payload;
 
-        // Parse pair
-        const knownQuotes = ["USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB"];
-        let base = "", quote = "";
-        for (const q of knownQuotes) {
-          if (symbol.endsWith(q)) { quote = q; base = symbol.slice(0, -q.length); break; }
-        }
-        if (!base || !quote) throw new Error(`Cannot parse pair: ${symbol}`);
-
-        let fromAsset: string, toAsset: string, fromAmount: string;
-        if (side === "BUY") {
-          fromAsset = quote; toAsset = base;
-          fromAmount = quoteOrderQty || quantity;
-        } else {
-          fromAsset = base; toAsset = quote;
-          fromAmount = quantity || quoteOrderQty;
-        }
-        if (!fromAmount) throw new Error("Amount is required");
-
-        // Step 1: Auto-transfer from Funding→Spot
+        // Step 1: Auto-transfer from Funding→Spot if needed
         let transferResult = null;
         let fundingTransferred = false;
-        const assetToCheck = transferAsset || fromAsset;
+        const assetToCheck = transferAsset;
 
-        try {
-          const fundCheckData = await proxyCall("/sapi/v1/asset/get-funding-asset", { asset: assetToCheck });
-          const fundingBalance = Array.isArray(fundCheckData)
-            ? fundCheckData.find((f: any) => f.asset === assetToCheck)
-            : null;
-          const fundingFree = parseFloat(fundingBalance?.free || "0");
+        if (assetToCheck) {
+          try {
+            const fundCheckData = await proxyCall("/sapi/v1/asset/get-funding-asset", { asset: assetToCheck });
+            const fundingBalance = Array.isArray(fundCheckData)
+              ? fundCheckData.find((f: any) => f.asset === assetToCheck)
+              : null;
+            const fundingFree = parseFloat(fundingBalance?.free || "0");
 
-          if (fundingFree > 0) {
-            transferResult = await proxyCall("/sapi/v1/asset/transfer", {
-              type: "FUNDING_MAIN",
-              asset: assetToCheck,
-              amount: String(fundingFree),
-            });
-            console.log("Auto-transfer result:", JSON.stringify(transferResult));
-            fundingTransferred = true;
-            await new Promise((r) => setTimeout(r, 500));
+            if (fundingFree > 0) {
+              transferResult = await proxyCall("/sapi/v1/asset/transfer", {
+                type: "FUNDING_MAIN",
+                asset: assetToCheck,
+                amount: String(fundingFree),
+              });
+              console.log("Auto-transfer result:", JSON.stringify(transferResult));
+              fundingTransferred = true;
+              await new Promise((r) => setTimeout(r, 500));
+            }
+          } catch (e) {
+            console.error("Transfer error:", e);
           }
-        } catch (e) {
-          console.error("Transfer error:", e);
         }
 
-        // Step 2: Get Convert quote (params as query string)
-        console.log(`Convert: fromAsset=${fromAsset}, toAsset=${toAsset}, fromAmount=${fromAmount}`);
-        const quoteData = await proxyCall("/sapi/v1/convert/getQuote", {
-          fromAsset,
-          toAsset,
-          fromAmount: String(fromAmount),
-          walletType: "SPOT",
-        });
+        // Step 2: Execute spot market order via proxy
+        if (!symbol || !side) throw new Error("Missing: symbol, side");
+        const orderParams: Record<string, string> = { symbol, side, type: "MARKET" };
+        if (quoteOrderQty) orderParams.quoteOrderQty = String(quoteOrderQty);
+        else if (quantity) orderParams.quantity = String(quantity);
+        else throw new Error("Either quantity or quoteOrderQty required");
 
-        if (quoteData?.code && quoteData.code < 0) {
-          throw new Error(quoteData.msg || `Convert quote failed: ${quoteData.code}`);
-        }
-        if (!quoteData?.quoteId) {
-          throw new Error(`Convert quote failed: ${JSON.stringify(quoteData)}`);
-        }
+        const orderQs = new URLSearchParams(orderParams).toString();
+        const orderUrl = `${BINANCE_PROXY_URL}/api/api/v3/order?${orderQs}`;
+        console.log("Spot order URL:", orderUrl);
+        const orderRes = await fetchWithRetry(orderUrl, { method: "POST", headers: proxyHeaders });
+        const orderResult = JSON.parse(await orderRes.text());
+        console.log("Spot order result:", JSON.stringify(orderResult));
 
-        // Step 3: Accept the quote
-        const acceptData = await proxyCall("/sapi/v1/convert/acceptQuote", {
-          quoteId: quoteData.quoteId,
-        });
-
-        if (acceptData?.code && acceptData.code < 0) {
-          throw new Error(acceptData.msg || `Convert accept failed: ${acceptData.code}`);
+        if (orderResult?.code && orderResult.code < 0) {
+          throw new Error(orderResult.msg || `Spot order failed: ${orderResult.code}`);
         }
 
         result = {
           transfer: transferResult,
-          order: {
-            orderId: acceptData?.orderId || quoteData?.quoteId,
-            status: acceptData?.orderStatus || "PROCESS",
-            executedQty: quoteData?.toAmount || "0",
-            cummulativeQuoteQty: fromAmount,
-            symbol, side, fromAsset, toAsset,
-            fromAmount: String(fromAmount),
-            toAmount: quoteData?.toAmount,
-            ratio: quoteData?.ratio,
-            inverseRatio: quoteData?.inverseRatio,
-          },
+          order: orderResult,
           fundingTransferred,
-          method: "CONVERT",
+          method: "SPOT",
         };
         break;
       }

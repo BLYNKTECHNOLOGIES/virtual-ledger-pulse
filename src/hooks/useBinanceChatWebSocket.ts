@@ -443,6 +443,7 @@ export function useBinanceChatWebSocket(
         uuid: generateUUID(),
         orderNo,
         content: imageUrl,
+        imageUrl: imageUrl,
         clientType: 'web',
         createTime: now,
         topicId: orderNo,

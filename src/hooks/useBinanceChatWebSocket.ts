@@ -334,37 +334,14 @@ export function useBinanceChatWebSocket(
 
   // ---- Send message via WebSocket ----
   const sendMessage = useCallback(async (orderNo: string, content: string) => {
-    const tempId = Date.now();
-    const optimisticMsg: TrackedMessage = {
-      id: tempId,
-      type: 'text',
-      content,
-      message: content,
-      createTime: Date.now(),
-      self: true,
-      fromNickName: 'You',
-      _status: 'sending',
-      _tempId: tempId,
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
-
-    const markStatus = (status: MessageStatus) => {
-      setMessages((prev) =>
-        prev.map((m) => (m._tempId === tempId ? { ...m, _status: status } : m))
-      );
-    };
-
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      markStatus('failed');
       toast.error('Chat not connected');
       return;
     }
 
     try {
       const now = Date.now();
-
-      // Include groupId + topicId metadata for Binance message routing
       const groupId = groupIdMapRef.current.get(orderNo);
       const payload: Record<string, any> = {
         type: 'text',
@@ -380,61 +357,28 @@ export function useBinanceChatWebSocket(
       };
       if (groupId) payload.groupId = groupId;
 
-      const payloadStr = JSON.stringify(payload);
-      console.log('📤 WS send payload:', payloadStr);
-      ws.send(payloadStr);
-      markStatus('sent');
+      ws.send(JSON.stringify(payload));
+      console.log('📤 WS sent:', content.substring(0, 50));
 
-      // Immediately poll to verify delivery after 2s
-      pollIntervalRef.current = 2000;
-      setTimeout(() => {
-        fetchChatHistory(orderNo).then((found) => {
-          if (found) {
-            console.log('✅ Post-send poll: chat history refreshed');
-          }
-        });
-      }, 2000);
+      // Fast poll to pick up confirmed message from server
+      pollIntervalRef.current = 1500;
+      setTimeout(() => fetchChatHistory(orderNo), 1500);
     } catch (err) {
       console.error('WS send error:', err);
-      markStatus('failed');
       toast.error('Message may not have been delivered');
     }
   }, [fetchChatHistory]);
 
   // ---- Send image message via WebSocket ----
   const sendImageMessage = useCallback(async (orderNo: string, imageUrl: string) => {
-    const tempId = Date.now();
-    const optimisticMsg: TrackedMessage = {
-      id: tempId,
-      type: 'image',
-      content: imageUrl,
-      message: imageUrl,
-      createTime: Date.now(),
-      self: true,
-      fromNickName: 'You',
-      imageUrl,
-      _status: 'sending',
-      _tempId: tempId,
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
-
-    const markStatus = (status: MessageStatus) => {
-      setMessages((prev) =>
-        prev.map((m) => (m._tempId === tempId ? { ...m, _status: status } : m))
-      );
-    };
-
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      markStatus('failed');
       toast.error('Chat not connected');
       return;
     }
 
     try {
       const now = Date.now();
-
-      // Include groupId + topicId metadata for Binance message routing
       const groupId = groupIdMapRef.current.get(orderNo);
       const imgPayload: Record<string, any> = {
         type: 'text',
@@ -450,18 +394,13 @@ export function useBinanceChatWebSocket(
       };
       if (groupId) imgPayload.groupId = groupId;
 
-      const payloadStr = JSON.stringify(imgPayload);
-      console.log('📤 WS send image as text link:', payloadStr);
-      ws.send(payloadStr);
-      markStatus('sent');
+      ws.send(JSON.stringify(imgPayload));
+      console.log('📤 WS sent image link');
 
-      pollIntervalRef.current = 2000;
-      setTimeout(() => {
-        fetchChatHistory(orderNo);
-      }, 2000);
+      pollIntervalRef.current = 1500;
+      setTimeout(() => fetchChatHistory(orderNo), 1500);
     } catch (err) {
       console.error('WS image send error:', err);
-      markStatus('failed');
       toast.error('Image may not have been delivered');
     }
   }, [fetchChatHistory]);

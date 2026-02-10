@@ -395,15 +395,15 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
 
-      // Binance chatMessageType supports 'image' — send with type 'image' 
-      // and imageUrl in content field so Binance renders it inline
+      // Binance SAPI WS only documents type:'text' — type:'image' is silently dropped.
+      // Send imageUrl as text content; Binance renders it as a clickable link.
+      // This is a Binance API limitation — inline image rendering is only available
+      // from their native mobile app, not via SAPI/WebSocket.
       const imgPayload = {
-        type: 'image',
-        chatMessageType: 'image',
+        type: 'text',
         uuid: String(now),
         orderNo,
         content: imageUrl,
-        imageUrl: imageUrl,
         self: true,
         clientType: 'web',
         createTime: now,
@@ -411,7 +411,7 @@ export function useBinanceChatWebSocket(
       };
 
       const payloadStr = JSON.stringify(imgPayload);
-      console.log('📤 WS send image payload:', payloadStr);
+      console.log('📤 WS send image as text link:', payloadStr);
       ws.send(payloadStr);
       markStatus('sent');
 

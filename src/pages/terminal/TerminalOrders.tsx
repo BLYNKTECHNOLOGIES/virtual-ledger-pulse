@@ -183,7 +183,7 @@ export default function TerminalOrders() {
       });
     }
 
-    return enriched.map(o => {
+    return enriched.slice(0, 50).map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;
       return record;

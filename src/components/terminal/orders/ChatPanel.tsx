@@ -26,7 +26,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     const saved = localStorage.getItem('terminal-chat-sound');
     return saved !== 'false';
   });
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
   const isInitialLoadRef = useRef(true);
@@ -93,9 +93,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
   // Auto-scroll on new messages
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [allMessages]);
 
   const [isSending, setIsSending] = useState(false);
@@ -180,7 +178,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       )}
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 px-4 py-3" ref={scrollRef}>
+      <ScrollArea className="flex-1 px-4 py-3">
         {wsMessages.length === 0 && isConnecting ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
@@ -199,6 +197,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
             {allMessages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
             ))}
+            <div ref={bottomRef} />
           </div>
         )}
       </ScrollArea>

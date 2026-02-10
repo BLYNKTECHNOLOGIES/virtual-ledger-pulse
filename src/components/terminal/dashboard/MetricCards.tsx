@@ -19,15 +19,20 @@ export function MetricCards({
   totalVolume, avgOrderSize, completionRate, buySellRatio,
   isLoading,
 }: MetricCardsProps) {
+  const vol = totalVolume || 0;
+  const avg = avgOrderSize || 0;
+  const rate = completionRate || 0;
+  const ratio = buySellRatio || '0 / 0';
+
   const cards = [
-    { label: 'Active Orders', value: activeOrders, formatted: String(activeOrders), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Pending Payments', value: pendingPayments, formatted: String(pendingPayments), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
-    { label: 'Completed Today', value: completedToday, formatted: String(completedToday), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
-    { label: 'Appeals', value: appeals, formatted: String(appeals), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
-    { label: 'Total Volume', value: totalVolume, formatted: `₹${totalVolume >= 100000 ? (totalVolume / 100000).toFixed(1) + 'L' : totalVolume.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Avg Order Size', value: avgOrderSize, formatted: `₹${avgOrderSize.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-accent-foreground', bg: 'bg-accent/30' },
-    { label: 'Completion Rate', value: completionRate, formatted: `${completionRate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
-    { label: 'Buy / Sell', value: 0, formatted: buySellRatio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },
+    { label: 'Active Orders', formatted: String(activeOrders || 0), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Pending Payments', formatted: String(pendingPayments || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
+    { label: 'Completed Today', formatted: String(completedToday || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
+    { label: 'Total Volume', formatted: `₹${vol >= 100000 ? (vol / 100000).toFixed(1) + 'L' : vol.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Avg Order Size', formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-accent-foreground', bg: 'bg-accent/30' },
+    { label: 'Completion Rate', formatted: `${rate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Buy / Sell', formatted: ratio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ];
 
   return (

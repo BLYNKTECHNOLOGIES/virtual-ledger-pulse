@@ -16,7 +16,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const getUploadUrl = useGetChatImageUploadUrl();
 
-  // Step 1: User picks a file → show preview only, do NOT upload yet
+  // Step 1: User picks a file → show preview only
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -37,42 +37,65 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
     reader.readAsDataURL(file);
   };
 
-  // Step 2: User clicks Send → upload + deliver
+  // Step 2: User clicks Send → get pre-signed URL, upload to S3, then send imageUrl via WS
   const handleSendImage = async () => {
     if (!selectedFile || uploading) return;
 
     setUploading(true);
     try {
+      // Step 2a: Get pre-signed URL from Binance via SAPI
       const imageName = `${orderNo}_${Date.now()}.jpg`;
+      console.log('📸 Step 1: Getting pre-signed URL for:', imageName);
+      
       const result = await getUploadUrl.mutateAsync(imageName);
-      const inner = result?.data || result;
+      console.log('📸 Pre-signed URL response:', JSON.stringify(result).substring(0, 300));
+      
+      // Parse response - Binance nests under data.data
+      const outer = result?.data || result;
+      const inner = outer?.data || outer;
 
+      // Binance returns "uploadUrl" (pre-signed S3 URL) and "imageUrl" (final CDN URL)
+      // Some older docs reference "preSignedUrl" and "imageUr1" (digit 1) as alternatives
       const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
       const imageUrl = inner?.imageUrl || inner?.imageUr1;
 
-      if (!preSignedUrl) throw new Error('Failed to get upload URL from Binance');
-      if (!imageUrl) throw new Error('Failed to get imageUrl from Binance');
+      if (!preSignedUrl) {
+        console.error('❌ No uploadUrl in response:', JSON.stringify(inner));
+        throw new Error('Failed to get upload URL from Binance');
+      }
+      if (!imageUrl) {
+        console.error('❌ No imageUrl in response:', JSON.stringify(inner));
+        throw new Error('Failed to get imageUrl from Binance');
+      }
 
-      console.log('📸 Got pre-signed URL, uploading image...');
+      console.log('📸 Step 2: Uploading file to S3 pre-signed URL...');
+      console.log('📸 imageUrl for chat:', imageUrl);
 
-      // Step 2: Upload to pre-signed URL per Binance doc (PUT raw file data)
+      // Step 2b: Upload raw file data to pre-signed URL (PUT with raw binary, no headers per doc)
       const uploadResponse = await fetch(preSignedUrl, {
         method: 'PUT',
         body: selectedFile,
       });
 
-      if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      if (!uploadResponse.ok) {
+        const errText = await uploadResponse.text().catch(() => '');
+        console.error('❌ S3 upload failed:', uploadResponse.status, errText);
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
 
-      console.log('✅ Image uploaded to S3, sending imageUrl via WS:', imageUrl);
+      console.log('✅ Step 3: Image uploaded to S3 successfully, sending imageUrl via WebSocket');
 
-      // Step 3: Send imageUrl via WebSocket (per Binance doc)
+      // Step 2c: Send imageUrl via WebSocket (parent handles WS payload)
       onImageSent(imageUrl);
       toast.success('Image sent');
+      
+      // Clear preview only after successful upload + send
       setPreview(null);
       setSelectedFile(null);
     } catch (err: any) {
-      console.error('Image upload error:', err);
+      console.error('❌ Image upload error:', err);
       toast.error(`Image upload failed: ${err.message}`);
+      // Do NOT clear preview on failure — let user retry
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';

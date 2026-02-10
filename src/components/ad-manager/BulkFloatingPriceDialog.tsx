@@ -34,9 +34,10 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
     onOpenChange(v);
   };
 
-  const computeNewRatio = (current: number): number => {
-    if (mode === 'set') return Number(value);
-    return current + Number(value);
+  const computeNewRatio = (current: number | string | undefined): number => {
+    const cur = Number(current) || 0;
+    if (mode === 'set') return Number(value) || 0;
+    return cur + (Number(value) || 0);
   };
 
   const handleConfirm = () => {
@@ -59,8 +60,18 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
 
     for (let i = 0; i < ads.length; i++) {
       const ad = ads[i];
-      const newRatio = computeNewRatio(ad.priceFloatingRatio || 0);
+      const newRatio = computeNewRatio(ad.priceFloatingRatio);
+      
+      // Add delay between requests to avoid rate limits
+      if (i > 0) await new Promise(r => setTimeout(r, 300));
+      
       try {
+        const tradeMethods = (ad.tradeMethods || []).map(m => ({
+          payType: m.payType,
+          identifier: m.identifier,
+          ...(m.payId ? { payId: m.payId } : {}),
+        }));
+
         await new Promise<void>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
@@ -69,10 +80,11 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
             tradeType: ad.tradeType,
             priceType: 2,
             initAmount: ad.initAmount,
+            surplusAmount: ad.surplusAmount,
             minSingleTransAmount: ad.minSingleTransAmount,
             maxSingleTransAmount: ad.maxSingleTransAmount,
             priceFloatingRatio: newRatio,
-            tradeMethods: ad.tradeMethods,
+            tradeMethods,
             payTimeLimit: ad.payTimeLimit || 15,
           }, {
             onSuccess: () => resolve(),

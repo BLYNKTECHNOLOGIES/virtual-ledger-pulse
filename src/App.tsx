@@ -68,6 +68,7 @@ import TerminalAutomation from './pages/terminal/TerminalAutomation';
 import TerminalUsers from './pages/terminal/TerminalUsers';
 import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
 import TerminalSettings from './pages/terminal/TerminalSettings';
+import TerminalAssets from './pages/terminal/TerminalAssets';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { QueryProvider } from './components/QueryProvider';
@@ -660,6 +661,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalSettings />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/assets",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAssets />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

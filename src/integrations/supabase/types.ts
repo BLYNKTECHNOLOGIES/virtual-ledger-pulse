@@ -6252,6 +6252,57 @@ export type Database = {
           },
         ]
       }
+      spot_trade_history: {
+        Row: {
+          binance_order_id: string | null
+          created_at: string
+          error_message: string | null
+          executed_by: string | null
+          executed_price: number | null
+          execution_method: string
+          funding_transfer_done: boolean | null
+          id: string
+          quantity: number
+          quote_quantity: number | null
+          side: string
+          status: string
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          binance_order_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_by?: string | null
+          executed_price?: number | null
+          execution_method?: string
+          funding_transfer_done?: boolean | null
+          id?: string
+          quantity: number
+          quote_quantity?: number | null
+          side: string
+          status?: string
+          symbol: string
+          updated_at?: string
+        }
+        Update: {
+          binance_order_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          executed_by?: string | null
+          executed_price?: number | null
+          execution_method?: string
+          funding_transfer_done?: boolean | null
+          id?: string
+          quantity?: number
+          quote_quantity?: number | null
+          side?: string
+          status?: string
+          symbol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_adjustments: {
         Row: {
           adjustment_date: string

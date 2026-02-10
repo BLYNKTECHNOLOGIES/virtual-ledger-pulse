@@ -17,17 +17,19 @@ export function SpotTradingPanel() {
   const { data: prices } = useBinanceTickerPrices();
   const executeTrade = useExecuteTrade();
 
+  const priceList = Array.isArray(prices) ? prices : [];
+  const balanceList = Array.isArray(balances) ? balances : [];
+
   const pair = TRADING_PAIRS.find((p) => p.symbol === selectedPair) || TRADING_PAIRS[0];
-  const currentPrice = prices?.find((p) => p.symbol === selectedPair);
+  const currentPrice = priceList.find((p) => p.symbol === selectedPair);
   const priceValue = currentPrice ? parseFloat(currentPrice.price) : 0;
 
   // Available balance for the relevant side
   const relevantAsset = side === "BUY" ? pair.quote : pair.base;
   const availableBalance = useMemo(() => {
-    if (!balances) return 0;
-    const b = balances.find((a) => a.asset === relevantAsset);
+    const b = balanceList.find((a) => a.asset === relevantAsset);
     return b ? b.total_free : 0;
-  }, [balances, relevantAsset]);
+  }, [balanceList, relevantAsset]);
 
   const estimatedResult = useMemo(() => {
     const amt = parseFloat(amount);
@@ -212,7 +214,7 @@ export function SpotTradingPanel() {
         <CardContent className="p-0">
           <div className="divide-y divide-border">
             {TRADING_PAIRS.map((p) => {
-              const bal = balances?.find((b) => b.asset === p.base);
+              const bal = balanceList.find((b) => b.asset === p.base);
               const color = COIN_COLORS[p.base] || "#888";
               return (
                 <div key={p.base} className="flex items-center justify-between px-4 py-2.5">
@@ -240,7 +242,7 @@ export function SpotTradingPanel() {
                 <span className="text-xs text-foreground font-medium">USDT</span>
               </div>
               <span className="text-xs text-foreground font-medium tabular-nums">
-                {balances?.find((b) => b.asset === "USDT")?.total_free.toFixed(4) || "0.0000"}
+                {balanceList.find((b) => b.asset === "USDT")?.total_free.toFixed(4) || "0.0000"}
               </span>
             </div>
           </div>

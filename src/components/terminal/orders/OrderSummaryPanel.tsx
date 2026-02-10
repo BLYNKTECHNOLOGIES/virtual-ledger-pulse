@@ -20,9 +20,11 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
 
-  // Use Binance's exact expectedPayTime for countdown, or fall back to payTimeLimit calculation
-  const expectedPayTimeMs = liveDetail?.expectedPayTime;
-  const payTimeLimit = liveDetail?.confirmPayedExpireMinute || liveDetail?.payTimeLimit || liveDetail?.paymentTimeLimit;
+  // Use Binance's notifyPayEndTime for the full payment window countdown
+  // notifyPayEndTime = createTime + notifyPayedExpireMinute (the actual deadline shown on Binance UI)
+  // expectedPayTime is a shorter intermediate deadline, NOT the full payment window
+  const notifyPayEndTimeMs = liveDetail?.notifyPayEndTime;
+  const notifyPayedExpireMinute = liveDetail?.notifyPayedExpireMinute;
   const createTimeMs = order.binance_create_time
     ? new Date(order.binance_create_time).getTime()
     : null;
@@ -65,18 +67,18 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
             : '—'}
         />
 
-        {/* Countdown timer for active orders — uses expectedPayTime or payTimeLimit from Binance */}
-        {!isTerminal && expectedPayTimeMs && (
-          <CountdownTimer expiryTime={expectedPayTimeMs} payTimeLimitMinutes={payTimeLimit} />
+        {/* Countdown timer for active orders — uses notifyPayEndTime from Binance (the actual full payment deadline) */}
+        {!isTerminal && notifyPayEndTimeMs && (
+          <CountdownTimer expiryTime={notifyPayEndTimeMs} payTimeLimitMinutes={notifyPayedExpireMinute} />
         )}
 
-        {/* Fallback: countdown from payTimeLimit if no expectedPayTime */}
-        {!isTerminal && !expectedPayTimeMs && createTimeMs && payTimeLimit && (
-          <CountdownTimer expiryTime={createTimeMs + payTimeLimit * 60 * 1000} payTimeLimitMinutes={payTimeLimit} />
+        {/* Fallback: countdown from notifyPayedExpireMinute if no notifyPayEndTime */}
+        {!isTerminal && !notifyPayEndTimeMs && createTimeMs && notifyPayedExpireMinute && (
+          <CountdownTimer expiryTime={createTimeMs + notifyPayedExpireMinute * 60 * 1000} payTimeLimitMinutes={notifyPayedExpireMinute} />
         )}
 
         {/* Fallback: elapsed timer if nothing available */}
-        {createTimeMs && !isTerminal && !expectedPayTimeMs && !payTimeLimit && (
+        {createTimeMs && !isTerminal && !notifyPayEndTimeMs && !notifyPayedExpireMinute && (
           <ElapsedTimer createTime={createTimeMs} />
         )}
 

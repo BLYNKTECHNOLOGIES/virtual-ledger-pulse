@@ -224,7 +224,7 @@ serve(async (req) => {
           adOrderNo: payload.orderNumber,
         }) });
         const text = await response.text();
-        console.log("getOrderDetail response:", response.status, text.substring(0, 1500));
+        console.log("getOrderDetail response:", response.status, text.substring(0, 2000));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

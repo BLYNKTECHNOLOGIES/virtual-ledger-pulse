@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, X, Send } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
-import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
 
 interface Props {
@@ -56,31 +55,19 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
 
       console.log('📸 Got pre-signed URL, uploading image...');
 
+      // Step 2: Upload to pre-signed URL per Binance doc (PUT raw file data)
       const uploadResponse = await fetch(preSignedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': selectedFile.type || 'image/jpeg' },
         body: selectedFile,
       });
 
       if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
 
-      console.log('✅ Image uploaded, sending via REST with imageUrl:', imageUrl);
+      console.log('✅ Image uploaded to S3, sending imageUrl via WS:', imageUrl);
 
-      let delivered = false;
-      try {
-        const sendResult = await callBinanceAds('sendChatMessage', {
-          orderNo,
-          imageUrl,
-          chatMessageType: 'IMAGE',
-        });
-        console.log('✅ Image sent via REST:', sendResult);
-        delivered = true;
-      } catch (restErr: any) {
-        console.warn('REST image send failed, falling back to WS:', restErr.message);
-      }
-
+      // Step 3: Send imageUrl via WebSocket (per Binance doc)
       onImageSent(imageUrl);
-      toast.success(delivered ? 'Image sent' : 'Image sent via WebSocket');
+      toast.success('Image sent');
       setPreview(null);
       setSelectedFile(null);
     } catch (err: any) {

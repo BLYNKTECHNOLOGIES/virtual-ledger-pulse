@@ -328,46 +328,18 @@ export function useBinanceChatWebSocket(
 
     try {
       const now = Date.now();
-      let groupId = groupIdMapRef.current.get(orderNo);
-      
-      // If no groupId captured yet, fetch it via BAPI
-      if (!groupId) {
-        console.log('⏳ No groupId cached, fetching via BAPI for order:', orderNo);
-        try {
-          const groupResult = await callBinanceAds('getChatGroupId', { orderNo });
-          const groups = groupResult?.data?.data || groupResult?.data || [];
-          if (Array.isArray(groups) && groups.length > 0) {
-            groupId = groups[0].groupId || groups[0].id;
-            if (groupId) {
-              groupIdMapRef.current.set(orderNo, groupId);
-              console.log('✅ Fetched groupId via BAPI:', groupId);
-            }
-          }
-        } catch (err) {
-          console.error('Failed to fetch groupId via BAPI:', err);
-        }
-      }
 
-      // Build payload - include groupId if available, send without if not
-      const msgUuid = generateUUID();
-      const payload: Record<string, any> = {
-        chatMessageType: 'text',
+      // Payload per Binance doc: type, uuid, orderNo, content, self, clientType, createTime, sendStatus
+      const payload = {
         type: 'text',
-        uuid: msgUuid,
+        uuid: String(now),
         orderNo,
         content,
+        self: true,
         clientType: 'web',
         createTime: now,
-        topicId: orderNo,
-        topicType: 'ORDER',
+        sendStatus: 0,
       };
-      
-      // Add groupId if we have it
-      if (groupId) {
-        payload.groupId = groupId;
-      } else {
-        console.warn('⚠️ Sending without groupId — may fail. Will rely on topicId routing.');
-      }
 
       const payloadStr = JSON.stringify(payload);
       console.log('📤 WS send payload:', payloadStr);
@@ -422,34 +394,18 @@ export function useBinanceChatWebSocket(
 
     try {
       const now = Date.now();
-      let groupId = groupIdMapRef.current.get(orderNo);
 
-      if (!groupId) {
-        try {
-          const groupResult = await callBinanceAds('getChatGroupId', { orderNo });
-          const groups = groupResult?.data?.data || groupResult?.data || [];
-          if (Array.isArray(groups) && groups.length > 0) {
-            groupId = groups[0].groupId || groups[0].id;
-            if (groupId) groupIdMapRef.current.set(orderNo, groupId);
-          }
-        } catch (err) {
-          console.error('Failed to fetch groupId via BAPI:', err);
-        }
-      }
-
-      const imgPayload: Record<string, any> = {
-        chatMessageType: 'image',
+      // Payload per Binance doc: same as text but type=image, content=imageUrl
+      const imgPayload = {
         type: 'image',
-        uuid: generateUUID(),
+        uuid: String(now),
         orderNo,
         content: imageUrl,
-        imageUrl: imageUrl,
+        self: true,
         clientType: 'web',
         createTime: now,
-        topicId: orderNo,
-        topicType: 'ORDER',
+        sendStatus: 0,
       };
-      if (groupId) imgPayload.groupId = groupId;
 
       const payloadStr = JSON.stringify(imgPayload);
       console.log('📤 WS send image payload:', payloadStr);

@@ -461,23 +461,10 @@ function OrderStatusBadge({ status, tradeType, additionalKycVerify }: { status: 
   return <Badge variant="outline" className={`text-[10px] ${style.badgeClass}`}>{style.label}</Badge>;
 }
 
-/** Lightweight elapsed timer for table rows */
+/** Show the actual order creation time (e.g. "16:09") */
 function OrderRowTimer({ createTime }: { createTime: number }) {
-  const [display, setDisplay] = useState('');
-
-  useEffect(() => {
-    const update = () => {
-      const diff = Math.max(0, Date.now() - createTime);
-      const mins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      setDisplay(`${mins}:${secs.toString().padStart(2, '0')}`);
-    };
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [createTime]);
-
+  const timeStr = format(new Date(createTime), 'HH:mm');
   return (
-    <span className="text-[10px] text-trade-pending tabular-nums font-medium">{display}</span>
+    <span className="text-[10px] text-muted-foreground tabular-nums">{timeStr}</span>
   );
 }

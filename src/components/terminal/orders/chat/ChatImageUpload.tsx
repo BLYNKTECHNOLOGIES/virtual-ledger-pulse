@@ -39,13 +39,14 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       // Step 1: Get pre-signed URL from Binance via SAPI
       const imageName = `${orderNo}_${Date.now()}.jpg`;
       const result = await getUploadUrl.mutateAsync(imageName);
-      const data = result?.data?.data || result?.data || result;
-
-      const preSignedUrl = data?.preSignedUrl;
-      const imageUrl = data?.imageUrl || data?.imageUr1; // Binance doc has typo "imageUr1"
+      // callBinanceAds returns data.data, Binance wraps in {code, data: {uploadUrl, imageUrl}}
+      const inner = result?.data || result;
+      
+      const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
+      const imageUrl = inner?.imageUrl || inner?.imageUr1; // Binance doc has typo "imageUr1"
 
       if (!preSignedUrl) {
-        throw new Error('Failed to get pre-signed upload URL from Binance');
+        throw new Error('Failed to get upload URL from Binance');
       }
       if (!imageUrl) {
         throw new Error('Failed to get imageUrl from Binance');

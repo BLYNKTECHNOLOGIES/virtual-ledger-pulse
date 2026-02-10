@@ -131,10 +131,21 @@ export function useBinanceChatWebSocket(
           }
         }
         setMessages((prev) => {
-          // Keep optimistic messages that haven't been confirmed by server yet
-          const pendingMsgs = prev.filter((m) => m._status === 'sending' || m._status === 'sent');
+          // Only keep optimistic messages still in 'sending' state AND
+          // whose content doesn't already exist in server data
+          const serverContents = new Set(
+            list
+              .filter((m: BinanceChatMessage) => m.self)
+              .map((m: BinanceChatMessage) => (m.content || m.message || '').trim())
+          );
           const serverIds = new Set(list.map((m: BinanceChatMessage) => m.id));
-          const remainingPending = pendingMsgs.filter((m) => !serverIds.has(m.id));
+          const remainingPending = prev.filter(
+            (m) =>
+              m._tempId &&
+              m._status === 'sending' &&
+              !serverIds.has(m.id) &&
+              !serverContents.has((m.content || m.message || '').trim())
+          );
           return [...list, ...remainingPending];
         });
         pollIntervalRef.current = 5000;

@@ -297,23 +297,17 @@ export function useBinanceChatWebSocket(
     }
 
     try {
-      const localId = generateUUID();
-      // Binance P2P chat WS payload — flat orderNo, scenario "c2c", no nested order object
-      const payload: Record<string, any> = {
-        chatMessageType: 'text',
-        content,
-        localId,
-        msgType: 'U_TEXT',
+      // Binance official send format (from Binance support docs)
+      const payload = {
+        type: 'text',
+        uuid: String(Date.now()),
         orderNo,
-        scenario: 'c2c',
-        sessionType: 'PRIVATE',
-        timestamp: Date.now(),
-        uuid: localId,
+        content,
+        self: true,
+        clientType: 'web',
+        createTime: Date.now(),
+        sendStatus: 0,
       };
-      // Include sessionId if captured from incoming frames
-      if (sessionIdRef.current) {
-        payload.sessionId = sessionIdRef.current;
-      }
 
       ws.send(JSON.stringify(payload));
       console.log('📤 WS send payload:', JSON.stringify(payload));

@@ -395,13 +395,14 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
 
-      // Binance image message payload — include imageUrl field explicitly
+      // Per Binance doc: "send the corresponding imageUrl in p2p chat"
+      // Use exact same format as text messages — doc only shows this format
+      // The imageUrl goes in the "content" field
       const imgPayload = {
-        type: 'image',
+        type: 'text',
         uuid: String(now),
         orderNo,
         content: imageUrl,
-        imageUrl: imageUrl,
         self: true,
         clientType: 'web',
         createTime: now,
@@ -409,7 +410,7 @@ export function useBinanceChatWebSocket(
       };
 
       const payloadStr = JSON.stringify(imgPayload);
-      console.log('📤 WS send image payload:', payloadStr);
+      console.log('📤 WS send image payload (as text):', payloadStr);
       ws.send(payloadStr);
       markStatus('sent');
 

@@ -68,6 +68,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       console.log('✅ Image uploaded, sending via REST with imageUrl:', imageUrl);
 
       // Step 3: Send the image via REST API (reliable, like auto-reply-engine)
+      let delivered = false;
       try {
         const sendResult = await callBinanceAds('sendChatMessage', {
           orderNo,
@@ -75,13 +76,14 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
           chatMessageType: 'IMAGE',
         });
         console.log('✅ Image sent via REST:', sendResult);
-        toast.success('Image sent');
+        delivered = true;
       } catch (restErr: any) {
         console.warn('REST image send failed, falling back to WS:', restErr.message);
-        // Fallback: send via WebSocket
-        onImageSent(imageUrl);
-        toast.success('Image sent via WebSocket');
       }
+
+      // Always notify parent to add optimistic message + WS fallback if REST failed
+      onImageSent(imageUrl);
+      toast.success(delivered ? 'Image sent' : 'Image sent via WebSocket');
       
       setPreview(null);
     } catch (err: any) {

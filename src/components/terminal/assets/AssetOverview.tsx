@@ -12,18 +12,22 @@ export function AssetOverview() {
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   // Calculate USDT equivalent for each asset
+  const priceList = Array.isArray(prices) ? prices : [];
+
   const getUsdtValue = (asset: string, amount: number) => {
     if (asset === "USDT") return amount;
-    if (!prices) return null;
-    const ticker = prices.find((p) => p.symbol === `${asset}USDT`);
+    if (priceList.length === 0) return null;
+    const ticker = priceList.find((p) => p.symbol === `${asset}USDT`);
     if (ticker) return amount * parseFloat(ticker.price);
     return null;
   };
 
-  const totalValue = balances?.reduce((sum, b) => {
+  const balanceList = Array.isArray(balances) ? balances : [];
+
+  const totalValue = balanceList.reduce((sum, b) => {
     const val = getUsdtValue(b.asset, b.total_balance);
     return sum + (val || 0);
-  }, 0) || 0;
+  }, 0);
 
   if (isLoading) {
     return (
@@ -75,12 +79,12 @@ export function AssetOverview() {
         <CardHeader className="py-3 px-4 border-b border-border">
           <div className="flex items-center justify-between">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Crypto Assets</CardTitle>
-            <span className="text-[10px] text-muted-foreground">{balances?.length || 0} assets</span>
+            <span className="text-[10px] text-muted-foreground">{balanceList.length} assets</span>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="divide-y divide-border">
-            {balances?.map((asset) => {
+            {balanceList.map((asset) => {
               const usdtVal = getUsdtValue(asset.asset, asset.total_balance);
               const color = COIN_COLORS[asset.asset] || "#888";
 
@@ -119,7 +123,7 @@ export function AssetOverview() {
                 </button>
               );
             })}
-            {(!balances || balances.length === 0) && (
+            {balanceList.length === 0 && (
               <div className="py-10 text-center text-sm text-muted-foreground">
                 No assets found
               </div>
@@ -132,7 +136,7 @@ export function AssetOverview() {
       {selectedAsset && (
         <AssetDetailPanel
           asset={selectedAsset}
-          balances={balances || []}
+          balances={balanceList}
           onClose={() => setSelectedAsset(null)}
         />
       )}

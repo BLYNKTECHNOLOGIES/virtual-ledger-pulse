@@ -330,23 +330,14 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST /sapi/v1/c2c/chat/sendChatMessage — works via proxy (used by auto-reply-engine)
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
-        const chatBody: Record<string, any> = {
-          orderNo: payload.orderNo,
-          message: payload.content || payload.message,
-          chatMessageType: payload.contentType || payload.chatMessageType || "text",
-        };
-        // For image messages, the message field contains the imageUrl
-        if (payload.imageUrl) {
-          chatBody.message = payload.imageUrl;
-          chatBody.chatMessageType = "IMAGE";
-        }
-        console.log("sendChatMessage:", JSON.stringify(chatBody));
-        const response = await fetchWithRetry(url, { 
+        // POST /sapi/v1/c2c/chat/sendMessage — proxy route uses query params: orderNo, content, contentType
+        const msgContent = payload.imageUrl || payload.content || payload.message;
+        const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
+        const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
+        console.log("sendChatMessage URL:", sendMsgUrl);
+        const response = await fetchWithRetry(sendMsgUrl, { 
           method: "POST", 
-          headers: proxyHeaders, 
-          body: JSON.stringify(chatBody),
+          headers: proxyHeaders,
         });
         const text = await response.text();
         console.log("sendChatMessage response:", response.status, text.substring(0, 500));

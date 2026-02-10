@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, X, Send } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
+import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
 
 interface Props {
@@ -83,10 +84,23 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      console.log('✅ Step 3: Image uploaded to S3 successfully, sending imageUrl via WebSocket');
+      console.log('✅ Step 3: Image uploaded to S3, sending imageUrl via REST API...');
 
-      // Step 2c: Send imageUrl via WebSocket (parent handles WS payload)
-      onImageSent(imageUrl);
+      // Step 2c: Send imageUrl via REST sendChatMessage (more reliable than WS for images)
+      const sendResult = await callBinanceAds('sendChatMessage', {
+        orderNo,
+        imageUrl: imageUrl,
+      });
+      console.log('📸 sendChatMessage result:', JSON.stringify(sendResult).substring(0, 300));
+      
+      if (sendResult?.success === false || sendResult?.error) {
+        console.warn('⚠️ REST send may have failed, falling back to WS:', sendResult?.error);
+        // Fallback: send via WS
+        onImageSent(imageUrl);
+      } else {
+        // REST succeeded — notify parent for optimistic UI only
+        onImageSent(imageUrl);
+      }
       toast.success('Image sent');
       
       // Clear preview only after successful upload + send

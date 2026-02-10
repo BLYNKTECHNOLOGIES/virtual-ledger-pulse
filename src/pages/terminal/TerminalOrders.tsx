@@ -330,7 +330,12 @@ export default function TerminalOrders() {
                   {displayOrders.map((order) => {
                     const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
                     const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
-                    const style = getStatusStyle(opStatus);
+                    // For sell orders needing verification (kyc=1), show "Verification Pending" instead of "Pending Payment"
+                    const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
+                    const displayStatus = needsKycVerification ? 'Verification Pending' : opStatus;
+                    const style = needsKycVerification
+                      ? { label: 'Verification Pending', badgeClass: 'border-purple-500/30 text-purple-500 bg-purple-500/5', dotColor: 'bg-purple-500' }
+                      : getStatusStyle(opStatus);
                     const unread = unreadMap.get(order.binance_order_number) || 0;
 
                     return (
@@ -447,9 +452,12 @@ export default function TerminalOrders() {
   );
 }
 
-function OrderStatusBadge({ status, tradeType }: { status: string; tradeType: string }) {
+function OrderStatusBadge({ status, tradeType, additionalKycVerify }: { status: string; tradeType: string; additionalKycVerify?: number }) {
   const operational = mapToOperationalStatus(status, tradeType);
-  const style = getStatusStyle(operational);
+  const needsKyc = tradeType === 'SELL' && additionalKycVerify === 1 && operational === 'Pending Payment';
+  const style = needsKyc
+    ? { label: 'Verification Pending', badgeClass: 'border-purple-500/30 text-purple-500 bg-purple-500/5' }
+    : getStatusStyle(operational);
   return <Badge variant="outline" className={`text-[10px] ${style.badgeClass}`}>{style.label}</Badge>;
 }
 

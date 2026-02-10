@@ -7,8 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,20 @@ const PAYMENT_TIME_OPTIONS = [
   { label: '15 min', value: 15 },
   { label: '30 min', value: 30 },
   { label: '45 min', value: 45 },
+  { label: '1 hr', value: 60 },
+  { label: '2 hr', value: 120 },
+];
+
+// Binance allowed terms tags
+const BINANCE_TERMS_TAGS = [
+  { id: 'bankStatement', label: 'Bank statement required', description: 'Bank statement will be required for addition verification' },
+  { id: 'extraKyc', label: 'Extra KYC required', description: 'Need to complete one time extra KYC verification' },
+  { id: 'noAdditionalVerification', label: 'No Additional Verification Needed', description: 'No additional verification requirements from the maker' },
+  { id: 'noPaymentReceipt', label: 'No Payment Receipt Needed', description: 'Receipt not required for this trade' },
+  { id: 'panRequired', label: 'PAN Required', description: 'PAN number is required' },
+  { id: 'paymentReceipt', label: 'Payment Receipt Required', description: 'You must provide transaction receipt to complete the trade' },
+  { id: 'photoId', label: 'Photo ID Required', description: 'Valid government-issued photo ID required' },
+  { id: 'tdsApplied', label: 'TDS applied', description: 'TDS will be deducted / paid' },
 ];
 
 export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEditAdDialogProps) {
@@ -46,15 +61,21 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     autoReplyMsg: '',
     remarks: '',
     payTimeLimit: 15,
-    onlineNow: false,
-    buyerRegDaysLimit: 0,
-    buyerBtcPositionLimit: 0,
+    advStatus: BINANCE_AD_STATUS.ONLINE as number, // 1=online, 2=private, 3=offline
+    buyerRegDaysLimit: -1, // -1 means disabled
+    buyerBtcPositionLimit: -1, // -1 means disabled
     takerAdditionalKycRequired: 0,
     selectedPayMethods: [] as Array<{ payId?: number; payType: string; identifier: string; tradeMethodName?: string }>,
+    selectedTags: [] as string[],
   });
+
+  // Counterparty condition toggles (enabled = has limit, disabled = -1)
+  const regDaysEnabled = form.buyerRegDaysLimit >= 0;
+  const btcHoldingEnabled = form.buyerBtcPositionLimit >= 0;
 
   const [payMethodSearch, setPayMethodSearch] = useState('');
   const [showPayMethodPicker, setShowPayMethodPicker] = useState(false);
+  const [showTagsPicker, setShowTagsPicker] = useState(false);
 
   const isBuyAd = form.tradeType === 'BUY';
 
@@ -69,7 +90,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     if (!Array.isArray(refData) || refData.length === 0) return null;
     const ref = Number(refData[0]?.referencePrice);
     if (!ref || isNaN(ref)) return null;
-    // Binance allows approximately ±20% from reference price for ad placement
     const LOWER_BOUND_PCT = 0.80;
     const UPPER_BOUND_PCT = 1.20;
     return {
@@ -93,6 +113,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   useEffect(() => {
     if (editingAd) {
+      // Parse buyerRegDaysLimit: Binance returns -1 for disabled
+      const regDays = Number(editingAd.buyerRegDaysLimit);
+      const btcPos = Number(editingAd.buyerBtcPositionLimit);
+
       setForm({
         tradeType: editingAd.tradeType || 'SELL',
         asset: editingAd.asset || 'USDT',
@@ -106,11 +130,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
         autoReplyMsg: editingAd.autoReplyMsg || '',
         remarks: editingAd.remarks || '',
         payTimeLimit: editingAd.payTimeLimit || 15,
-        onlineNow: editingAd.advStatus === 1,
-        buyerRegDaysLimit: editingAd.buyerRegDaysLimit || 0,
-        buyerBtcPositionLimit: editingAd.buyerBtcPositionLimit || 0,
+        advStatus: editingAd.advStatus || BINANCE_AD_STATUS.ONLINE,
+        buyerRegDaysLimit: isNaN(regDays) ? -1 : regDays,
+        buyerBtcPositionLimit: isNaN(btcPos) ? -1 : btcPos,
         takerAdditionalKycRequired: editingAd.takerAdditionalKycRequired || 0,
         selectedPayMethods: editingAd.tradeMethods || [],
+        selectedTags: (editingAd as any).tags || [],
       });
     } else {
       setForm({
@@ -126,21 +151,31 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
         autoReplyMsg: '',
         remarks: '',
         payTimeLimit: 15,
-        onlineNow: false,
-        buyerRegDaysLimit: 0,
-        buyerBtcPositionLimit: 0,
+        advStatus: BINANCE_AD_STATUS.ONLINE,
+        buyerRegDaysLimit: -1,
+        buyerBtcPositionLimit: -1,
         takerAdditionalKycRequired: 0,
         selectedPayMethods: [],
+        selectedTags: [],
       });
     }
     setShowPayMethodPicker(false);
     setPayMethodSearch('');
+    setShowTagsPicker(false);
   }, [editingAd, open]);
 
-  // ─── Payment Methods Logic ────────────────────────────────────
-  // BUY ads: select from our allowed whitelist only
-  // SELL ads: extract unique payment methods from existing SELL ads (proxy doesn't support listByUserId)
+  // ─── Available balance from surplus across all ads ────────────
+  const availableBalance = useMemo(() => {
+    const allAds: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    // Find ads with same asset to get surplusAmount context
+    // The surplusAmount on the editing ad itself shows remaining balance
+    if (editingAd) {
+      return Number(editingAd.surplusAmount) || Number(editingAd.initAmount) || 0;
+    }
+    return null;
+  }, [editingAd, sellAdsData]);
 
+  // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
     const ads: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
     const methodMap = new Map<string, any>();
@@ -162,17 +197,15 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     return Array.from(methodMap.values());
   }, [sellAdsData]);
 
-  // For BUY ads: use our allowed whitelist
   const buyAdPayMethods = useMemo(() => {
     return ALLOWED_BUY_PAYMENT_METHODS.map(m => ({
-      payId: 0, // Will be mapped when sending to Binance
+      payId: 0,
       payType: m.binancePayType,
       identifier: m.identifier,
       config: m,
     }));
   }, []);
 
-  // Filtered list for the picker dialog
   const filteredPickerMethods = useMemo(() => {
     const search = payMethodSearch.toLowerCase();
     if (isBuyAd) {
@@ -211,11 +244,20 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     }
   };
 
-  // Check if a method is selected
   const isMethodSelected = (method: { payId: number; identifier: string }) => {
     return form.selectedPayMethods.some(
       s => (s.payId && s.payId === method.payId) || s.identifier === method.identifier
     );
+  };
+
+  const toggleTag = (tagId: string) => {
+    if (form.selectedTags.includes(tagId)) {
+      setForm({ ...form, selectedTags: form.selectedTags.filter(t => t !== tagId) });
+    } else if (form.selectedTags.length < 3) {
+      setForm({ ...form, selectedTags: [...form.selectedTags, tagId] });
+    } else {
+      toast({ title: 'Limit Reached', description: 'Maximum 3 tags allowed', variant: 'destructive' });
+    }
   };
 
   const validate = (): string | null => {
@@ -240,10 +282,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       return;
     }
 
-    // For BUY ads, Binance only needs identifier+payType (no payId).
-    // For SELL ads, payId from user's configured methods is required.
     const tradeMethods = form.selectedPayMethods.map(m => {
-      // Resolve label from our config for tradeMethodName
       const config = resolvePaymentMethod(m.identifier);
       const base: Record<string, any> = {
         identifier: m.identifier,
@@ -262,7 +301,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       maxSingleTransAmount: Number(form.maxSingleTransAmount),
       tradeMethods,
       payTimeLimit: form.payTimeLimit,
-      onlineNow: form.onlineNow,
+      advStatus: form.advStatus,
       buyerRegDaysLimit: form.buyerRegDaysLimit,
       buyerBtcPositionLimit: form.buyerBtcPositionLimit,
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
@@ -279,6 +318,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       adData.fiatUnit = editingAd!.fiatUnit;
       adData.tradeType = editingAd!.tradeType;
       adData.priceType = editingAd!.priceType;
+      adData.surplusAmount = Number(editingAd!.surplusAmount) || Number(editingAd!.initAmount);
     }
 
     if (form.priceType === 1) {
@@ -289,6 +329,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
     if (form.autoReplyMsg) adData.autoReplyMsg = form.autoReplyMsg;
     if (form.remarks) adData.remarks = form.remarks;
+    if (form.selectedTags.length > 0) adData.tags = form.selectedTags;
 
     if (isEditing) {
       updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
@@ -307,8 +348,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   };
 
   const isSubmitting = postAd.isPending || updateAd.isPending;
-
-  // Sell ads: warn if no Binance payment methods
   const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
 
   return (
@@ -362,7 +401,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
           {/* Price Section */}
           <div className="space-y-3 rounded-lg border p-4">
-            {/* Reference Price Header */}
             <div className="flex items-center justify-between">
               <Label className="text-base font-semibold">Price</Label>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -457,7 +495,22 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
           <div className="space-y-3 rounded-lg border p-4">
             <Label className="text-base font-semibold">Total Trading Amount</Label>
             <div>
-              <Label>Total Quantity ({form.asset})</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Total Quantity ({form.asset})</Label>
+                {isEditing && availableBalance !== null && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Available: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-2 text-xs font-semibold text-primary"
+                      onClick={() => setForm({ ...form, initAmount: String(availableBalance) })}
+                    >
+                      ALL
+                    </Button>
+                  </div>
+                )}
+              </div>
               <Input
                 type="number"
                 value={form.initAmount}
@@ -498,7 +551,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               </span>
             </div>
 
-            {/* Selected methods display */}
             {form.selectedPayMethods.length > 0 && (
               <div className="space-y-2">
                 {form.selectedPayMethods.map((m) => {
@@ -526,7 +578,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               </div>
             )}
 
-            {/* No methods warning for SELL ads */}
             {noSellMethods && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
@@ -536,7 +587,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               </div>
             )}
 
-            {/* Add button / Picker */}
             {form.selectedPayMethods.length < 5 && !noSellMethods && (
               <Button
                 variant="outline"
@@ -561,7 +611,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   </p>
                 </DialogHeader>
 
-                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -572,10 +621,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   />
                 </div>
 
-                {/* Methods list */}
                 <div className="max-h-[350px] overflow-y-auto space-y-2">
                   {isBuyAd ? (
-                    // ── BUY AD: Show whitelisted methods ──
                     ALLOWED_BUY_PAYMENT_METHODS
                       .filter(m => m.label.toLowerCase().includes(payMethodSearch.toLowerCase()))
                       .map(config => {
@@ -611,7 +658,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                         );
                       })
                   ) : (
-                    // ── SELL AD: Show payment methods extracted from existing ads ──
                     <>
                       {isLoadingPayMethods ? (
                         <div className="flex justify-center py-8">
@@ -677,7 +723,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   )}
                 </div>
 
-                {/* Footer actions */}
                 <div className="flex items-center justify-between pt-2">
                   {!isBuyAd && (
                     <Button variant="outline" size="sm" onClick={() => {}} className="gap-1 invisible">
@@ -697,7 +742,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             <div>
               <Label>Payment Time Limit</Label>
               <Select value={String(form.payTimeLimit)} onValueChange={(v) => setForm({ ...form, payTimeLimit: Number(v) })}>
-                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PAYMENT_TIME_OPTIONS.map(o => (
                     <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
@@ -705,6 +750,78 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Terms Tags */}
+          <div className="space-y-3 rounded-lg border p-4">
+            <Label className="text-base font-semibold">Terms Tags (Optional)</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 w-full justify-start text-muted-foreground"
+                onClick={() => setShowTagsPicker(true)}
+              >
+                {form.selectedTags.length > 0
+                  ? `${form.selectedTags.length} tag${form.selectedTags.length > 1 ? 's' : ''} selected`
+                  : 'Add tags'
+                }
+              </Button>
+            </div>
+            {form.selectedTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {form.selectedTags.map(tagId => {
+                  const tag = BINANCE_TERMS_TAGS.find(t => t.id === tagId);
+                  return tag ? (
+                    <span key={tagId} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                      {tag.label}
+                      <button onClick={() => toggleTag(tagId)} className="ml-0.5 hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Select up to 3 tags</p>
+
+            {/* Tags Picker Dialog */}
+            <Dialog open={showTagsPicker} onOpenChange={setShowTagsPicker}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Select Tags</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {BINANCE_TERMS_TAGS.map(tag => {
+                    const selected = form.selectedTags.includes(tag.id);
+                    return (
+                      <div
+                        key={tag.id}
+                        className={cn(
+                          'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
+                          selected && 'ring-1 ring-primary bg-primary/5'
+                        )}
+                        onClick={() => toggleTag(tag.id)}
+                      >
+                        <Checkbox checked={selected} className="pointer-events-none mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{tag.label}</p>
+                          <p className="text-xs text-muted-foreground">{tag.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setForm({ ...form, selectedTags: [] })}>
+                    Reset
+                  </Button>
+                  <Button size="sm" onClick={() => setShowTagsPicker(false)}>
+                    Confirm
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Terms & Conditions */}
@@ -715,9 +832,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               <Textarea
                 value={form.remarks}
                 onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                placeholder="A 1% Tax Deducted at Source (TDS) will be deducted under Section 194S..."
+                placeholder="Terms will be displayed to the counterparty"
                 rows={3}
+                maxLength={1000}
               />
+              <p className="text-[10px] text-muted-foreground text-right mt-0.5">{form.remarks.length}/1000</p>
             </div>
             <div>
               <Label>Auto Reply (Optional)</Label>
@@ -733,6 +852,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
           {/* Counterparty Conditions */}
           <div className="space-y-3 rounded-lg border p-4">
             <Label className="text-base font-semibold">Counterparty Conditions</Label>
+            <p className="text-xs text-muted-foreground">Adding counterparty requirements will reduce the exposure of your Ad</p>
             <div className="flex items-center gap-3">
               <Switch
                 checked={form.takerAdditionalKycRequired === 1}
@@ -740,37 +860,72 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               />
               <Label>Request additional verification</Label>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Registered days ago</Label>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={regDaysEnabled}
+                  onCheckedChange={(checked) => setForm({
+                    ...form,
+                    buyerRegDaysLimit: checked ? 0 : -1
+                  })}
+                />
+                <Label className="flex-1">Registered</Label>
                 <Input
                   type="number"
-                  value={form.buyerRegDaysLimit}
-                  onChange={(e) => setForm({ ...form, buyerRegDaysLimit: Number(e.target.value) })}
+                  min="0"
+                  value={regDaysEnabled ? form.buyerRegDaysLimit : ''}
+                  onChange={(e) => setForm({ ...form, buyerRegDaysLimit: Number(e.target.value) || 0 })}
+                  disabled={!regDaysEnabled}
+                  className="w-20 text-center"
+                  placeholder="0"
                 />
+                <span className="text-sm text-muted-foreground">day(s) ago</span>
               </div>
-              <div>
-                <Label>Holdings more than (BTC)</Label>
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={btcHoldingEnabled}
+                  onCheckedChange={(checked) => setForm({
+                    ...form,
+                    buyerBtcPositionLimit: checked ? 0.01 : -1
+                  })}
+                />
+                <Label className="flex-1">Holdings more than</Label>
                 <Input
                   type="number"
                   step="0.001"
-                  value={form.buyerBtcPositionLimit}
-                  onChange={(e) => setForm({ ...form, buyerBtcPositionLimit: Number(e.target.value) })}
+                  min="0"
+                  value={btcHoldingEnabled ? form.buyerBtcPositionLimit : ''}
+                  onChange={(e) => setForm({ ...form, buyerBtcPositionLimit: Number(e.target.value) || 0 })}
+                  disabled={!btcHoldingEnabled}
+                  className="w-24 text-center"
+                  placeholder="0.01"
                 />
+                <span className="text-sm text-muted-foreground">BTC</span>
               </div>
             </div>
           </div>
 
-          {/* Status */}
-          <div className="flex items-center gap-3 rounded-lg border p-4">
+          {/* Status — Radio Group: Online / Offline / Private */}
+          <div className="space-y-3 rounded-lg border p-4">
             <Label className="text-base font-semibold">Status</Label>
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm text-muted-foreground">{form.onlineNow ? 'Online' : 'Offline'}</span>
-              <Switch
-                checked={form.onlineNow}
-                onCheckedChange={(checked) => setForm({ ...form, onlineNow: checked })}
-              />
-            </div>
+            <RadioGroup
+              value={String(form.advStatus)}
+              onValueChange={(v) => setForm({ ...form, advStatus: Number(v) })}
+              className="space-y-2"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value={String(BINANCE_AD_STATUS.ONLINE)} id="status-online" />
+                <Label htmlFor="status-online" className="cursor-pointer">Online</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value={String(BINANCE_AD_STATUS.OFFLINE)} id="status-offline" />
+                <Label htmlFor="status-offline" className="cursor-pointer">Offline</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value={String(BINANCE_AD_STATUS.PRIVATE)} id="status-private" />
+                <Label htmlFor="status-private" className="cursor-pointer">Private</Label>
+              </div>
+            </RadioGroup>
           </div>
         </div>
 

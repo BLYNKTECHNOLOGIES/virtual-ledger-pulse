@@ -34,11 +34,11 @@ export interface BinanceAd {
   tradeType: string; // BUY or SELL
   price: number;
   priceType: number; // 1 = fixed, 2 = floating
-  priceFloatingRatio?: number;
-  initAmount: number;
-  surplusAmount: number;
-  minSingleTransAmount: number;
-  maxSingleTransAmount: number;
+  priceFloatingRatio?: number | string;
+  initAmount: number | string;
+  surplusAmount: number | string;
+  minSingleTransAmount: number | string;
+  maxSingleTransAmount: number | string;
   tradeMethods: Array<{
     payId: number;
     payType: string;
@@ -49,11 +49,12 @@ export interface BinanceAd {
   remarks?: string;
   createTime?: string;
   updateTime?: string;
-  buyerRegDaysLimit?: number;
-  buyerBtcPositionLimit?: number;
+  buyerRegDaysLimit?: number | string;
+  buyerBtcPositionLimit?: number | string;
   takerAdditionalKycRequired?: number;
   payTimeLimit?: number;
   onlineNow?: boolean;
+  tags?: string[];
 }
 
 export interface AdFilters {

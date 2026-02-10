@@ -329,8 +329,9 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
 
-      // Payload per Binance doc: type, uuid, orderNo, content, self, clientType, createTime, sendStatus
-      const payload = {
+      // Include groupId + topicId metadata for Binance message routing
+      const groupId = groupIdMapRef.current.get(orderNo);
+      const payload: Record<string, any> = {
         type: 'text',
         uuid: String(now),
         orderNo,
@@ -339,7 +340,10 @@ export function useBinanceChatWebSocket(
         clientType: 'web',
         createTime: now,
         sendStatus: 0,
+        topicId: orderNo,
+        topicType: 'ORDER',
       };
+      if (groupId) payload.groupId = groupId;
 
       const payloadStr = JSON.stringify(payload);
       console.log('📤 WS send payload:', payloadStr);
@@ -395,11 +399,9 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
 
-      // Binance SAPI WS only documents type:'text' — type:'image' is silently dropped.
-      // Send imageUrl as text content; Binance renders it as a clickable link.
-      // This is a Binance API limitation — inline image rendering is only available
-      // from their native mobile app, not via SAPI/WebSocket.
-      const imgPayload = {
+      // Include groupId + topicId metadata for Binance message routing
+      const groupId = groupIdMapRef.current.get(orderNo);
+      const imgPayload: Record<string, any> = {
         type: 'text',
         uuid: String(now),
         orderNo,
@@ -408,7 +410,10 @@ export function useBinanceChatWebSocket(
         clientType: 'web',
         createTime: now,
         sendStatus: 0,
+        topicId: orderNo,
+        topicType: 'ORDER',
       };
+      if (groupId) imgPayload.groupId = groupId;
 
       const payloadStr = JSON.stringify(imgPayload);
       console.log('📤 WS send image as text link:', payloadStr);

@@ -390,10 +390,13 @@ serve(async (req) => {
       // Duplicate sendChatMessage case removed — handled above
 
       case "getChatGroupId": {
-        // Use BAPI to get groupId for an order (needed for WS sending)
-        const url = `${BINANCE_PROXY_URL}/api/bapi/c2c/v1/private/chat/integrated-group-list`;
-        console.log("getChatGroupId URL:", url, "orderNo:", payload.orderNo);
-        const response = await fetch(url, { 
+        // BAPI endpoints live on www.binance.com, not api.binance.com
+        // Route through proxy with the correct path
+        const bapiUrl = `${BINANCE_PROXY_URL}/api/bapi/c2c/v1/private/chat/integrated-group-list`;
+        console.log("getChatGroupId URL:", bapiUrl, "orderNo:", payload.orderNo);
+        
+        // Try proxy first, then direct www.binance.com as fallback
+        let groupResponse = await fetch(bapiUrl, { 
           method: "POST", 
           headers: proxyHeaders, 
           body: JSON.stringify({
@@ -402,9 +405,32 @@ serve(async (req) => {
             rows: 10,
           }) 
         });
-        const text = await response.text();
-        console.log("getChatGroupId response:", response.status, text.substring(0, 800));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        let groupText = await groupResponse.text();
+        
+        // If proxy returns 404, try direct to www.binance.com
+        if (groupResponse.status === 404) {
+          console.log("getChatGroupId: proxy 404, trying direct www.binance.com");
+          const directUrl = `https://www.binance.com/bapi/c2c/v1/private/chat/integrated-group-list`;
+          groupResponse = await fetch(directUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-MBX-APIKEY": BINANCE_API_KEY,
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "Origin": "https://www.binance.com",
+              "Referer": "https://www.binance.com/",
+            },
+            body: JSON.stringify({
+              orderNo: payload.orderNo,
+              page: 1,
+              rows: 10,
+            }),
+          });
+          groupText = await groupResponse.text();
+        }
+        
+        console.log("getChatGroupId response:", groupResponse.status, groupText.substring(0, 800));
+        try { result = JSON.parse(groupText); } catch { result = { raw: groupText, status: groupResponse.status }; }
         break;
       }
 

@@ -197,7 +197,14 @@ export function useBinanceChatWebSocket(
           // Always try to capture metadata from ANY frame
           captureMetadata(data);
 
-          console.log('WS message received:', data);
+          // Log all frames with full detail for debugging
+          console.log('WS message received:', JSON.stringify(data).substring(0, 500));
+          
+          // Skip error frames (don't add to messages list)
+          if (data.type === 'error') {
+            console.error('❌ Binance WS error:', data.content, '| Full frame:', JSON.stringify(data));
+            return;
+          }
 
           // Handle new chat message
           const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
@@ -346,24 +353,24 @@ export function useBinanceChatWebSocket(
         return;
       }
 
-      // Payload matching Binance integrated chat format
-      // uuid must be proper UUID format (observed in all Binance messages)
+      // Minimal payload — only fields Binance client actually sends
+      // Removed 'self' and 'sendStatus' which are server-set fields
+      const msgUuid = generateUUID();
       const payload = {
         type: 'text',
-        uuid: generateUUID(),
+        uuid: msgUuid,
         orderNo,
         content,
-        self: true,
         clientType: 'web',
         createTime: now,
-        sendStatus: 0,
         groupId,
         topicId: orderNo,
         topicType: 'ORDER',
       };
 
-      ws.send(JSON.stringify(payload));
-      console.log('📤 WS send payload:', JSON.stringify(payload));
+      const payloadStr = JSON.stringify(payload);
+      console.log('📤 WS send payload:', payloadStr, '| groupId:', groupId);
+      ws.send(payloadStr);
       markStatus('sent');
 
       // Immediately poll to verify delivery after 2s
@@ -440,17 +447,16 @@ export function useBinanceChatWebSocket(
         uuid: generateUUID(),
         orderNo,
         content: imageUrl,
-        self: true,
         clientType: 'web',
         createTime: now,
-        sendStatus: 0,
         groupId,
         topicId: orderNo,
         topicType: 'ORDER',
       };
 
-      ws.send(JSON.stringify(payload));
-      console.log('📤 WS send image payload:', JSON.stringify(payload));
+      const payloadStr = JSON.stringify(payload);
+      console.log('📤 WS send image payload:', payloadStr, '| groupId:', groupId);
+      ws.send(payloadStr);
       markStatus('sent');
 
       pollIntervalRef.current = 2000;

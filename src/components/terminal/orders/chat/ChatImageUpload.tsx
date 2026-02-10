@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 interface Props {
   orderNo: string;
-  onImageSent: () => void;
+  onImageSent: (imageUrl: string) => void;
 }
 
 export function ChatImageUpload({ orderNo, onImageSent }: Props) {
@@ -19,13 +19,11 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Only image files are allowed');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image must be under 5MB');
       return;
@@ -38,31 +36,39 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
 
     setUploading(true);
     try {
-      // Step 1: Get pre-signed URL from Binance
-      const imageName = `${orderNo}_${Date.now()}_${file.name}`;
+      // Step 1: Get pre-signed URL from Binance via SAPI
+      const imageName = `${orderNo}_${Date.now()}.jpg`;
       const result = await getUploadUrl.mutateAsync(imageName);
+      const data = result?.data?.data || result?.data || result;
 
-      // The API returns a pre-signed URL for uploading
-      const uploadUrl = result?.data?.url || result?.url;
-      if (!uploadUrl) {
-        throw new Error('Failed to get upload URL from Binance');
+      const preSignedUrl = data?.preSignedUrl;
+      const imageUrl = data?.imageUrl || data?.imageUr1; // Binance doc has typo "imageUr1"
+
+      if (!preSignedUrl) {
+        throw new Error('Failed to get pre-signed upload URL from Binance');
+      }
+      if (!imageUrl) {
+        throw new Error('Failed to get imageUrl from Binance');
       }
 
-      // Step 2: Upload the image to the pre-signed URL
-      const uploadResponse = await fetch(uploadUrl, {
+      console.log('📸 Got pre-signed URL, uploading image...');
+
+      // Step 2: Upload the image to the pre-signed URL (PUT)
+      const uploadResponse = await fetch(preSignedUrl, {
         method: 'PUT',
         body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
       });
 
       if (!uploadResponse.ok) {
         throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      toast.success('Image sent successfully');
-      onImageSent();
+      console.log('✅ Image uploaded, sending via WS with imageUrl:', imageUrl);
+
+      // Step 3: Send the imageUrl via WebSocket
+      onImageSent(imageUrl);
+      
+      toast.success('Image sent');
       setPreview(null);
     } catch (err: any) {
       console.error('Image upload error:', err);
@@ -88,7 +94,6 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         className="hidden"
       />
 
-      {/* Preview overlay */}
       {preview && (
         <div className="absolute bottom-14 left-3 right-3 bg-card border border-border rounded-lg p-2 shadow-lg z-10">
           <div className="flex items-start gap-2">
@@ -102,6 +107,9 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
               <X className="h-3 w-3" />
             </Button>
           </div>
+          {uploading && (
+            <p className="text-[10px] text-muted-foreground mt-1">Uploading to Binance...</p>
+          )}
         </div>
       )}
 

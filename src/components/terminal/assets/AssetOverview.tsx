@@ -114,11 +114,15 @@ export function AssetOverview() {
                     <p className="text-sm font-medium text-foreground tabular-nums">
                       {showValues ? asset.total_balance.toFixed(8) : "****"}
                     </p>
-                    {usdtVal !== null && usdtVal !== asset.total_balance && (
-                      <p className="text-[10px] text-muted-foreground tabular-nums">
-                        {showValues ? `≈ ${usdtVal.toFixed(2)} USDT` : "****"}
-                      </p>
-                    )}
+                    <p className="text-[10px] text-muted-foreground tabular-nums">
+                      {showValues
+                        ? asset.asset === "USDT"
+                          ? `≈ ${asset.total_balance.toFixed(4)} USDT`
+                          : usdtVal !== null
+                            ? `≈ ${usdtVal.toFixed(4)} USDT`
+                            : "≈ -- USDT"
+                        : "****"}
+                    </p>
                   </div>
                 </button>
               );

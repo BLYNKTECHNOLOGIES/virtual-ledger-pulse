@@ -8,7 +8,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { PastInteractionsPanel } from './PastInteractionsPanel';
-import { useP2PCounterparty } from '@/hooks/useP2PTerminal';
+import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus } from '@/hooks/useBinanceActions';
 
 interface Props {
@@ -18,7 +18,9 @@ interface Props {
 
 export function OrderDetailWorkspace({ order, onClose }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'history'>('profile');
-  const { data: counterparty } = useP2PCounterparty(order.counterparty_id);
+  const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
+  const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
+  const counterparty = counterpartyById || counterpartyByNick;
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);

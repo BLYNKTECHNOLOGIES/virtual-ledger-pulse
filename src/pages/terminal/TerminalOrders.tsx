@@ -6,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ShoppingCart, RefreshCw, Search, MessageSquare } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
@@ -316,77 +318,130 @@ export default function TerminalOrders() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-[10px] text-muted-foreground font-medium w-[100px]">Side</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium">Type/Date</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium">Order number</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium">Price</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium">Fiat / Crypto Amount</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Amount</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Price</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-center w-[50px]">Chat</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayOrders.map((order) => (
-                    <TableRow
-                      key={order.id}
-                      className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] ${
-                            order.trade_type === 'BUY'
-                              ? 'border-trade-buy/30 text-trade-buy bg-trade-buy/5'
-                              : 'border-trade-sell/30 text-trade-sell bg-trade-sell/5'
-                          }`}
-                        >
-                          {order.trade_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs text-foreground font-medium">
-                          {order.counterparty_nickname}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-xs text-foreground tabular-nums">
-                          {Number(order.amount).toFixed(2)} {order.asset}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-xs text-foreground tabular-nums font-medium">
-                          ₹{Number(order.total_price).toLocaleString('en-IN')}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <OrderStatusBadge status={order.order_status} tradeType={order.trade_type} />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <button
-                          onClick={(e) => openChatForOrder(order, e)}
-                          className="relative inline-flex items-center justify-center h-7 w-7 rounded hover:bg-secondary transition-colors"
-                          title="Open chat"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                          {(unreadMap.get(order.binance_order_number) || 0) > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
-                              <span className="text-[8px] font-bold text-destructive-foreground">
-                                {unreadMap.get(order.binance_order_number)}
+                  {displayOrders.map((order) => {
+                    const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
+                    const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
+                    const style = getStatusStyle(opStatus);
+                    const unread = unreadMap.get(order.binance_order_number) || 0;
+
+                    return (
+                      <TableRow
+                        key={order.id}
+                        className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        {/* Type/Date */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs">
+                              <span className={`font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                                {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
                               </span>
+                              {' '}
+                              <span className="text-foreground font-medium">{order.asset}</span>
                             </span>
-                          )}
-                        </button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-[11px] text-muted-foreground tabular-nums">
-                          {order.binance_create_time
-                            ? format(new Date(order.binance_create_time), 'dd MMM HH:mm')
-                            : '—'}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              {order.binance_create_time
+                                ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
+                                : '—'}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Order number */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
+                                {order.binance_order_number}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(order.binance_order_number);
+                                  toast.success('Order number copied');
+                                }}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <Copy className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {order.additional_kyc_verify === 1 && (
+                              <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-500 bg-amber-500/5 gap-0.5">
+                                <ShieldAlert className="h-2.5 w-2.5" />
+                                Requires Verification
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Price */}
+                        <TableCell className="py-3">
+                          <span className="text-xs text-foreground tabular-nums">
+                            {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
+                          </span>
+                        </TableCell>
+
+                        {/* Fiat / Crypto Amount */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-foreground tabular-nums font-medium">
+                              {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground tabular-nums">
+                              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
+                            </span>
+                          </div>
+                        </TableCell>
+
+                        {/* Counterparty */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-xs text-foreground font-medium underline decoration-muted-foreground/30 underline-offset-2 truncate max-w-[140px]">
+                              {order.counterparty_nickname}
+                            </span>
+                            <button
+                              onClick={(e) => openChatForOrder(order, e)}
+                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors w-fit"
+                            >
+                              Chat <MessageSquare className="h-3 w-3" />
+                              {unread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
+                                  <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell className="py-3">
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className={`text-[10px] w-fit ${style.badgeClass}`}>
+                              {style.label}
+                            </Badge>
+                            {isActive && order.binance_create_time && (
+                              <OrderRowTimer createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()} />
+                            )}
+                            {opStatus === 'Completed' && (
+                              <span className="text-[10px] text-primary cursor-pointer hover:underline" onClick={(e) => e.stopPropagation()}>
+                                Receipt
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -401,4 +456,25 @@ function OrderStatusBadge({ status, tradeType }: { status: string; tradeType: st
   const operational = mapToOperationalStatus(status, tradeType);
   const style = getStatusStyle(operational);
   return <Badge variant="outline" className={`text-[10px] ${style.badgeClass}`}>{style.label}</Badge>;
+}
+
+/** Lightweight elapsed timer for table rows */
+function OrderRowTimer({ createTime }: { createTime: number }) {
+  const [display, setDisplay] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const diff = Math.max(0, Date.now() - createTime);
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setDisplay(`${mins}:${secs.toString().padStart(2, '0')}`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [createTime]);
+
+  return (
+    <span className="text-[10px] text-trade-pending tabular-nums font-medium">{display}</span>
+  );
 }

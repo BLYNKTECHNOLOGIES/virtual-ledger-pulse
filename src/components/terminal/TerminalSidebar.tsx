@@ -9,7 +9,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import {
   LayoutDashboard,
   Megaphone,
@@ -18,6 +20,7 @@ import {
   Settings,
   Activity,
   Users,
+  Building2,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
@@ -119,6 +122,18 @@ export function TerminalSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
+        <Link to="/dashboard">
+          <Button
+            variant="ghost"
+            className="w-full h-8 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-amber-400 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide text-xs"
+          >
+            <Building2 className="h-3.5 w-3.5 mr-2" />
+            ERP Dashboard
+          </Button>
+        </Link>
+      </SidebarFooter>
     </Sidebar>
   );
 }

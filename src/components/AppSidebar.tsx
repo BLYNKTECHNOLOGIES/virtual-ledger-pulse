@@ -411,21 +411,32 @@ export function AppSidebar() {
         )}
       </SidebarContent>
       
-      <SidebarFooter className={`border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'p-1' : 'p-3'}`}>
-        <div className="flex items-center justify-center">
-          {!isCollapsed && (
-            <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
-              © 2025 BLYNK Virtual Technologies
-            </div>
-          )}
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={toggleSidebar} 
-            className={`text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
-          >
-            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </Button>
+      <SidebarFooter className={`border-t-2 border-gray-100 bg-gray-50 ${isCollapsed ? 'p-1' : 'p-2'}`}>
+        <div className="flex flex-col gap-2">
+          <Link to="/terminal">
+            <Button
+              variant="ghost"
+              className={`w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-amber-400 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 hover:text-amber-300 border border-amber-500/30 hover:border-amber-400/50 shadow-lg hover:shadow-amber-500/10 transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+            >
+              <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
+              {!isCollapsed && <span className="text-xs">Terminal</span>}
+            </Button>
+          </Link>
+          <div className="flex items-center justify-center">
+            {!isCollapsed && (
+              <div className="text-xs text-gray-500 font-medium truncate flex-1 mr-2 bg-white px-2 py-1 rounded-lg shadow-sm">
+                © 2025 BLYNK Virtual Technologies
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={toggleSidebar} 
+              className={`text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg flex-shrink-0 border-2 border-transparent hover:border-gray-200 transition-all duration-200 ${isCollapsed ? 'h-8 w-8 p-0' : ''}`}
+            >
+              {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>

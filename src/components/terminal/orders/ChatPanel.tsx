@@ -43,12 +43,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     for (const msg of wsMessages) {
       const msgType = msg.type || msg.chatMessageType || 'text';
       const isSelf = msg.self === true;
+      const isImage = msgType === 'image';
+      const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
         senderType: msgType === 'system' ? 'system' : (isSelf ? 'operator' : 'counterparty'),
-        text: msg.content || msg.message || null,
-        imageUrl: msg.imageUrl || msg.thumbnailUrl || undefined,
+        // For image messages, don't show the URL as text content
+        text: isImage ? null : (msg.content || msg.message || null),
+        imageUrl: isImage ? (imgUrl || msg.content || msg.message || undefined) : imgUrl,
         timestamp: msg.createTime || 0,
       });
     }

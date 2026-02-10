@@ -377,10 +377,12 @@ serve(async (req) => {
 
       case "getChatImageUploadUrl": {
         // POST /sapi/v1/c2c/chat/image/pre-signed-url
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/image/pre-signed-url`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
-          imageName: payload.imageName,
-        }) });
+        // Try both: query param in URL + body JSON, so proxy can pick up imageName from either
+        const imgName = payload.imageName || `chat_${Date.now()}.jpg`;
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/image/pre-signed-url?imageName=${encodeURIComponent(imgName)}`;
+        const reqBody = JSON.stringify({ imageName: imgName });
+        console.log("getChatImageUploadUrl url:", url, "body:", reqBody);
+        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: reqBody });
         const text = await response.text();
         console.log("getChatImageUploadUrl response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }

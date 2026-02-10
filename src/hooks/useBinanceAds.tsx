@@ -77,9 +77,25 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
 }
 
 export function useBinanceAdsList(filters: AdFilters) {
+  const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
+
   return useQuery({
     queryKey: ['binance-ads', filters],
-    queryFn: () => callBinanceAds('listAds', filters),
+    queryFn: async () => {
+      if (!isAllStatuses) {
+        return callBinanceAds('listAds', filters);
+      }
+      // Fetch all 3 statuses in parallel and merge
+      const [online, priv, offline] = await Promise.all([
+        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
+        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.PRIVATE }),
+        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
+      ]);
+      const mergeList = (r: any) => r?.data || r?.list || [];
+      const allAds = [...mergeList(online), ...mergeList(priv), ...mergeList(offline)];
+      const totalCount = (online?.total || 0) + (priv?.total || 0) + (offline?.total || 0);
+      return { data: allAds, total: totalCount || allAds.length };
+    },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
   });

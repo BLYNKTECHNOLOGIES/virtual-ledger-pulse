@@ -49,6 +49,7 @@ export function useBinanceChatWebSocket(
   const wsRef = useRef<WebSocket | null>(null);
   const relayInfoRef = useRef<RelayInfo | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const groupIdMapRef = useRef<Map<string, string>>(new Map()); // orderNo → groupId
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -56,11 +57,18 @@ export function useBinanceChatWebSocket(
   const pollIntervalRef = useRef(5000);
   const maxReconnectAttempts = 5;
 
-  // Helper to capture sessionId from any frame that contains it
-  const captureSessionId = useCallback((data: any) => {
+  // Helper to capture sessionId and groupId from any frame
+  const captureMetadata = useCallback((data: any) => {
     if (data.sessionId && !sessionIdRef.current) {
       sessionIdRef.current = data.sessionId;
       console.log('✅ Captured sessionId:', sessionIdRef.current);
+    }
+    if (data.groupId && data.orderNo) {
+      groupIdMapRef.current.set(data.orderNo, data.groupId);
+    }
+    // Also capture from topicId (which equals orderNo)
+    if (data.groupId && data.topicId) {
+      groupIdMapRef.current.set(data.topicId, data.groupId);
     }
   }, []);
 
@@ -171,8 +179,8 @@ export function useBinanceChatWebSocket(
           if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
           if (data.type === 'pong' || data.e === 'pong') return;
 
-          // Always try to capture sessionId from ANY frame
-          captureSessionId(data);
+          // Always try to capture metadata from ANY frame
+          captureMetadata(data);
 
           console.log('WS message received:', data);
 
@@ -244,7 +252,7 @@ export function useBinanceChatWebSocket(
       setError(err instanceof Error ? err.message : 'Connection failed');
       setIsConnecting(false);
     }
-  }, [captureSessionId]);
+  }, [captureMetadata]);
 
   // Connect on mount, cleanup on unmount
   useEffect(() => {
@@ -295,13 +303,30 @@ export function useBinanceChatWebSocket(
     }
 
     try {
-      // Minimal payload - only fields from Binance docs that are essential
-      const payload = {
+      const now = Date.now();
+      const groupId = groupIdMapRef.current.get(orderNo);
+      
+      // Full payload matching Binance doc + groupId/topicId from observed messages
+      const payload: Record<string, any> = {
         type: 'text',
-        uuid: String(Date.now()),
+        uuid: String(now),
         orderNo,
         content,
+        self: true,
+        clientType: 'web',
+        createTime: now,
+        sendStatus: 0,
+        topicId: orderNo,
+        topicType: 'ORDER',
       };
+      
+      // Include groupId if captured from incoming messages for this order
+      if (groupId) {
+        payload.groupId = groupId;
+        console.log('📎 Using captured groupId:', groupId);
+      } else {
+        console.warn('⚠️ No groupId captured yet for order', orderNo, '- message may fail');
+      }
 
       ws.send(JSON.stringify(payload));
       console.log('📤 WS send payload:', JSON.stringify(payload));

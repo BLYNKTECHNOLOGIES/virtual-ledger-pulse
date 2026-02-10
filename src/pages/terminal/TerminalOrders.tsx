@@ -432,11 +432,6 @@ export default function TerminalOrders() {
                             {isActive && order.binance_create_time && (
                               <OrderRowTimer createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()} />
                             )}
-                            {opStatus === 'Completed' && (
-                              <span className="text-[10px] text-primary cursor-pointer hover:underline" onClick={(e) => e.stopPropagation()}>
-                                Receipt
-                              </span>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>

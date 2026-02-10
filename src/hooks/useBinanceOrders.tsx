@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface C2COrderHistoryItem {
   orderNumber: string;
   advNo: string;
-  tradeType: string; // BUY or SELL
+  tradeType: string;
   asset: string;
   fiatUnit: string;
   orderStatus: string;
@@ -31,7 +31,6 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
   });
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'API call failed');
-  // Binance responses nest data in result.data for paginated endpoints
   const result = data.data;
   return result;
 }
@@ -47,7 +46,6 @@ export function useBinanceOrderHistory(filters: OrderHistoryFilters) {
 
 /** Compute dashboard stats from order history data */
 export function computeOrderStats(orders: C2COrderHistoryItem[]) {
-  const now = Date.now();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -57,12 +55,14 @@ export function computeOrderStats(orders: C2COrderHistoryItem[]) {
   let appeals = 0;
   let totalBuyVolume = 0;
   let totalSellVolume = 0;
+  let completedCount = 0;
+  let buyCount = 0;
+  let sellCount = 0;
 
   for (const o of orders) {
     const status = (o.orderStatus || '').toUpperCase();
     const price = parseFloat(o.totalPrice || '0');
 
-    // Active = not terminal
     if (['TRADING', 'BUYER_PAYED', 'PENDING'].some(s => status.includes(s))) {
       activeOrders++;
     }
@@ -77,10 +77,20 @@ export function computeOrderStats(orders: C2COrderHistoryItem[]) {
     }
 
     if (status.includes('COMPLETED')) {
-      if (o.tradeType === 'BUY') totalBuyVolume += price;
-      else totalSellVolume += price;
+      completedCount++;
+      if (o.tradeType === 'BUY') { totalBuyVolume += price; buyCount++; }
+      else { totalSellVolume += price; sellCount++; }
     }
   }
 
-  return { activeOrders, pendingPayments, completedToday, appeals, totalBuyVolume, totalSellVolume };
+  const totalVolume = totalBuyVolume + totalSellVolume;
+  const avgOrderSize = completedCount > 0 ? totalVolume / completedCount : 0;
+  const completionRate = orders.length > 0 ? (completedCount / orders.length) * 100 : 0;
+  const buySellRatio = `${buyCount} / ${sellCount}`;
+
+  return {
+    activeOrders, pendingPayments, completedToday, appeals,
+    totalBuyVolume, totalSellVolume,
+    totalVolume, avgOrderSize, completionRate, buySellRatio,
+  };
 }

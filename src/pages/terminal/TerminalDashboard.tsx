@@ -49,12 +49,16 @@ export default function TerminalDashboard() {
         </div>
       </div>
 
-      {/* Metric cards */}
+      {/* Metric cards — 2 rows of 4 */}
       <MetricCards
         activeOrders={stats.activeOrders}
         pendingPayments={stats.pendingPayments}
         completedToday={stats.completedToday}
         appeals={stats.appeals}
+        totalVolume={stats.totalVolume}
+        avgOrderSize={stats.avgOrderSize}
+        completionRate={stats.completionRate}
+        buySellRatio={stats.buySellRatio}
         isLoading={ordersLoading}
       />
 
@@ -87,17 +91,20 @@ export default function TerminalDashboard() {
           </Card>
         </Link>
 
-        <Card className="bg-card border-border opacity-50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-medium text-foreground">Orders</h3>
-              <p className="text-[11px] text-muted-foreground">Coming in Phase 3</p>
-            </div>
-          </CardContent>
-        </Card>
+        <Link to="/terminal/orders">
+          <Card className="bg-card border-border hover:border-primary/30 transition-colors cursor-pointer group">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ShoppingCart className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">Orders</h3>
+                <p className="text-[11px] text-muted-foreground">View & manage P2P orders</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

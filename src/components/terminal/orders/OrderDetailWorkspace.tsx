@@ -172,16 +172,32 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
           {/* Key stat cards */}
           <div className="grid grid-cols-2 gap-2">
             {stats.completedOrderNum !== undefined && (
-              <StatCard label="All Trades" value={`${stats.completedOrderNum}`} />
+              <StatCard
+                label="All Trades"
+                value={`${stats.completedOrderNum}`}
+                subValues={
+                  (stats.buyCompletedOrderNum !== undefined || stats.sellCompletedOrderNum !== undefined)
+                    ? `Buy ${stats.buyCompletedOrderNum ?? 0} | Sell ${stats.sellCompletedOrderNum ?? 0}`
+                    : undefined
+                }
+              />
             )}
             {stats.completedOrderNumOfLatest30day !== undefined && (
-              <StatCard label="30d Trades" value={`${stats.completedOrderNumOfLatest30day}`} />
+              <StatCard
+                label="30d Trades"
+                value={`${stats.completedOrderNumOfLatest30day}`}
+                subValues={
+                  (stats.buyCompletedOrderNumOfLatest30day !== undefined || stats.sellCompletedOrderNumOfLatest30day !== undefined)
+                    ? `Buy ${stats.buyCompletedOrderNumOfLatest30day ?? 0} | Sell ${stats.sellCompletedOrderNumOfLatest30day ?? 0}`
+                    : undefined
+                }
+              />
             )}
             {stats.finishRateLatest30Day !== undefined && (
-              <StatCard label="30d Completion" value={`${(stats.finishRateLatest30Day * 100).toFixed(1)}%`} />
+              <StatCard label="30d Completion" value={`${(Number(stats.finishRateLatest30Day) * 100).toFixed(1)}%`} />
             )}
             {stats.finishRate !== undefined && (
-              <StatCard label="Overall Rate" value={`${(stats.finishRate * 100).toFixed(1)}%`} />
+              <StatCard label="Overall Rate" value={`${(Number(stats.finishRate) * 100).toFixed(1)}%`} />
             )}
           </div>
 
@@ -243,11 +259,14 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, subValues }: { label: string; value: string; subValues?: string }) {
   return (
     <div className="bg-secondary/50 rounded-md px-2.5 py-2 text-center">
       <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
       <p className="text-sm font-bold text-foreground tabular-nums">{value}</p>
+      {subValues && (
+        <p className="text-[9px] text-muted-foreground mt-0.5 tabular-nums">{subValues}</p>
+      )}
     </div>
   );
 }

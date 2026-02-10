@@ -17,7 +17,7 @@ interface Props {
 }
 
 type ResultStatus = 'pending' | 'success' | 'error';
-interface AdResult { advNo: string; status: ResultStatus; message?: string; oldRatio?: number; newRatio?: number }
+interface AdResult { advNo: string; status: ResultStatus; message?: string; oldRatio?: number | string; newRatio?: number }
 
 export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }: Props) {
   const { toast } = useToast();

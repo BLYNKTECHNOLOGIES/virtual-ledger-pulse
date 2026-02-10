@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Clock, CreditCard, Hash, Timer, AlertTriangle } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
+import { PaymentDetailsCard } from './PaymentDetailsCard';
 import { OrderActions } from './OrderActions';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
@@ -80,6 +81,15 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
         {/* Fallback: elapsed timer if nothing available */}
         {createTimeMs && !isTerminal && !notifyPayEndTimeMs && !notifyPayedExpireMinute && (
           <ElapsedTimer createTime={createTimeMs} />
+        )}
+
+        {/* Payment details for BUY orders — shows seller's bank/UPI details */}
+        {order.trade_type === 'BUY' && liveDetail?.payMethods && (
+          <PaymentDetailsCard
+            payMethods={liveDetail.payMethods}
+            totalPrice={order.total_price?.toString() || liveDetail.totalPrice || '0'}
+            fiatSymbol={liveDetail.fiatSymbol || '₹'}
+          />
         )}
 
         {/* Status */}

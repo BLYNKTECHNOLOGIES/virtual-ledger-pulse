@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,7 +13,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Mail, Smartphone } from 'lucide-react';
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 
@@ -21,28 +28,24 @@ interface Props {
   orderNumber: string;
   orderStatus: string;
   tradeType: string;
-  additionalKycVerify?: number; // 0=none, 1=pending verification, 2=verified
+  additionalKycVerify?: number;
 }
 
 export function OrderActions({ orderNumber, orderStatus, tradeType, additionalKycVerify }: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 
-  // Hide actions for terminal states
   if (['Completed', 'Cancelled', 'Expired'].includes(opStatus)) return null;
 
-  // For SELL orders: if additionalKycVerify is 1 (pending), seller must verify before buyer sees payment details
   const needsVerification = tradeType === 'SELL' && additionalKycVerify === 1;
 
   return (
     <div className="pt-3 border-t border-border space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
       
-      {/* Verify Order - SELL order with pending KYC verification */}
       {needsVerification && opStatus === 'Pending Payment' && (
         <VerifyOrderAction orderNumber={orderNumber} />
       )}
 
-      {/* Already verified indicator */}
       {tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment' && (
         <div className="flex items-center gap-1.5 text-trade-buy bg-trade-buy/5 border border-trade-buy/20 rounded-md px-2.5 py-1.5">
           <UserCheck className="h-3 w-3" />
@@ -50,17 +53,14 @@ export function OrderActions({ orderNumber, orderStatus, tradeType, additionalKy
         </div>
       )}
 
-      {/* Mark as Paid - BUY order in Pending Payment state */}
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
         <MarkAsPaidAction orderNumber={orderNumber} />
       )}
 
-      {/* Release Coin - SELL order in Pending Release state (buyer has paid, we verify & release) */}
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
         <ReleaseCoinAction orderNumber={orderNumber} />
       )}
 
-      {/* Cancel - only BUY orders in Pending Payment state (sellers can't cancel their own sell ads) */}
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
         <CancelOrderAction orderNumber={orderNumber} />
       )}
@@ -140,20 +140,66 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
+type AuthMethod = 'GOOGLE' | 'FIDO2' | 'EMAIL' | 'MOBILE' | 'YUBIKEY';
+
+const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string }[] = [
+  { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code' },
+  { value: 'FIDO2', label: 'Passkey / FIDO2', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Passkey verification code' },
+  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code' },
+  { value: 'MOBILE', label: 'Mobile OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter mobile verification code' },
+  { value: 'YUBIKEY', label: 'YubiKey', icon: <Shield className="h-3.5 w-3.5" />, placeholder: 'Enter YubiKey code' },
+];
+
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const releaseCoin = useReleaseCoin();
-  const [twoFaCode, setTwoFaCode] = useState('');
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
+  const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
 
+  const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
+
   const handleRelease = () => {
-    releaseCoin.mutate(
-      { orderNumber, authType: 'GOOGLE', googleVerifyCode: twoFaCode },
-      { onSuccess: () => { setOpen(false); setTwoFaCode(''); } }
-    );
+    const params: {
+      orderNumber: string;
+      authType: string;
+      code?: string;
+      emailVerifyCode?: string;
+      googleVerifyCode?: string;
+      mobileVerifyCode?: string;
+      yubikeyVerifyCode?: string;
+    } = {
+      orderNumber,
+      authType: authMethod,
+    };
+
+    switch (authMethod) {
+      case 'GOOGLE':
+        params.googleVerifyCode = code;
+        break;
+      case 'FIDO2':
+        params.code = code;
+        break;
+      case 'EMAIL':
+        params.emailVerifyCode = code;
+        break;
+      case 'MOBILE':
+        params.mobileVerifyCode = code;
+        break;
+      case 'YUBIKEY':
+        params.yubikeyVerifyCode = code;
+        break;
+    }
+
+    releaseCoin.mutate(params, {
+      onSuccess: () => {
+        setOpen(false);
+        setCode('');
+      },
+    });
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
+    <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setCode(''); }}>
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
@@ -164,31 +210,64 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
           Release Crypto
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
             Release Crypto
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Enter your Google Authenticator 2FA code to release the crypto to the buyer.
+            Choose your authentication method and enter the verification code to release crypto to the buyer.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <Input
-          type="text"
-          placeholder="Enter 6-digit 2FA code"
-          value={twoFaCode}
-          onChange={(e) => setTwoFaCode(e.target.value)}
-          maxLength={6}
-          className="text-center text-lg tracking-widest font-mono"
-        />
+
+        <div className="space-y-4 py-2">
+          {/* Auth method selector */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Authentication Method</Label>
+            <Select value={authMethod} onValueChange={(v) => { setAuthMethod(v as AuthMethod); setCode(''); }}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AUTH_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                    <div className="flex items-center gap-2">
+                      {opt.icon}
+                      {opt.label}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Verification code input */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              {selectedAuth.icon}
+              {selectedAuth.label} Code
+            </Label>
+            <Input
+              type="text"
+              placeholder={selectedAuth.placeholder}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              maxLength={authMethod === 'GOOGLE' ? 6 : 64}
+              className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : ''}`}
+              autoFocus
+            />
+          </div>
+        </div>
+
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button
             onClick={handleRelease}
-            disabled={twoFaCode.length < 6 || releaseCoin.isPending}
+            disabled={!code.trim() || (authMethod === 'GOOGLE' && code.length < 6) || releaseCoin.isPending}
+            className="gap-1.5"
           >
-            {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null}
+            {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
             Release
           </Button>
         </AlertDialogFooter>

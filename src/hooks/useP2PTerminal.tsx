@@ -170,6 +170,24 @@ export function useP2PCounterparty(counterpartyId: string | null) {
   });
 }
 
+// ---- Counterparty by nickname (fallback when ID is null) ----
+export function useP2PCounterpartyByNickname(nickname: string | null) {
+  return useQuery({
+    queryKey: ['p2p-counterparty-nickname', nickname],
+    queryFn: async () => {
+      if (!nickname) return null;
+      const { data, error } = await supabase
+        .from('p2p_counterparties')
+        .select('*')
+        .eq('binance_nickname', nickname)
+        .maybeSingle();
+      if (error) throw error;
+      return data as P2PCounterparty | null;
+    },
+    enabled: !!nickname,
+  });
+}
+
 // ---- Past orders with same counterparty ----
 export function useCounterpartyOrders(counterpartyId: string | null, excludeOrderId?: string) {
   return useQuery({

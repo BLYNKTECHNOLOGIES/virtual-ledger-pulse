@@ -243,20 +243,45 @@ serve(async (req) => {
       }
 
       case "releaseCoin": {
-        // POST /sapi/v1/c2c/orderMatch/releaseCoin
+        // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
         if (payload.authType) body.authType = payload.authType;
         if (payload.code) body.code = payload.code;
+        if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
         if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
         if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
         if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
+        if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+        if (payload.payId) body.payId = payload.payId;
         console.log("releaseCoin body:", JSON.stringify(body));
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("releaseCoin response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "checkIfCanRelease": {
+        // POST /sapi/v1/c2c/orderMatch/checkIfCanReleaseCoin (API doc #21)
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/checkIfCanReleaseCoin`;
+        const body: Record<string, any> = {
+          orderNumber: payload.orderNumber,
+        };
+        if (payload.authType) body.authType = payload.authType;
+        if (payload.code) body.code = payload.code;
+        if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
+        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
+        if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
+        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
+        if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+        if (payload.payId) body.payId = payload.payId;
+        console.log("checkIfCanRelease body:", JSON.stringify(body));
+        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+        const text = await response.text();
+        console.log("checkIfCanRelease response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

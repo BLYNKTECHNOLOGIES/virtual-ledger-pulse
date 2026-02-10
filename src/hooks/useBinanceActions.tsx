@@ -31,7 +31,7 @@ export function useMarkOrderAsPaid() {
   });
 }
 
-/** Release crypto (requires 2FA code) */
+/** Release crypto (requires 2FA code - supports Google, FIDO2/Passkey, Email, Mobile, Yubikey) */
 export function useReleaseCoin() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -39,9 +39,12 @@ export function useReleaseCoin() {
       orderNumber: string;
       authType?: string;
       code?: string;
+      confirmPaidType?: string;
       emailVerifyCode?: string;
       googleVerifyCode?: string;
       mobileVerifyCode?: string;
+      yubikeyVerifyCode?: string;
+      payId?: number;
     }) => {
       return callBinanceAds('releaseCoin', params);
     },
@@ -50,8 +53,28 @@ export function useReleaseCoin() {
       queryClient.invalidateQueries({ queryKey: ['binance-order-history'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
     },
     onError: (err: Error) => toast.error(`Release failed: ${err.message}`),
+  });
+}
+
+/** Check if release is allowed (pre-validation) */
+export function useCheckIfCanRelease() {
+  return useMutation({
+    mutationFn: async (params: {
+      orderNumber: string;
+      authType?: string;
+      code?: string;
+      confirmPaidType?: string;
+      emailVerifyCode?: string;
+      googleVerifyCode?: string;
+      mobileVerifyCode?: string;
+      yubikeyVerifyCode?: string;
+      payId?: number;
+    }) => {
+      return callBinanceAds('checkIfCanRelease', params);
+    },
   });
 }
 

@@ -84,26 +84,30 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      console.log('✅ Step 3: Image uploaded to S3, sending imageUrl via REST API...');
+      console.log('✅ Step 3: Image uploaded to S3, delivering imageUrl...');
 
-      // Step 2c: Send imageUrl via REST sendChatMessage (more reliable than WS for images)
-      const sendResult = await callBinanceAds('sendChatMessage', {
-        orderNo,
-        imageUrl: imageUrl,
-      });
-      console.log('📸 sendChatMessage result:', JSON.stringify(sendResult).substring(0, 300));
-      
-      if (sendResult?.success === false || sendResult?.error) {
-        console.warn('⚠️ REST send may have failed, falling back to WS:', sendResult?.error);
-        // Fallback: send via WS
-        onImageSent(imageUrl);
-      } else {
-        // REST succeeded — notify parent for optimistic UI only
-        onImageSent(imageUrl);
+      // Step 2c: Try REST first, fallback to WS if REST fails (proxy may not support sendMessage yet)
+      let restSent = false;
+      try {
+        const sendResult = await callBinanceAds('sendChatMessage', {
+          orderNo,
+          imageUrl: imageUrl,
+        });
+        console.log('📸 sendChatMessage result:', JSON.stringify(sendResult).substring(0, 300));
+        
+        if (sendResult?.data?.code === '000000' || (sendResult?.success && !sendResult?.error)) {
+          restSent = true;
+          console.log('✅ Image delivered via REST API');
+        }
+      } catch (restErr: any) {
+        console.warn('⚠️ REST sendChatMessage failed:', restErr.message, '— using WebSocket fallback');
       }
-      toast.success('Image sent');
+
+      // Always notify parent — it handles WS send as fallback and adds optimistic UI
+      onImageSent(imageUrl);
+      toast.success(restSent ? 'Image sent' : 'Image sent via chat');
       
-      // Clear preview only after successful upload + send
+      // Clear preview after successful upload + delivery attempt
       setPreview(null);
       setSelectedFile(null);
     } catch (err: any) {

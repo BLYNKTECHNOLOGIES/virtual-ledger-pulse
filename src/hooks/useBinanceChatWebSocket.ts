@@ -130,24 +130,7 @@ export function useBinanceChatWebSocket(
             break;
           }
         }
-        setMessages((prev) => {
-          // Only keep optimistic messages still in 'sending' state AND
-          // whose content doesn't already exist in server data
-          const serverContents = new Set(
-            list
-              .filter((m: BinanceChatMessage) => m.self)
-              .map((m: BinanceChatMessage) => (m.content || m.message || '').trim())
-          );
-          const serverIds = new Set(list.map((m: BinanceChatMessage) => m.id));
-          const remainingPending = prev.filter(
-            (m) =>
-              m._tempId &&
-              m._status === 'sending' &&
-              !serverIds.has(m.id) &&
-              !serverContents.has((m.content || m.message || '').trim())
-          );
-          return [...list, ...remainingPending];
-        });
+        setMessages(() => [...list]);
         pollIntervalRef.current = 5000;
         return true;
       }
@@ -254,6 +237,15 @@ export function useBinanceChatWebSocket(
           // Handle new chat message
           const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
           if (isChatMessage) {
+            const isSelfEcho = data.self === true || data.self === 'true';
+
+            // Skip WS echoes of our own messages — the optimistic entry + poll already cover it
+            if (isSelfEcho) {
+              console.log('⏭️ Skipping WS echo of own message');
+              pollIntervalRef.current = 2000;
+              return;
+            }
+
             const msgId = Number(data.id || data.msgId || data.E) || Date.now();
             const newMsg: TrackedMessage = {
               id: msgId,
@@ -261,7 +253,7 @@ export function useBinanceChatWebSocket(
               content: data.content || data.message || '',
               message: data.content || data.message || '',
               createTime: data.createTime || data.timestamp || data.E || Date.now(),
-              self: data.self === true || data.self === 'true',
+              self: false,
               fromNickName: data.fromNickName || data.senderNickName || '',
               imageUrl: data.imageUrl,
               thumbnailUrl: data.thumbnailUrl,

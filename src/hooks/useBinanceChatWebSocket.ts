@@ -64,12 +64,14 @@ export function useBinanceChatWebSocket(
       sessionIdRef.current = data.sessionId;
       console.log('✅ Captured sessionId:', sessionIdRef.current);
     }
-    if (data.groupId && data.orderNo) {
-      groupIdMapRef.current.set(data.orderNo, data.groupId);
-    }
-    // Also capture from topicId (which equals orderNo)
-    if (data.groupId && data.topicId) {
-      groupIdMapRef.current.set(data.topicId, data.groupId);
+    // Capture groupId from any field that might contain it
+    const gid = data.groupId || data.chatGroupId || data.threadId;
+    const orderKey = data.orderNo || data.topicId;
+    if (gid && orderKey) {
+      if (!groupIdMapRef.current.has(orderKey)) {
+        console.log('✅ Captured groupId:', gid, 'for order:', orderKey);
+      }
+      groupIdMapRef.current.set(orderKey, gid);
     }
   }, []);
 
@@ -346,30 +348,29 @@ export function useBinanceChatWebSocket(
         }
       }
 
-      if (!groupId) {
-        console.error('❌ No groupId for order', orderNo, '- cannot send.');
-        markStatus('failed');
-        toast.error('Chat session not ready. Please wait for messages to load.');
-        return;
-      }
-
-      // Minimal payload — only fields Binance client actually sends
-      // Removed 'self' and 'sendStatus' which are server-set fields
+      // Build payload - include groupId if available, send without if not
       const msgUuid = generateUUID();
-      const payload = {
+      const payload: Record<string, any> = {
+        chatMessageType: 'text',
         type: 'text',
         uuid: msgUuid,
         orderNo,
         content,
         clientType: 'web',
         createTime: now,
-        groupId,
         topicId: orderNo,
         topicType: 'ORDER',
       };
+      
+      // Add groupId if we have it
+      if (groupId) {
+        payload.groupId = groupId;
+      } else {
+        console.warn('⚠️ Sending without groupId — may fail. Will rely on topicId routing.');
+      }
 
       const payloadStr = JSON.stringify(payload);
-      console.log('📤 WS send payload:', payloadStr, '| groupId:', groupId);
+      console.log('📤 WS send payload:', payloadStr);
       ws.send(payloadStr);
       markStatus('sent');
 
@@ -436,26 +437,21 @@ export function useBinanceChatWebSocket(
         }
       }
 
-      if (!groupId) {
-        markStatus('failed');
-        toast.error('Chat session not ready. Please wait for messages to load.');
-        return;
-      }
-
-      const payload = {
+      const imgPayload: Record<string, any> = {
+        chatMessageType: 'image',
         type: 'image',
         uuid: generateUUID(),
         orderNo,
         content: imageUrl,
         clientType: 'web',
         createTime: now,
-        groupId,
         topicId: orderNo,
         topicType: 'ORDER',
       };
+      if (groupId) imgPayload.groupId = groupId;
 
-      const payloadStr = JSON.stringify(payload);
-      console.log('📤 WS send image payload:', payloadStr, '| groupId:', groupId);
+      const payloadStr = JSON.stringify(imgPayload);
+      console.log('📤 WS send image payload:', payloadStr);
       ws.send(payloadStr);
       markStatus('sent');
 

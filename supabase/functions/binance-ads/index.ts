@@ -390,46 +390,61 @@ serve(async (req) => {
       // Duplicate sendChatMessage case removed — handled above
 
       case "getChatGroupId": {
-        // BAPI endpoints live on www.binance.com, not api.binance.com
-        // Route through proxy with the correct path
-        const bapiUrl = `${BINANCE_PROXY_URL}/api/bapi/c2c/v1/private/chat/integrated-group-list`;
-        console.log("getChatGroupId URL:", bapiUrl, "orderNo:", payload.orderNo);
+        // Try multiple approaches to get groupId
+        const groupBody = JSON.stringify({
+          orderNo: payload.orderNo,
+          page: 1,
+          rows: 10,
+        });
         
-        // Try proxy first, then direct www.binance.com as fallback
-        let groupResponse = await fetch(bapiUrl, { 
-          method: "POST", 
-          headers: proxyHeaders, 
-          body: JSON.stringify({
-            orderNo: payload.orderNo,
-            page: 1,
-            rows: 10,
-          }) 
+        // Approach 1: Try proxy with BAPI path
+        console.log("getChatGroupId: trying proxy /api/bapi/ path");
+        let groupResponse = await fetch(`${BINANCE_PROXY_URL}/api/bapi/c2c/v1/private/chat/integrated-group-list`, { 
+          method: "POST", headers: proxyHeaders, body: groupBody
         });
         let groupText = await groupResponse.text();
         
-        // If proxy returns 404, try direct to www.binance.com
-        if (groupResponse.status === 404) {
-          console.log("getChatGroupId: proxy 404, trying direct www.binance.com");
-          const directUrl = `https://www.binance.com/bapi/c2c/v1/private/chat/integrated-group-list`;
-          groupResponse = await fetch(directUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-MBX-APIKEY": BINANCE_API_KEY,
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              "Origin": "https://www.binance.com",
-              "Referer": "https://www.binance.com/",
-            },
-            body: JSON.stringify({
-              orderNo: payload.orderNo,
-              page: 1,
-              rows: 10,
-            }),
-          });
-          groupText = await groupResponse.text();
+        if (groupResponse.status === 404 || groupText.includes("Not Found") || groupText.includes("<html")) {
+          // Approach 2: Direct to p2p.binance.com with HMAC signing
+          console.log("getChatGroupId: trying direct p2p.binance.com with HMAC");
+          const timestamp = Date.now();
+          const queryString = `timestamp=${timestamp}`;
+          const encoder = new TextEncoder();
+          const key = await crypto.subtle.importKey(
+            "raw", encoder.encode(BINANCE_API_SECRET),
+            { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+          );
+          const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(queryString));
+          const signature = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          const hosts = ["p2p.binance.com", "www.binance.com"];
+          for (const host of hosts) {
+            const directUrl = `https://${host}/bapi/c2c/v1/private/chat/integrated-group-list?${queryString}&signature=${signature}`;
+            console.log("getChatGroupId: trying direct", host);
+            try {
+              groupResponse = await fetch(directUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-MBX-APIKEY": BINANCE_API_KEY,
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "Origin": "https://www.binance.com",
+                  "Referer": "https://www.binance.com/",
+                  "clienttype": "web",
+                },
+                body: groupBody,
+              });
+              groupText = await groupResponse.text();
+              console.log(`getChatGroupId ${host}:`, groupResponse.status, groupText.substring(0, 500));
+              if (groupResponse.status === 200 && !groupText.includes("<html")) break;
+            } catch (e) {
+              console.log(`getChatGroupId ${host} error:`, (e as Error).message);
+            }
+          }
+        } else {
+          console.log("getChatGroupId proxy response:", groupResponse.status, groupText.substring(0, 500));
         }
         
-        console.log("getChatGroupId response:", groupResponse.status, groupText.substring(0, 800));
         try { result = JSON.parse(groupText); } catch { result = { raw: groupText, status: groupResponse.status }; }
         break;
       }

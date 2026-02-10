@@ -330,15 +330,27 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // LIMITATION: Binance does NOT expose a public SAPI endpoint for sending C2C chat messages.
-        // /sapi/v1/c2c/chat/sendMessage returns 404 on api.binance.com and HTML on p2p.binance.com.
-        // Messages must be sent via WebSocket using the relay (sessionId-based).
-        // This REST action is kept as a stub for future API availability.
-        console.warn("sendChatMessage: No public SAPI endpoint exists. Use WebSocket send instead.");
-        result = { 
-          code: "NOT_SUPPORTED", 
-          message: "Binance does not expose a public REST endpoint for sending C2C chat messages. Messages are sent via WebSocket relay." 
+        // POST /sapi/v1/c2c/chat/sendChatMessage — works via proxy (used by auto-reply-engine)
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendChatMessage`;
+        const chatBody: Record<string, any> = {
+          orderNo: payload.orderNo,
+          message: payload.content || payload.message,
+          chatMessageType: payload.contentType || payload.chatMessageType || "text",
         };
+        // For image messages, the message field contains the imageUrl
+        if (payload.imageUrl) {
+          chatBody.message = payload.imageUrl;
+          chatBody.chatMessageType = "IMAGE";
+        }
+        console.log("sendChatMessage:", JSON.stringify(chatBody));
+        const response = await fetchWithRetry(url, { 
+          method: "POST", 
+          headers: proxyHeaders, 
+          body: JSON.stringify(chatBody),
+        });
+        const text = await response.text();
+        console.log("sendChatMessage response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }
 

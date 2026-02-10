@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
+import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
 
 interface Props {
@@ -39,11 +40,10 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       // Step 1: Get pre-signed URL from Binance via SAPI
       const imageName = `${orderNo}_${Date.now()}.jpg`;
       const result = await getUploadUrl.mutateAsync(imageName);
-      // callBinanceAds returns data.data, Binance wraps in {code, data: {uploadUrl, imageUrl}}
       const inner = result?.data || result;
       
       const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
-      const imageUrl = inner?.imageUrl || inner?.imageUr1; // Binance doc has typo "imageUr1"
+      const imageUrl = inner?.imageUrl || inner?.imageUr1;
 
       if (!preSignedUrl) {
         throw new Error('Failed to get upload URL from Binance');
@@ -65,12 +65,24 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      console.log('✅ Image uploaded, sending via WS with imageUrl:', imageUrl);
+      console.log('✅ Image uploaded, sending via REST with imageUrl:', imageUrl);
 
-      // Step 3: Send the imageUrl via WebSocket
-      onImageSent(imageUrl);
+      // Step 3: Send the image via REST API (reliable, like auto-reply-engine)
+      try {
+        const sendResult = await callBinanceAds('sendChatMessage', {
+          orderNo,
+          imageUrl,
+          chatMessageType: 'IMAGE',
+        });
+        console.log('✅ Image sent via REST:', sendResult);
+        toast.success('Image sent');
+      } catch (restErr: any) {
+        console.warn('REST image send failed, falling back to WS:', restErr.message);
+        // Fallback: send via WebSocket
+        onImageSent(imageUrl);
+        toast.success('Image sent via WebSocket');
+      }
       
-      toast.success('Image sent');
       setPreview(null);
     } catch (err: any) {
       console.error('Image upload error:', err);

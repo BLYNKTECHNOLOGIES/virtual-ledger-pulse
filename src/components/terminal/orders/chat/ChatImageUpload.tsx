@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Image as ImageIcon, Loader2, X } from 'lucide-react';
+import { Image as ImageIcon, Loader2, X, Send } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
@@ -13,10 +13,12 @@ interface Props {
 export function ChatImageUpload({ orderNo, onImageSent }: Props) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const getUploadUrl = useGetChatImageUploadUrl();
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Step 1: User picks a file → show preview only, do NOT upload yet
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -30,44 +32,40 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       return;
     }
 
-    // Show preview
+    setSelectedFile(file);
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+  };
+
+  // Step 2: User clicks Send → upload + deliver
+  const handleSendImage = async () => {
+    if (!selectedFile || uploading) return;
 
     setUploading(true);
     try {
-      // Step 1: Get pre-signed URL from Binance via SAPI
       const imageName = `${orderNo}_${Date.now()}.jpg`;
       const result = await getUploadUrl.mutateAsync(imageName);
       const inner = result?.data || result;
-      
+
       const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
       const imageUrl = inner?.imageUrl || inner?.imageUr1;
 
-      if (!preSignedUrl) {
-        throw new Error('Failed to get upload URL from Binance');
-      }
-      if (!imageUrl) {
-        throw new Error('Failed to get imageUrl from Binance');
-      }
+      if (!preSignedUrl) throw new Error('Failed to get upload URL from Binance');
+      if (!imageUrl) throw new Error('Failed to get imageUrl from Binance');
 
       console.log('📸 Got pre-signed URL, uploading image...');
 
-      // Step 2: Upload the image to the pre-signed URL (PUT)
       const uploadResponse = await fetch(preSignedUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type || 'image/jpeg' },
-        body: file,
+        headers: { 'Content-Type': selectedFile.type || 'image/jpeg' },
+        body: selectedFile,
       });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
-      }
+      if (!uploadResponse.ok) throw new Error(`Upload failed with status ${uploadResponse.status}`);
 
       console.log('✅ Image uploaded, sending via REST with imageUrl:', imageUrl);
 
-      // Step 3: Send the image via REST API (reliable, like auto-reply-engine)
       let delivered = false;
       try {
         const sendResult = await callBinanceAds('sendChatMessage', {
@@ -81,11 +79,10 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         console.warn('REST image send failed, falling back to WS:', restErr.message);
       }
 
-      // Always notify parent to add optimistic message + WS fallback if REST failed
       onImageSent(imageUrl);
       toast.success(delivered ? 'Image sent' : 'Image sent via WebSocket');
-      
       setPreview(null);
+      setSelectedFile(null);
     } catch (err: any) {
       console.error('Image upload error:', err);
       toast.error(`Image upload failed: ${err.message}`);
@@ -97,6 +94,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
 
   const cancelPreview = () => {
     setPreview(null);
+    setSelectedFile(null);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -114,18 +112,34 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         <div className="absolute bottom-14 left-3 right-3 bg-card border border-border rounded-lg p-2 shadow-lg z-10">
           <div className="flex items-start gap-2">
             <img src={preview} alt="Preview" className="max-h-32 rounded object-contain" />
+            <div className="flex flex-col gap-1 ml-auto">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 shrink-0"
+                onClick={cancelPreview}
+                disabled={uploading}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            {uploading ? (
+              <p className="text-[10px] text-muted-foreground">Uploading to Binance...</p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground">Ready to send</p>
+            )}
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 shrink-0"
-              onClick={cancelPreview}
+              size="sm"
+              className="h-6 text-[10px] px-3"
+              onClick={handleSendImage}
+              disabled={uploading}
             >
-              <X className="h-3 w-3" />
+              {uploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+              {uploading ? 'Sending...' : 'Send'}
             </Button>
           </div>
-          {uploading && (
-            <p className="text-[10px] text-muted-foreground mt-1">Uploading to Binance...</p>
-          )}
         </div>
       )}
 

@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
   { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_automation_view' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, requiredPermission: 'terminal_analytics_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
-  { title: 'Settings', url: '/terminal/settings', icon: Settings, badge: 'Soon', requiredPermission: 'terminal_settings_view' },
+  { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },
 ];
 
 export function TerminalSidebar() {

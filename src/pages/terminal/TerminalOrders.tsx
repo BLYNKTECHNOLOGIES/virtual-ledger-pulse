@@ -337,6 +337,7 @@ export default function TerminalOrders() {
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Fiat / Crypto Amount</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Chat</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -423,21 +424,10 @@ export default function TerminalOrders() {
 
                         {/* Counterparty */}
                         <TableCell className="py-3">
-                          <div className="flex flex-col gap-1.5">
-                            <span className="text-xs text-foreground font-medium underline decoration-muted-foreground/30 underline-offset-2 truncate max-w-[140px]">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs text-foreground font-medium truncate max-w-[140px]">
                               {order.counterparty_nickname}
                             </span>
-                            <button
-                              onClick={(e) => openChatForOrder(order, e)}
-                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors w-fit"
-                            >
-                              Chat <MessageSquare className="h-3 w-3" />
-                              {unread > 0 && (
-                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
-                                  <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
-                                </span>
-                              )}
-                            </button>
                           </div>
                         </TableCell>
 
@@ -451,6 +441,21 @@ export default function TerminalOrders() {
                               <OrderRowTimer createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()} />
                             )}
                           </div>
+                        </TableCell>
+
+                        {/* Chat */}
+                        <TableCell className="py-3 text-right">
+                          <button
+                            onClick={(e) => openChatForOrder(order, e)}
+                            className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            {unread > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
+                                <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
+                              </span>
+                            )}
+                          </button>
                         </TableCell>
                       </TableRow>
                     );

@@ -122,15 +122,6 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-blue-600",
     bgColor: "bg-blue-100",
     permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
-  },
-  {
-    id: "ad-manager",
-    title: "Ad Manager",
-    url: "/ad-manager",
-    icon: Megaphone,
-    color: "text-amber-600",
-    bgColor: "bg-amber-100",
-    permissions: ["sales_view", "sales_manage"]
   }
 ];
 

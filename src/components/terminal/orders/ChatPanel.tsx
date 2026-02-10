@@ -20,7 +20,7 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, error: wsError } = useBinanceChatWebSocket(orderNumber);
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -213,7 +213,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <div className="flex items-center gap-2">
           <ChatImageUpload
             orderNo={orderNumber}
-            onImageSent={() => {}}
+            onImageSent={(imageUrl) => wsSendImage(orderNumber, imageUrl)}
           />
           <Input
             value={text}

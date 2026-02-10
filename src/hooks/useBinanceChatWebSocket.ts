@@ -19,6 +19,7 @@ interface UseBinanceChatWebSocketReturn {
   isConnected: boolean;
   isConnecting: boolean;
   sendMessage: (orderNo: string, content: string) => void;
+  sendImageMessage: (orderNo: string, imageUrl: string) => void;
   error: string | null;
 }
 
@@ -349,5 +350,74 @@ export function useBinanceChatWebSocket(
     }
   }, [fetchChatHistory]);
 
-  return { messages, isConnected, isConnecting, sendMessage, error };
+  // ---- Send image message via WebSocket ----
+  const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
+    const tempId = Date.now();
+    const optimisticMsg: TrackedMessage = {
+      id: tempId,
+      type: 'image',
+      content: imageUrl,
+      message: imageUrl,
+      createTime: Date.now(),
+      self: true,
+      fromNickName: 'You',
+      imageUrl,
+      _status: 'sending',
+      _tempId: tempId,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    const markStatus = (status: MessageStatus) => {
+      setMessages((prev) =>
+        prev.map((m) => (m._tempId === tempId ? { ...m, _status: status } : m))
+      );
+    };
+
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      markStatus('failed');
+      toast.error('Chat not connected');
+      return;
+    }
+
+    try {
+      const now = Date.now();
+      const groupId = groupIdMapRef.current.get(orderNo);
+
+      if (!groupId) {
+        markStatus('failed');
+        toast.error('Chat session not ready. Please wait for messages to load.');
+        return;
+      }
+
+      const payload = {
+        type: 'image',
+        uuid: generateUUID(),
+        orderNo,
+        content: imageUrl,
+        self: true,
+        clientType: 'web',
+        createTime: now,
+        sendStatus: 0,
+        groupId,
+        topicId: orderNo,
+        topicType: 'ORDER',
+      };
+
+      ws.send(JSON.stringify(payload));
+      console.log('📤 WS send image payload:', JSON.stringify(payload));
+      markStatus('sent');
+
+      pollIntervalRef.current = 2000;
+      setTimeout(() => {
+        fetchChatHistory(orderNo);
+      }, 2000);
+    } catch (err) {
+      console.error('WS image send error:', err);
+      markStatus('failed');
+      toast.error('Image may not have been delivered');
+    }
+  }, [fetchChatHistory]);
+
+  return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, error };
 }

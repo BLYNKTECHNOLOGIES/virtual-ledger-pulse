@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, CreditCard, Hash, Timer } from 'lucide-react';
+import { User, Clock, CreditCard, Hash, Timer, AlertTriangle } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
 import { OrderActions } from './OrderActions';
@@ -11,13 +11,20 @@ import { useState, useEffect } from 'react';
 interface Props {
   order: P2POrderRecord;
   counterpartyVerifiedName?: string;
+  liveDetail?: any;
 }
 
-export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
+export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail }: Props) {
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
+
+  // Extract payment time limit from live detail (in minutes)
+  const payTimeLimit = liveDetail?.payTimeLimit || liveDetail?.paymentTimeLimit;
+  const createTimeMs = order.binance_create_time
+    ? new Date(order.binance_create_time).getTime()
+    : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -57,9 +64,14 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
             : '—'}
         />
 
-        {/* Elapsed timer for active orders */}
-        {order.binance_create_time && !isTerminal && (
-          <ElapsedTimer createTime={new Date(order.binance_create_time).getTime()} />
+        {/* Countdown timer for active orders — uses payTimeLimit from Binance order detail */}
+        {createTimeMs && !isTerminal && payTimeLimit && (
+          <CountdownTimer createTime={createTimeMs} payTimeLimitMinutes={payTimeLimit} />
+        )}
+
+        {/* Fallback: elapsed timer if no payTimeLimit available */}
+        {createTimeMs && !isTerminal && !payTimeLimit && (
+          <ElapsedTimer createTime={createTimeMs} />
         )}
 
         {/* Status */}
@@ -103,7 +115,63 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName }: Props) {
   );
 }
 
-/** Live elapsed timer */
+/** Countdown timer based on Binance payTimeLimit */
+function CountdownTimer({ createTime, payTimeLimitMinutes }: { createTime: number; payTimeLimitMinutes: number }) {
+  const [remaining, setRemaining] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
+  const [urgency, setUrgency] = useState<'normal' | 'warning' | 'critical'>('normal');
+
+  const expiryTime = createTime + payTimeLimitMinutes * 60 * 1000;
+
+  useEffect(() => {
+    const update = () => {
+      const diff = expiryTime - Date.now();
+      if (diff <= 0) {
+        setRemaining('Expired');
+        setIsExpired(true);
+        setUrgency('critical');
+        return;
+      }
+      const totalSecs = Math.floor(diff / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      setRemaining(`${mins}m ${secs.toString().padStart(2, '0')}s`);
+      setIsExpired(false);
+      
+      // Set urgency levels
+      if (mins < 2) setUrgency('critical');
+      else if (mins < 5) setUrgency('warning');
+      else setUrgency('normal');
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [expiryTime]);
+
+  const colorClass = urgency === 'critical'
+    ? 'text-destructive'
+    : urgency === 'warning'
+    ? 'text-trade-pending'
+    : 'text-foreground';
+
+  return (
+    <div className="flex items-start gap-2.5">
+      {urgency === 'critical' ? (
+        <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 shrink-0 animate-pulse" />
+      ) : (
+        <Timer className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+      )}
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted-foreground">
+          {isExpired ? 'Payment Window' : `Time Remaining (${payTimeLimitMinutes}min window)`}
+        </p>
+        <p className={`text-xs font-medium tabular-nums ${colorClass}`}>{remaining}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Fallback: Live elapsed timer when payTimeLimit is not available */
 function ElapsedTimer({ createTime }: { createTime: number }) {
   const [elapsed, setElapsed] = useState('');
 

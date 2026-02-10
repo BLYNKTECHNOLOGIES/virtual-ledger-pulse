@@ -86,7 +86,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Order Summary + Actions */}
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
-          <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} />
+          <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} />
         </div>
 
         {/* Middle: Chat */}

@@ -76,7 +76,8 @@ export function useBinanceChatWebSocket(
       const list = result?.data?.data || result?.data || result?.list || [];
       if (Array.isArray(list) && list.length > 0) {
         setMessages((prev) => {
-          const pendingMsgs = prev.filter((m) => m._status === 'sending');
+          // Keep optimistic messages that haven't been confirmed by server yet
+          const pendingMsgs = prev.filter((m) => m._status === 'sending' || m._status === 'sent');
           const serverIds = new Set(list.map((m: BinanceChatMessage) => m.id));
           const remainingPending = pendingMsgs.filter((m) => !serverIds.has(m.id));
           return [...list, ...remainingPending];

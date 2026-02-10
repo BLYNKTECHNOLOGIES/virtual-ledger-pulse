@@ -88,8 +88,9 @@ serve(async (req) => {
         // Fetch spot account balances
         const spotUrl = `${BINANCE_PROXY_URL}/api/api/v3/account`;
         const spotRes = await fetchWithRetry(spotUrl, {
-          method: "GET",
+          method: "POST",
           headers: proxyHeaders,
+          body: JSON.stringify({}),
         });
         const spotText = await spotRes.text();
         console.log("Spot response status:", spotRes.status);
@@ -193,7 +194,7 @@ serve(async (req) => {
 
       // ===== AUTO-TRANSFER + SPOT ORDER (seamless) =====
       case "executeTradeWithTransfer": {
-        const { symbol, side, quantity, quoteOrderQty, asset: transferAsset } = payload;
+        const { symbol, side, quantity, quoteOrderQty, transferAsset } = payload;
         
         // Determine which asset needs to be in spot wallet
         // For BUY BTCUSDT: need USDT in spot. For SELL BTCUSDT: need BTC in spot.
@@ -269,12 +270,13 @@ serve(async (req) => {
       // ===== GET SPOT TICKER PRICE =====
       case "getTickerPrice": {
         const { symbol } = payload;
+        // Public endpoint - call Binance directly (no auth needed)
         const tickerUrl = symbol
-          ? `${BINANCE_PROXY_URL}/api/api/v3/ticker/price?symbol=${symbol}`
-          : `${BINANCE_PROXY_URL}/api/api/v3/ticker/price`;
+          ? `https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`
+          : `https://api.binance.com/api/v3/ticker/price`;
         const tickerRes = await fetchWithRetry(tickerUrl, {
           method: "GET",
-          headers: proxyHeaders,
+          headers: { "Content-Type": "application/json" },
         });
         result = JSON.parse(await tickerRes.text());
         break;

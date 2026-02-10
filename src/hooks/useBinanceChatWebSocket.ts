@@ -306,27 +306,28 @@ export function useBinanceChatWebSocket(
       const now = Date.now();
       const groupId = groupIdMapRef.current.get(orderNo);
       
-      // Full payload matching Binance doc + groupId/topicId from observed messages
-      const payload: Record<string, any> = {
+      if (!groupId) {
+        console.error('❌ No groupId for order', orderNo, '- cannot send. Open the chat and wait for messages first.');
+        markStatus('failed');
+        toast.error('Chat session not ready. Please wait for messages to load.');
+        return;
+      }
+
+      // Payload matching Binance integrated chat format
+      // uuid must be proper UUID format (observed in all Binance messages)
+      const payload = {
         type: 'text',
-        uuid: String(now),
+        uuid: generateUUID(),
         orderNo,
         content,
         self: true,
         clientType: 'web',
         createTime: now,
         sendStatus: 0,
+        groupId,
         topicId: orderNo,
         topicType: 'ORDER',
       };
-      
-      // Include groupId if captured from incoming messages for this order
-      if (groupId) {
-        payload.groupId = groupId;
-        console.log('📎 Using captured groupId:', groupId);
-      } else {
-        console.warn('⚠️ No groupId captured yet for order', orderNo, '- message may fail');
-      }
 
       ws.send(JSON.stringify(payload));
       console.log('📤 WS send payload:', JSON.stringify(payload));

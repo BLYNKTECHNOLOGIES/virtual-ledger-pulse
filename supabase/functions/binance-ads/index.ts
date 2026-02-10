@@ -389,6 +389,25 @@ serve(async (req) => {
 
       // Duplicate sendChatMessage case removed — handled above
 
+      case "getChatGroupId": {
+        // Use BAPI to get groupId for an order (needed for WS sending)
+        const url = `${BINANCE_PROXY_URL}/api/bapi/c2c/v1/private/chat/integrated-group-list`;
+        console.log("getChatGroupId URL:", url, "orderNo:", payload.orderNo);
+        const response = await fetch(url, { 
+          method: "POST", 
+          headers: proxyHeaders, 
+          body: JSON.stringify({
+            orderNo: payload.orderNo,
+            page: 1,
+            rows: 10,
+          }) 
+        });
+        const text = await response.text();
+        console.log("getChatGroupId response:", response.status, text.substring(0, 800));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       case "getRiskWarningTips": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/getRiskWarningTips`;
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({

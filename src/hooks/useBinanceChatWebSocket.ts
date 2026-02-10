@@ -83,7 +83,21 @@ export function useBinanceChatWebSocket(
         sort: 'asc',
       });
       const list = result?.data?.data || result?.data || result?.list || [];
+      // Capture groupId from REST response metadata or individual messages
+      const restGroupId = result?.data?.groupId || result?.groupId;
+      if (restGroupId && orderNo) {
+        groupIdMapRef.current.set(orderNo, restGroupId);
+        console.log('✅ Captured groupId from REST:', restGroupId, 'for order:', orderNo);
+      }
       if (Array.isArray(list) && list.length > 0) {
+        // Try to capture groupId from any message in the list
+        for (const msg of list) {
+          if (msg.groupId && orderNo && !groupIdMapRef.current.has(orderNo)) {
+            groupIdMapRef.current.set(orderNo, msg.groupId);
+            console.log('✅ Captured groupId from chat message:', msg.groupId, 'for order:', orderNo);
+            break;
+          }
+        }
         setMessages((prev) => {
           // Keep optimistic messages that haven't been confirmed by server yet
           const pendingMsgs = prev.filter((m) => m._status === 'sending' || m._status === 'sent');
@@ -275,7 +289,7 @@ export function useBinanceChatWebSocket(
   }, [activeOrderNo]);
 
   // ---- Send message via WebSocket ----
-  const sendMessage = useCallback((orderNo: string, content: string) => {
+  const sendMessage = useCallback(async (orderNo: string, content: string) => {
     const tempId = Date.now();
     const optimisticMsg: TrackedMessage = {
       id: tempId,
@@ -305,10 +319,28 @@ export function useBinanceChatWebSocket(
 
     try {
       const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
+      let groupId = groupIdMapRef.current.get(orderNo);
       
+      // If no groupId captured yet, fetch it via BAPI
       if (!groupId) {
-        console.error('❌ No groupId for order', orderNo, '- cannot send. Open the chat and wait for messages first.');
+        console.log('⏳ No groupId cached, fetching via BAPI for order:', orderNo);
+        try {
+          const groupResult = await callBinanceAds('getChatGroupId', { orderNo });
+          const groups = groupResult?.data?.data || groupResult?.data || [];
+          if (Array.isArray(groups) && groups.length > 0) {
+            groupId = groups[0].groupId || groups[0].id;
+            if (groupId) {
+              groupIdMapRef.current.set(orderNo, groupId);
+              console.log('✅ Fetched groupId via BAPI:', groupId);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch groupId via BAPI:', err);
+        }
+      }
+
+      if (!groupId) {
+        console.error('❌ No groupId for order', orderNo, '- cannot send.');
         markStatus('failed');
         toast.error('Chat session not ready. Please wait for messages to load.');
         return;
@@ -351,7 +383,7 @@ export function useBinanceChatWebSocket(
   }, [fetchChatHistory]);
 
   // ---- Send image message via WebSocket ----
-  const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
+  const sendImageMessage = useCallback(async (orderNo: string, imageUrl: string) => {
     const tempId = Date.now();
     const optimisticMsg: TrackedMessage = {
       id: tempId,
@@ -382,7 +414,20 @@ export function useBinanceChatWebSocket(
 
     try {
       const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
+      let groupId = groupIdMapRef.current.get(orderNo);
+
+      if (!groupId) {
+        try {
+          const groupResult = await callBinanceAds('getChatGroupId', { orderNo });
+          const groups = groupResult?.data?.data || groupResult?.data || [];
+          if (Array.isArray(groups) && groups.length > 0) {
+            groupId = groups[0].groupId || groups[0].id;
+            if (groupId) groupIdMapRef.current.set(orderNo, groupId);
+          }
+        } catch (err) {
+          console.error('Failed to fetch groupId via BAPI:', err);
+        }
+      }
 
       if (!groupId) {
         markStatus('failed');

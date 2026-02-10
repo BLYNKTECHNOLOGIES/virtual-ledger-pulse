@@ -25,7 +25,11 @@ export default function TerminalDashboard() {
     return orderData?.data || [];
   }, [orderData]);
 
-  const stats = useMemo(() => computeOrderStats(orders), [orders]);
+  const stats = useMemo(() => {
+    const s = computeOrderStats(orders);
+    console.log('[Dashboard] orders count:', orders.length, 'stats:', JSON.stringify(s));
+    return s;
+  }, [orders]);
 
   return (
     <div className="p-4 md:p-6 space-y-5">

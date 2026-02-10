@@ -55,6 +55,13 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
     for (let i = 0; i < ads.length; i++) {
       const ad = ads[i];
       try {
+        // Build tradeMethods with only the fields Binance expects for update
+        const tradeMethods = (ad.tradeMethods || []).map(m => ({
+          payType: m.payType,
+          identifier: m.identifier,
+          ...(m.payId ? { payId: m.payId } : {}),
+        }));
+
         await new Promise<void>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
@@ -63,9 +70,10 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
             tradeType: ad.tradeType,
             priceType: ad.priceType,
             initAmount: ad.initAmount,
+            surplusAmount: ad.surplusAmount,
             minSingleTransAmount: Number(min),
             maxSingleTransAmount: Number(max),
-            tradeMethods: ad.tradeMethods,
+            tradeMethods,
             payTimeLimit: ad.payTimeLimit || 15,
             ...(ad.priceType === 1 ? { price: ad.price } : { priceFloatingRatio: ad.priceFloatingRatio }),
           }, {

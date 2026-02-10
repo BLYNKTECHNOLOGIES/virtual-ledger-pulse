@@ -522,7 +522,7 @@ serve(async (req) => {
     const errorMessage = isProxyError 
       ? `Proxy returned HTTP ${result.status || 'error'} (CloudFront/WAF block)` 
       : isBinanceError 
-        ? (result.message || "Binance API error")
+        ? (result.message || result.msg || `Binance API error (code: ${result.code})`)
         : isStatusError
           ? `Proxy returned HTTP ${result.status}`
           : undefined;

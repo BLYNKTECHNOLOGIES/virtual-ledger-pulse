@@ -2,6 +2,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 
 /**
+ * Fetch verified buyer name from Binance order detail API.
+ * Returns the real name or null if unavailable.
+ */
+async function fetchVerifiedBuyerName(orderNumber: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('binance-ads', {
+      body: { action: 'getOrderDetail', payload: { orderNumber } },
+    });
+    if (error) return null;
+    // The response structure: data.data.buyerRealName or data.data.sellerRealName
+    const detail = data?.data;
+    if (!detail) return null;
+    // For SELL orders, we are the seller – the counterparty is the buyer
+    return detail.buyerRealName || detail.buyerNickName || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Syncs completed SELL orders from binance_order_history to terminal_sales_sync.
  * Called after the order sync completes (alongside purchase sync).
  */
@@ -80,7 +100,16 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         continue;
       }
 
-      const counterpartyName = order.verified_name || order.counter_part_nick_name || 'Unknown';
+      // Enrich: fetch verified buyer name from order detail API
+      let verifiedName = order.verified_name || null;
+      if (!verifiedName || verifiedName === order.counter_part_nick_name) {
+        const fetched = await fetchVerifiedBuyerName(order.order_number);
+        if (fetched) verifiedName = fetched;
+        // Small delay to avoid rate limiting
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
       const contact = contactMap.get(order.counter_part_nick_name || '') || null;
       const clientId = clientMap.get(counterpartyName.toLowerCase()) || null;
       const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
@@ -97,6 +126,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
           commission: order.commission,
           counterparty_name: counterpartyName,
           counterparty_nickname: order.counter_part_nick_name,
+          verified_name: verifiedName,
           create_time: order.create_time,
           pay_method: order.pay_method_name,
           wallet_id: activeLink.wallet_id,

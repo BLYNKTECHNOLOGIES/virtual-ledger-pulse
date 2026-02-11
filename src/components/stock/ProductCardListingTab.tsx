@@ -177,17 +177,23 @@ export function ProductCardListingTab() {
 
                 {/* Portfolio Distribution */}
                 {(() => {
-                  // Build wallet stocks including Binance reference for API-linked wallet
                   const walletStocks = [...(product.wallet_stocks || [])];
                   
-                  // Check if API-linked wallet has a Binance balance for this asset
+                  // If API-linked wallet has a Binance balance for this asset but isn't in the list,
+                  // inject it with balance 0 so the diff logic shows correctly (same as USDT)
                   const binanceBalance = binanceBalanceMap.get(product.code);
                   const hasApiWalletInList = walletStocks.some(w => w.wallet_id === apiLinkedWalletId);
                   
-                  // If Binance has balance but no ERP transactions for this wallet+asset, show it as reference
-                  const showBinanceRef = apiLinkedWalletId && binanceBalance && binanceBalance > 0.00001 && !hasApiWalletInList;
+                  if (apiLinkedWalletId && binanceBalance && binanceBalance > 0.00001 && !hasApiWalletInList) {
+                    walletStocks.push({
+                      wallet_id: apiLinkedWalletId,
+                      wallet_name: 'BINANCE BLYNK',
+                      balance: 0,
+                      value: 0,
+                    });
+                  }
                   
-                  if (walletStocks.length === 0 && !showBinanceRef) return null;
+                  if (walletStocks.length === 0) return null;
                   
                   return (
                     <div className="border-t pt-3">
@@ -231,27 +237,6 @@ export function ProductCardListingTab() {
                             </div>
                           </div>
                         ))}
-                        {/* Show Binance-only balance as reference when no ERP transactions exist */}
-                        {showBinanceRef && (
-                          <div className="flex justify-between items-center text-xs">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                              <span className="text-gray-600">BINANCE BLYNK</span>
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-orange-300 text-orange-600">API</Badge>
-                            </div>
-                            <div className="text-right flex items-center gap-1.5">
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <span className="font-medium text-orange-600">{binanceBalance!.toFixed(8)}</span>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="text-xs">Binance API Balance (read-only reference)</p>
-                                  <p className="text-xs text-orange-400">Not tracked in ERP yet — add a transaction to sync</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
                   );

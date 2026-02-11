@@ -591,6 +591,81 @@ export type Database = {
           },
         ]
       }
+      binance_order_history: {
+        Row: {
+          adv_no: string | null
+          amount: string | null
+          asset: string | null
+          commission: string | null
+          counter_part_nick_name: string | null
+          create_time: number
+          fiat_unit: string | null
+          order_number: string
+          order_status: string | null
+          pay_method_name: string | null
+          raw_data: Json | null
+          synced_at: string
+          total_price: string | null
+          trade_type: string | null
+          unit_price: string | null
+        }
+        Insert: {
+          adv_no?: string | null
+          amount?: string | null
+          asset?: string | null
+          commission?: string | null
+          counter_part_nick_name?: string | null
+          create_time: number
+          fiat_unit?: string | null
+          order_number: string
+          order_status?: string | null
+          pay_method_name?: string | null
+          raw_data?: Json | null
+          synced_at?: string
+          total_price?: string | null
+          trade_type?: string | null
+          unit_price?: string | null
+        }
+        Update: {
+          adv_no?: string | null
+          amount?: string | null
+          asset?: string | null
+          commission?: string | null
+          counter_part_nick_name?: string | null
+          create_time?: number
+          fiat_unit?: string | null
+          order_number?: string
+          order_status?: string | null
+          pay_method_name?: string | null
+          raw_data?: Json | null
+          synced_at?: string
+          total_price?: string | null
+          trade_type?: string | null
+          unit_price?: string | null
+        }
+        Relationships: []
+      }
+      binance_sync_metadata: {
+        Row: {
+          id: string
+          last_sync_at: string | null
+          last_sync_duration_ms: number | null
+          last_sync_order_count: number | null
+        }
+        Insert: {
+          id?: string
+          last_sync_at?: string | null
+          last_sync_duration_ms?: number | null
+          last_sync_order_count?: number | null
+        }
+        Update: {
+          id?: string
+          last_sync_at?: string | null
+          last_sync_duration_ms?: number | null
+          last_sync_order_count?: number | null
+        }
+        Relationships: []
+      }
       client_onboarding_approvals: {
         Row: {
           aadhar_back_url: string | null

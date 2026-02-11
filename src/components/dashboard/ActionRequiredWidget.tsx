@@ -18,24 +18,40 @@ export function ActionRequiredWidget() {
   const [rejectItem, setRejectItem] = useState<ErpActionQueueItem | null>(null);
   const [entryItem, setEntryItem] = useState<ErpActionQueueItem | null>(null);
   const { addNotification } = useNotifications();
-  const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const notifiedIdsRef = useRef<Set<string>>(
+    (() => {
+      try {
+        const stored = sessionStorage.getItem('erp_notified_ids');
+        return stored ? new Set<string>(JSON.parse(stored) as string[]) : new Set<string>();
+      } catch {
+        return new Set<string>();
+      }
+    })()
+  );
 
   // Only users with erp_reconciliation function get notifications
   const shouldNotify = hasAccess;
 
-  // Push new pending items to the notification bell (role-gated)
+  // Push new pending items to the notification bell (role-gated) — deduplicated via sessionStorage
   useEffect(() => {
     if (!shouldNotify || isLoading || pendingItems.length === 0) return;
     
-    const newItems = pendingItems.filter(item => !notifiedIdsRef.current.has(item.id));
+    const currentSet: Set<string> = notifiedIdsRef.current instanceof Set ? notifiedIdsRef.current : new Set<string>();
+    const newItems = pendingItems.filter(item => !currentSet.has(item.id));
+    if (newItems.length === 0) return;
+
     newItems.forEach(item => {
-      notifiedIdsRef.current.add(item.id);
+      currentSet.add(item.id);
       addNotification({
         title: `${item.movement_type === "deposit" ? "Deposit" : "Withdrawal"} — ${item.asset} ${Number(item.amount).toLocaleString()}`,
         description: `New ${item.movement_type} detected. ERP action required.`,
         type: "warning",
       });
     });
+    notifiedIdsRef.current = currentSet;
+    try {
+      sessionStorage.setItem('erp_notified_ids', JSON.stringify([...currentSet]));
+    } catch { /* ignore */ }
   }, [pendingItems, shouldNotify, isLoading, addNotification]);
 
   // If user doesn't have access, don't render the widget at all

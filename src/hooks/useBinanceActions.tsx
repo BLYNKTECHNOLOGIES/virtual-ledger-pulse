@@ -178,7 +178,7 @@ export function useBinanceOrderHistory() {
       let windowEnd = Date.now();
       const allOrders: Array<{ orderNumber: string; orderStatus: string; createTime: number; [k: string]: any }> = [];
       const seenOrderNumbers = new Set<string>();
-      const maxWindows = 10; // safety cap for time windows
+      const maxWindows = 30; // supports up to ~30,000 orders
       let windowCount = 0;
 
       while (windowEnd > startTimestamp && windowCount < maxWindows) {

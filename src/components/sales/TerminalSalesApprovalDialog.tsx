@@ -31,7 +31,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Prefer verified_name over counterparty_name (which may be masked like "P2P***")
   const displayName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
 
-  const [bankAccountId, setBankAccountId] = useState('');
+  const [paymentMethodId, setPaymentMethodId] = useState('');
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
   const [remarks, setRemarks] = useState('');
   const [contactNumber, setContactNumber] = useState(syncRecord?.contact_number || '');
@@ -130,14 +130,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     }
   }, [syncRecord, open]);
 
-  // Fetch bank accounts
-  const { data: bankAccounts = [] } = useQuery({
-    queryKey: ['bank-accounts'],
+  // Fetch sales payment methods (same as manual sales entry)
+  const { data: paymentMethods = [] } = useQuery({
+    queryKey: ['sales_payment_methods'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE');
+        .from('sales_payment_methods')
+        .select(`
+          *,
+          bank_accounts:bank_account_id(
+            account_name,
+            bank_name
+          )
+        `)
+        .eq('is_active', true);
       if (error) throw error;
       return data || [];
     },
@@ -188,9 +194,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     mutationFn: async () => {
       const userId = getCurrentUserId();
 
-      if (!bankAccountId) {
-        throw new Error("Please select a bank account");
+      if (!paymentMethodId) {
+        throw new Error("Please select a payment method");
       }
+
+      const selectedMethod = paymentMethods.find((m: any) => m.id === paymentMethodId);
+      const isGateway = Boolean(selectedMethod?.payment_gateway);
 
       // Generate order number
       const orderNumber = `SO-TRM-${od.order_number?.slice(-8) || Date.now()}`;
@@ -216,8 +225,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           fee_percentage: 0,
           fee_amount: commission,
           net_amount: totalAmount,
+          sales_payment_method_id: paymentMethodId,
           payment_status: 'COMPLETED',
           status: 'COMPLETED',
+          settlement_status: isGateway ? 'PENDING' : 'DIRECT',
           is_off_market: false,
           description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
           created_by: userId || null,
@@ -242,6 +253,18 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           console.warn('[SalesApproval] Wallet deduction failed:', e);
         }
       }
+
+      // Handle bank transaction / payment gateway usage (same as manual sales)
+      if (selectedMethod?.payment_gateway) {
+        // Payment gateway: update usage counter
+        const newUsage = (selectedMethod.current_usage || 0) + totalAmount;
+        await supabase
+          .from('sales_payment_methods')
+          .update({ current_usage: newUsage })
+          .eq('id', paymentMethodId);
+      }
+
+      console.log('[SalesApproval] Sales order created - bank transaction handled by triggers if applicable');
 
       // Update sync record
       const { error: updateErr } = await supabase
@@ -284,6 +307,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       onSuccess();
     },
     onError: (err: Error) => {
@@ -355,15 +380,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           {/* Editable Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs">Bank Account (Settlement)</Label>
-              <Select value={bankAccountId} onValueChange={setBankAccountId}>
+              <Label className="text-xs">Payment Method</Label>
+              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
                 <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Select bank" />
+                  <SelectValue placeholder="Select payment method" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border z-50">
-                  {bankAccounts.map((b: any) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.account_name} - {b.bank_name}
+                <SelectContent className="bg-popover border z-50 max-h-[250px]">
+                  {paymentMethods.map((m: any) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.type}{m.bank_accounts ? ` - ${m.bank_accounts.account_name} (${m.bank_accounts.bank_name})` : m.payment_gateway ? ` [Gateway]` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -425,7 +450,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || !bankAccountId}
+            disabled={approveMutation.isPending || !paymentMethodId}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,40 @@ import { useErpActionQueue, useCheckNewMovements, ErpActionQueueItem } from "@/h
 import { RejectDialog } from "./erp-actions/RejectDialog";
 import { ActionSelectionDialog } from "./erp-actions/ActionSelectionDialog";
 import { format } from "date-fns";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useAuth } from "@/hooks/useAuth";
+
+// Roles that should receive ERP action notifications in the bell
+const ERP_NOTIFICATION_ROLES = ["admin", "finance", "stock_management", "purchase", "sales"];
 
 export function ActionRequiredWidget() {
   const { data: pendingItems = [], isLoading } = useErpActionQueue();
   const checkMutation = useCheckNewMovements();
   const [rejectItem, setRejectItem] = useState<ErpActionQueueItem | null>(null);
   const [entryItem, setEntryItem] = useState<ErpActionQueueItem | null>(null);
+  const { addNotification } = useNotifications();
+  const { hasRole } = useAuth();
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+
+  // Check if user has an ERP notification-eligible role
+  const shouldNotify = useMemo(() => {
+    return ERP_NOTIFICATION_ROLES.some(role => hasRole(role));
+  }, [hasRole]);
+
+  // Push new pending items to the notification bell (role-gated)
+  useEffect(() => {
+    if (!shouldNotify || isLoading || pendingItems.length === 0) return;
+    
+    const newItems = pendingItems.filter(item => !notifiedIdsRef.current.has(item.id));
+    newItems.forEach(item => {
+      notifiedIdsRef.current.add(item.id);
+      addNotification({
+        title: `${item.movement_type === "deposit" ? "Deposit" : "Withdrawal"} — ${item.asset} ${Number(item.amount).toLocaleString()}`,
+        description: `New ${item.movement_type} detected. ERP action required.`,
+        type: "warning",
+      });
+    });
+  }, [pendingItems, shouldNotify, isLoading, addNotification]);
 
   const deposits = useMemo(() => pendingItems.filter(i => i.movement_type === "deposit"), [pendingItems]);
   const withdrawals = useMemo(() => pendingItems.filter(i => i.movement_type === "withdrawal"), [pendingItems]);
@@ -36,21 +64,21 @@ export function ActionRequiredWidget() {
   return (
     <>
       <Card className="bg-card border-2 border-border shadow-xl">
-        <CardHeader className="bg-amber-600 text-white rounded-t-lg">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="p-2 bg-amber-700 rounded-lg shadow-md">
-              <AlertTriangle className="h-5 w-5" />
+        <CardHeader className="bg-muted/80 border-b border-border rounded-t-lg">
+          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+            <div className="p-2 bg-muted rounded-lg border border-border">
+              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
             </div>
             Action Required
             <div className="ml-auto flex items-center gap-2">
               {deposits.length > 0 && (
-                <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+               <Badge variant="secondary" className="text-xs">
                   <ArrowDownLeft className="h-3 w-3 mr-1" />
                   {deposits.length} Deposits
                 </Badge>
               )}
               {withdrawals.length > 0 && (
-                <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+                <Badge variant="outline" className="text-xs">
                   <ArrowUpRight className="h-3 w-3 mr-1" />
                   {withdrawals.length} Withdrawals
                 </Badge>
@@ -58,7 +86,7 @@ export function ActionRequiredWidget() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-white hover:bg-amber-700"
+                className="h-7 w-7 text-muted-foreground hover:bg-muted"
                 onClick={() => checkMutation.mutate()}
                 disabled={checkMutation.isPending}
               >
@@ -85,11 +113,11 @@ export function ActionRequiredWidget() {
                     className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
                   >
                     {/* Type icon */}
-                    <div className={`p-1.5 rounded-md ${item.movement_type === "deposit" ? "bg-green-100" : "bg-red-100"}`}>
+                    <div className={`p-1.5 rounded-md ${item.movement_type === "deposit" ? "bg-secondary" : "bg-muted"}`}>
                       {item.movement_type === "deposit" ? (
-                        <ArrowDownLeft className="h-4 w-4 text-green-600" />
+                        <ArrowDownLeft className="h-4 w-4 text-secondary-foreground" />
                       ) : (
-                        <ArrowUpRight className="h-4 w-4 text-red-600" />
+                        <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
 

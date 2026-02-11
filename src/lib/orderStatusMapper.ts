@@ -33,8 +33,18 @@ const NUMERIC_STATUS_MAP: Record<number, string> = {
 /** Normalise whatever Binance returns into an upper-case canonical string */
 export function normaliseBinanceStatus(raw: number | string | undefined | null): string {
   if (raw === undefined || raw === null) return 'TRADING';
+
+  // Binance sometimes returns numeric statuses as numbers (active endpoint)
+  // and sometimes as numeric strings. Normalize both.
   if (typeof raw === 'number') return NUMERIC_STATUS_MAP[raw] || 'TRADING';
-  return String(raw).toUpperCase();
+
+  const s = String(raw).trim();
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    return NUMERIC_STATUS_MAP[n] || 'TRADING';
+  }
+
+  return s.toUpperCase();
 }
 
 // ── Core mapper ─────────────────────────────────────────────────

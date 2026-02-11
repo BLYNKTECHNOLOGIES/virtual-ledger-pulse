@@ -26,30 +26,20 @@ export function useWalletStock() {
   return useQuery({
     queryKey: ['wallet_stock_summary'],
     queryFn: async () => {
-      console.log('🔄 Fetching wallet stock data...');
-      
       const { data: wallets, error } = await supabase
         .from('wallets')
         .select('*')
         .eq('is_active', true)
         .order('wallet_name');
 
-      if (error) {
-        console.error('Error fetching wallets:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Raw wallet data:', wallets);
-
-      // Convert wallets to stock format - all wallets can hold any asset
       const result: WalletStockItem[] = wallets?.map(wallet => ({
         wallet_id: wallet.id,
         wallet_name: wallet.wallet_name,
         current_balance: wallet.current_balance || 0,
         chain_name: wallet.chain_name || ''
       })) || [];
-      
-      console.log('Processed wallet stock:', result);
       
       return result;
     },
@@ -59,33 +49,64 @@ export function useWalletStock() {
 }
 
 export function useProductStockSummary() {
-  const { data: walletStock, isLoading, error } = useWalletStock();
+  const { isLoading, error } = useWalletStock();
 
-  // All wallets contribute to USDT stock (default asset view)
-  const productSummaries = walletStock?.reduce((acc, wallet) => {
-    if (!acc['USDT']) {
-      acc['USDT'] = {
-        product_id: 'USDT',
-        product_name: 'USDT',
-        product_code: 'USDT',
+  // Use wallet_asset_balances for per-asset grouping
+  const { data: assetBalances } = useQuery({
+    queryKey: ['wallet_asset_balances_summary'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_asset_balances')
+        .select('wallet_id, asset_code, balance')
+        .order('asset_code');
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 10000,
+    staleTime: 0,
+  });
+
+  const { data: wallets } = useQuery({
+    queryKey: ['wallets_for_stock'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name, is_active')
+        .eq('is_active', true);
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 30000,
+  });
+
+  const walletMap = new Map(wallets?.map(w => [w.id, w.wallet_name]) || []);
+  const activeWalletIds = new Set(wallets?.map(w => w.id) || []);
+
+  const productSummaries = assetBalances?.reduce((acc, ab) => {
+    // Only include active wallets
+    if (!activeWalletIds.has(ab.wallet_id)) return acc;
+    
+    const code = ab.asset_code;
+    if (!acc[code]) {
+      acc[code] = {
+        product_id: code,
+        product_name: code,
+        product_code: code,
         unit_of_measurement: 'Units',
         total_stock: 0,
         wallet_stocks: []
       };
     }
 
-    acc['USDT'].total_stock += wallet.current_balance;
-    
-    acc['USDT'].wallet_stocks.push({
-      wallet_id: wallet.wallet_id,
-      wallet_name: wallet.wallet_name,
-      balance: wallet.current_balance
+    acc[code].total_stock += ab.balance;
+    acc[code].wallet_stocks.push({
+      wallet_id: ab.wallet_id,
+      wallet_name: walletMap.get(ab.wallet_id) || 'Unknown',
+      balance: ab.balance
     });
 
     return acc;
   }, {} as Record<string, ProductStockSummary>);
-
-  console.log('Product summaries from wallets:', productSummaries);
 
   return {
     data: productSummaries ? Object.values(productSummaries) : undefined,
@@ -126,7 +147,8 @@ export async function createValidatedWalletTransaction(
   referenceType?: string,
   referenceId?: string,
   description?: string,
-  createdBy?: string | null
+  createdBy?: string | null,
+  assetCode: string = 'USDT'
 ) {
   let createdByUserId = createdBy;
   if (createdByUserId === undefined) {
@@ -136,37 +158,32 @@ export async function createValidatedWalletTransaction(
   }
 
   if ((transactionType === 'DEBIT' || transactionType === 'TRANSFER_OUT') && amount > 0) {
-    const { data: wallet } = await supabase
-      .from('wallets')
-      .select('current_balance')
-      .eq('id', walletId)
+    // Check asset-specific balance
+    const { data: assetBal } = await supabase
+      .from('wallet_asset_balances')
+      .select('balance')
+      .eq('wallet_id', walletId)
+      .eq('asset_code', assetCode)
       .single();
     
-    if (!wallet || wallet.current_balance < amount) {
-      throw new Error('It cannot be negative check previous entries and balances again!');
+    if (!assetBal || assetBal.balance < amount) {
+      throw new Error(`Insufficient ${assetCode} balance! Available: ${(assetBal?.balance || 0).toFixed(4)}`);
     }
   }
 
-  const { data: wallet } = await supabase
-    .from('wallets')
-    .select('current_balance')
-    .eq('id', walletId)
-    .single();
-
-  const currentBalance = wallet?.current_balance || 0;
-  const newBalance = transactionType === 'CREDIT' ? currentBalance + amount : currentBalance - amount;
-
+  // Get asset-specific balance for balance_before/after (trigger handles this, but we pass defaults)
   const { error } = await supabase
     .from('wallet_transactions')
     .insert({
       wallet_id: walletId,
       transaction_type: transactionType,
       amount,
+      asset_code: assetCode,
       reference_type: referenceType,
       reference_id: referenceId,
       description,
-      balance_before: currentBalance,
-      balance_after: newBalance,
+      balance_before: 0, // Auto-set by DB trigger
+      balance_after: 0,  // Auto-set by DB trigger
       created_by: createdByUserId
     });
 

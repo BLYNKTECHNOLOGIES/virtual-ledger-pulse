@@ -12,6 +12,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { useAssetCodes } from "@/hooks/useAssetCodes";
 
 interface ManualWalletAdjustmentDialogProps {
   open: boolean;
@@ -37,7 +38,8 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
     wallet_id: "",
     adjustment_type: "CREDIT",
     amount: "",
-    reason: ""
+    reason: "",
+    asset_code: "USDT"
   });
 
   // Fetch wallets
@@ -53,6 +55,8 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       return data;
     }
   });
+
+  const { data: assetCodes } = useAssetCodes();
 
   // Get or create adjustment wallet
   const ensureAdjustmentWallet = async () => {
@@ -129,6 +133,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
           wallet_id,
           transaction_type: isCredit ? "CREDIT" : "DEBIT",
           amount,
+          asset_code: formData.asset_code,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
           description: `Manual Balance Adjustment${refId ? ` (${refId})` : ""}: ${reason}`,
@@ -139,6 +144,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
           wallet_id: adjustmentWalletId,
           transaction_type: isCredit ? "DEBIT" : "CREDIT",
           amount,
+          asset_code: formData.asset_code,
           reference_type: "MANUAL_ADJUSTMENT",
           reference_id: refId,
           description: `Contra Entry - Adjustment for ${mainWallet.wallet_name}${refId ? ` (${refId})` : ""}: ${reason}`,
@@ -191,7 +197,8 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
         wallet_id: "",
         adjustment_type: "CREDIT",
         amount: "",
-        reason: ""
+        reason: "",
+        asset_code: "USDT"
       });
     },
     onError: (error: any) => {
@@ -249,10 +256,29 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
             <div className="bg-muted p-3 rounded-md text-sm">
               <div className="flex justify-between">
                 <span>Current Balance:</span>
-                <span className="font-medium">{(Number(selectedWallet.current_balance ?? 0)).toFixed(2)} USDT</span>
+                <span className="font-medium">{(Number(selectedWallet.current_balance ?? 0)).toFixed(4)} {formData.asset_code}</span>
               </div>
             </div>
           )}
+
+          <div>
+            <Label>Asset Type</Label>
+            <Select 
+              value={formData.asset_code} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, asset_code: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select asset" />
+              </SelectTrigger>
+              <SelectContent>
+                {(assetCodes || ['USDT']).map((code) => (
+                  <SelectItem key={code} value={code}>
+                    {code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div>
             <Label>Adjustment Type</Label>
@@ -301,7 +327,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
                   {(formData.adjustment_type === "CREDIT" 
                     ? Number(selectedWallet.current_balance ?? 0) + parseFloat(formData.amount || "0")
                     : Number(selectedWallet.current_balance ?? 0) - parseFloat(formData.amount || "0")
-                  ).toFixed(2)} USDT
+                  ).toFixed(4)} {formData.asset_code}
                 </span>
               </div>
             </div>

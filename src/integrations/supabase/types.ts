@@ -7376,6 +7376,44 @@ export type Database = {
           },
         ]
       }
+      wallet_asset_balances: {
+        Row: {
+          asset_code: string
+          balance: number
+          id: string
+          total_received: number
+          total_sent: number
+          updated_at: string
+          wallet_id: string
+        }
+        Insert: {
+          asset_code?: string
+          balance?: number
+          id?: string
+          total_received?: number
+          total_sent?: number
+          updated_at?: string
+          wallet_id: string
+        }
+        Update: {
+          asset_code?: string
+          balance?: number
+          id?: string
+          total_received?: number
+          total_sent?: number
+          updated_at?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_asset_balances_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallet_fee_deductions: {
         Row: {
           average_buying_price: number | null

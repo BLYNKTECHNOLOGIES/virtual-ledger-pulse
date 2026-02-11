@@ -103,7 +103,7 @@ export default function TerminalOrders() {
     const d = activeOrdersData?.data || activeOrdersData;
     const activeList = Array.isArray(d) ? d : [];
     for (const o of activeList) {
-      if (o.orderNumber) orderMap.set(o.orderNumber, o);
+      if (o.orderNumber) orderMap.set(o.orderNumber, { ...o, _isActiveOrder: true });
     }
 
     // Then fill in from history (won't overwrite active orders)
@@ -171,8 +171,11 @@ export default function TerminalOrders() {
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     let enriched = rawOrders.map(o => {
+      // Active orders (from live endpoint) use their own status — don't override with potentially stale history
+      const liveStatus = mapOrderStatusCode(o.orderStatus);
       const historyStatus = historyStatusMap.get(o.orderNumber);
-      return { ...o, _resolvedStatus: historyStatus || mapOrderStatusCode(o.orderStatus) };
+      const resolvedStatus = o._isActiveOrder ? liveStatus : (historyStatus || liveStatus);
+      return { ...o, _resolvedStatus: resolvedStatus };
     });
 
     if (tradeFilter !== 'all') {

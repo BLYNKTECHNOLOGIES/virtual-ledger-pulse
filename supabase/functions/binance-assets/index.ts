@@ -493,6 +493,88 @@ serve(async (req) => {
         break;
       }
 
+      // ===== CHECK NEW MOVEMENTS FOR ERP ACTION QUEUE =====
+      case "checkNewMovements": {
+        const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
+        const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+        // Get active terminal wallet link
+        const { data: activeLink } = await sb
+          .from("terminal_wallet_links")
+          .select("wallet_id")
+          .eq("status", "active")
+          .eq("platform_source", "terminal")
+          .limit(1)
+          .maybeSingle();
+
+        const mappedWalletId = activeLink?.wallet_id || null;
+
+        // Get completed deposits (status 1 = success for deposits) and withdrawals (status 6 = completed)
+        // that are NOT yet in erp_action_queue
+        const { data: unqueued, error: uqErr } = await sb.rpc("get_unqueued_movements");
+
+        // If RPC doesn't exist, fall back to manual query
+        let movements: any[] = [];
+        if (uqErr) {
+          console.log("RPC not available, using manual query");
+          // Get all completed deposits and withdrawals
+          const { data: allMovements } = await sb
+            .from("asset_movement_history")
+            .select("*")
+            .in("movement_type", ["deposit", "withdrawal"])
+            .order("movement_time", { ascending: false });
+
+          // Get existing queue entries
+          const { data: existingQueue } = await sb
+            .from("erp_action_queue")
+            .select("movement_id");
+
+          const existingIds = new Set((existingQueue || []).map((q: any) => q.movement_id));
+          movements = (allMovements || []).filter((m: any) => {
+            // Filter for completed movements only
+            const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6");
+            const isCompletedWithdrawal = m.movement_type === "withdrawal" && m.status === "6";
+            return (isCompletedDeposit || isCompletedWithdrawal) && !existingIds.has(m.id);
+          });
+        } else {
+          movements = unqueued || [];
+        }
+
+        if (movements.length === 0) {
+          console.log("checkNewMovements: no new movements to queue");
+          result = { inserted: 0 };
+          break;
+        }
+
+        // Insert new movements into erp_action_queue
+        const queueRows = movements.map((m: any) => ({
+          movement_id: m.id,
+          movement_type: m.movement_type,
+          asset: m.asset,
+          amount: m.amount,
+          tx_id: m.tx_id || null,
+          network: m.network || null,
+          wallet_id: mappedWalletId,
+          movement_time: m.movement_time,
+          status: "PENDING",
+          raw_data: m.raw_data || m,
+        }));
+
+        const { error: insertErr } = await sb
+          .from("erp_action_queue")
+          .upsert(queueRows, { onConflict: "movement_id", ignoreDuplicates: true });
+
+        if (insertErr) {
+          console.error("checkNewMovements insert error:", insertErr);
+          throw new Error(`Failed to insert queue items: ${insertErr.message}`);
+        }
+
+        console.log(`checkNewMovements: inserted ${queueRows.length} new items`);
+        result = { inserted: queueRows.length };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }

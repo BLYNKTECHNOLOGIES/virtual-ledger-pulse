@@ -557,9 +557,6 @@ export function WalletManagementTab() {
 
   return (
     <div className="space-y-6">
-      {/* Terminal Wallet Links */}
-      <WalletLinkingSection />
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -712,6 +709,9 @@ export function WalletManagementTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Terminal Wallet Links - compact */}
+      <WalletLinkingSection />
 
       {/* Recent Transactions */}
       <Card>

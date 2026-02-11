@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,11 +49,31 @@ export function CompletedOrdersExport() {
   const [fromDate, setFromDate] = useState<Date>(subDays(new Date(), 7));
   const [toDate, setToDate] = useState<Date>(new Date());
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
-  const [orders, setOrders] = useState<CompletedOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<CompletedOrder[]>([]);
+  const [tradeTypeFilter, setTradeTypeFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
+  const [minTotal, setMinTotal] = useState<string>('');
+  const [maxTotal, setMaxTotal] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetched, setIsFetched] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [missingVerifiedNames, setMissingVerifiedNames] = useState(0);
+
+  // Apply client-side filters
+  const orders = useMemo(() => {
+    let filtered = allOrders;
+    if (tradeTypeFilter !== 'ALL') {
+      filtered = filtered.filter(o => o.trade_type === tradeTypeFilter);
+    }
+    const min = parseFloat(minTotal);
+    const max = parseFloat(maxTotal);
+    if (!isNaN(min)) {
+      filtered = filtered.filter(o => parseFloat(o.total_price || '0') >= min);
+    }
+    if (!isNaN(max)) {
+      filtered = filtered.filter(o => parseFloat(o.total_price || '0') <= max);
+    }
+    return filtered;
+  }, [allOrders, tradeTypeFilter, minTotal, maxTotal]);
 
   const handlePresetChange = (value: PresetRange) => {
     setPreset(value);
@@ -99,7 +120,7 @@ export function CompletedOrdersExport() {
         COMPLETED_STATUSES.some(s => String(o.order_status).toUpperCase().includes(s.toUpperCase()))
       );
 
-      setOrders(completed);
+      setAllOrders(completed);
       setMissingVerifiedNames(completed.filter(o => !o.verified_name).length);
       setIsFetched(true);
 
@@ -156,8 +177,8 @@ export function CompletedOrdersExport() {
       if (i + BATCH < missing.length) await new Promise(r => setTimeout(r, 500));
     }
 
-    setOrders([...orders]);
-    setMissingVerifiedNames(orders.filter(o => !o.verified_name).length);
+    setAllOrders([...allOrders]);
+    setMissingVerifiedNames(allOrders.filter(o => !o.verified_name).length);
     setIsExporting(false);
     if (enriched > 0) toast.success(`Enriched ${enriched} verified names`);
   };
@@ -381,6 +402,45 @@ export function CompletedOrdersExport() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Trade Type Filter */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Order Type</label>
+              <Select value={tradeTypeFilter} onValueChange={(v) => setTradeTypeFilter(v as 'ALL' | 'BUY' | 'SELL')}>
+                <SelectTrigger className="w-[100px] h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="BUY">Buy</SelectItem>
+                  <SelectItem value="SELL">Sell</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Min Total */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Min Total (₹)</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={minTotal}
+                onChange={(e) => setMinTotal(e.target.value)}
+                className="w-[110px] h-9 text-xs"
+              />
+            </div>
+
+            {/* Max Total */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Max Total (₹)</label>
+              <Input
+                type="number"
+                placeholder="No limit"
+                value={maxTotal}
+                onChange={(e) => setMaxTotal(e.target.value)}
+                className="w-[110px] h-9 text-xs"
+              />
             </div>
 
             {/* Fetch Button */}

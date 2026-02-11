@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, ArrowUpDown, Banknote, Clock, Shield } from 'lucide-react';
-import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS, getAdStatusLabel } from '@/hooks/useBinanceAds';
-import { useBinanceOrderHistory } from '@/hooks/useBinanceActions';
+import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { useCachedOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 // ─── Helpers ───
@@ -17,18 +17,10 @@ function fmtINR(n: number) {
   return `₹${fmt(n)}`;
 }
 
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--trade-buy))',
-  'hsl(var(--trade-sell))',
-  'hsl(var(--muted-foreground))',
-  'hsl(var(--accent))',
-];
-
 const STATUS_COLORS: Record<number, string> = {
-  1: 'hsl(142, 76%, 36%)',   // green – online
-  2: 'hsl(38, 92%, 50%)',    // amber – private
-  3: 'hsl(0, 0%, 45%)',      // grey – offline
+  1: 'hsl(142, 76%, 36%)',
+  2: 'hsl(38, 92%, 50%)',
+  3: 'hsl(0, 0%, 45%)',
 };
 
 // ─── Stat Card ───
@@ -61,10 +53,9 @@ function StatCard({ icon: Icon, label, value, sub, trend }: {
 
 // ─── Main Page ───
 export default function TerminalAnalytics() {
-  // Fetch all ads (merged across statuses)
   const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
-  // Fetch recent 7d order history
-  const { data: ordersRaw, isLoading: ordersLoading } = useBinanceOrderHistory();
+  // Use cached DB data instead of live API calls
+  const { data: cachedOrders = [], isLoading: ordersLoading } = useCachedOrderHistory();
 
   const ads: BinanceAd[] = useMemo(() => {
     if (!adsRaw) return [];
@@ -73,27 +64,37 @@ export default function TerminalAnalytics() {
   }, [adsRaw]);
 
   const orders = useMemo(() => {
-    if (!Array.isArray(ordersRaw)) return [];
-    return ordersRaw;
-  }, [ordersRaw]);
+    if (!Array.isArray(cachedOrders)) return [];
+    return cachedOrders.map((o: any) => ({
+      orderNumber: o.orderNumber || o.order_number || '',
+      tradeType: o.tradeType || o.trade_type || '',
+      orderStatus: o.orderStatus || o.order_status || '',
+      totalPrice: o.totalPrice || o.total_price || '0',
+      amount: o.amount || '0',
+      createTime: o.createTime || o.create_time || 0,
+    }));
+  }, [cachedOrders]);
 
-  // ─── Trade Stats ───
+  // ─── Trade Stats (30d) ───
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const recentOrders = useMemo(() => orders.filter(o => o.createTime >= thirtyDaysAgo), [orders, thirtyDaysAgo]);
+
   const tradeStats = useMemo(() => {
-    const completed = orders.filter((o: any) => o.orderStatus === 'COMPLETED');
-    const cancelled = orders.filter((o: any) => o.orderStatus === 'CANCELLED');
-    const appealed = orders.filter((o: any) => o.orderStatus === 'APPEAL');
-    const buyOrders = completed.filter((o: any) => o.tradeType === 'BUY');
-    const sellOrders = completed.filter((o: any) => o.tradeType === 'SELL');
+    const completed = recentOrders.filter((o) => o.orderStatus === 'COMPLETED');
+    const cancelled = recentOrders.filter((o) => ['CANCELLED', 'CANCELLED_BY_SYSTEM'].includes(o.orderStatus));
+    const appealed = recentOrders.filter((o) => o.orderStatus === 'APPEAL');
+    const buyOrders = completed.filter((o) => o.tradeType === 'BUY');
+    const sellOrders = completed.filter((o) => o.tradeType === 'SELL');
 
-    const totalFiat = completed.reduce((s: number, o: any) => s + (Number(o.totalPrice) || 0), 0);
-    const totalCrypto = completed.reduce((s: number, o: any) => s + (Number(o.amount) || 0), 0);
-    const buyVolume = buyOrders.reduce((s: number, o: any) => s + (Number(o.totalPrice) || 0), 0);
-    const sellVolume = sellOrders.reduce((s: number, o: any) => s + (Number(o.totalPrice) || 0), 0);
+    const totalFiat = completed.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+    const totalCrypto = completed.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+    const buyVolume = buyOrders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
+    const sellVolume = sellOrders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
     const avgOrderSize = completed.length > 0 ? totalFiat / completed.length : 0;
-    const completionRate = orders.length > 0 ? (completed.length / orders.length) * 100 : 0;
+    const completionRate = recentOrders.length > 0 ? (completed.length / recentOrders.length) * 100 : 0;
 
     return {
-      total: orders.length,
+      total: recentOrders.length,
       completed: completed.length,
       cancelled: cancelled.length,
       appealed: appealed.length,
@@ -106,23 +107,22 @@ export default function TerminalAnalytics() {
       avgOrderSize,
       completionRate,
     };
-  }, [orders]);
+  }, [recentOrders]);
 
   // ─── Daily trade chart data ───
   const dailyChart = useMemo(() => {
     const map: Record<string, { date: string; buy: number; sell: number }> = {};
-    const completed = orders.filter((o: any) => o.orderStatus === 'COMPLETED');
-    completed.forEach((o: any) => {
-      const ts = o.createTime || o.orderCreateTime;
-      if (!ts) return;
-      const d = new Date(Number(ts)).toISOString().slice(0, 10);
+    const completed = recentOrders.filter((o) => o.orderStatus === 'COMPLETED');
+    completed.forEach((o) => {
+      if (!o.createTime) return;
+      const d = new Date(Number(o.createTime)).toISOString().slice(0, 10);
       if (!map[d]) map[d] = { date: d, buy: 0, sell: 0 };
       const vol = Number(o.totalPrice) || 0;
       if (o.tradeType === 'BUY') map[d].buy += vol;
       else map[d].sell += vol;
     });
     return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
-  }, [orders]);
+  }, [recentOrders]);
 
   // ─── Ad Stats ───
   const adStats = useMemo(() => {
@@ -154,17 +154,12 @@ export default function TerminalAnalytics() {
       { name: 'Offline', value: byStatus.offline, color: STATUS_COLORS[3] },
     ].filter((s) => s.value > 0);
 
-    const typePie = [
-      { name: 'Buy', value: byType.buy, color: 'hsl(142, 76%, 36%)' },
-      { name: 'Sell', value: byType.sell, color: 'hsl(0, 72%, 51%)' },
-    ].filter((s) => s.value > 0);
-
     const payMethodBars = Object.entries(payMethods)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
       .map(([name, count]) => ({ name: name.length > 15 ? name.slice(0, 13) + '…' : name, count }));
 
-    return { byStatus, byType, assets, statusPie, typePie, payMethodBars, total: ads.length };
+    return { byStatus, byType, assets, statusPie, payMethodBars, total: ads.length };
   }, [ads]);
 
   const isLoading = adsLoading || ordersLoading;
@@ -179,23 +174,22 @@ export default function TerminalAnalytics() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px]">
-      {/* Header */}
       <div>
         <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
-        <p className="text-xs text-muted-foreground">7-day trading & ad performance from Binance API</p>
+        <p className="text-xs text-muted-foreground">30-day trading & ad performance · {orders.length.toLocaleString()} total orders synced</p>
       </div>
 
       {/* ─── KPI Cards ─── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           icon={ShoppingCart}
-          label="Completed Trades (7d)"
+          label="Completed Trades (30d)"
           value={String(tradeStats.completed)}
           sub={`Buy ${tradeStats.buyCount} | Sell ${tradeStats.sellCount}`}
         />
         <StatCard
           icon={Banknote}
-          label="Total Volume (7d)"
+          label="Total Volume (30d)"
           value={fmtINR(tradeStats.totalFiat)}
           sub={`${fmt(tradeStats.totalCrypto, 4)} crypto`}
         />
@@ -215,11 +209,10 @@ export default function TerminalAnalytics() {
 
       {/* ─── Charts Row ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Daily Volume Bar Chart */}
         <Card className="lg:col-span-2 bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" /> Daily Trade Volume (7d)
+              <BarChart3 className="h-3.5 w-3.5" /> Daily Trade Volume (30d)
             </CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-3">
@@ -229,7 +222,7 @@ export default function TerminalAnalytics() {
                   <XAxis
                     dataKey="date"
                     tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                    tickFormatter={(v) => v.slice(5)} // MM-DD
+                    tickFormatter={(v) => v.slice(5)}
                     axisLine={false}
                     tickLine={false}
                   />
@@ -256,13 +249,12 @@ export default function TerminalAnalytics() {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[220px] text-xs text-muted-foreground">
-                No completed trades in the last 7 days
+                No completed trades in the last 30 days
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Buy vs Sell Split */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground">Buy vs Sell Volume</CardTitle>
@@ -312,7 +304,6 @@ export default function TerminalAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Ad Status Distribution */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground">Ad Status Distribution</CardTitle>
@@ -336,11 +327,7 @@ export default function TerminalAnalytics() {
                       <Cell key={i} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Legend
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '10px' }}
-                  />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '10px' }} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
@@ -357,7 +344,6 @@ export default function TerminalAnalytics() {
           </CardContent>
         </Card>
 
-        {/* Payment Methods Distribution */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground">Payment Methods Across Ads</CardTitle>
@@ -398,7 +384,6 @@ export default function TerminalAnalytics() {
         </Card>
       </div>
 
-      {/* Asset breakdown */}
       {Object.keys(adStats.assets).length > 0 && (
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">

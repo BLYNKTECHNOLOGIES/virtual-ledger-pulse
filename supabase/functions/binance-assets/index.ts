@@ -262,6 +262,44 @@ serve(async (req) => {
         break;
       }
 
+      // ===== GET MY TRADES (Spot trade history from Binance) =====
+      case "getMyTrades": {
+        const { symbols, startTime, limit: tradeLimit } = payload;
+        const tradingSymbols: string[] = symbols || [
+          "BTCUSDT", "ETHUSDT", "BNBUSDT", "XRPUSDT", "SOLUSDT",
+          "TRXUSDT", "SHIBUSDT", "TONUSDT", "USDCUSDT", "FDUSDUSDT"
+        ];
+        const allTrades: any[] = [];
+
+        for (const sym of tradingSymbols) {
+          try {
+            const tradeParams: Record<string, string> = { symbol: sym };
+            if (tradeLimit) tradeParams.limit = String(tradeLimit);
+            else tradeParams.limit = "100";
+            if (startTime) tradeParams.startTime = String(startTime);
+
+            const qs = new URLSearchParams(tradeParams).toString();
+            const url = `${BINANCE_PROXY_URL}/api/api/v3/myTrades?${qs}`;
+            const res = await fetchWithRetry(url, { method: "GET", headers: proxyHeaders });
+            const text = await res.text();
+            let trades: any[] = [];
+            try { trades = JSON.parse(text); } catch { trades = []; }
+            if (Array.isArray(trades)) {
+              for (const t of trades) {
+                allTrades.push({ ...t, symbol: sym });
+              }
+            }
+          } catch (e) {
+            console.warn(`Failed to fetch trades for ${sym}:`, e);
+          }
+        }
+
+        // Sort by time descending
+        allTrades.sort((a, b) => (b.time || 0) - (a.time || 0));
+        result = allTrades;
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }

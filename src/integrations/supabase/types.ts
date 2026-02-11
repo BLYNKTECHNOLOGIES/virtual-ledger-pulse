@@ -6373,6 +6373,9 @@ export type Database = {
       spot_trade_history: {
         Row: {
           binance_order_id: string | null
+          binance_trade_id: string | null
+          commission: number | null
+          commission_asset: string | null
           created_at: string
           error_message: string | null
           executed_by: string | null
@@ -6380,15 +6383,22 @@ export type Database = {
           execution_method: string
           funding_transfer_done: boolean | null
           id: string
+          is_buyer: boolean | null
+          is_maker: boolean | null
           quantity: number
           quote_quantity: number | null
           side: string
+          source: string
           status: string
           symbol: string
+          trade_time: number | null
           updated_at: string
         }
         Insert: {
           binance_order_id?: string | null
+          binance_trade_id?: string | null
+          commission?: number | null
+          commission_asset?: string | null
           created_at?: string
           error_message?: string | null
           executed_by?: string | null
@@ -6396,15 +6406,22 @@ export type Database = {
           execution_method?: string
           funding_transfer_done?: boolean | null
           id?: string
+          is_buyer?: boolean | null
+          is_maker?: boolean | null
           quantity: number
           quote_quantity?: number | null
           side: string
+          source?: string
           status?: string
           symbol: string
+          trade_time?: number | null
           updated_at?: string
         }
         Update: {
           binance_order_id?: string | null
+          binance_trade_id?: string | null
+          commission?: number | null
+          commission_asset?: string | null
           created_at?: string
           error_message?: string | null
           executed_by?: string | null
@@ -6412,11 +6429,15 @@ export type Database = {
           execution_method?: string
           funding_transfer_done?: boolean | null
           id?: string
+          is_buyer?: boolean | null
+          is_maker?: boolean | null
           quantity?: number
           quote_quantity?: number | null
           side?: string
+          source?: string
           status?: string
           symbol?: string
+          trade_time?: number | null
           updated_at?: string
         }
         Relationships: []

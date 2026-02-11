@@ -306,7 +306,14 @@ export default function TerminalOrders() {
   if (selectedOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">
-        <OrderDetailWorkspace order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        <OrderDetailWorkspace
+          order={selectedOrder}
+          onClose={async () => {
+            setSelectedOrder(null);
+            // Ensure list reflects the latest terminal status after viewing an order
+            await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
+          }}
+        />
       </div>
     );
   }

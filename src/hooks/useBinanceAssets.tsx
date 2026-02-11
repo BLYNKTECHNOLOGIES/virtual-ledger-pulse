@@ -56,7 +56,10 @@ export function useBinanceBalances() {
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
-      return data.data.balances as AssetBalance[];
+      const EXCLUDED_ASSETS = ["HOME"];
+      return (data.data.balances as AssetBalance[]).filter(
+        (b) => !EXCLUDED_ASSETS.includes(b.asset)
+      );
     },
     refetchInterval: 15000,
     staleTime: 5000,

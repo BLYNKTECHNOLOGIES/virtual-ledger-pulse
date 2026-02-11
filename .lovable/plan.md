@@ -1,156 +1,143 @@
 
 
-# ERP-Terminal Sales Integration
+## Action Required Widget - ERP Reconciliation for Binance Asset Movements
 
-## Overview
-Mirror the existing Purchase integration (`terminal_purchase_sync` + `TerminalPurchaseApprovalDialog` + `TerminalSyncTab`) for SELL orders, creating a complete Terminal-to-ERP sales pipeline with client mapping, counterparty data capture, and approval workflow.
+### Overview
+A new dashboard widget that surfaces unreconciled deposits and withdrawals detected from Binance APIs, forcing each movement through ERP accounting classification (Purchase/Sales/Wallet Transfer) before it is considered operationally settled.
 
-## Binance API Feasibility Check
-All required data fields are available from the existing `binance_order_history` table (already synced via the order history sync):
-- Order Number, Asset, Amount, Total Price, Unit Price, Commission, Verified Name, Nickname, Create Time, Pay Method, Trade Type, Order Status
+### Data Architecture
 
-**Limitation flagged**: Binance P2P API does not expose buyer's UPI ID, bank reference, or contact number. These must be captured manually via Terminal UI (as already done for PAN in purchases).
-
----
-
-## Implementation Steps
-
-### 1. Database: `terminal_sales_sync` Table
-Create a new table mirroring `terminal_purchase_sync` but for SELL orders:
+**New DB Table: `erp_action_queue`**
 
 | Column | Type | Purpose |
 |--------|------|---------|
-| `id` | uuid PK | Row ID |
-| `binance_order_number` | text UNIQUE NOT NULL | Duplicate guard |
-| `sync_status` | text | `synced_pending_approval`, `client_mapping_pending`, `approved`, `rejected`, `duplicate_blocked` |
-| `order_data` | jsonb | Snapshot of trade data (amount, price, qty, fee, wallet, pay_method) |
-| `client_id` | uuid FK -> clients | Mapped ERP client |
-| `counterparty_name` | text | Verified name from Binance |
-| `contact_number` | text | Manually captured via Terminal |
-| `state` | text | Manually captured via Terminal |
-| `sales_order_id` | uuid FK -> sales_orders | Created after approval |
-| `rejection_reason` | text | If rejected |
-| `synced_by` | text | User who triggered sync |
-| `synced_at` | timestamptz | Sync timestamp |
-| `reviewed_by` | text | Approver |
-| `reviewed_at` | timestamptz | Approval timestamp |
+| id | uuid (PK) | Internal ID |
+| movement_id | text (unique) | Links to `asset_movement_history.id` - prevents duplicates |
+| movement_type | text | `deposit` or `withdrawal` |
+| asset | text | Coin type (USDT, BTC, etc.) |
+| amount | numeric | Quantity |
+| tx_id | text | Binance transaction hash/reference |
+| network | text | Blockchain network |
+| wallet_id | uuid | Mapped ERP wallet from `terminal_wallet_links` |
+| movement_time | bigint | Timestamp from Binance |
+| status | text | `PENDING`, `PROCESSED`, `REJECTED` |
+| action_type | text | `PURCHASE`, `SALE`, `WALLET_TRANSFER` (set on processing) |
+| erp_reference_id | text | Purchase order / Sales order / Transaction ID created |
+| processed_by | uuid | User who actioned it |
+| processed_at | timestamptz | When actioned |
+| reject_reason | text | If rejected, reason stored |
+| raw_data | jsonb | Full movement data for audit |
+| created_at | timestamptz | Auto |
 
-Add `source` and `terminal_sync_id` columns to `sales_orders` table (mirroring what exists on `purchase_orders`).
+RLS: Full access for authenticated users (internal ERP tool).
 
-### 2. Database: `counterparty_contact_records` Table
-New table for storing contact number and state per counterparty (client-wise, not order-wise):
+**New DB Migration:**
+- Create `erp_action_queue` table
+- Add unique constraint on `movement_id` to prevent duplicate entries
+- Index on `status` for fast pending lookups
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `id` | uuid PK | Row ID |
-| `counterparty_nickname` | text UNIQUE | Binance nickname (key) |
-| `contact_number` | text | Phone number |
-| `state` | text | Indian state |
-| `collected_by` | text | User who captured it |
-| `created_at` / `updated_at` | timestamptz | Timestamps |
+### Sync Logic
 
-This table serves both BUY and SELL counterparties.
+**Where**: Inside the existing `asset_movement_history` sync flow (already runs via `binance-assets` edge function action `syncAssetMovements`).
 
-### 3. Sync Logic: `useTerminalSalesSync.ts`
-New hook mirroring `useTerminalPurchaseSync.ts`:
-- Query `binance_order_history` where `trade_type = 'SELL'` and `order_status = 'COMPLETED'`
-- Check duplicates against `terminal_sales_sync.binance_order_number`
-- Auto-map verified names to ERP clients (exact match via `clients.name`)
-- Pull contact/state from `counterparty_contact_records` if available
-- Fetch active terminal wallet link for inventory reference
-- Insert new records with status `synced_pending_approval` or `client_mapping_pending`
-- Called after order history sync completes (alongside purchase sync)
+**New Edge Function Action** (`checkNewMovements`):
+1. Query `asset_movement_history` for deposits and withdrawals where status indicates completion (status `1`/`6` for deposits, `6` for withdrawals)
+2. LEFT JOIN against `erp_action_queue` on `movement_id`
+3. Any movements not yet in the queue get inserted with status `PENDING`
+4. This runs automatically when the dashboard widget mounts (with a 5-minute stale check, same pattern as asset movement sync)
 
-### 4. Terminal UI: Counterparty Contact Capture Component
-New `CounterpartyContactInput.tsx` component (similar to `CounterpartyPanInput.tsx`):
-- Input fields for Contact Number and State (dropdown from `INDIAN_STATES_AND_UTS`)
-- Upserts to `counterparty_contact_records` keyed by `counterparty_nickname`
-- Auto-populates if previously captured
-- Syncs to ERP `clients` table if a matching client exists
-- Placed in the Terminal Order Workspace counterparty profile panel, alongside the existing PAN input
-- Available for both BUY and SELL orders
+### Widget Component: `ActionRequiredWidget`
 
-### 5. ERP Sales Page: Terminal Sync Tab
-New `TerminalSalesSyncTab.tsx` component (mirrors `TerminalSyncTab.tsx` for purchases):
-- Table showing all `terminal_sales_sync` records with status filter
-- Columns: Order #, Buyer Name, Amount, Qty, Price, Fee, Contact, Status, Synced At, Actions
-- Approve / Reject buttons for pending records
-- Manual "Sync Now" button
-- Pending count badge on tab header
-- Add as a third tab in the Sales page: "Pending Orders | Completed Orders | Terminal Sync"
+**Location**: `src/components/dashboard/ActionRequiredWidget.tsx`
 
-### 6. Sales Approval Dialog: `TerminalSalesApprovalDialog.tsx`
-New dialog mirroring `TerminalPurchaseApprovalDialog.tsx`:
+**Placement**: Added to the ERP Dashboard (`src/pages/Dashboard.tsx`) as a prominent card in the widgets area.
 
-**Read-only (locked) fields from Terminal data:**
-- Order Number, Asset/Product, Quantity, Price Per Unit, Total Amount, Commission/Fee, Wallet, Verified Buyer Name, Payment Method, Order Date
+**UI Structure**:
+- Card header showing "Action Required" with count badges: Pending Deposits (count) | Pending Withdrawals (count)
+- Compact table rows, sorted newest first, each showing:
+  - Asset/Coin icon + name
+  - Quantity (formatted to appropriate decimals)
+  - Wallet name (from `terminal_wallet_links` mapping)
+  - Date/Time
+  - TX Hash (truncated with tooltip)
+  - Status badge ("Action Pending")
+  - Two buttons: **Entry** (primary) | **Reject** (ghost/destructive)
 
-**Editable fields for ERP governance:**
-- Bank Account / Settlement Ledger (dropdown)
-- Payment Method (from `sales_payment_methods`)
-- Contact Number (editable if missing)
-- State (editable if missing)
-- Remarks
+### Action Flows
 
-**On Approve:**
-1. Insert into `sales_orders` with all prefilled data, `source = 'terminal'`, `payment_status = 'COMPLETED'`
-2. Process wallet deduction via existing `process_sales_order_wallet_deduction` RPC
-3. Process platform fee deduction if applicable
-4. Update `terminal_sales_sync` record: set `sync_status = 'approved'`, link `sales_order_id`
-5. Handle client onboarding (same logic as `SalesEntryDialog` -- check existing client, create onboarding approval if new)
-6. Update client contact/state from captured data
+**1. Reject Flow**
+- Click Reject on any row
+- Small confirmation dialog with optional reason text
+- Sets `status = 'REJECTED'` and stores `reject_reason`
+- Row disappears from widget but remains in DB for audit
+- Logs via `logActionWithCurrentUser`
 
-**Client Mapping Logic:**
-- Exact match on verified name -> auto-link
-- No match -> show "Create Client" button (uses a new `createBuyerClient` utility)
-- Prevent duplicate creation by checking `counterparty_contact_records` + `clients` table
+**2. Entry Flow - Action Selection Dialog**
+- Click Entry on any row
+- Opens a dialog with two choices:
+  - For **Deposits**: "Wallet Transfer" or "Purchase Entry"
+  - For **Withdrawals**: "Wallet Transfer" or "Sales Entry"
 
-### 7. Utility: `createBuyerClient` in `clientIdGenerator.ts`
-Add a `createBuyerClient` function mirroring `createSellerClient`:
-- Checks for existing client by name
-- Creates with `client_type: 'BUYER'`
-- Sets phone and state if provided
+**3. Deposit -> Purchase Entry**
+- Opens the existing `ManualPurchaseEntryDialog` with prefilled props:
+  - `quantity` = deposit amount
+  - `product_id` = matched product by asset code (or leave for user selection)
+  - `credit_wallet_id` = mapped wallet from `terminal_wallet_links`
+  - `is_off_market` = true (Market rate)
+- All other fields (price, supplier, bank, TDS) remain editable
+- On successful save, updates `erp_action_queue` row: `status = 'PROCESSED'`, `action_type = 'PURCHASE'`, `erp_reference_id` = purchase order number
 
-### 8. Integration Points
+**4. Deposit -> Wallet Transfer**
+- Opens `ManualWalletAdjustmentDialog` in transfer mode with prefills:
+  - Transaction Type = Transfer Between Wallets
+  - From Wallet = "Binance Blynk" (mapped wallet)
+  - Amount = deposit quantity
+  - Asset = deposit asset type
+  - User only selects destination wallet
+- On save, updates queue status to PROCESSED with action_type = 'WALLET_TRANSFER'
 
-**Order History Sync (`useBinanceOrderSync.tsx`):**
-- After existing `syncCompletedBuyOrders()` call, add `syncCompletedSellOrders()` call
+**5. Withdrawal -> Sales Entry**
+- Opens the existing `SalesEntryDialog` with prefilled props:
+  - `product_id` = matched by asset code
+  - `quantity` = withdrawal amount
+  - `wallet_id` = mapped wallet
+  - `is_off_market` = true
+- All commercial fields remain editable
+- On save, marks queue as PROCESSED with action_type = 'SALE'
 
-**Sales Page (`Sales.tsx`):**
-- Add "Terminal Sync" tab with pending count badge
-- Import and render `TerminalSalesSyncTab`
+**6. Withdrawal -> Wallet Transfer**
+- Same as deposit transfer but From Wallet = mapped Binance wallet, To Wallet = user-selectable
+- On save, marks as PROCESSED with action_type = 'WALLET_TRANSFER'
 
-**Terminal Order Workspace:**
-- Add `CounterpartyContactInput` alongside existing `CounterpartyPanInput` in the order detail panel
+### Implementation Steps
 
----
+1. **Database migration** - Create `erp_action_queue` table with indexes and RLS policies
 
-## Technical Details
+2. **Edge function update** - Add `checkNewMovements` action to `binance-assets` edge function that populates the queue from `asset_movement_history`
 
-### RLS Policies for New Tables
-- `terminal_sales_sync`: Full access policies (matching `terminal_purchase_sync` pattern, since custom auth uses SECURITY DEFINER RPCs)
-- `counterparty_contact_records`: Full access for authenticated operations
+3. **ActionRequiredWidget component** - New widget with:
+   - Hook to fetch pending items from `erp_action_queue`
+   - Auto-trigger sync check on mount
+   - Compact table UI with Entry/Reject buttons
+   - Count badges for deposits vs withdrawals
 
-### Migration SQL Summary
-```text
-1. CREATE TABLE terminal_sales_sync (...)
-2. CREATE TABLE counterparty_contact_records (...)
-3. ALTER TABLE sales_orders ADD COLUMN source text, ADD COLUMN terminal_sync_id uuid
-4. RLS policies for both new tables
-5. Unique constraint on terminal_sales_sync(binance_order_number)
-6. FK constraints to clients and sales_orders
-```
+4. **ActionSelectionDialog** - Small dialog showing "Wallet Transfer" vs "Purchase Entry" (or "Sales Entry") options
 
-### Files to Create
-- `supabase/migrations/[timestamp]_terminal_sales_sync.sql`
-- `src/hooks/useTerminalSalesSync.ts`
-- `src/components/terminal/orders/CounterpartyContactInput.tsx`
-- `src/components/sales/TerminalSalesSyncTab.tsx`
-- `src/components/sales/TerminalSalesApprovalDialog.tsx`
+5. **Prefill wrapper components** - Thin wrappers that open `ManualPurchaseEntryDialog`, `SalesEntryDialog`, or `ManualWalletAdjustmentDialog` with prefilled values and an `onSuccess` callback to mark the queue item as processed
 
-### Files to Modify
-- `src/hooks/useBinanceOrderSync.tsx` (add sell sync call)
-- `src/pages/Sales.tsx` (add Terminal Sync tab)
-- `src/utils/clientIdGenerator.ts` (add `createBuyerClient`)
-- Terminal order workspace component (add contact input alongside PAN)
+6. **Modify existing dialogs** - Add optional `defaultValues` / `prefill` props to:
+   - `ManualPurchaseEntryDialog` (quantity, product, wallet)
+   - `SalesEntryDialog` (quantity, product, wallet)
+   - `ManualWalletAdjustmentDialog` (from wallet, amount, asset, transfer mode)
+
+7. **Dashboard integration** - Add `ActionRequiredWidget` to `Dashboard.tsx` in the widgets grid
+
+8. **Audit logging** - All actions (Entry processed, Reject) logged via existing `logActionWithCurrentUser` system
+
+### Technical Notes
+
+- The widget respects the `terminal_wallet_links` mapping to resolve which ERP wallet corresponds to the Binance API. Currently defaults to "Binance Blynk" but scales to multi-wallet.
+- Duplicate prevention via unique `movement_id` constraint ensures the same Binance transaction cannot create multiple queue entries.
+- No data fabrication - movement classification (deposit/withdrawal) comes directly from Binance API. The action type (Purchase/Sale/Transfer) is always user-selected.
+- Partially saved or cancelled entries keep status as PENDING.
 

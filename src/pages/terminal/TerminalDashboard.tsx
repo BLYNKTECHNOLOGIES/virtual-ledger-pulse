@@ -47,7 +47,7 @@ export default function TerminalDashboard() {
 
   const stats = useMemo(() => computeOrderStats(orders), [orders]);
 
-  const periodLabel = period === '7d' ? 'Last 7 Days' : period === '30d' ? 'Last 30 Days' : 'Last 1 Year';
+  const periodLabel = period === '1d' ? 'Last 24 Hours' : period === '7d' ? 'Last 7 Days' : period === '30d' ? 'Last 30 Days' : 'Last 1 Year';
 
   const lastSyncLabel = syncMeta?.last_sync_at
     ? `Synced ${new Date(syncMeta.last_sync_at).toLocaleTimeString()}`

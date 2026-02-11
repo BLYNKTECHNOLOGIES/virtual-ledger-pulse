@@ -175,51 +175,87 @@ export function ProductCardListingTab() {
                   </div>
                 </div>
 
-                {product.wallet_stocks.length > 0 && (
-                  <div className="border-t pt-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Building className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">Portfolio Distribution</span>
-                    </div>
-                     <div className="space-y-1">
-                      {product.wallet_stocks
-                        .sort((a, b) => b.balance - a.balance) // Sort from highest to lowest stock
-                        .map((wallet, index) => (
-                        <div key={wallet.wallet_id} className="flex justify-between items-center text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                            <span className="text-gray-600">{wallet.wallet_name}</span>
+                {/* Portfolio Distribution */}
+                {(() => {
+                  // Build wallet stocks including Binance reference for API-linked wallet
+                  const walletStocks = [...(product.wallet_stocks || [])];
+                  
+                  // Check if API-linked wallet has a Binance balance for this asset
+                  const binanceBalance = binanceBalanceMap.get(product.code);
+                  const hasApiWalletInList = walletStocks.some(w => w.wallet_id === apiLinkedWalletId);
+                  
+                  // If Binance has balance but no ERP transactions for this wallet+asset, show it as reference
+                  const showBinanceRef = apiLinkedWalletId && binanceBalance && binanceBalance > 0.00001 && !hasApiWalletInList;
+                  
+                  if (walletStocks.length === 0 && !showBinanceRef) return null;
+                  
+                  return (
+                    <div className="border-t pt-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Portfolio Distribution</span>
+                      </div>
+                      <div className="space-y-1">
+                        {walletStocks
+                          .sort((a, b) => b.balance - a.balance)
+                          .map((wallet) => (
+                          <div key={wallet.wallet_id} className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                              <span className="text-gray-600">{wallet.wallet_name}</span>
+                            </div>
+                            <div className="text-right flex items-center gap-1.5">
+                              <span className="font-medium">{wallet.balance.toFixed(4)}</span>
+                              {(() => {
+                                if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
+                                const bBal = binanceBalanceMap.get(product.code);
+                                if (bBal === undefined) return null;
+                                const diff = bBal - wallet.balance;
+                                if (Math.abs(diff) <= 0.00001) return null;
+                                return (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <span className={`text-[10px] font-bold ${diff > 0 ? 'text-orange-500' : 'text-red-500'}`}>
+                                        {diff > 0 ? `+${diff.toFixed(4)}` : diff.toFixed(4)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">Binance Balance: {bBal.toFixed(8)}</p>
+                                      <p className="text-xs">ERP Balance: {wallet.balance.toFixed(4)}</p>
+                                      <p className="text-xs text-orange-400">Difference from Binance API</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              })()}
+                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
+                            </div>
                           </div>
-                          <div className="text-right flex items-center gap-1.5">
-                            <span className="font-medium">{wallet.balance.toFixed(2)}</span>
-                            {(() => {
-                              // Show API diff only for the wallet linked via terminal_wallet_links
-                              if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
-                              const binanceBalance = binanceBalanceMap.get(product.code);
-                              if (binanceBalance === undefined) return null;
-                              const diff = binanceBalance - wallet.balance;
-                              if (Math.abs(diff) <= 5) return null;
-                              return (
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <span className="text-[10px] font-bold text-red-500">
-                                      {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">API Balance: {binanceBalance.toFixed(2)}</p>
-                                    <p className="text-xs text-red-400">Difference from Binance API</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              );
-                            })()}
-                            <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
+                        ))}
+                        {/* Show Binance-only balance as reference when no ERP transactions exist */}
+                        {showBinanceRef && (
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                              <span className="text-gray-600">BINANCE BLYNK</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-orange-300 text-orange-600">API</Badge>
+                            </div>
+                            <div className="text-right flex items-center gap-1.5">
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <span className="font-medium text-orange-600">{binanceBalance!.toFixed(8)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-xs">Binance API Balance (read-only reference)</p>
+                                  <p className="text-xs text-orange-400">Not tracked in ERP yet — add a transaction to sync</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 <div className="flex gap-2 pt-2 border-t">
                   <Button 

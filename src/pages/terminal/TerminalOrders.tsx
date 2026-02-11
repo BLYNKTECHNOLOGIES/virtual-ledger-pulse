@@ -111,8 +111,26 @@ export default function TerminalOrders() {
         startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
         endTimestamp: Date.now(),
       });
-      const orders = data?.data?.data || data?.data || data || [];
-      return Array.isArray(orders) ? orders : [];
+
+      // Robust extraction: the edge function may return different wrappers depending on action.
+      const extractItems = (response: unknown): any[] => {
+        if (!response || typeof response !== 'object') return [];
+        if (Array.isArray(response)) return response;
+        const r = response as Record<string, any>;
+        if (Array.isArray(r.data)) return r.data;
+        if (Array.isArray(r.items)) return r.items;
+        if (Array.isArray(r.results)) return r.results;
+        if (r.data && typeof r.data === 'object') {
+          const d = r.data as Record<string, any>;
+          if (Array.isArray(d.data)) return d.data;
+          if (Array.isArray(d.items)) return d.items;
+          if (Array.isArray(d.results)) return d.results;
+        }
+        return [];
+      };
+
+      const orders = extractItems(data);
+      return orders;
     },
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,
@@ -123,39 +141,46 @@ export default function TerminalOrders() {
   const isRefreshing = isFetchingActive || isFetchingHistory || isFetchingRecent;
 
   // Merge active orders + history orders, deduplicating by orderNumber
+  // NOTE: Binance order numbers exceed JS safe integer range, so ALWAYS treat them as strings.
   const rawOrders: any[] = useMemo(() => {
     const orderMap = new Map<string, any>();
 
+    const normalizeOrderNumber = (v: unknown) => (v === undefined || v === null ? '' : String(v));
+
     // Active orders first (they have richer data like chatUnreadCount)
-    const d = activeOrdersData?.data || activeOrdersData;
+    const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const activeList = Array.isArray(d) ? d : [];
     for (const o of activeList) {
-      if (o.orderNumber) orderMap.set(o.orderNumber, { ...o, _isActiveOrder: true });
+      const orderNumber = normalizeOrderNumber(o?.orderNumber);
+      if (!orderNumber) continue;
+      // Keep a string-typed orderNumber on the object to avoid Map/key mismatches later
+      orderMap.set(orderNumber, { ...o, orderNumber, _isActiveOrder: true });
     }
 
     // Then fill in from history (won't overwrite active orders)
     if (Array.isArray(historyOrders)) {
       for (const o of historyOrders as any[]) {
-        if (o.orderNumber && !orderMap.has(o.orderNumber)) {
-          orderMap.set(o.orderNumber, {
-            orderNumber: o.orderNumber,
-            advNo: o.advNo,
-            tradeType: o.tradeType,
-            asset: o.asset || 'USDT',
-            fiat: o.fiat || o.fiatUnit || 'INR',
-            amount: o.amount,
-            totalPrice: o.totalPrice,
-            unitPrice: o.unitPrice,
-            commission: o.commission,
-            orderStatus: o.orderStatus,
-            createTime: o.createTime,
-            payMethodName: o.payMethodName,
-            counterPartNickName: o.counterPartNickName,
-            buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
-            sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
-            additionalKycVerify: o.additionalKycVerify ?? 0,
-          });
-        }
+        const orderNumber = normalizeOrderNumber(o?.orderNumber);
+        if (!orderNumber || orderMap.has(orderNumber)) continue;
+
+        orderMap.set(orderNumber, {
+          orderNumber,
+          advNo: o.advNo,
+          tradeType: o.tradeType,
+          asset: o.asset || 'USDT',
+          fiat: o.fiat || o.fiatUnit || 'INR',
+          amount: o.amount,
+          totalPrice: o.totalPrice,
+          unitPrice: o.unitPrice,
+          commission: o.commission,
+          orderStatus: o.orderStatus,
+          createTime: o.createTime,
+          payMethodName: o.payMethodName,
+          counterPartNickName: o.counterPartNickName,
+          buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
+          sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
+          additionalKycVerify: o.additionalKycVerify ?? 0,
+        });
       }
     }
 
@@ -166,9 +191,10 @@ export default function TerminalOrders() {
   // Build a map of order history statuses for enrichment
   const historyStatusMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const o of historyOrders) {
-      if (o.orderNumber && o.orderStatus !== undefined && o.orderStatus !== null) {
-        map.set(o.orderNumber, normaliseBinanceStatus(o.orderStatus));
+    for (const o of historyOrders as any[]) {
+      const orderNumber = o?.orderNumber === undefined || o?.orderNumber === null ? '' : String(o.orderNumber);
+      if (orderNumber && o?.orderStatus !== undefined && o?.orderStatus !== null) {
+        map.set(orderNumber, normaliseBinanceStatus(o.orderStatus));
       }
     }
     return map;
@@ -210,19 +236,22 @@ export default function TerminalOrders() {
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];
     let enriched = rawOrders.map(o => {
+      const orderNumber = o?.orderNumber === undefined || o?.orderNumber === null ? '' : String(o.orderNumber);
+
       const liveStatus = mapOrderStatusCode(o.orderStatus);
-      const recentStatus = recentStatusMap.get(o.orderNumber);
-      const historyStatus = historyStatusMap.get(o.orderNumber);
+      const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
+      const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
 
       // Prefer terminal status from recent history first, then bulk history
       const terminalCandidate = recentStatus || historyStatus;
-      const terminalIsTerminal = terminalCandidate && TERMINAL_STATUSES.some(t => terminalCandidate.includes(t));
+      const terminalIsTerminal =
+        terminalCandidate && TERMINAL_STATUSES.some(t => String(terminalCandidate).includes(t));
 
       const resolvedStatus = terminalIsTerminal
         ? (terminalCandidate as string)
         : (recentStatus || historyStatus || liveStatus);
 
-      return { ...o, _resolvedStatus: resolvedStatus };
+      return { ...o, orderNumber, _resolvedStatus: resolvedStatus };
     });
 
     if (tradeFilter !== 'all') {

@@ -388,7 +388,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <SelectContent className="bg-popover border z-50 max-h-[250px]">
                   {paymentMethods.map((m: any) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.type}{m.bank_accounts ? ` - ${m.bank_accounts.account_name} (${m.bank_accounts.bank_name})` : m.payment_gateway ? ` [Gateway]` : ''}
+                      {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
                     </SelectItem>
                   ))}
                 </SelectContent>

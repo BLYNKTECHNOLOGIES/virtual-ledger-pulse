@@ -26,7 +26,7 @@ function mapOrderStatusCode(code: number | string): string {
 }
 
 /** Convert raw Binance active order to display-ready P2POrderRecord shape */
-function binanceToOrderRecord(o: any): P2POrderRecord {
+function binanceToOrderRecord(o: any): P2POrderRecord & { _notifyPayEndTime?: number; _notifyPayedExpireMinute?: number } {
   const status = mapOrderStatusCode(o.orderStatus);
   return {
     id: o.orderNumber,
@@ -53,6 +53,8 @@ function binanceToOrderRecord(o: any): P2POrderRecord {
     cancelled_at: null,
     created_at: new Date().toISOString(),
     additional_kyc_verify: o.additionalKycVerify ?? 0,
+    _notifyPayEndTime: o.notifyPayEndTime || undefined,
+    _notifyPayedExpireMinute: o.notifyPayedExpireMinute || undefined,
   };
 }
 
@@ -592,7 +594,11 @@ export default function TerminalOrders() {
                               {style.label}
                             </Badge>
                             {isActive && order.binance_create_time && (
-                              <OrderRowTimer createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()} />
+                              <OrderRowTimer
+                                createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}
+                                notifyPayEndTime={(order as any)._notifyPayEndTime}
+                                notifyPayedExpireMinute={(order as any)._notifyPayedExpireMinute}
+                              />
                             )}
                           </div>
                         </TableCell>
@@ -641,9 +647,53 @@ function OrderStatusBadge({ status, tradeType, additionalKycVerify }: { status: 
 }
 
 /** Show the actual order creation time (e.g. "16:09") */
-function OrderRowTimer({ createTime }: { createTime: number }) {
-  const timeStr = format(new Date(createTime), 'HH:mm');
+function OrderRowTimer({ createTime, notifyPayEndTime, notifyPayedExpireMinute }: { createTime: number; notifyPayEndTime?: number; notifyPayedExpireMinute?: number }) {
+  const [remaining, setRemaining] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
+
+  // Calculate the expiry time: prefer notifyPayEndTime, then compute from createTime + expireMinutes
+  const expiryTime = useMemo(() => {
+    if (notifyPayEndTime && notifyPayEndTime > 0) return notifyPayEndTime;
+    if (notifyPayedExpireMinute && notifyPayedExpireMinute > 0) return createTime + notifyPayedExpireMinute * 60 * 1000;
+    return null;
+  }, [createTime, notifyPayEndTime, notifyPayedExpireMinute]);
+
+  useEffect(() => {
+    if (!expiryTime) return;
+    const tick = () => {
+      const diff = expiryTime - Date.now();
+      if (diff <= 0) {
+        setRemaining('0:00');
+        setIsExpired(true);
+        return;
+      }
+      setIsExpired(false);
+      const totalSecs = Math.floor(diff / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      setRemaining(`${mins}:${secs.toString().padStart(2, '0')}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiryTime]);
+
+  if (!expiryTime) {
+    // Fallback: just show creation time
+    return <span className="text-[10px] text-muted-foreground tabular-nums">{format(new Date(createTime), 'HH:mm')}</span>;
+  }
+
+  const urgencyClass = isExpired
+    ? 'text-red-500 font-semibold'
+    : remaining && parseInt(remaining) <= 2
+      ? 'text-red-500 animate-pulse'
+      : remaining && parseInt(remaining) <= 5
+        ? 'text-yellow-500'
+        : 'text-muted-foreground';
+
   return (
-    <span className="text-[10px] text-muted-foreground tabular-nums">{timeStr}</span>
+    <span className={`text-[10px] tabular-nums ${urgencyClass}`}>
+      ⏱ {remaining}
+    </span>
   );
 }

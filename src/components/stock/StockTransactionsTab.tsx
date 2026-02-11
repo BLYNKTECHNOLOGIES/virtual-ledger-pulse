@@ -31,6 +31,8 @@ import {
 export function StockTransactionsTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterWallet, setFilterWallet] = useState<string>("all");
+  const [filterProduct, setFilterProduct] = useState<string>("all");
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [adjustmentData, setAdjustmentData] = useState({
     fromWallet: "",
@@ -707,7 +709,25 @@ export function StockTransactionsTab() {
       }
       return true;
     })
+    .filter(entry => {
+      // Wallet filter
+      if (filterWallet !== "all") {
+        return entry.wallet_name === filterWallet;
+      }
+      return true;
+    })
+    .filter(entry => {
+      // Product filter
+      if (filterProduct !== "all") {
+        return entry.products?.code === filterProduct;
+      }
+      return true;
+    })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Collect unique wallet names and product codes for filter dropdowns
+  const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
+  const uniqueProducts = Array.from(new Set(allEntries.map(e => e.products?.code).filter(Boolean))).sort();
 
   console.log('📈 Total combined entries:', allEntries.length);
   console.log('🔍 Filtered entries:', filteredEntries.length);
@@ -742,7 +762,7 @@ export function StockTransactionsTab() {
               />
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-44">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by type" />
               </SelectTrigger>
@@ -752,6 +772,28 @@ export function StockTransactionsTab() {
                 <SelectItem value="Sales">Sales</SelectItem>
                 <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
                 <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterWallet} onValueChange={setFilterWallet}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All Wallets" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Wallets</SelectItem>
+                {uniqueWallets.map(w => (
+                  <SelectItem key={w} value={w}>{w}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterProduct} onValueChange={setFilterProduct}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All Assets" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assets</SelectItem>
+                {uniqueProducts.map(p => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

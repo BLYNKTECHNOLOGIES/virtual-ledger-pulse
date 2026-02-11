@@ -1,188 +1,156 @@
 
-# ERP - Terminal Integration: Purchase Sync and Client Linkage
+
+# ERP-Terminal Sales Integration
 
 ## Overview
-Build a bridge between the Terminal (Binance P2P trading) and the ERP (Purchase Management) so that every completed BUY order on the Terminal automatically creates a draft purchase entry in the ERP for human approval. This includes wallet linking, client auto-mapping, PAN collection in Terminal, and duplicate protection.
+Mirror the existing Purchase integration (`terminal_purchase_sync` + `TerminalPurchaseApprovalDialog` + `TerminalSyncTab`) for SELL orders, creating a complete Terminal-to-ERP sales pipeline with client mapping, counterparty data capture, and approval workflow.
+
+## Binance API Feasibility Check
+All required data fields are available from the existing `binance_order_history` table (already synced via the order history sync):
+- Order Number, Asset, Amount, Total Price, Unit Price, Commission, Verified Name, Nickname, Create Time, Pay Method, Trade Type, Order Status
+
+**Limitation flagged**: Binance P2P API does not expose buyer's UPI ID, bank reference, or contact number. These must be captured manually via Terminal UI (as already done for PAN in purchases).
 
 ---
 
-## Phase 1: Database Schema (New Tables and Columns)
+## Implementation Steps
 
-### 1.1 `terminal_wallet_links` table
-Maps ERP wallets to terminal platforms so the system knows where to post inventory.
+### 1. Database: `terminal_sales_sync` Table
+Create a new table mirroring `terminal_purchase_sync` but for SELL orders:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid PK | |
-| wallet_id | uuid FK(wallets) | ERP wallet being linked |
-| platform_source | text | e.g. 'terminal', future: 'manual' |
-| api_identifier | text | e.g. 'binance_p2p' |
-| supported_assets | text[] | e.g. {'USDT'} |
-| status | text | 'active' or 'dormant' |
-| created_at / updated_at | timestamptz | |
+| Column | Type | Purpose |
+|--------|------|---------|
+| `id` | uuid PK | Row ID |
+| `binance_order_number` | text UNIQUE NOT NULL | Duplicate guard |
+| `sync_status` | text | `synced_pending_approval`, `client_mapping_pending`, `approved`, `rejected`, `duplicate_blocked` |
+| `order_data` | jsonb | Snapshot of trade data (amount, price, qty, fee, wallet, pay_method) |
+| `client_id` | uuid FK -> clients | Mapped ERP client |
+| `counterparty_name` | text | Verified name from Binance |
+| `contact_number` | text | Manually captured via Terminal |
+| `state` | text | Manually captured via Terminal |
+| `sales_order_id` | uuid FK -> sales_orders | Created after approval |
+| `rejection_reason` | text | If rejected |
+| `synced_by` | text | User who triggered sync |
+| `synced_at` | timestamptz | Sync timestamp |
+| `reviewed_by` | text | Approver |
+| `reviewed_at` | timestamptz | Approval timestamp |
 
-Pre-seed: Link "BINANCE BLYNK" wallet as the active terminal wallet.
+Add `source` and `terminal_sync_id` columns to `sales_orders` table (mirroring what exists on `purchase_orders`).
 
-### 1.2 `terminal_purchase_sync` table
-Tracks every completed BUY order sync event from Terminal to ERP.
+### 2. Database: `counterparty_contact_records` Table
+New table for storing contact number and state per counterparty (client-wise, not order-wise):
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid PK | |
-| binance_order_number | text UNIQUE | Duplicate protection key |
-| purchase_order_id | uuid FK(purchase_orders) nullable | Linked after approval |
-| sync_status | text | 'synced_pending_approval', 'approved', 'rejected', 'duplicate_blocked', 'client_mapping_pending' |
-| order_data | jsonb | Snapshot of terminal order data |
-| client_id | uuid FK(clients) nullable | Matched/created client |
-| counterparty_name | text | Verified seller name |
-| pan_number | text nullable | From counterparty PAN record |
-| synced_by | uuid nullable | |
-| synced_at | timestamptz | |
-| reviewed_by | uuid nullable | |
-| reviewed_at | timestamptz | |
-| rejection_reason | text nullable | |
-| created_at | timestamptz | |
+| Column | Type | Purpose |
+|--------|------|---------|
+| `id` | uuid PK | Row ID |
+| `counterparty_nickname` | text UNIQUE | Binance nickname (key) |
+| `contact_number` | text | Phone number |
+| `state` | text | Indian state |
+| `collected_by` | text | User who captured it |
+| `created_at` / `updated_at` | timestamptz | Timestamps |
 
-### 1.3 `counterparty_pan_records` table
-Stores PAN details per counterparty nickname (collected in Terminal).
+This table serves both BUY and SELL counterparties.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid PK | |
-| counterparty_nickname | text UNIQUE | Binance nickname |
-| pan_number | text | PAN value |
-| collected_by | uuid nullable | |
-| created_at / updated_at | timestamptz | |
+### 3. Sync Logic: `useTerminalSalesSync.ts`
+New hook mirroring `useTerminalPurchaseSync.ts`:
+- Query `binance_order_history` where `trade_type = 'SELL'` and `order_status = 'COMPLETED'`
+- Check duplicates against `terminal_sales_sync.binance_order_number`
+- Auto-map verified names to ERP clients (exact match via `clients.name`)
+- Pull contact/state from `counterparty_contact_records` if available
+- Fetch active terminal wallet link for inventory reference
+- Insert new records with status `synced_pending_approval` or `client_mapping_pending`
+- Called after order history sync completes (alongside purchase sync)
 
-### 1.4 Add `source` and `terminal_sync_id` columns to `purchase_orders`
-- `source` text DEFAULT 'manual' -- values: 'manual', 'terminal'
-- `terminal_sync_id` uuid FK(terminal_purchase_sync) nullable
+### 4. Terminal UI: Counterparty Contact Capture Component
+New `CounterpartyContactInput.tsx` component (similar to `CounterpartyPanInput.tsx`):
+- Input fields for Contact Number and State (dropdown from `INDIAN_STATES_AND_UTS`)
+- Upserts to `counterparty_contact_records` keyed by `counterparty_nickname`
+- Auto-populates if previously captured
+- Syncs to ERP `clients` table if a matching client exists
+- Placed in the Terminal Order Workspace counterparty profile panel, alongside the existing PAN input
+- Available for both BUY and SELL orders
 
----
+### 5. ERP Sales Page: Terminal Sync Tab
+New `TerminalSalesSyncTab.tsx` component (mirrors `TerminalSyncTab.tsx` for purchases):
+- Table showing all `terminal_sales_sync` records with status filter
+- Columns: Order #, Buyer Name, Amount, Qty, Price, Fee, Contact, Status, Synced At, Actions
+- Approve / Reject buttons for pending records
+- Manual "Sync Now" button
+- Pending count badge on tab header
+- Add as a third tab in the Sales page: "Pending Orders | Completed Orders | Terminal Sync"
 
-## Phase 2: Wallet Linking Configuration (ERP Side)
+### 6. Sales Approval Dialog: `TerminalSalesApprovalDialog.tsx`
+New dialog mirroring `TerminalPurchaseApprovalDialog.tsx`:
 
-### 2.1 New "Terminal Wallet Link" section in Stock Management > Wallets tab
-- Add a card/section inside `WalletManagementTab` showing terminal-linked wallets
-- "Link Terminal Wallet" button opens a dialog to select a wallet and configure:
-  - Platform Source (dropdown: Terminal)
-  - API Identifier (text: binance_p2p)
-  - Supported Assets (multi-select: USDT)
-  - Status toggle (Active/Dormant)
-- Display currently linked wallets with status badges
-- Only one wallet can be "active" per platform at a time
+**Read-only (locked) fields from Terminal data:**
+- Order Number, Asset/Product, Quantity, Price Per Unit, Total Amount, Commission/Fee, Wallet, Verified Buyer Name, Payment Method, Order Date
 
-### 2.2 Terminal Settings - Platform Display
-- Add a "Connected Platform" card in Terminal Settings showing:
-  - Platform: Binance P2P
-  - Linked Wallet: (fetched from terminal_wallet_links)
-  - Status: Active/Dormant
-  - Read-only display for operators
+**Editable fields for ERP governance:**
+- Bank Account / Settlement Ledger (dropdown)
+- Payment Method (from `sales_payment_methods`)
+- Contact Number (editable if missing)
+- State (editable if missing)
+- Remarks
 
----
+**On Approve:**
+1. Insert into `sales_orders` with all prefilled data, `source = 'terminal'`, `payment_status = 'COMPLETED'`
+2. Process wallet deduction via existing `process_sales_order_wallet_deduction` RPC
+3. Process platform fee deduction if applicable
+4. Update `terminal_sales_sync` record: set `sync_status = 'approved'`, link `sales_order_id`
+5. Handle client onboarding (same logic as `SalesEntryDialog` -- check existing client, create onboarding approval if new)
+6. Update client contact/state from captured data
 
-## Phase 3: Auto-Sync Completed BUY Orders
+**Client Mapping Logic:**
+- Exact match on verified name -> auto-link
+- No match -> show "Create Client" button (uses a new `createBuyerClient` utility)
+- Prevent duplicate creation by checking `counterparty_contact_records` + `clients` table
 
-### 3.1 Sync Trigger Logic
-When the order sync runs (`useBinanceOrderSync`), after upserting orders to `binance_order_history`:
-- Query for BUY orders with status COMPLETED that are NOT yet in `terminal_purchase_sync`
-- For each new completed BUY order:
-  1. Check duplicate: if `binance_order_number` exists in `terminal_purchase_sync`, mark as 'duplicate_blocked'
-  2. Look up `counterparty_pan_records` for PAN by nickname
-  3. Try to match counterparty verified name against `clients.name` (case-insensitive exact match)
-  4. Insert into `terminal_purchase_sync` with status 'synced_pending_approval' (or 'client_mapping_pending' if no client match)
-  5. Snapshot `order_data`: order_number, asset, amount (quantity), total_price, unit_price, commission, counterparty verified name, create_time, pay_method
+### 7. Utility: `createBuyerClient` in `clientIdGenerator.ts`
+Add a `createBuyerClient` function mirroring `createSellerClient`:
+- Checks for existing client by name
+- Creates with `client_type: 'BUYER'`
+- Sets phone and state if provided
 
-### 3.2 Data extracted per order (from `binance_order_history` + enriched `verified_name`)
-- Order Number
-- Asset (treated as Product = USDT)
-- Quantity (amount field)
-- Total Fiat Amount (total_price)
-- Price Per Unit (unit_price)
-- Commission/Fee (commission field)
-- Counterparty Verified Name (verified_name from enrichment, or counter_part_nick_name fallback)
-- Completion Timestamp (create_time)
-- Wallet (from terminal_wallet_links active wallet)
+### 8. Integration Points
 
----
+**Order History Sync (`useBinanceOrderSync.tsx`):**
+- After existing `syncCompletedBuyOrders()` call, add `syncCompletedSellOrders()` call
 
-## Phase 4: ERP Purchase Approval Queue
+**Sales Page (`Sales.tsx`):**
+- Add "Terminal Sync" tab with pending count badge
+- Import and render `TerminalSalesSyncTab`
 
-### 4.1 New "Terminal Sync" tab in Purchase Management
-Add a 5th tab in the Purchase page called "Terminal Sync" with a badge counter.
-
-Display a table of `terminal_purchase_sync` records with columns:
-- Binance Order #, Seller Name, Amount (INR), Qty (USDT), Price, Fee, Status, Synced At
-- Status badges: Pending Approval (amber), Approved (green), Rejected (red), Duplicate (gray), Client Mapping Pending (blue)
-- Filter by status
-
-### 4.2 Approval Dialog (Reuses ManualPurchaseEntryDialog pattern)
-When user clicks "Approve" on a pending sync record:
-- Open a dialog pre-filled with terminal data
-- **Read-only fields** (locked with visual indicator): Order Number, Price Per Unit, Quantity, Total Amount, Commission/Fee, Wallet, Seller Verified Name
-- **Editable fields**: TDS Option (auto-suggested: 1% if PAN exists, 20% if not), PAN Number (pre-filled from counterparty_pan_records), Bank Account for deduction, Settlement Date, Remarks
-- Client auto-mapping section:
-  - If matched: show linked client name with "Linked" badge
-  - If not matched: show "Create Client" inline button that creates a client with verified name as legal name, source tagged as 'Terminal Counterparty', is_seller = true
-- On submit: calls the existing `create_manual_purchase_complete_v2` RPC with terminal data, updates `terminal_purchase_sync` status to 'approved', links purchase_order_id
-
-### 4.3 Reject Action
-- Opens a small dialog for rejection reason
-- Updates sync record status to 'rejected'
+**Terminal Order Workspace:**
+- Add `CounterpartyContactInput` alongside existing `CounterpartyPanInput` in the order detail panel
 
 ---
 
-## Phase 5: PAN Collection in Terminal
+## Technical Details
 
-### 5.1 PAN Input in Counterparty Profile (OrderDetailWorkspace)
-In the `CounterpartyProfile` component (right panel of order workspace):
-- Add a PAN Details section below the trading stats
-- Input field for PAN number with save button
-- Fetches existing PAN from `counterparty_pan_records` by nickname
-- On save: upserts to `counterparty_pan_records`
-- Visual indicator when PAN is already stored (green check)
-- PAN syncs to ERP client master: when a client is linked to this counterparty, update `clients.pan_card_number`
+### RLS Policies for New Tables
+- `terminal_sales_sync`: Full access policies (matching `terminal_purchase_sync` pattern, since custom auth uses SECURITY DEFINER RPCs)
+- `counterparty_contact_records`: Full access for authenticated operations
 
----
+### Migration SQL Summary
+```text
+1. CREATE TABLE terminal_sales_sync (...)
+2. CREATE TABLE counterparty_contact_records (...)
+3. ALTER TABLE sales_orders ADD COLUMN source text, ADD COLUMN terminal_sync_id uuid
+4. RLS policies for both new tables
+5. Unique constraint on terminal_sales_sync(binance_order_number)
+6. FK constraints to clients and sales_orders
+```
 
-## Phase 6: Fee Configuration
+### Files to Create
+- `supabase/migrations/[timestamp]_terminal_sales_sync.sql`
+- `src/hooks/useTerminalSalesSync.ts`
+- `src/components/terminal/orders/CounterpartyContactInput.tsx`
+- `src/components/sales/TerminalSalesSyncTab.tsx`
+- `src/components/sales/TerminalSalesApprovalDialog.tsx`
 
-### 6.1 Fee Handling Config
-Add a setting in `terminal_wallet_links`:
-- `fee_treatment` column: 'capitalize' (add to inventory cost) or 'expense' (book separately)
-- Default: 'capitalize' (commission added to purchase cost)
-- During approval, the commission from Binance is displayed and included in the total cost calculation based on this setting
+### Files to Modify
+- `src/hooks/useBinanceOrderSync.tsx` (add sell sync call)
+- `src/pages/Sales.tsx` (add Terminal Sync tab)
+- `src/utils/clientIdGenerator.ts` (add `createBuyerClient`)
+- Terminal order workspace component (add contact input alongside PAN)
 
----
-
-## Phase 7: Audit Logging
-
-All sync events logged to `system_action_logs`:
-- TERMINAL_ORDER_SYNCED
-- TERMINAL_ORDER_APPROVED  
-- TERMINAL_ORDER_REJECTED
-- TERMINAL_DUPLICATE_BLOCKED
-- TERMINAL_CLIENT_CREATED
-
----
-
-## Technical Implementation Sequence
-
-1. Database migration: Create 3 new tables + alter purchase_orders
-2. Build `WalletLinkingSection` component for ERP Stock Management
-3. Build `PlatformDisplayCard` for Terminal Settings
-4. Build `CounterpartyPanInput` component for Terminal order workspace
-5. Build sync logic in `useBinanceOrderSync` post-sync hook
-6. Build `TerminalSyncTab` component for Purchase page
-7. Build `TerminalPurchaseApprovalDialog` component
-8. Wire up client auto-mapping and PAN-based TDS suggestion
-9. Add audit logging throughout
-10. Add permission gate (purchase_manage required for approval)
-
----
-
-## What Will NOT Be Built (API Limitations Respected)
-- No fabrication of banking/tax data from Binance API
-- Commission comes directly from Binance order data (the `commission` field)
-- Verified name uses the enrichment system already built (Enrich from API)
-- All statutory fields (TDS, bank allocation, compliance) remain ERP-controlled during approval

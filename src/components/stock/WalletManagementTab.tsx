@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent } from "lucide-react";
+import { WalletLinkingSection } from "./WalletLinkingSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -573,6 +574,9 @@ export function WalletManagementTab() {
 
   return (
     <div className="space-y-6">
+      {/* Terminal Wallet Links */}
+      <WalletLinkingSection />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

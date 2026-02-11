@@ -17,6 +17,7 @@ import {
   Settings, Bell, Monitor, MessageSquare, Wifi, Volume2, VolumeX,
   Plus, Pencil, Trash2, GripVertical, Check, X, Loader2, Shield,
 } from 'lucide-react';
+import { PlatformDisplayCard } from '@/components/terminal/settings/PlatformDisplayCard';
 
 // ─── Per-user preferences (localStorage) ───
 const PREFS_KEY = 'terminal_user_prefs';
@@ -473,6 +474,9 @@ export default function TerminalSettings() {
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Connected Platform ─── */}
+      <PlatformDisplayCard />
 
       {/* ─── System Info ─── */}
       <Card className="bg-card border-border">

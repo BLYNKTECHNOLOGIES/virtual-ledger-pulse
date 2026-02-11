@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield } from 'lucide-react';
+import { CounterpartyPanInput } from './CounterpartyPanInput';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
@@ -247,6 +248,9 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
           <StatRow label="Last Seen" value={new Date(counterparty.last_seen_at).toLocaleDateString('en-IN')} />
         </div>
       )}
+
+      {/* PAN Collection */}
+      <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
     </div>
   );
 }

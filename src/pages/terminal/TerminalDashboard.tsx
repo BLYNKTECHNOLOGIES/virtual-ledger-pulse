@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { TradeVolumeChart } from '@/components/terminal/dashboard/TradeVolumeCha
 import { AdPerformanceWidget } from '@/components/terminal/dashboard/AdPerformanceWidget';
 import { OperationalAlerts } from '@/components/terminal/dashboard/OperationalAlerts';
 import { OrderStatusBreakdown } from '@/components/terminal/dashboard/OrderStatusBreakdown';
+import { TimePeriodFilter, TimePeriod, getTimestampsForPeriod } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
 
@@ -16,9 +17,10 @@ export default function TerminalDashboard() {
   const { isSyncing, metadata } = useAutoSyncOrders();
   const syncMutation = useSyncOrderHistory();
   const { data: syncMeta } = useSyncMetadata();
+  const [period, setPeriod] = useState<TimePeriod>('30d');
 
   // Map DB data to C2COrderHistoryItem shape
-  const orders: C2COrderHistoryItem[] = useMemo(() => {
+  const allOrders: C2COrderHistoryItem[] = useMemo(() => {
     if (!Array.isArray(cachedOrders)) return [];
     return cachedOrders.map((o: any) => ({
       orderNumber: o.orderNumber || '',
@@ -37,7 +39,15 @@ export default function TerminalDashboard() {
     }));
   }, [cachedOrders]);
 
+  // Filter orders by selected period
+  const orders = useMemo(() => {
+    const { startTimestamp } = getTimestampsForPeriod(period);
+    return allOrders.filter(o => o.createTime >= startTimestamp);
+  }, [allOrders, period]);
+
   const stats = useMemo(() => computeOrderStats(orders), [orders]);
+
+  const periodLabel = period === '7d' ? 'Last 7 Days' : period === '30d' ? 'Last 30 Days' : 'Last 1 Year';
 
   const lastSyncLabel = syncMeta?.last_sync_at
     ? `Synced ${new Date(syncMeta.last_sync_at).toLocaleTimeString()}`
@@ -49,9 +59,10 @@ export default function TerminalDashboard() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">P2P Trading Operations · Last 30 Days</p>
+          <p className="text-xs text-muted-foreground mt-0.5">P2P Trading Operations · {periodLabel}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <TimePeriodFilter value={period} onChange={setPeriod} />
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Database className="h-3 w-3" />
             <span>{orders.length.toLocaleString()} orders</span>
@@ -94,7 +105,7 @@ export default function TerminalDashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TradeVolumeChart orders={orders} isLoading={dbLoading} period="30d" />
+        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={period} />
         <OrderStatusBreakdown orders={orders} isLoading={dbLoading} />
       </div>
 

@@ -169,23 +169,37 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   });
 }
 
-/** Fetch recent order history for bulk status enrichment on list view */
+/** Fetch ALL order history pages for the last 30 days */
 export function useBinanceOrderHistory() {
   return useQuery({
     queryKey: ['binance-order-history-bulk'],
     queryFn: async () => {
-      const result = await callBinanceAds('getOrderHistory', {
-        rows: 100,
-        startTimestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days
-        endTimestamp: Date.now(),
-      });
-      // Response shape: { data: { code, data: [...orders] } }
-      const orders = result?.data?.data || result?.data || result || [];
-      if (!Array.isArray(orders)) return [];
-      return orders as Array<{ orderNumber: string; orderStatus: string; [k: string]: any }>;
+      const startTimestamp = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const endTimestamp = Date.now();
+      const allOrders: Array<{ orderNumber: string; orderStatus: string; [k: string]: any }> = [];
+      let page = 1;
+      const maxPages = 20; // safety cap
+
+      while (page <= maxPages) {
+        const result = await callBinanceAds('getOrderHistory', {
+          rows: 100,
+          page,
+          startTimestamp,
+          endTimestamp,
+        });
+        const orders = result?.data?.data || result?.data || result || [];
+        if (!Array.isArray(orders) || orders.length === 0) break;
+        allOrders.push(...orders);
+        if (orders.length < 100) break; // last page
+        page++;
+        // Small delay to avoid rate limits
+        if (page <= maxPages) await new Promise(r => setTimeout(r, 300));
+      }
+
+      return allOrders;
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 30 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
   });
 }
 

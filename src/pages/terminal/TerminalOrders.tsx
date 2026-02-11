@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -86,6 +86,7 @@ export default function TerminalOrders() {
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const { data: activeOrdersData, isLoading: activeLoading, refetch, isFetching } = useBinanceActiveOrders();
   const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
@@ -196,12 +197,35 @@ export default function TerminalOrders() {
       });
     }
 
-    return enriched.slice(0, 50).map(o => {
+    const allRecords = enriched.map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;
       return record;
     });
+    return allRecords;
   }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap]);
+
+  // Reset visible count when filters change
+  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);
+
+  // Infinite scroll: load more when scrolling near bottom
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && visibleCount < displayOrders.length) {
+          setVisibleCount(prev => Math.min(prev + 50, displayOrders.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visibleCount, displayOrders.length]);
+
+  const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
 
   // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
@@ -252,7 +276,7 @@ export default function TerminalOrders() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] text-muted-foreground">
-            {displayOrders.length} of {rawOrders.length} orders
+            {visibleOrders.length} of {displayOrders.length} orders
           </Badge>
           <Button
             variant="outline"
@@ -341,7 +365,7 @@ export default function TerminalOrders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayOrders.map((order) => {
+                  {visibleOrders.map((order) => {
                     const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
                     const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
                     // For sell orders needing verification (kyc=1), show "Verification Pending" instead of "Pending Payment"
@@ -462,6 +486,13 @@ export default function TerminalOrders() {
                   })}
                 </TableBody>
               </Table>
+              {/* Infinite scroll sentinel */}
+              <div ref={loadMoreRef} className="h-4" />
+              {visibleCount < displayOrders.length && (
+                <div className="text-center py-3 text-xs text-muted-foreground">
+                  Loading more orders...
+                </div>
+              )}
             </div>
           )}
         </CardContent>

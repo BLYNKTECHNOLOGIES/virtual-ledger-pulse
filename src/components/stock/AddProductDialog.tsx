@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { useUSDTRate } from "@/hooks/useUSDTRate";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -22,13 +23,12 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
     name: "",
     code: "",
     unit_of_measurement: "",
-    cost_price: "",
-    selling_price: "",
     current_stock_quantity: "0"
   });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: usdtRateData } = useUSDTRate();
 
   useEffect(() => {
     if (editingProduct) {
@@ -36,8 +36,6 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
         name: editingProduct.name || "",
         code: editingProduct.code || "",
         unit_of_measurement: editingProduct.unit_of_measurement || "",
-        cost_price: editingProduct.cost_price?.toString() || "",
-        selling_price: editingProduct.selling_price?.toString() || "",
         current_stock_quantity: editingProduct.current_stock_quantity?.toString() || "0"
       });
     } else {
@@ -45,8 +43,6 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
         name: "",
         code: "",
         unit_of_measurement: "Units",
-        cost_price: "",
-        selling_price: "",
         current_stock_quantity: "0"
       });
     }
@@ -54,10 +50,17 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
 
   const saveProductMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Auto-calculate prices from live market rate
+      const marketRate = usdtRateData?.rate || 84.5;
+      const costPrice = parseFloat(marketRate.toFixed(2));
+      const sellingPrice = parseFloat((costPrice * 1.05).toFixed(2));
+
       const productData = {
-        ...data,
-        cost_price: parseFloat(data.cost_price),
-        selling_price: parseFloat(data.selling_price),
+        name: data.name,
+        code: data.code,
+        unit_of_measurement: data.unit_of_measurement,
+        cost_price: costPrice,
+        selling_price: sellingPrice,
         current_stock_quantity: parseInt(data.current_stock_quantity)
       };
 
@@ -77,12 +80,11 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
       }
     },
     onSuccess: (_, variables) => {
-      // Log the action
       if (!editingProduct) {
         logActionWithCurrentUser({
           actionType: ActionTypes.STOCK_PRODUCT_CREATED,
           entityType: EntityTypes.PRODUCT,
-          entityId: 'new', // Will be replaced with actual ID in future
+          entityId: 'new',
           module: Modules.STOCK,
           metadata: { name: variables.name, code: variables.code }
         });
@@ -151,32 +153,6 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
                 <SelectItem value="Meters">Meters</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cost_price">Cost Price</Label>
-              <Input
-                id="cost_price"
-                type="number"
-                step="0.01"
-                value={formData.cost_price}
-                onChange={(e) => setFormData({...formData, cost_price: e.target.value})}
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="selling_price">Selling Price</Label>
-              <Input
-                id="selling_price"
-                type="number"
-                step="0.01"
-                value={formData.selling_price}
-                onChange={(e) => setFormData({...formData, selling_price: e.target.value})}
-                required
-              />
-            </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">

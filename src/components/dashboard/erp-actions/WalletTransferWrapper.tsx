@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface WalletTransferWrapperProps {
   item: ErpActionQueueItem;
@@ -22,9 +21,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   const queryClient = useQueryClient();
   const isDeposit = item.movement_type === "deposit";
 
-  // For deposits: "To Wallet" is pre-filled (mapped wallet), "From Wallet" is user-selected
-  // For withdrawals: "From Wallet" is pre-filled (mapped wallet), "To Wallet" is user-selected
   const [selectedWalletId, setSelectedWalletId] = useState("");
+  const [fee, setFee] = useState("");
 
   const { data: wallets } = useQuery({
     queryKey: ["wallets"],
@@ -42,66 +40,69 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   const mappedWallet = wallets?.find((w) => w.id === item.wallet_id);
   const mappedWalletName = mappedWallet?.wallet_name || "Binance Blynk";
 
-  // Derive actual from/to based on movement type
   const fromWalletId = isDeposit ? selectedWalletId : item.wallet_id;
   const toWalletId = isDeposit ? item.wallet_id : selectedWalletId;
   const fromWalletLabel = isDeposit ? (wallets?.find(w => w.id === selectedWalletId)?.wallet_name || "—") : mappedWalletName;
   const toWalletLabel = isDeposit ? mappedWalletName : (wallets?.find(w => w.id === selectedWalletId)?.wallet_name || "—");
 
+  const feeAmount = parseFloat(fee) || 0;
+  const transferAmount = Number(item.amount);
+  // Net amount credited = total - fee (fee is deducted from source)
+  const netAmount = transferAmount - feeAmount;
+
   const transferMutation = useMutation({
     mutationFn: async () => {
       if (!selectedWalletId) throw new Error(isDeposit ? "Please select source wallet" : "Please select destination wallet");
       if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
+      if (feeAmount < 0) throw new Error("Fee cannot be negative");
+      if (feeAmount >= transferAmount) throw new Error("Fee cannot exceed transfer amount");
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
 
-      const [{ data: fromW }, { data: toW }] = await Promise.all([
-        supabase.from("wallets").select("current_balance").eq("id", fromWalletId).single(),
-        supabase.from("wallets").select("current_balance").eq("id", toWalletId).single(),
-      ]);
-
-      const fromBefore = Number(fromW?.current_balance ?? 0);
-      const toBefore = Number(toW?.current_balance ?? 0);
-      const amount = Number(item.amount);
-
-      const transactions = [
+      // Insert transfer transactions — triggers handle balance updates
+      const transactions: any[] = [
         {
           wallet_id: fromWalletId,
           transaction_type: "DEBIT",
-          amount,
+          amount: transferAmount,
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
           description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)`,
-          balance_before: fromBefore,
-          balance_after: fromBefore - amount,
         },
         {
           wallet_id: toWalletId,
           transaction_type: "CREDIT",
-          amount,
+          amount: feeAmount > 0 ? netAmount : transferAmount,
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)`,
-          balance_before: toBefore,
-          balance_after: toBefore + amount,
+          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Fee: ${feeAmount.toFixed(4)} ${item.asset}` : ''}`,
         },
       ];
 
+      // If fee exists, record a separate fee transaction on the source wallet
+      if (feeAmount > 0) {
+        transactions.push({
+          wallet_id: fromWalletId,
+          transaction_type: "DEBIT",
+          amount: feeAmount,
+          asset_code: item.asset,
+          reference_type: "TRANSFER_FEE",
+          reference_id: refId,
+          description: `Transfer fee for wallet transfer (${fromWalletLabel} → ${toWalletLabel})`,
+        });
+      }
+
       const { error: txErr } = await supabase.from("wallet_transactions").insert(transactions);
       if (txErr) throw txErr;
-
-      await Promise.all([
-        supabase.from("wallets").update({ current_balance: fromBefore - amount }).eq("id", fromWalletId),
-        supabase.from("wallets").update({ current_balance: toBefore + amount }).eq("id", toWalletId),
-      ]);
     },
     onSuccess: () => {
-      toast({ title: "Transfer Recorded", description: "Wallet transfer has been processed." });
+      toast({ title: "Transfer Recorded", description: `Wallet transfer processed.${feeAmount > 0 ? ` Fee: ${feeAmount.toFixed(4)} ${item.asset}` : ''}` });
       queryClient.invalidateQueries({ queryKey: ["wallets"] });
       queryClient.invalidateQueries({ queryKey: ["wallet_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["wallet_stock_summary"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet_asset_balances"] });
       onSuccess();
       onOpenChange(false);
     },
@@ -171,16 +172,44 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             </>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label>Amount</Label>
               <Input value={Number(item.amount).toLocaleString(undefined, { maximumFractionDigits: 8 })} disabled className="bg-muted" />
+            </div>
+            <div>
+              <Label>Fee ({item.asset})</Label>
+              <Input
+                value={fee}
+                onChange={(e) => setFee(e.target.value)}
+                placeholder="0"
+                type="number"
+                step="any"
+                min="0"
+              />
             </div>
             <div>
               <Label>Asset</Label>
               <Input value={item.asset} disabled className="bg-muted" />
             </div>
           </div>
+
+          {feeAmount > 0 && (
+            <div className="text-xs text-muted-foreground bg-muted/50 rounded p-2 space-y-0.5">
+              <div className="flex justify-between">
+                <span>Transfer Amount:</span>
+                <span>{transferAmount.toFixed(4)} {item.asset}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Fee Deducted:</span>
+                <span className="text-destructive">-{feeAmount.toFixed(4)} {item.asset}</span>
+              </div>
+              <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
+                <span>Net Credited:</span>
+                <span>{netAmount.toFixed(4)} {item.asset}</span>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             <Button

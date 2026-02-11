@@ -23,7 +23,8 @@ export function useMarkOrderAsPaid() {
     },
     onSuccess: () => {
       toast.success('Order marked as paid');
-      queryClient.invalidateQueries({ queryKey: ['binance-order-history'] });
+      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
     },
@@ -50,7 +51,8 @@ export function useReleaseCoin() {
     },
     onSuccess: () => {
       toast.success('Crypto released successfully');
-      queryClient.invalidateQueries({ queryKey: ['binance-order-history'] });
+      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
@@ -91,7 +93,8 @@ export function useCancelOrder() {
     },
     onSuccess: () => {
       toast.success('Order cancelled');
-      queryClient.invalidateQueries({ queryKey: ['binance-order-history'] });
+      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
     },

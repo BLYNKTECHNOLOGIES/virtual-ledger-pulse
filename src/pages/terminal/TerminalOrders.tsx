@@ -21,12 +21,7 @@ import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '
 
 /** Convert numeric orderStatus to string */
 function mapOrderStatusCode(code: number | string): string {
-  if (typeof code === 'string') return code;
-  const statusMap: Record<number, string> = {
-    1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
-    5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
-  };
-  return statusMap[code] || 'TRADING';
+  return normaliseBinanceStatus(code);
 }
 
 /** Convert raw Binance active order to display-ready P2POrderRecord shape */
@@ -88,12 +83,25 @@ export default function TerminalOrders() {
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
 
-  const { data: activeOrdersData, isLoading: activeLoading, refetch, isFetching } = useBinanceActiveOrders();
-  const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
+  const {
+    data: activeOrdersData,
+    isLoading: activeLoading,
+    refetch: refetchActive,
+    isFetching: isFetchingActive,
+  } = useBinanceActiveOrders();
+
+  const {
+    data: historyOrders = [],
+    isLoading: historyLoading,
+    refetch: refetchHistory,
+    isFetching: isFetchingHistory,
+  } = useBinanceOrderHistory();
+
   const syncOrders = useSyncOrders();
 
   // Only show loading if BOTH sources are still loading
   const isLoading = activeLoading && historyLoading;
+  const isRefreshing = isFetchingActive || isFetchingHistory;
 
   // Merge active orders + history orders, deduplicating by orderNumber
   const rawOrders: any[] = useMemo(() => {
@@ -302,10 +310,12 @@ export default function TerminalOrders() {
             variant="outline"
             size="sm"
             className="h-8 text-xs gap-1.5"
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={async () => {
+              await Promise.all([refetchActive(), refetchHistory()]);
+            }}
+            disabled={isRefreshing}
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>

@@ -187,15 +187,20 @@ export function useBinanceOrderHistory() {
           startTimestamp,
           endTimestamp,
         });
-        const orders = result?.data?.data || result?.data || result || [];
+        // Binance response: { code, data: [...orders] }
+        // Edge function wraps: { success: true, data: { code, data: [...] } }
+        const orders = result?.data || result || [];
+        console.log(`[OrderHistory] page=${page}, received=${Array.isArray(orders) ? orders.length : 'not-array'}`, typeof orders);
         if (!Array.isArray(orders) || orders.length === 0) break;
         allOrders.push(...orders);
+        console.log(`[OrderHistory] total so far: ${allOrders.length}`);
         if (orders.length < 100) break; // last page
         page++;
         // Small delay to avoid rate limits
-        if (page <= maxPages) await new Promise(r => setTimeout(r, 300));
+        if (page <= maxPages) await new Promise(r => setTimeout(r, 500));
       }
 
+      console.log(`[OrderHistory] FINAL total orders: ${allOrders.length}, pages fetched: ${page}`);
       return allOrders;
     },
     staleTime: 60 * 1000,

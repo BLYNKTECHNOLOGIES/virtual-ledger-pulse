@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, Filter, Plus, ArrowLeftRight } from "lucide-react";
+import { useAssetCodes } from "@/hooks/useAssetCodes";
 import { Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +41,8 @@ export function StockTransactionsTab() {
     amount: "",
     description: "",
     transactionType: "TRANSFER",
-    transferFee: ""
+    transferFee: "",
+    assetCode: "USDT"
   });
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -344,6 +346,8 @@ export function StockTransactionsTab() {
     },
   });
 
+  const { data: assetCodes } = useAssetCodes();
+
   // Manual stock adjustment mutation
   const manualAdjustmentMutation = useMutation({
     mutationFn: async (adjustmentData: any) => {
@@ -378,11 +382,12 @@ export function StockTransactionsTab() {
             wallet_id: adjustmentData.fromWallet,
             transaction_type: 'TRANSFER_OUT',
             amount: amount,
+            asset_code: adjustmentData.assetCode,
             reference_type: 'MANUAL_TRANSFER',
             reference_id: transferRefId,
-            description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
-            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
-            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
+            description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} ${adjustmentData.assetCode})` : ''}: ${adjustmentData.description}`,
+            balance_before: 0,
+            balance_after: 0,
             created_by: createdByUserId
           });
 
@@ -395,11 +400,12 @@ export function StockTransactionsTab() {
             wallet_id: adjustmentData.toWallet,
             transaction_type: 'TRANSFER_IN',
             amount: amount,
+            asset_code: adjustmentData.assetCode,
             reference_type: 'MANUAL_TRANSFER',
             reference_id: transferRefId,
-            description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
-            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
-            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
+            description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} ${adjustmentData.assetCode} deducted from sender)` : ''}: ${adjustmentData.description}`,
+            balance_before: 0,
+            balance_after: 0,
             created_by: createdByUserId
           });
 
@@ -413,11 +419,12 @@ export function StockTransactionsTab() {
               wallet_id: adjustmentData.fromWallet,
               transaction_type: 'DEBIT',
               amount: transferFee,
+              asset_code: adjustmentData.assetCode,
               reference_type: 'TRANSFER_FEE',
               reference_id: transferRefId,
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
-              balance_before: 0, // Auto-set by DB trigger
-              balance_after: 0,  // Auto-set by DB trigger
+              balance_before: 0,
+              balance_after: 0,
               created_by: createdByUserId
             });
           
@@ -432,11 +439,12 @@ export function StockTransactionsTab() {
             wallet_id: adjustmentData.fromWallet,
             transaction_type: adjustmentData.transactionType,
             amount: amount,
+            asset_code: adjustmentData.assetCode,
             reference_type: 'MANUAL_ADJUSTMENT',
             reference_id: null,
             description: adjustmentData.description,
-            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
-            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
+            balance_before: 0,
+            balance_after: 0,
             created_by: createdByUserId
           });
 
@@ -472,6 +480,8 @@ export function StockTransactionsTab() {
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances_summary'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setShowAdjustmentDialog(false);
       setAdjustmentData({
@@ -480,7 +490,8 @@ export function StockTransactionsTab() {
         amount: "",
         description: "",
         transactionType: "TRANSFER",
-        transferFee: ""
+        transferFee: "",
+        assetCode: "USDT"
       });
     },
     onError: (error: any) => {
@@ -926,6 +937,25 @@ export function StockTransactionsTab() {
             </div>
 
             <div className="space-y-2">
+              <Label>Asset Type *</Label>
+              <Select 
+                value={adjustmentData.assetCode} 
+                onValueChange={(value) => setAdjustmentData(prev => ({ ...prev, assetCode: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(assetCodes || ['USDT']).map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>From Wallet {adjustmentData.transactionType !== 'CREDIT' ? '*' : ''}</Label>
               <Select 
                 value={adjustmentData.fromWallet} 
@@ -1009,21 +1039,21 @@ export function StockTransactionsTab() {
                 <div className="font-medium text-foreground">Transfer Summary</div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Transfer Amount:</span>
-                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} USDT</span>
+                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
                 {parseFloat(adjustmentData.transferFee || '0') > 0 && (
                   <div className="flex justify-between text-amber-600">
                     <span>Fee (deducted from sender):</span>
-                    <span>{parseFloat(adjustmentData.transferFee || '0').toFixed(4)} USDT</span>
+                    <span>{parseFloat(adjustmentData.transferFee || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-medium border-t pt-2 mt-2">
                   <span>Total Deducted from Sender:</span>
-                  <span>{(parseFloat(adjustmentData.amount || '0') + parseFloat(adjustmentData.transferFee || '0')).toFixed(4)} USDT</span>
+                  <span>{(parseFloat(adjustmentData.amount || '0') + parseFloat(adjustmentData.transferFee || '0')).toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
                   <span>Receiver Gets:</span>
-                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} USDT</span>
+                  <span>{parseFloat(adjustmentData.amount || '0').toFixed(4)} {adjustmentData.assetCode}</span>
                 </div>
               </div>
             )}

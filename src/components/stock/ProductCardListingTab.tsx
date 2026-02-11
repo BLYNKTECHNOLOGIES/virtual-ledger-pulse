@@ -45,10 +45,12 @@ export function ProductCardListingTab() {
     };
   }) || [];
 
-  const filteredProducts = combinedProducts.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = combinedProducts
+    .filter(product =>
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.code.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => b.total_stock - a.total_stock);
 
   if (isLoading) {
     return (

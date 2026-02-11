@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
-import { useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
+import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
@@ -99,9 +100,27 @@ export default function TerminalOrders() {
 
   const syncOrders = useSyncOrders();
 
+  // Lightweight recent history fetch (top 50) to catch just-completed orders quickly
+  const { data: recentHistory = [], refetch: refetchRecent, isFetching: isFetchingRecent } = useQuery({
+    queryKey: ['binance-order-history-recent'],
+    queryFn: async () => {
+      // 7 days is enough for "just completed" fixes without heavy windowing
+      const data = await callBinanceAds('getOrderHistory', {
+        rows: 50,
+        page: 1,
+        startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
+        endTimestamp: Date.now(),
+      });
+      const orders = data?.data?.data || data?.data || data || [];
+      return Array.isArray(orders) ? orders : [];
+    },
+    staleTime: 10 * 1000,
+    refetchInterval: 15 * 1000,
+  });
+
   // Only show loading if BOTH sources are still loading
   const isLoading = activeLoading && historyLoading;
-  const isRefreshing = isFetchingActive || isFetchingHistory;
+  const isRefreshing = isFetchingActive || isFetchingHistory || isFetchingRecent;
 
   // Merge active orders + history orders, deduplicating by orderNumber
   const rawOrders: any[] = useMemo(() => {
@@ -148,8 +167,8 @@ export default function TerminalOrders() {
   const historyStatusMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const o of historyOrders) {
-      if (o.orderNumber && o.orderStatus) {
-        map.set(o.orderNumber, String(o.orderStatus).toUpperCase());
+      if (o.orderNumber && o.orderStatus !== undefined && o.orderStatus !== null) {
+        map.set(o.orderNumber, normaliseBinanceStatus(o.orderStatus));
       }
     }
     return map;
@@ -176,16 +195,33 @@ export default function TerminalOrders() {
     }
   }, [rawOrders.length]);
 
+  // Build a map of *recent* order history statuses (fast) for enrichment
+  const recentStatusMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const o of recentHistory as any[]) {
+      if (o?.orderNumber && o?.orderStatus !== undefined && o?.orderStatus !== null) {
+        map.set(String(o.orderNumber), normaliseBinanceStatus(o.orderStatus));
+      }
+    }
+    return map;
+  }, [recentHistory]);
+
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];
     let enriched = rawOrders.map(o => {
       const liveStatus = mapOrderStatusCode(o.orderStatus);
+      const recentStatus = recentStatusMap.get(o.orderNumber);
       const historyStatus = historyStatusMap.get(o.orderNumber);
-      // If history has a terminal/final status, always trust it (it's the source of truth for completed/cancelled)
-      // Otherwise, for active orders use their live status
-      const historyIsTerminal = historyStatus && TERMINAL_STATUSES.some(t => historyStatus.includes(t));
-      const resolvedStatus = historyIsTerminal ? historyStatus : (historyStatus || liveStatus);
+
+      // Prefer terminal status from recent history first, then bulk history
+      const terminalCandidate = recentStatus || historyStatus;
+      const terminalIsTerminal = terminalCandidate && TERMINAL_STATUSES.some(t => terminalCandidate.includes(t));
+
+      const resolvedStatus = terminalIsTerminal
+        ? (terminalCandidate as string)
+        : (recentStatus || historyStatus || liveStatus);
+
       return { ...o, _resolvedStatus: resolvedStatus };
     });
 
@@ -311,7 +347,7 @@ export default function TerminalOrders() {
             size="sm"
             className="h-8 text-xs gap-1.5"
             onClick={async () => {
-              await Promise.all([refetchActive(), refetchHistory()]);
+              await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}
             disabled={isRefreshing}
           >

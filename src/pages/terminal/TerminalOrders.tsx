@@ -100,12 +100,32 @@ export default function TerminalOrders() {
 
   const syncOrders = useSyncOrders();
 
-  // Lightweight recent history fetch (top N pages) to catch just-completed orders quickly
+  // Derive a minimal time window from ACTIVE orders.
+  // Reason: Binance can keep returning an order in listOrders with numeric status=4
+  // even after it is COMPLETED in listUserOrderHistory. We must use history as source-of-truth.
+  const activeOldestCreateTime = useMemo(() => {
+    const d = (activeOrdersData as any)?.data ?? activeOrdersData;
+    const list = Array.isArray(d) ? d : [];
+    let min = Number.POSITIVE_INFINITY;
+    for (const o of list) {
+      const t = typeof o?.createTime === 'number' ? o.createTime : Number(o?.createTime);
+      if (Number.isFinite(t) && t > 0) min = Math.min(min, t);
+    }
+    return Number.isFinite(min) ? min : null;
+  }, [activeOrdersData]);
+
+  const recentHistoryWindowStart = useMemo(() => {
+    // pull a small buffer before the oldest active order so we always catch it in history
+    const fallback = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    if (!activeOldestCreateTime) return fallback;
+    return Math.min(activeOldestCreateTime - 6 * 60 * 60 * 1000, fallback);
+  }, [activeOldestCreateTime]);
+
+  // Lightweight history fetch (multi-page) to catch terminal statuses for the currently active window.
   const { data: recentHistory = [], refetch: refetchRecent, isFetching: isFetchingRecent } = useQuery({
-    queryKey: ['binance-order-history-recent'],
+    queryKey: ['binance-order-history-recent', Math.floor(recentHistoryWindowStart / (60 * 60 * 1000))],
     queryFn: async () => {
-      // 7 days is enough for "just completed" fixes without heavy windowing
-      const startTimestamp = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const startTimestamp = recentHistoryWindowStart;
       const endTimestamp = Date.now();
 
       // Robust extraction: the edge function may return different wrappers depending on action.
@@ -125,9 +145,7 @@ export default function TerminalOrders() {
         return [];
       };
 
-      // IMPORTANT: page=1 only is not enough (completed orders can fall beyond the first 50)
-      // Fetch a few pages to cover high-volume periods, then stop when Binance returns empty.
-      const maxPages = 8; // up to 400 rows in the last 7 days
+      const maxPages = 10; // 500 rows in this derived window
       const rows = 50;
       const all: any[] = [];
       const seen = new Set<string>();
@@ -156,8 +174,8 @@ export default function TerminalOrders() {
 
       return all;
     },
-    staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000,
   });
 
   // Only show loading if BOTH sources are still loading

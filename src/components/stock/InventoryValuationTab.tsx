@@ -8,12 +8,7 @@ export function InventoryValuationTab() {
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['inventory_valuation'],
     queryFn: async () => {
-      // Sync USDT stock with wallets to ensure accuracy
-      console.log('🔄 Syncing USDT stock with wallets...');
-      const { error: usdtSyncError } = await supabase.rpc('sync_usdt_stock');
-      if (usdtSyncError) {
-        console.error('❌ USDT sync failed:', usdtSyncError);
-      }
+      // ERP balances are source of truth - no auto-sync from Binance
 
       // Fetch products with stock and pricing
       const { data: products, error: productsError } = await supabase

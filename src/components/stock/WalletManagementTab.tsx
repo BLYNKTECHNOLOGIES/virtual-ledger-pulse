@@ -311,29 +311,8 @@ export function WalletManagementTab() {
     setShowEditDialog(true);
   };
 
-  // Sync USDT stock mutation
-  const syncStockMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc('sync_usdt_stock');
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "USDT stock synced with wallet balances" });
-      // Refresh all wallet-related queries
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['wallets'] });
-      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
-      refetchWallets(); // Force immediate refresh
-    },
-    onError: (error) => {
-      toast({ 
-        title: "Error", 
-        description: "Failed to sync USDT stock", 
-        variant: "destructive" 
-      });
-      
-    }
-  });
+  // Sync USDT stock button removed - ERP is source of truth
+  // Binance balance shown as reference only
 
   const AddWalletDialog = () => {
     const [formData, setFormData] = useState({
@@ -567,10 +546,6 @@ export function WalletManagementTab() {
           <Button onClick={() => refetchWallets()} variant="outline" disabled={walletsLoading}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh Wallets
-          </Button>
-          <Button onClick={() => syncStockMutation.mutate()} variant="outline" disabled={syncStockMutation.isPending}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Sync USDT Stock
           </Button>
           <Button onClick={() => setShowImportDialog(true)} variant="outline">
             <Upload className="h-4 w-4 mr-2" />

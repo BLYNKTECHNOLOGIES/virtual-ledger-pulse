@@ -1550,6 +1550,74 @@ export type Database = {
           },
         ]
       }
+      erp_action_queue: {
+        Row: {
+          action_type: string | null
+          amount: number
+          asset: string
+          created_at: string
+          erp_reference_id: string | null
+          id: string
+          movement_id: string
+          movement_time: number
+          movement_type: string
+          network: string | null
+          processed_at: string | null
+          processed_by: string | null
+          raw_data: Json | null
+          reject_reason: string | null
+          status: string
+          tx_id: string | null
+          wallet_id: string | null
+        }
+        Insert: {
+          action_type?: string | null
+          amount?: number
+          asset: string
+          created_at?: string
+          erp_reference_id?: string | null
+          id?: string
+          movement_id: string
+          movement_time?: number
+          movement_type: string
+          network?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          raw_data?: Json | null
+          reject_reason?: string | null
+          status?: string
+          tx_id?: string | null
+          wallet_id?: string | null
+        }
+        Update: {
+          action_type?: string | null
+          amount?: number
+          asset?: string
+          created_at?: string
+          erp_reference_id?: string | null
+          id?: string
+          movement_id?: string
+          movement_time?: number
+          movement_type?: string
+          network?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          raw_data?: Json | null
+          reject_reason?: string | null
+          status?: string
+          tx_id?: string | null
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_action_queue_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_attendance: {
         Row: {
           attendance_date: string

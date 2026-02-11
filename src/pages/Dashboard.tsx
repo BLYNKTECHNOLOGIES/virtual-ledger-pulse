@@ -7,6 +7,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
+import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { useQuery } from "@tanstack/react-query";
@@ -530,6 +531,9 @@ export default function Dashboard() {
             </Card>
           </ClickableCard>
         </div>
+
+        {/* Action Required Widget - ERP Reconciliation */}
+        <ActionRequiredWidget />
 
         {/* Enhanced Quick Links Widget */}
         <QuickLinksWidget onRemove={handleRemoveWidget} />

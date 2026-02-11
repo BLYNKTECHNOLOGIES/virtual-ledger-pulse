@@ -1,15 +1,22 @@
 import { useState } from "react";
 import { useBinanceBalances, useBinanceTickerPrices, COIN_COLORS } from "@/hooks/useBinanceAssets";
+import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Loader2, Eye, EyeOff, AlertTriangle, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 
 export function AssetOverview() {
   const { data: balances, isLoading, error } = useBinanceBalances();
   const { data: prices } = useBinanceTickerPrices();
+  const { data: erpProducts } = useProductStockWithCost();
   const [showValues, setShowValues] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+
+  // Build ERP stock map by product code
+  const erpStockMap = new Map<string, number>();
+  erpProducts?.forEach(p => erpStockMap.set(p.product_code, p.total_stock));
 
   // Calculate USDT equivalent for each asset
   const priceList = Array.isArray(prices) ? prices : [];
@@ -123,6 +130,32 @@ export function AssetOverview() {
                             : "≈ -- USDT"
                         : "****"}
                     </p>
+                    {showValues && (() => {
+                      const erpStock = erpStockMap.get(asset.asset);
+                      if (erpStock === undefined) return null;
+                      const diff = erpStock - asset.total_balance;
+                      const hasMismatch = Math.abs(diff) > 0.001;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <p className={`text-[9px] tabular-nums flex items-center justify-end gap-0.5 ${hasMismatch ? 'text-amber-400' : 'text-muted-foreground/60'}`}>
+                              <Package className="h-2.5 w-2.5" />
+                              ERP: {erpStock.toFixed(4)}
+                              {hasMismatch && (
+                                <span className={diff > 0 ? 'text-green-400' : 'text-red-400'}>
+                                  ({diff > 0 ? '+' : ''}{diff.toFixed(4)})
+                                </span>
+                              )}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">ERP Inventory: {erpStock.toFixed(4)}</p>
+                            <p className="text-xs">Binance API: {asset.total_balance.toFixed(4)}</p>
+                            {hasMismatch && <p className="text-xs text-amber-400">Difference: {diff.toFixed(4)}</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                   </div>
                 </button>
               );

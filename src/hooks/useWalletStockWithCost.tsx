@@ -67,43 +67,96 @@ export function useWalletStockWithCost() {
 }
 
 export function useProductStockWithCost() {
-  const { data: walletStockWithCost, isLoading, error } = useWalletStockWithCost();
+  const { data: averageCosts } = useAverageCost();
 
-  const productSummaries = walletStockWithCost?.reduce((acc, wallet) => {
-    // All wallets contribute to USDT product summary
-    if (!acc['USDT']) {
-      acc['USDT'] = {
-        product_id: 'USDT',
-        product_name: 'USDT',
-        product_code: 'USDT',
-        unit_of_measurement: 'Units',
-        total_stock: 0,
-        average_cost: 0,
-        total_value: 0,
-        wallet_stocks: []
-      };
-    }
+  return useQuery({
+    queryKey: ['product_stock_with_cost', averageCosts],
+    queryFn: async () => {
+      // 1. Fetch all products
+      const { data: products, error: pErr } = await supabase
+        .from('products')
+        .select('*')
+        .order('name');
+      if (pErr) throw pErr;
 
-    acc['USDT'].total_stock += wallet.current_balance;
-    acc['USDT'].total_value += wallet.total_value;
-    
-    if (acc['USDT'].total_stock > 0) {
-      acc['USDT'].average_cost = acc['USDT'].total_value / acc['USDT'].total_stock;
-    }
-    
-    acc['USDT'].wallet_stocks.push({
-      wallet_id: wallet.wallet_id,
-      wallet_name: wallet.wallet_name,
-      balance: wallet.current_balance,
-      value: wallet.total_value
-    });
+      // 2. Fetch all wallet transactions grouped by asset & wallet
+      const { data: txns, error: txErr } = await supabase
+        .from('wallet_transactions')
+        .select('wallet_id, asset_code, transaction_type, amount');
+      if (txErr) throw txErr;
 
-    return acc;
-  }, {} as Record<string, ProductStockWithCost>);
+      // 3. Fetch wallets for name lookup
+      const { data: wallets, error: wErr } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .eq('is_active', true);
+      if (wErr) throw wErr;
 
-  return {
-    data: productSummaries ? Object.values(productSummaries) : undefined,
-    isLoading,
-    error
-  };
+      const walletNameMap = new Map<string, string>();
+      wallets?.forEach(w => walletNameMap.set(w.id, w.wallet_name));
+
+      // 4. Derive per-asset per-wallet balances from transactions
+      // CREDIT, TRANSFER_IN = inflow; DEBIT, TRANSFER_OUT, FEE = outflow
+      const INFLOW_TYPES = ['CREDIT', 'TRANSFER_IN'];
+      const balanceMap = new Map<string, Map<string, number>>(); // asset -> walletId -> balance
+
+      txns?.forEach(txn => {
+        const asset = txn.asset_code || 'USDT';
+        const walletId = txn.wallet_id;
+        const amount = Number(txn.amount) || 0;
+        const isInflow = INFLOW_TYPES.includes(txn.transaction_type);
+        const signed = isInflow ? amount : -amount;
+
+        if (!balanceMap.has(asset)) balanceMap.set(asset, new Map());
+        const walletMap = balanceMap.get(asset)!;
+        walletMap.set(walletId, (walletMap.get(walletId) || 0) + signed);
+      });
+
+      // 5. Build product summaries
+      const costMap = new Map<string, number>();
+      averageCosts?.forEach(c => costMap.set(c.product_code, c.average_cost));
+
+      const summaries: ProductStockWithCost[] = (products || []).map(product => {
+        const assetBalances = balanceMap.get(product.code);
+        const avgCost = costMap.get(product.code) || 0;
+        
+        const walletStocks: ProductStockWithCost['wallet_stocks'] = [];
+        let totalStock = 0;
+
+        if (assetBalances) {
+          assetBalances.forEach((balance, walletId) => {
+            const name = walletNameMap.get(walletId);
+            if (name) {
+              walletStocks.push({
+                wallet_id: walletId,
+                wallet_name: name,
+                balance,
+                value: balance * avgCost,
+              });
+              totalStock += balance;
+            }
+          });
+        }
+
+        // Sort wallets by balance descending
+        walletStocks.sort((a, b) => b.balance - a.balance);
+
+        return {
+          product_id: product.id,
+          product_name: product.name,
+          product_code: product.code,
+          unit_of_measurement: product.unit_of_measurement,
+          total_stock: totalStock,
+          average_cost: avgCost,
+          total_value: totalStock * avgCost,
+          wallet_stocks: walletStocks,
+        };
+      });
+
+      return summaries;
+    },
+    enabled: !!averageCosts,
+    refetchInterval: 10000,
+    staleTime: 0,
+  });
 }

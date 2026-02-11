@@ -126,10 +126,10 @@ export function CompletedOrdersExport() {
       const results = await Promise.allSettled(
         batch.map(async (o) => {
           try {
-            const detail = await callBinanceAds('getOrderDetail', { orderNumber: o.order_number });
-            const realName = detail?.sellerRealName || detail?.buyerRealName ||
-              detail?.tradePartnerDetail?.realName || detail?.data?.sellerRealName ||
-              detail?.data?.buyerRealName || null;
+            const resp = await callBinanceAds('getOrderDetail', { orderNumber: o.order_number });
+            const d = resp?.data || resp;
+            // For our SELL orders, counterparty is buyer; for our BUY orders, counterparty is seller
+            const realName = (o.trade_type === 'SELL' ? (d?.buyerName || d?.buyerRealName) : (d?.sellerName || d?.sellerRealName)) || d?.buyerName || d?.sellerName || null;
             if (realName) {
               // Update DB
               await supabase

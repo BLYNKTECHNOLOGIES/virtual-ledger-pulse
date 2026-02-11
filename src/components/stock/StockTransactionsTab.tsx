@@ -582,36 +582,70 @@ export function StockTransactionsTab() {
     }
   };
 
+  // Build closing balance maps from wallet transactions for order-linked entries
+  const closingBalanceByOrderRef = new Map<string, { balance_after: number; wallet_name: string; asset_code: string }>();
+  (walletTransactions || [])
+    .filter((w: any) => ['SALES_ORDER', 'PURCHASE_ORDER'].includes(w.reference_type))
+    .forEach((w: any) => {
+      // Map by reference_id (order ID) or order_number
+      const refNumber = (w as any)._reference_number;
+      if (refNumber) {
+        closingBalanceByOrderRef.set(refNumber, {
+          balance_after: w.balance_after ?? 0,
+          wallet_name: w.wallets?.wallet_name || '',
+          asset_code: w.asset_code || 'USDT',
+        });
+      }
+      if (w.reference_id) {
+        closingBalanceByOrderRef.set(w.reference_id, {
+          balance_after: w.balance_after ?? 0,
+          wallet_name: w.wallets?.wallet_name || '',
+          asset_code: w.asset_code || 'USDT',
+        });
+      }
+    });
+
   // Combine all transactions
   const allEntries = [
     // Regular stock transactions
-    ...(transactions || []).map(t => ({
-      ...t,
-      type: 'transaction',
-      date: t.created_at, // Use created_at for accurate timestamp instead of transaction_date
-      supplier_name: t.supplier_customer_name,
-      transaction_type: t.transaction_type,
-      products: t.products,
-      wallet_name: (t as any).wallet_name || null,
-      created_by_user: (t as any).created_by_user
-    })),
+    ...(transactions || []).map(t => {
+      const closingInfo = closingBalanceByOrderRef.get(t.reference_number) || closingBalanceByOrderRef.get((t as any).id);
+      return {
+        ...t,
+        type: 'transaction',
+        date: t.created_at,
+        supplier_name: t.supplier_customer_name,
+        transaction_type: t.transaction_type,
+        products: t.products,
+        wallet_name: (t as any).wallet_name || null,
+        created_by_user: (t as any).created_by_user,
+        closing_balance: closingInfo?.balance_after ?? null,
+        closing_wallet: closingInfo?.wallet_name ?? null,
+        closing_asset: closingInfo?.asset_code ?? null,
+      };
+    }),
     // Purchase entries
     ...(purchaseEntries || []).map(p => {
       const unitPrice = parseFloat(String(p.unit_price)) || 0;
       const qty = parseFloat(String(p.quantity)) || 0;
       const totalAmount = qty * unitPrice;
+      const poId = (p as any).purchase_order_id || (p as any).purchase_orders?.id;
+      const closingInfo = closingBalanceByOrderRef.get(p.purchase_orders?.order_number) || closingBalanceByOrderRef.get(poId);
       return {
         ...p,
         type: 'purchase',
         transaction_type: 'PURCHASE',
-        date: p.created_at || p.purchase_orders?.order_date, // Use created_at for actual entry time
+        date: p.created_at || p.purchase_orders?.order_date,
         supplier_name: p.purchase_orders?.supplier_name,
         reference_number: p.purchase_orders?.order_number,
         unit_price: unitPrice,
         total_amount: totalAmount,
         products: p.products,
-        wallet_name: 'BINANCE BLYNK', // Default wallet for purchases
-        created_by_user: (p.purchase_orders as any)?.created_by_user
+        wallet_name: 'BINANCE BLYNK',
+        created_by_user: (p.purchase_orders as any)?.created_by_user,
+        closing_balance: closingInfo?.balance_after ?? null,
+        closing_wallet: closingInfo?.wallet_name ?? null,
+        closing_asset: closingInfo?.asset_code ?? null,
       };
     }),
     // Wallet transactions (manual transfers/adjustments only; orders are already represented above)
@@ -645,6 +679,9 @@ export function StockTransactionsTab() {
             : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
           wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
           created_by_user: createdByUser || null,
+          closing_balance: w.balance_after ?? null,
+          closing_wallet: w.wallets?.wallet_name || null,
+          closing_asset: w.asset_code || 'USDT',
         };
       })
   ];
@@ -734,6 +771,7 @@ export function StockTransactionsTab() {
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier/Customer</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
+                    <th className="text-right py-3 px-4 font-medium text-gray-600">Closing Bal.</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
                   </tr>
                 </thead>
@@ -778,6 +816,20 @@ export function StockTransactionsTab() {
                             avatarUrl={entry.created_by_user.avatar_url}
                           />
                         ) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {entry.closing_balance !== null && entry.closing_balance !== undefined ? (
+                          <div>
+                            <span className="font-medium text-sm tabular-nums">
+                              {parseFloat(entry.closing_balance.toString()).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                            </span>
+                            {entry.closing_wallet && (
+                              <div className="text-[10px] text-muted-foreground">{entry.closing_wallet}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         {isDeletableEntry(entry) && (

@@ -39,17 +39,40 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
 
   // Helper: lookup contact records by nickname(s) and pre-fill
+  // Supports exact match + prefix match for masked nicknames (e.g., "erf***" → "erffan")
   const lookupContact = async (nicknames: string[]) => {
     const unique = [...new Set(nicknames.filter(Boolean))];
     if (unique.length === 0) return;
-    const { data: records } = await supabase
+
+    // First try exact match
+    const { data: exactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('contact_number, state')
       .in('counterparty_nickname', unique);
-    const found = (records || []).find(r => r.contact_number || r.state);
-    if (found) {
-      if (found.contact_number) setContactNumber(found.contact_number);
-      if (found.state) setClientState(found.state);
+    const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
+    if (exactFound) {
+      if (exactFound.contact_number) setContactNumber(exactFound.contact_number);
+      if (exactFound.state) setClientState(exactFound.state);
+      return;
+    }
+
+    // Fallback: prefix match for masked nicknames like "erf***"
+    for (const nick of unique) {
+      if (nick.includes('*')) {
+        const prefix = nick.replace(/\*+$/, '');
+        if (prefix.length >= 2) {
+          const { data: prefixRecords } = await supabase
+            .from('counterparty_contact_records')
+            .select('contact_number, state')
+            .ilike('counterparty_nickname', `${prefix}%`);
+          const found = (prefixRecords || []).find(r => r.contact_number || r.state);
+          if (found) {
+            if (found.contact_number) setContactNumber(found.contact_number);
+            if (found.state) setClientState(found.state);
+            return;
+          }
+        }
+      }
     }
   };
 

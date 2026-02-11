@@ -89,9 +89,7 @@ serve(async (req) => {
     const totalAssetValue = totalBankBalance + totalGatewayBalance + stockValuation - totalUnpaidTds;
 
     // 5. Store snapshot (upsert to handle re-runs on same day)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const today = yesterday.toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
 
     const { error: insertError } = await supabase
       .from("asset_value_history")

@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { WalletLinkingSection } from "./WalletLinkingSection";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -69,6 +71,22 @@ export function WalletManagementTab() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const { data: binanceBalances } = useBinanceBalances();
+  const { data: activeWalletLink } = useQuery({
+    queryKey: ['terminal-wallet-link-active-wm'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_wallet_links')
+        .select('wallet_id')
+        .eq('status', 'active')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const apiLinkedWalletId = activeWalletLink?.wallet_id;
+  const binanceUsdtBalance = binanceBalances?.find(b => b.asset === 'USDT')?.total_balance;
 
   // Fetch wallets with real-time updates
   const { data: wallets, isLoading: walletsLoading, refetch: refetchWallets } = useQuery({
@@ -641,7 +659,28 @@ export function WalletManagementTab() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{(wallet.current_balance ?? 0).toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <span>{(wallet.current_balance ?? 0).toLocaleString()}</span>
+                        {apiLinkedWalletId === wallet.id && binanceUsdtBalance !== undefined && (() => {
+                          const diff = binanceUsdtBalance - (wallet.current_balance ?? 0);
+                          if (Math.abs(diff) <= 5) return null;
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="text-[10px] font-bold text-red-500">
+                                  {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-xs">API Balance: {binanceUsdtBalance.toFixed(2)}</p>
+                                <p className="text-xs text-red-400">Difference from Binance API</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })()}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {wallet.is_fee_enabled && (wallet.fee_percentage || 0) > 0 ? (
                         <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">

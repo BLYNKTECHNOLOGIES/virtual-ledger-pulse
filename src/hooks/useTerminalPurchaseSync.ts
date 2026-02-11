@@ -31,15 +31,17 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       .eq('id', activeLink.wallet_id)
       .single();
 
-    // 2. Get all completed BUY orders from binance_order_history
+    // 2. Get completed BUY orders from binance_order_history — only recent ones (last 24 hours)
+    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
     const { data: completedBuys, error: fetchErr } = await supabase
       .from('binance_order_history')
       .select('*')
       .eq('trade_type', 'BUY')
-      .eq('order_status', 'COMPLETED');
+      .eq('order_status', 'COMPLETED')
+      .gte('create_time', cutoffTime);
 
     if (fetchErr || !completedBuys || completedBuys.length === 0) {
-      console.log('[PurchaseSync] No completed BUY orders found.');
+      console.log('[PurchaseSync] No recent completed BUY orders found.');
       return { synced: 0, duplicates: 0 };
     }
 

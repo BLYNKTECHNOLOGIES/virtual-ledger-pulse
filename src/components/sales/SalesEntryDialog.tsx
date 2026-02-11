@@ -91,7 +91,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       const { data, error } = await supabase
         .from('wallets')
-        .select('current_balance, wallet_name, wallet_type, fee_percentage, is_fee_enabled')
+        .select('current_balance, wallet_name, fee_percentage, is_fee_enabled')
         .eq('id', formData.wallet_id)
         .single();
       
@@ -644,7 +644,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <SelectContent className="bg-background border shadow-lg z-[100]">
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type}) - Balance: {wallet.current_balance}
+                      {wallet.wallet_name} - Balance: {wallet.current_balance}
                     </SelectItem>
                   ))}
                 </SelectContent>

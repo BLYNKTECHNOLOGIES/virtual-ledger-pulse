@@ -179,7 +179,6 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
           const { data: usdtWallets, error: walletError } = await supabase
             .from('wallets')
             .select('*')
-            .eq('wallet_type', 'USDT')
             .eq('is_active', true)
             .limit(1);
 

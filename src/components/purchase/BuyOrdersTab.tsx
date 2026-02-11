@@ -254,16 +254,15 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
               // Get the wallet from the order item's warehouse_id (wallet mapping)
               let walletId = item.warehouse_id;
               
-              // If no warehouse_id set, try to find any active USDT wallet
+              // If no warehouse_id set, try to find any active wallet
               if (!walletId) {
-                const { data: usdtWallets } = await supabase
+                const { data: activeWallets } = await supabase
                   .from('wallets')
                   .select('id')
-                  .eq('wallet_type', 'USDT')
                   .eq('is_active', true)
                   .limit(1);
                 
-                walletId = usdtWallets?.[0]?.id;
+                walletId = activeWallets?.[0]?.id;
               }
 
               if (walletId) {

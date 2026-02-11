@@ -33,7 +33,6 @@ interface WalletType {
   id: string;
   wallet_name: string;
   wallet_address: string;
-  wallet_type: string;
   chain_name?: string;
   current_balance: number;
   total_received: number;
@@ -96,8 +95,7 @@ export function WalletManagementTab() {
         .select(`
           *,
           wallets (
-            wallet_name,
-            wallet_type
+            wallet_name
           ),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
@@ -116,7 +114,6 @@ export function WalletManagementTab() {
     mutationFn: async (walletData: {
       wallet_name: string;
       wallet_address: string;
-      wallet_type: string;
       chain_name: string;
       current_balance: number;
       fee_percentage?: number;
@@ -342,7 +339,6 @@ export function WalletManagementTab() {
     const [formData, setFormData] = useState({
       wallet_name: '',
       wallet_address: '',
-      wallet_type: 'USDT',
       chain_name: '',
       current_balance: '',
       fee_percentage: '0',
@@ -398,19 +394,6 @@ export function WalletManagementTab() {
                   <SelectItem value="Solana">Solana (SOL)</SelectItem>
                   <SelectItem value="Bitcoin">Bitcoin (BTC)</SelectItem>
                   <SelectItem value="APTOS">APTOS (APT)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="wallet_type">Wallet Type</Label>
-              <Select value={formData.wallet_type} onValueChange={(value) => setFormData({ ...formData, wallet_type: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
-                  <SelectItem value="USDT">USDT</SelectItem>
-                  <SelectItem value="BTC">Bitcoin</SelectItem>
-                  <SelectItem value="ETH">Ethereum</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -517,7 +500,7 @@ export function WalletManagementTab() {
                 <SelectContent>
                   {wallets?.filter(w => w.is_active).map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type})
+                      {wallet.wallet_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -581,7 +564,7 @@ export function WalletManagementTab() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Wallet Management</h2>
-          <p className="text-gray-600">Manage USDT and cryptocurrency wallets</p>
+          <p className="text-gray-600">Manage cryptocurrency wallets</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => refetchWallets()} variant="outline" disabled={walletsLoading}>
@@ -651,7 +634,6 @@ export function WalletManagementTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Wallet Name</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Chain</TableHead>
                   <TableHead>Address</TableHead>
                   <TableHead>Balance</TableHead>
@@ -664,9 +646,6 @@ export function WalletManagementTab() {
                 {wallets?.map((wallet) => (
                   <TableRow key={wallet.id}>
                     <TableCell className="font-medium">{wallet.wallet_name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{wallet.wallet_type}</Badge>
-                    </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{wallet.chain_name || "N/A"}</Badge>
                     </TableCell>

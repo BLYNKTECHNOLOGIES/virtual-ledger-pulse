@@ -27,7 +27,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
       
       const { data: wallet } = await supabase
         .from('wallets')
-        .select('wallet_name, wallet_type, chain_name, current_balance')
+        .select('wallet_name, chain_name, current_balance')
         .eq('id', order.wallet_id)
         .single();
 
@@ -170,7 +170,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             <div>
               <label className="text-sm font-medium text-gray-600">Wallet</label>
               <p className="text-sm">
-                {walletData ? `${walletData.wallet_name} (${walletData.wallet_type})` : 'N/A'}
+                {walletData ? `${walletData.wallet_name}` : 'N/A'}
               </p>
             </div>
             <div>

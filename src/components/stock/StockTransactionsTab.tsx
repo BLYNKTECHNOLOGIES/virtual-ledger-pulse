@@ -178,7 +178,7 @@ export function StockTransactionsTab() {
         .from('wallet_transactions')
         .select(`
           *,
-          wallets(wallet_name, wallet_type)
+          wallets(wallet_name)
         `)
         .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER', 'TRANSFER_FEE'])
         .order('created_at', { ascending: false });
@@ -843,7 +843,7 @@ export function StockTransactionsTab() {
                 <SelectContent>
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type}) - ₹{wallet.current_balance}
+                       {wallet.wallet_name} - ₹{wallet.current_balance}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -863,7 +863,7 @@ export function StockTransactionsTab() {
                   <SelectContent>
                     {wallets?.filter(w => w.id !== adjustmentData.fromWallet).map((wallet) => (
                       <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name} ({wallet.wallet_type}) - ₹{wallet.current_balance}
+                        {wallet.wallet_name} - ₹{wallet.current_balance}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -744,7 +744,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                   <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
                 <SelectContent className="bg-popover z-50 border border-border shadow-lg">
-                  {wallets?.filter(w => w.wallet_type === 'USDT').map((wallet) => (
+                  {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name}
                       {wallet.chain_name ? ` — ${wallet.chain_name}` : ''}

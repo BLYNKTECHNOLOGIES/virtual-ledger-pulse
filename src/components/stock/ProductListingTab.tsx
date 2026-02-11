@@ -40,7 +40,7 @@ export function ProductListingTab() {
   // Group wallet stock by product for USDT
   const getWalletStockForProduct = (productCode: string) => {
     if (productCode === 'USDT') {
-      return walletStock?.filter(w => w.wallet_type === 'USDT') || [];
+      return walletStock || [];
     }
     return [];
   };
@@ -98,7 +98,7 @@ export function ProductListingTab() {
                         <div key={wallet.wallet_id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                           <span className="text-sm">{wallet.wallet_name}</span>
                           <Badge variant="outline">
-                            {wallet.current_balance} {wallet.wallet_type}
+                            {wallet.current_balance} USDT
                           </Badge>
                         </div>
                       ))}

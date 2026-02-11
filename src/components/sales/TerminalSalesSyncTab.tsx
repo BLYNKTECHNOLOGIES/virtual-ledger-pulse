@@ -48,7 +48,12 @@ export function TerminalSalesSyncTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      // Sort by order creation time (latest first), falling back to synced_at
+      return (data || []).sort((a, b) => {
+        const timeA = Number((a.order_data as any)?.create_time || 0);
+        const timeB = Number((b.order_data as any)?.create_time || 0);
+        return timeB - timeA;
+      });
     },
   });
 

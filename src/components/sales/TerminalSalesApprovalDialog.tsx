@@ -38,6 +38,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [clientState, setClientState] = useState(syncRecord?.state || '');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
 
+  // Helper: lookup contact records by nickname(s) and pre-fill
+  const lookupContact = async (nicknames: string[]) => {
+    const unique = [...new Set(nicknames.filter(Boolean))];
+    if (unique.length === 0) return;
+    const { data: records } = await supabase
+      .from('counterparty_contact_records')
+      .select('contact_number, state')
+      .in('counterparty_nickname', unique);
+    const found = (records || []).find(r => r.contact_number || r.state);
+    if (found) {
+      if (found.contact_number) setContactNumber(found.contact_number);
+      if (found.state) setClientState(found.state);
+    }
+  };
+
   // Auto-fetch verified name if missing when dialog opens
   // Also pre-fill contact & state from counterparty_contact_records
   useEffect(() => {
@@ -48,46 +63,47 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
     if (!open || !syncRecord) return;
 
-    // Fetch contact/state from counterparty_contact_records if not already on sync record
-    const nickname = od.counterparty_nickname || syncRecord?.counterparty_name;
-    if (nickname && !syncRecord?.contact_number && !syncRecord?.state) {
-      supabase
-        .from('counterparty_contact_records')
-        .select('contact_number, state')
-        .eq('counterparty_nickname', nickname)
-        .maybeSingle()
-        .then(({ data: contactData }) => {
-          if (contactData) {
-            if (contactData.contact_number) setContactNumber(contactData.contact_number);
-            if (contactData.state) setClientState(contactData.state);
-          }
-        });
-    }
-
+    const maskedNickname = od.counterparty_nickname || syncRecord?.counterparty_name;
     const orderNumber = od.order_number || syncRecord?.binance_order_number;
     const hasVerifiedName = !!od.verified_name;
-    if (!hasVerifiedName && orderNumber) {
-      // Fetch verified name from Binance order detail API
+    const needsContactLookup = !syncRecord?.contact_number && !syncRecord?.state;
+
+    // Always fetch order detail to get unmasked nickname for contact lookup
+    if (orderNumber) {
       supabase.functions.invoke('binance-ads', {
         body: { action: 'getOrderDetail', orderNumber },
       }).then(({ data }) => {
         const detail = data?.data;
-        const buyerName = detail?.buyerRealName || detail?.buyerName || detail?.buyerNickName || null;
-        if (buyerName) {
-          setEnrichedName(buyerName);
-          // Also update the sync record in DB so it persists
+        const buyerRealName = detail?.buyerRealName || detail?.buyerName || null;
+        const buyerNickname = detail?.buyerNickname || null; // unmasked nickname
+
+        // Enrich name if missing
+        if (!hasVerifiedName && buyerRealName) {
+          setEnrichedName(buyerRealName);
           supabase
             .from('terminal_sales_sync')
             .update({
-              counterparty_name: buyerName,
-              order_data: { ...od, verified_name: buyerName },
+              counterparty_name: buyerRealName,
+              order_data: { ...od, verified_name: buyerRealName },
             })
             .eq('id', syncRecord.id)
             .then(() => {
               queryClient.invalidateQueries({ queryKey: ['terminal_sales_sync'] });
             });
         }
-      }).catch(() => { /* silently fail */ });
+
+        // Lookup contact using both masked AND unmasked nicknames
+        if (needsContactLookup) {
+          lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
+        }
+      }).catch(() => {
+        // Fallback: try masked nickname only
+        if (needsContactLookup && maskedNickname) {
+          lookupContact([maskedNickname]);
+        }
+      });
+    } else if (needsContactLookup && maskedNickname) {
+      lookupContact([maskedNickname]);
     }
   }, [syncRecord, open]);
 

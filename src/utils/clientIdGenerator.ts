@@ -84,6 +84,10 @@ export const createSellerClient = async (
         date_of_onboarding: new Date().toISOString().split('T')[0],
         phone: contactNumber || null,
         risk_appetite: 'MEDIUM',
+        is_seller: true,
+        is_buyer: false,
+        seller_approval_status: 'PENDING',
+        buyer_approval_status: 'NOT_APPLICABLE',
       })
       .select('id, client_id')
       .single();
@@ -123,6 +127,10 @@ export const createBuyerClient = async (
         phone: contactNumber || null,
         state: state || null,
         risk_appetite: 'MEDIUM',
+        is_buyer: true,
+        is_seller: false,
+        buyer_approval_status: 'PENDING',
+        seller_approval_status: 'NOT_APPLICABLE',
       })
       .select('id, client_id')
       .single();

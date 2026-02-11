@@ -173,38 +173,33 @@ export function WalletLinkingSection() {
   });
 
   return (
-    <Card className="border-dashed border-cyan-200 bg-cyan-50/30">
-      <CardHeader className="pb-3">
+    <Card className="border border-dashed border-muted-foreground/20 bg-muted/20">
+      <CardHeader className="py-2 px-4">
         <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-cyan-600" />
-              Terminal Wallet Links
-            </CardTitle>
-            <CardDescription className="text-xs mt-1">
-              Map ERP wallets to Terminal platforms for automated inventory posting
-            </CardDescription>
+          <div className="flex items-center gap-2">
+            <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Terminal Wallet Link</CardTitle>
           </div>
-          <Button size="sm" onClick={() => setShowLinkDialog(true)} className="gap-1">
-            <Link2 className="h-3.5 w-3.5" />
-            Link Wallet
+          <Button variant="ghost" size="sm" onClick={() => setShowLinkDialog(true)} className="h-7 gap-1 text-xs">
+            <Link2 className="h-3 w-3" />
+            Link
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="py-2 px-4 space-y-2">
         {isLoading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="flex justify-center py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
         ) : walletLinks.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No wallets linked to Terminal yet. Link a wallet to enable purchase sync.
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No wallet linked. Link one to enable sync.
           </p>
         ) : (
           walletLinks.map((link) => (
-            <div key={link.id} className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-100">
-              <div className="flex items-center gap-3">
-                <Wallet className="h-5 w-5 text-cyan-600" />
+            <div key={link.id} className="flex items-center justify-between py-1.5 px-2 rounded bg-background border border-border">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">{link.wallet_name}</p>
                   <div className="flex items-center gap-2 mt-0.5">

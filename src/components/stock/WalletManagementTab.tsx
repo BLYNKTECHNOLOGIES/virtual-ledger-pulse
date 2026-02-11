@@ -189,37 +189,79 @@ export function WalletManagementTab() {
       transaction_type: string;
       amount: number;
       description: string;
+      asset_code: string;
     }) => {
-      // Get current user ID for attribution - validate UUID format
       const rawUserId = getCurrentUserId();
       const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
       const createdByUserId = isValidUuid ? rawUserId : null;
 
-      // Get current balance first
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('current_balance')
-        .eq('id', transactionData.wallet_id)
-        .single();
+      const isUSDT = transactionData.asset_code === 'USDT';
 
-      if (!wallet) throw new Error('Wallet not found');
+      if (isUSDT) {
+        // For USDT, use wallets.current_balance as source of truth
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('current_balance')
+          .eq('id', transactionData.wallet_id)
+          .single();
 
-      const balanceBefore = wallet.current_balance;
-      const balanceAfter = transactionData.transaction_type === 'CREDIT' 
-        ? balanceBefore + transactionData.amount
-        : balanceBefore - transactionData.amount;
+        if (!wallet) throw new Error('Wallet not found');
 
-      const { error } = await supabase
-        .from('wallet_transactions')
-        .insert([{
-          ...transactionData,
-          reference_type: 'MANUAL_ADJUSTMENT',
-          balance_before: balanceBefore,
-          balance_after: balanceAfter,
-          created_by: createdByUserId
-        }]);
-      
-      if (error) throw error;
+        const balanceBefore = wallet.current_balance;
+        const balanceAfter = transactionData.transaction_type === 'CREDIT' 
+          ? balanceBefore + transactionData.amount
+          : balanceBefore - transactionData.amount;
+
+        const { error } = await supabase
+          .from('wallet_transactions')
+          .insert([{
+            wallet_id: transactionData.wallet_id,
+            transaction_type: transactionData.transaction_type,
+            amount: transactionData.amount,
+            description: transactionData.description,
+            asset_code: 'USDT',
+            reference_type: 'MANUAL_ADJUSTMENT',
+            balance_before: balanceBefore,
+            balance_after: balanceAfter,
+            created_by: createdByUserId
+          }]);
+        
+        if (error) throw error;
+      } else {
+        // For non-USDT assets, derive balance from sum of previous transactions
+        const { data: prevTxns } = await supabase
+          .from('wallet_transactions')
+          .select('transaction_type, amount')
+          .eq('wallet_id', transactionData.wallet_id)
+          .eq('asset_code', transactionData.asset_code);
+
+        const INFLOW = ['CREDIT', 'TRANSFER_IN'];
+        const currentAssetBalance = (prevTxns || []).reduce((sum, t) => {
+          const amt = Number(t.amount) || 0;
+          return sum + (INFLOW.includes(t.transaction_type) ? amt : -amt);
+        }, 0);
+
+        const balanceBefore = currentAssetBalance;
+        const balanceAfter = transactionData.transaction_type === 'CREDIT'
+          ? balanceBefore + transactionData.amount
+          : balanceBefore - transactionData.amount;
+
+        const { error } = await supabase
+          .from('wallet_transactions')
+          .insert([{
+            wallet_id: transactionData.wallet_id,
+            transaction_type: transactionData.transaction_type,
+            amount: transactionData.amount,
+            description: transactionData.description,
+            asset_code: transactionData.asset_code,
+            reference_type: 'MANUAL_ADJUSTMENT',
+            balance_before: balanceBefore,
+            balance_after: balanceAfter,
+            created_by: createdByUserId
+          }]);
+
+        if (error) throw error;
+      }
 
       // Stock syncing is handled by database triggers automatically
     },
@@ -461,7 +503,8 @@ export function WalletManagementTab() {
       wallet_id: '',
       transaction_type: 'CREDIT',
       amount: '',
-      description: ''
+      description: '',
+      asset_code: 'USDT'
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -499,6 +542,19 @@ export function WalletManagementTab() {
                     <SelectItem key={wallet.id} value={wallet.id}>
                       {wallet.wallet_name}
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="asset_code">Asset</Label>
+              <Select value={formData.asset_code} onValueChange={(value) => setFormData({ ...formData, asset_code: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['USDT','USDC','BTC','ETH','BNB','XRP','SOL','TRX','TON','SHIB'].map((code) => (
+                    <SelectItem key={code} value={code}>{code}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

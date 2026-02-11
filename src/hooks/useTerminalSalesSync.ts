@@ -12,10 +12,11 @@ async function fetchVerifiedBuyerName(orderNumber: string): Promise<string | nul
     });
     if (error) return null;
     // The response structure: data.data.buyerRealName or data.data.sellerRealName
-    const detail = data?.data;
+    const apiResult = data?.data;
+    const detail = apiResult?.data || apiResult;
     if (!detail) return null;
     // For SELL orders, we are the seller – the counterparty is the buyer
-    return detail.buyerRealName || detail.buyerNickName || null;
+    return detail.buyerRealName || detail.buyerName || detail.buyerNickName || null;
   } catch {
     return null;
   }

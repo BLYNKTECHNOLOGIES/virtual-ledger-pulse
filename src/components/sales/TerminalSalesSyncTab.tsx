@@ -200,7 +200,7 @@ export function TerminalSalesSyncTab() {
                 <TableHead className="text-xs">Fee</TableHead>
                 <TableHead className="text-xs">Contact</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
-                <TableHead className="text-xs">Synced</TableHead>
+                <TableHead className="text-xs">Order Time</TableHead>
                 <TableHead className="text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -241,7 +241,7 @@ export function TerminalSalesSyncTab() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {record.synced_at ? format(new Date(record.synced_at), 'dd MMM HH:mm') : '—'}
+                      {od?.create_time ? format(new Date(Number(od.create_time)), 'dd MMM HH:mm') : (record.synced_at ? format(new Date(record.synced_at), 'dd MMM HH:mm') : '—')}
                     </TableCell>
                     <TableCell>
                       {(record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') && (

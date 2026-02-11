@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,24 +9,19 @@ import { RejectDialog } from "./erp-actions/RejectDialog";
 import { ActionSelectionDialog } from "./erp-actions/ActionSelectionDialog";
 import { format } from "date-fns";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { useAuth } from "@/hooks/useAuth";
-
-// Roles that should receive ERP action notifications in the bell
-const ERP_NOTIFICATION_ROLES = ["admin", "finance", "stock_management", "purchase", "sales"];
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 
 export function ActionRequiredWidget() {
+  const { hasAccess, isLoading: accessLoading } = useErpReconciliationAccess();
   const { data: pendingItems = [], isLoading } = useErpActionQueue();
   const checkMutation = useCheckNewMovements();
   const [rejectItem, setRejectItem] = useState<ErpActionQueueItem | null>(null);
   const [entryItem, setEntryItem] = useState<ErpActionQueueItem | null>(null);
   const { addNotification } = useNotifications();
-  const { hasRole } = useAuth();
   const notifiedIdsRef = useRef<Set<string>>(new Set());
 
-  // Check if user has an ERP notification-eligible role
-  const shouldNotify = useMemo(() => {
-    return ERP_NOTIFICATION_ROLES.some(role => hasRole(role));
-  }, [hasRole]);
+  // Only users with erp_reconciliation function get notifications
+  const shouldNotify = hasAccess;
 
   // Push new pending items to the notification bell (role-gated)
   useEffect(() => {
@@ -43,8 +38,12 @@ export function ActionRequiredWidget() {
     });
   }, [pendingItems, shouldNotify, isLoading, addNotification]);
 
-  const deposits = useMemo(() => pendingItems.filter(i => i.movement_type === "deposit"), [pendingItems]);
-  const withdrawals = useMemo(() => pendingItems.filter(i => i.movement_type === "withdrawal"), [pendingItems]);
+  // If user doesn't have access, don't render the widget at all
+  if (accessLoading) return null;
+  if (!hasAccess) return null;
+
+  const deposits = pendingItems.filter(i => i.movement_type === "deposit");
+  const withdrawals = pendingItems.filter(i => i.movement_type === "withdrawal");
 
   const truncateTxId = (txId: string | null) => {
     if (!txId) return "—";

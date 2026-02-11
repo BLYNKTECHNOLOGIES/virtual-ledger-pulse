@@ -133,30 +133,9 @@ export function ProductCardListingTab() {
                       <Package className="h-3 w-3" />
                       In Stock
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-lg text-green-600">
-                        {product.total_stock.toFixed(2)} {product.unit_of_measurement}
-                      </p>
-                      {(() => {
-                        const binanceBalance = binanceBalanceMap.get(product.code);
-                        if (binanceBalance === undefined) return null;
-                        const diff = binanceBalance - product.total_stock;
-                        if (Math.abs(diff) <= 5) return null;
-                        return (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <span className="text-xs font-bold text-red-500 animate-pulse">
-                                {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">API Balance: {binanceBalance.toFixed(2)}</p>
-                              <p className="text-xs text-red-400">ERP vs Binance mismatch</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        );
-                      })()}
-                    </div>
+                    <p className="font-semibold text-lg text-green-600">
+                      {product.total_stock.toFixed(2)} {product.unit_of_measurement}
+                    </p>
                   </div>
                   <div>
                     <span className="text-gray-500 flex items-center gap-1">
@@ -195,8 +174,29 @@ export function ProductCardListingTab() {
                             <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                             <span className="text-gray-600">{wallet.wallet_name}</span>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex items-center gap-1.5">
                             <span className="font-medium">{wallet.balance.toFixed(2)}</span>
+                            {(() => {
+                              // Show API diff only for the first Binance-named wallet
+                              if (!wallet.wallet_name.toLowerCase().includes('binance')) return null;
+                              const binanceBalance = binanceBalanceMap.get(product.code);
+                              if (binanceBalance === undefined) return null;
+                              const diff = binanceBalance - wallet.balance;
+                              if (Math.abs(diff) <= 5) return null;
+                              return (
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <span className="text-[10px] font-bold text-red-500">
+                                      {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">API Balance: {binanceBalance.toFixed(2)}</p>
+                                    <p className="text-xs text-red-400">Difference from Binance API</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })()}
                             <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
                           </div>
                         </div>

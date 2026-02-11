@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 const periods = [
-  { label: 'Today', value: 'today' },
   { label: '7 Days', value: '7d' },
   { label: '30 Days', value: '30d' },
+  { label: '1 Year', value: '1y' },
 ] as const;
 
 export type TimePeriod = (typeof periods)[number]['value'];
@@ -16,16 +15,14 @@ interface Props {
 
 export function getTimestampsForPeriod(period: TimePeriod) {
   const now = Date.now();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
 
   switch (period) {
-    case 'today':
-      return { startTimestamp: todayStart.getTime(), endTimestamp: now };
     case '7d':
       return { startTimestamp: now - 7 * 24 * 60 * 60 * 1000, endTimestamp: now };
     case '30d':
       return { startTimestamp: now - 30 * 24 * 60 * 60 * 1000, endTimestamp: now };
+    case '1y':
+      return { startTimestamp: now - 365 * 24 * 60 * 60 * 1000, endTimestamp: now };
   }
 }
 

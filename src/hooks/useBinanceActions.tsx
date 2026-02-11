@@ -169,42 +169,64 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   });
 }
 
-/** Fetch ALL order history pages for the last 30 days */
+/** Fetch ALL order history for the last 30 days using time-windowing to bypass 1000-row API cap */
 export function useBinanceOrderHistory() {
   return useQuery({
     queryKey: ['binance-order-history-bulk'],
     queryFn: async () => {
       const startTimestamp = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      const endTimestamp = Date.now();
-      const allOrders: Array<{ orderNumber: string; orderStatus: string; [k: string]: any }> = [];
-      let page = 1;
-      const maxPages = 20; // safety cap
+      let windowEnd = Date.now();
+      const allOrders: Array<{ orderNumber: string; orderStatus: string; createTime: number; [k: string]: any }> = [];
+      const seenOrderNumbers = new Set<string>();
+      const maxWindows = 10; // safety cap for time windows
+      let windowCount = 0;
 
-      while (page <= maxPages) {
-        const result = await callBinanceAds('getOrderHistory', {
-          rows: 50,
-          page,
-          startTimestamp,
-          endTimestamp,
-        });
-        // Binance response: { code, data: [...orders] }
-        // Edge function wraps: { success: true, data: { code, data: [...] } }
-        const orders = result?.data || result || [];
-        console.log(`[OrderHistory] page=${page}, received=${Array.isArray(orders) ? orders.length : 'not-array'}`, typeof orders);
-        if (!Array.isArray(orders) || orders.length === 0) break;
-        allOrders.push(...orders);
-        console.log(`[OrderHistory] total so far: ${allOrders.length}`);
-        if (orders.length < 50) break; // last page
-        page++;
-        // Small delay to avoid rate limits
-        if (page <= maxPages) await new Promise(r => setTimeout(r, 500));
+      while (windowEnd > startTimestamp && windowCount < maxWindows) {
+        windowCount++;
+        let page = 1;
+        const maxPages = 20;
+        let oldestInWindow = windowEnd;
+        let windowOrders = 0;
+
+        while (page <= maxPages) {
+          const result = await callBinanceAds('getOrderHistory', {
+            rows: 50,
+            page,
+            startTimestamp,
+            endTimestamp: windowEnd,
+          });
+          const orders = result?.data || result || [];
+          if (!Array.isArray(orders) || orders.length === 0) break;
+
+          for (const o of orders) {
+            if (!seenOrderNumbers.has(o.orderNumber)) {
+              seenOrderNumbers.add(o.orderNumber);
+              allOrders.push(o);
+            }
+            if (o.createTime && o.createTime < oldestInWindow) {
+              oldestInWindow = o.createTime;
+            }
+          }
+          windowOrders += orders.length;
+          console.log(`[OrderHistory] window=${windowCount}, page=${page}, received=${orders.length}, total=${allOrders.length}`);
+
+          if (orders.length < 50) break;
+          page++;
+          await new Promise(r => setTimeout(r, 300));
+        }
+
+        // If we got fewer than 1000 in this window, we've reached the end
+        if (windowOrders < 1000) break;
+        // Move window end to 1ms before the oldest order to get the next batch
+        windowEnd = oldestInWindow - 1;
+        console.log(`[OrderHistory] Moving window end to ${new Date(windowEnd).toISOString()}, total so far: ${allOrders.length}`);
       }
 
-      console.log(`[OrderHistory] FINAL total orders: ${allOrders.length}, pages fetched: ${page}`);
+      console.log(`[OrderHistory] FINAL total orders: ${allOrders.length}, windows used: ${windowCount}`);
       return allOrders;
     },
     staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,
+    refetchInterval: 120 * 1000,
   });
 }
 

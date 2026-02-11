@@ -139,6 +139,78 @@ export type Database = {
         }
         Relationships: []
       }
+      asset_movement_history: {
+        Row: {
+          address: string | null
+          amount: number
+          asset: string
+          fee: number | null
+          id: string
+          movement_time: number
+          movement_type: string
+          network: string | null
+          raw_data: Json | null
+          status: string | null
+          synced_at: string
+          transfer_direction: string | null
+          tx_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          amount?: number
+          asset: string
+          fee?: number | null
+          id: string
+          movement_time?: number
+          movement_type: string
+          network?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          synced_at?: string
+          transfer_direction?: string | null
+          tx_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          amount?: number
+          asset?: string
+          fee?: number | null
+          id?: string
+          movement_time?: number
+          movement_type?: string
+          network?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          synced_at?: string
+          transfer_direction?: string | null
+          tx_id?: string | null
+        }
+        Relationships: []
+      }
+      asset_movement_sync_metadata: {
+        Row: {
+          id: string
+          last_deposit_time: number | null
+          last_sync_at: string | null
+          last_transfer_time: number | null
+          last_withdraw_time: number | null
+        }
+        Insert: {
+          id?: string
+          last_deposit_time?: number | null
+          last_sync_at?: string | null
+          last_transfer_time?: number | null
+          last_withdraw_time?: number | null
+        }
+        Update: {
+          id?: string
+          last_deposit_time?: number | null
+          last_sync_at?: string | null
+          last_transfer_time?: number | null
+          last_withdraw_time?: number | null
+        }
+        Relationships: []
+      }
       asset_value_history: {
         Row: {
           created_at: string

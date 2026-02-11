@@ -27,6 +27,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const od = syncRecord?.order_data || {};
+  // Prefer verified_name over counterparty_name (which may be masked like "P2P***")
+  const displayName = od.verified_name || syncRecord?.counterparty_name || '—';
 
   const [bankAccountId, setBankAccountId] = useState('');
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
@@ -78,7 +80,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const createClientMutation = useMutation({
     mutationFn: async () => {
       const clientData = await createBuyerClient(
-        syncRecord.counterparty_name,
+        displayName,
         contactNumber || undefined,
         clientState || undefined,
       );
@@ -86,7 +88,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
     onSuccess: (client: any) => {
       setLinkedClientId(client.id);
-      toast({ title: "Client Created", description: `${syncRecord.counterparty_name} added as buyer client` });
+      toast({ title: "Client Created", description: `${displayName} added as buyer client` });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
     onError: (err: any) => {
@@ -114,7 +116,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         .from('sales_orders')
         .insert({
           order_number: orderNumber,
-          client_name: syncRecord.counterparty_name,
+          client_name: displayName,
           client_phone: contactNumber || null,
           client_state: clientState || null,
           order_date: orderDate,
@@ -228,7 +230,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
                 <LockedField label="Commission/Fee" value={`${Number(od.commission || 0).toLocaleString()} USDT`} />
                 <LockedField label="Wallet" value={od.wallet_name || '—'} />
-                <LockedField label="Buyer Name" value={syncRecord?.counterparty_name || '—'} />
+                <LockedField label="Buyer Name" value={displayName} />
                 <LockedField label="Payment Method" value={od.pay_method || '—'} />
               </div>
             </CardContent>
@@ -241,7 +243,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               {linkedClientId ? (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">{syncRecord?.counterparty_name}</span>
+                  <span className="text-sm">{displayName}</span>
                   <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
                 </div>
               ) : (

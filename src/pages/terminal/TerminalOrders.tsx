@@ -100,17 +100,13 @@ export default function TerminalOrders() {
 
   const syncOrders = useSyncOrders();
 
-  // Lightweight recent history fetch (top 50) to catch just-completed orders quickly
+  // Lightweight recent history fetch (top N pages) to catch just-completed orders quickly
   const { data: recentHistory = [], refetch: refetchRecent, isFetching: isFetchingRecent } = useQuery({
     queryKey: ['binance-order-history-recent'],
     queryFn: async () => {
       // 7 days is enough for "just completed" fixes without heavy windowing
-      const data = await callBinanceAds('getOrderHistory', {
-        rows: 50,
-        page: 1,
-        startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000,
-        endTimestamp: Date.now(),
-      });
+      const startTimestamp = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const endTimestamp = Date.now();
 
       // Robust extraction: the edge function may return different wrappers depending on action.
       const extractItems = (response: unknown): any[] => {
@@ -129,8 +125,36 @@ export default function TerminalOrders() {
         return [];
       };
 
-      const orders = extractItems(data);
-      return orders;
+      // IMPORTANT: page=1 only is not enough (completed orders can fall beyond the first 50)
+      // Fetch a few pages to cover high-volume periods, then stop when Binance returns empty.
+      const maxPages = 8; // up to 400 rows in the last 7 days
+      const rows = 50;
+      const all: any[] = [];
+      const seen = new Set<string>();
+
+      for (let page = 1; page <= maxPages; page++) {
+        const data = await callBinanceAds('getOrderHistory', {
+          rows,
+          page,
+          startTimestamp,
+          endTimestamp,
+        });
+        const items = extractItems(data);
+        if (!Array.isArray(items) || items.length === 0) break;
+
+        for (const o of items) {
+          const orderNumber = o?.orderNumber === undefined || o?.orderNumber === null ? '' : String(o.orderNumber);
+          if (!orderNumber) continue;
+          if (seen.has(orderNumber)) continue;
+          seen.add(orderNumber);
+          all.push({ ...o, orderNumber });
+        }
+
+        if (items.length < rows) break;
+        await new Promise(r => setTimeout(r, 150));
+      }
+
+      return all;
     },
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,

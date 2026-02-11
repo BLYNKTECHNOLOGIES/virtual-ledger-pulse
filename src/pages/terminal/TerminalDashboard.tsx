@@ -3,48 +3,49 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Megaphone, ShoppingCart, ArrowUpRight, RefreshCw } from 'lucide-react';
-import { TimePeriodFilter, TimePeriod, getTimestampsForPeriod } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { MetricCards } from '@/components/terminal/dashboard/MetricCards';
 import { TradeVolumeChart } from '@/components/terminal/dashboard/TradeVolumeChart';
 import { AdPerformanceWidget } from '@/components/terminal/dashboard/AdPerformanceWidget';
 import { OperationalAlerts } from '@/components/terminal/dashboard/OperationalAlerts';
 import { OrderStatusBreakdown } from '@/components/terminal/dashboard/OrderStatusBreakdown';
-import { useBinanceOrderHistory, computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
+import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
+import { useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 
 export default function TerminalDashboard() {
-  const [period, setPeriod] = useState<TimePeriod>('30d');
+  const { data: rawOrders = [], isLoading: ordersLoading, refetch, isFetching } = useBinanceOrderHistory();
 
-  // Memoize timestamps so the query key stays stable between renders
-  const timestamps = useMemo(() => getTimestampsForPeriod(period), [period]);
-  const stableStart = useMemo(() => timestamps.startTimestamp, [timestamps]);
-  const stableEnd = useMemo(() => timestamps.endTimestamp, [timestamps]);
-
-  const { data: orderData, isLoading: ordersLoading, refetch, isFetching } = useBinanceOrderHistory({
-    startTimestamp: stableStart,
-    endTimestamp: stableEnd,
-    rows: 100,
-  });
-
+  // Map raw order data to C2COrderHistoryItem shape for computeOrderStats
   const orders: C2COrderHistoryItem[] = useMemo(() => {
-    return orderData?.data || [];
-  }, [orderData]);
+    if (!Array.isArray(rawOrders)) return [];
+    return rawOrders.map((o: any) => ({
+      orderNumber: o.orderNumber || '',
+      advNo: o.advNo || '',
+      tradeType: o.tradeType || '',
+      asset: o.asset || 'USDT',
+      fiatUnit: o.fiat || o.fiatUnit || 'INR',
+      orderStatus: String(o.orderStatus || ''),
+      amount: String(o.amount || '0'),
+      totalPrice: String(o.totalPrice || '0'),
+      unitPrice: String(o.unitPrice || '0'),
+      commission: String(o.commission || '0'),
+      counterPartNickName: o.counterPartNickName || o.buyerNickname || o.sellerNickname || '',
+      createTime: o.createTime || 0,
+      payMethodName: o.payMethodName,
+    }));
+  }, [rawOrders]);
 
-  const stats = useMemo(() => {
-    const s = computeOrderStats(orders);
-    console.log('[Dashboard] orders count:', orders.length, 'stats:', JSON.stringify(s));
-    return s;
-  }, [orders]);
+  const stats = useMemo(() => computeOrderStats(orders), [orders]);
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      {/* Header with period filter */}
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">P2P Trading Operations Overview</p>
+          <p className="text-xs text-muted-foreground mt-0.5">P2P Trading Operations · Last 30 Days</p>
         </div>
         <div className="flex items-center gap-2">
-          <TimePeriodFilter value={period} onChange={setPeriod} />
+          <span className="text-[10px] text-muted-foreground">{orders.length} orders loaded</span>
           <Button
             variant="ghost"
             size="icon"
@@ -57,7 +58,7 @@ export default function TerminalDashboard() {
         </div>
       </div>
 
-      {/* Metric cards — 2 rows of 4 */}
+      {/* Metric cards */}
       <MetricCards
         activeOrders={stats.activeOrders}
         pendingPayments={stats.pendingPayments}
@@ -72,7 +73,7 @@ export default function TerminalDashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TradeVolumeChart orders={orders} isLoading={ordersLoading} period={period} />
+        <TradeVolumeChart orders={orders} isLoading={ordersLoading} period="30d" />
         <OrderStatusBreakdown orders={orders} isLoading={ordersLoading} />
       </div>
 

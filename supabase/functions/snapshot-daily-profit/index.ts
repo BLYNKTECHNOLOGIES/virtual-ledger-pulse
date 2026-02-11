@@ -16,14 +16,20 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const today = new Date().toISOString().split("T")[0];
+    // Cron runs at midnight, so we snapshot YESTERDAY's completed data
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const snapshotDate = yesterday.toISOString().split("T")[0];
+    const dayStart = snapshotDate + "T00:00:00";
+    const dayEnd = snapshotDate + "T23:59:59";
 
-    // 1. Fetch completed sales orders for today
+    // 1. Fetch completed sales orders for yesterday
     const { data: salesOrders } = await supabase
       .from("sales_orders")
       .select("id, quantity, price_per_unit")
       .eq("status", "COMPLETED")
-      .eq("order_date", today);
+      .eq("order_date", snapshotDate);
 
     const totalSalesQty = salesOrders?.reduce(
       (sum, o) => sum + (Number(o.quantity) || 0), 0
@@ -35,12 +41,12 @@ serve(async (req) => {
 
     const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
-    // 2. Fetch completed purchase orders for today
+    // 2. Fetch completed purchase orders for yesterday
     const { data: purchaseOrders } = await supabase
       .from("purchase_orders")
       .select("id")
       .eq("status", "COMPLETED")
-      .eq("order_date", today);
+      .eq("order_date", snapshotDate);
 
     const purchaseOrderIds = purchaseOrders?.map((po) => po.id) || [];
 
@@ -61,7 +67,7 @@ serve(async (req) => {
       }
     }
 
-    // 3. Fetch USDT fee debits for today
+    // 3. Fetch USDT fee debits for yesterday
     const { data: usdtFees } = await supabase
       .from("wallet_transactions")
       .select("amount")
@@ -72,8 +78,8 @@ serve(async (req) => {
         "SALES_ORDER_FEE",
         "PURCHASE_ORDER_FEE",
       ])
-      .gte("created_at", today)
-      .lte("created_at", today + "T23:59:59");
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd);
 
     const totalUsdtFees =
       usdtFees?.reduce((sum, f) => sum + Number(f.amount), 0) || 0;
@@ -97,7 +103,7 @@ serve(async (req) => {
       .from("daily_gross_profit_history")
       .upsert(
         {
-          snapshot_date: today,
+          snapshot_date: snapshotDate,
           gross_profit: grossProfit,
           total_sales_qty: totalSalesQty,
           avg_sales_rate: avgSalesRate,
@@ -111,7 +117,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        snapshot_date: today,
+        snapshot_date: snapshotDate,
         gross_profit: grossProfit,
         total_sales_qty: totalSalesQty,
         avg_sales_rate: avgSalesRate,

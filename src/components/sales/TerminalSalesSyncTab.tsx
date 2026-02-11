@@ -52,6 +52,49 @@ export function TerminalSalesSyncTab() {
     },
   });
 
+  // Enrich missing verified names
+  const enrichMutation = useMutation({
+    mutationFn: async () => {
+      // Find records missing verified_name
+      const pendingRecords = syncRecords.filter(r => {
+        const od = r.order_data as any;
+        return !od?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending');
+      });
+      let enriched = 0;
+      for (const record of pendingRecords) {
+        const orderNumber = (record.order_data as any)?.order_number || record.binance_order_number;
+        if (!orderNumber) continue;
+        try {
+          const { data } = await supabase.functions.invoke('binance-ads', {
+            body: { action: 'getOrderDetail', orderNumber },
+          });
+          const detail = data?.data;
+          const buyerName = detail?.buyerRealName || detail?.buyerName || null;
+          if (buyerName) {
+            const od = record.order_data as any;
+            await supabase
+              .from('terminal_sales_sync')
+              .update({
+                counterparty_name: buyerName,
+                order_data: { ...od, verified_name: buyerName },
+              })
+              .eq('id', record.id);
+            enriched++;
+          }
+          await new Promise(r => setTimeout(r, 300));
+        } catch { /* skip */ }
+      }
+      return enriched;
+    },
+    onSuccess: (enriched) => {
+      toast({
+        title: "Name Enrichment Complete",
+        description: `${enriched} buyer names verified from Binance`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+    },
+  });
+
   // Manual sync trigger
   const syncMutation = useMutation({
     mutationFn: syncCompletedSellOrders,
@@ -123,6 +166,12 @@ export function TerminalSalesSyncTab() {
             {syncMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
             Sync Now
           </Button>
+          {syncRecords.some(r => !(r.order_data as any)?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending')) && (
+            <Button size="sm" variant="outline" onClick={() => enrichMutation.mutate()} disabled={enrichMutation.isPending} className="gap-1">
+              {enrichMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              Fetch Verified Names
+            </Button>
+          )}
         </div>
       </div>
 
@@ -159,11 +208,20 @@ export function TerminalSalesSyncTab() {
               {syncRecords.map((record) => {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
+                const verifiedName = od?.verified_name;
+                const buyerDisplay = verifiedName || null;
+                const isPendingVerifiedName = !verifiedName && (record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending');
 
                 return (
-                  <TableRow key={record.id}>
+                  <TableRow key={record.id} className={isPendingVerifiedName ? 'opacity-60' : ''}>
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
-                    <TableCell className="text-xs">{(od?.verified_name || record.counterparty_name || od?.counterparty_name || '—')}</TableCell>
+                    <TableCell className="text-xs">
+                      {buyerDisplay ? buyerDisplay : (
+                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                          Name Pending
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
@@ -188,6 +246,11 @@ export function TerminalSalesSyncTab() {
                     <TableCell>
                       {(record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending') && (
                         <div className="flex gap-1">
+                          {isPendingVerifiedName ? (
+                            <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                              Awaiting Verified Name
+                            </Badge>
+                          ) : (
                           <Button
                             variant="default"
                             size="sm"
@@ -197,6 +260,7 @@ export function TerminalSalesSyncTab() {
                             <CheckCircle2 className="h-3 w-3" />
                             Approve
                           </Button>
+                          )}
                           <Button
                             variant="destructive"
                             size="sm"

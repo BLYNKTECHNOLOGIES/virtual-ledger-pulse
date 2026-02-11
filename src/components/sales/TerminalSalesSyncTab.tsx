@@ -36,19 +36,18 @@ export function TerminalSalesSyncTab() {
   const { data: syncRecords = [], isLoading, refetch } = useQuery({
     queryKey: ['terminal-sales-sync', statusFilter],
     queryFn: async () => {
-      // Only show today's orders onward (start of today in IST → UTC)
+      // Calculate start of today in IST (epoch ms) for filtering by order create_time
       const now = new Date();
       const istOffset = 5.5 * 60 * 60 * 1000;
       const istNow = new Date(now.getTime() + istOffset);
       const todayStartIST = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
-      const todayStartUTC = new Date(todayStartIST.getTime() - istOffset);
+      const todayStartEpochMs = todayStartIST.getTime() - istOffset;
 
       let query = supabase
         .from('terminal_sales_sync')
         .select('*')
-        .gte('synced_at', todayStartUTC.toISOString())
         .order('synced_at', { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (statusFilter === 'rejected') {
         query = query.eq('sync_status', 'rejected');
@@ -60,8 +59,15 @@ export function TerminalSalesSyncTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      // Sort by order creation time (latest first), falling back to synced_at
-      return (data || []).sort((a, b) => {
+
+      // Filter: only orders created today (IST) or later, using order_data.create_time (epoch ms)
+      const filtered = (data || []).filter(r => {
+        const createTime = Number((r.order_data as any)?.create_time || 0);
+        return createTime >= todayStartEpochMs;
+      });
+
+      // Sort by order creation time (latest first)
+      return filtered.sort((a, b) => {
         const timeA = Number((a.order_data as any)?.create_time || 0);
         const timeB = Number((b.order_data as any)?.create_time || 0);
         return timeB - timeA;

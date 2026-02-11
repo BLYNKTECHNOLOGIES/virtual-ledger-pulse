@@ -122,29 +122,6 @@ export function ProductCardListingTab() {
                   </div>
                 <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />
-                  {(() => {
-                    const binanceBalance = binanceBalanceMap.get(product.code);
-                    if (binanceBalance === undefined) return null;
-                    const diff = Math.abs(binanceBalance - product.total_stock);
-                    const hasMismatch = diff > 5;
-                    return (
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-[9px] gap-0.5 ${hasMismatch ? 'border-red-500 text-red-500 bg-red-500/5 animate-pulse' : 'border-muted-foreground/30 text-muted-foreground'}`}
-                          >
-                            {hasMismatch && <AlertTriangle className="h-2.5 w-2.5" />}
-                            API: {binanceBalance.toFixed(4)}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">Binance API Balance (Reference Only)</p>
-                          {hasMismatch && <p className="text-xs text-red-400">⚠ Difference: {diff.toFixed(4)} USDT</p>}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })()}
                 </div>
                 </div>
               </CardHeader>
@@ -156,9 +133,30 @@ export function ProductCardListingTab() {
                       <Package className="h-3 w-3" />
                       In Stock
                     </span>
-                    <p className="font-semibold text-lg text-green-600">
-                      {product.total_stock.toFixed(2)} {product.unit_of_measurement}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-lg text-green-600">
+                        {product.total_stock.toFixed(2)} {product.unit_of_measurement}
+                      </p>
+                      {(() => {
+                        const binanceBalance = binanceBalanceMap.get(product.code);
+                        if (binanceBalance === undefined) return null;
+                        const diff = binanceBalance - product.total_stock;
+                        if (Math.abs(diff) <= 5) return null;
+                        return (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="text-xs font-bold text-red-500 animate-pulse">
+                                {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">API Balance: {binanceBalance.toFixed(2)}</p>
+                              <p className="text-xs text-red-400">ERP vs Binance mismatch</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })()}
+                    </div>
                   </div>
                   <div>
                     <span className="text-gray-500 flex items-center gap-1">

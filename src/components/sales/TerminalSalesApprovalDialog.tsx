@@ -27,8 +27,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const od = syncRecord?.order_data || {};
+  const [enrichedName, setEnrichedName] = useState<string | null>(null);
   // Prefer verified_name over counterparty_name (which may be masked like "P2P***")
-  const displayName = od.verified_name || syncRecord?.counterparty_name || '—';
+  const displayName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
 
   const [bankAccountId, setBankAccountId] = useState('');
   const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,11 +38,39 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [clientState, setClientState] = useState(syncRecord?.state || '');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
 
+  // Auto-fetch verified name if missing when dialog opens
   useEffect(() => {
     setLinkedClientId(syncRecord?.client_id || '');
     setContactNumber(syncRecord?.contact_number || '');
     setClientState(syncRecord?.state || '');
-  }, [syncRecord]);
+    setEnrichedName(null);
+
+    const orderNumber = od.order_number || syncRecord?.binance_order_number;
+    const hasVerifiedName = !!od.verified_name;
+    if (!hasVerifiedName && orderNumber && open) {
+      // Fetch verified name from Binance order detail API
+      supabase.functions.invoke('binance-ads', {
+        body: { action: 'getOrderDetail', orderNumber },
+      }).then(({ data }) => {
+        const detail = data?.data;
+        const buyerName = detail?.buyerRealName || detail?.buyerName || detail?.buyerNickName || null;
+        if (buyerName) {
+          setEnrichedName(buyerName);
+          // Also update the sync record in DB so it persists
+          supabase
+            .from('terminal_sales_sync')
+            .update({
+              counterparty_name: buyerName,
+              order_data: { ...od, verified_name: buyerName },
+            })
+            .eq('id', syncRecord.id)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['terminal_sales_sync'] });
+            });
+        }
+      }).catch(() => { /* silently fail */ });
+    }
+  }, [syncRecord, open]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({

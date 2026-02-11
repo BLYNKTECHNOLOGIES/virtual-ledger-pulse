@@ -176,7 +176,7 @@ export function useBinanceOrderHistory() {
     queryFn: async () => {
       const result = await callBinanceAds('getOrderHistory', {
         rows: 100,
-        startTimestamp: Date.now() - 7 * 24 * 60 * 60 * 1000, // 7 days
+        startTimestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days
         endTimestamp: Date.now(),
       });
       // Response shape: { data: { code, data: [...orders] } }

@@ -64,7 +64,7 @@ export function useSyncOrderHistory() {
       let windowEnd = Date.now();
       const allOrders: any[] = [];
       const seenOrderNumbers = new Set<string>();
-      const maxWindows = 10;
+      const maxWindows = 30; // supports up to ~30,000 orders
       let windowCount = 0;
 
       while (windowEnd > startTimestamp && windowCount < maxWindows) {

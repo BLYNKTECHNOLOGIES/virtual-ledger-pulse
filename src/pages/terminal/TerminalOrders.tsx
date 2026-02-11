@@ -253,7 +253,7 @@ export default function TerminalOrders() {
       return record;
     });
     return allRecords;
-  }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap]);
+  }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap, recentStatusMap]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);

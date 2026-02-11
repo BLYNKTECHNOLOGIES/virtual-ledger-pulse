@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssetOverview } from "@/components/terminal/assets/AssetOverview";
 import { SpotTradingPanel } from "@/components/terminal/assets/SpotTradingPanel";
 import { TradeHistory } from "@/components/terminal/assets/TradeHistory";
-import { Wallet, ArrowLeftRight, History } from "lucide-react";
+import { AssetMovementHistory } from "@/components/terminal/assets/AssetMovementHistory";
+import { Wallet, ArrowLeftRight, History, ScrollText } from "lucide-react";
 
 export default function TerminalAssets() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -28,6 +29,10 @@ export default function TerminalAssets() {
             <History className="h-3.5 w-3.5" />
             Trade History
           </TabsTrigger>
+          <TabsTrigger value="overall" className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <ScrollText className="h-3.5 w-3.5" />
+            Overall
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-0">
@@ -40,6 +45,10 @@ export default function TerminalAssets() {
 
         <TabsContent value="history" className="mt-0">
           <TradeHistory />
+        </TabsContent>
+
+        <TabsContent value="overall" className="mt-0">
+          <AssetMovementHistory />
         </TabsContent>
       </Tabs>
     </div>

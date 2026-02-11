@@ -66,7 +66,6 @@ serve(async (req) => {
       "clientType": "web",
     };
 
-    // Helper: call proxy with params as URL query string (proxy passes these through for SAPI)
     async function proxyCall(path: string, params: Record<string, string> = {}): Promise<any> {
       const qs = new URLSearchParams(params).toString();
       const url = qs
@@ -86,16 +85,33 @@ serve(async (req) => {
       }
     }
 
+    async function proxyGet(path: string, params: Record<string, string> = {}): Promise<any> {
+      const qs = new URLSearchParams(params).toString();
+      const url = qs
+        ? `${BINANCE_PROXY_URL}/api${path}?${qs}`
+        : `${BINANCE_PROXY_URL}/api${path}`;
+      console.log(`proxyGet GET ${path} params:`, Object.keys(params));
+      const res = await fetchWithRetry(url, {
+        method: "GET",
+        headers: proxyHeaders,
+      });
+      const text = await res.text();
+      console.log(`proxyGet response ${res.status}:`, text.substring(0, 500));
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { error: text };
+      }
+    }
+
     let result: any;
 
     switch (action) {
       // ===== GET ALL BALANCES (Funding + Spot) =====
       case "getBalances": {
-        // Funding wallet (SAPI - no params needed)
         const fundingData = await proxyCall("/sapi/v1/asset/get-funding-asset");
         const fundingList = Array.isArray(fundingData) ? fundingData : [];
 
-        // Spot account (GET via proxy)
         let spotData: any = {};
         try {
           const spotUrl = `${BINANCE_PROXY_URL}/api/api/v3/account`;
@@ -111,8 +127,6 @@ serve(async (req) => {
         }
 
         const spotBalances: any[] = spotData?.balances || [];
-
-        // Merge balances
         const assetMap = new Map<string, { asset: string; funding_free: number; funding_locked: number; funding_freeze: number; spot_free: number; spot_locked: number }>();
 
         for (const item of fundingList) {
@@ -177,7 +191,6 @@ serve(async (req) => {
       case "executeTradeWithTransfer": {
         const { symbol, side, quantity, quoteOrderQty, transferAsset } = payload;
 
-        // Step 1: Auto-transfer from Funding→Spot if needed
         let transferResult = null;
         let fundingTransferred = false;
         const assetToCheck = transferAsset;
@@ -205,7 +218,6 @@ serve(async (req) => {
           }
         }
 
-        // Step 2: Execute spot market order via proxy
         if (!symbol || !side) throw new Error("Missing: symbol, side");
         const orderParams: Record<string, string> = { symbol, side, type: "MARKET" };
         if (quoteOrderQty) orderParams.quoteOrderQty = String(quoteOrderQty);
@@ -294,9 +306,53 @@ serve(async (req) => {
           }
         }
 
-        // Sort by time descending
         allTrades.sort((a, b) => (b.time || 0) - (a.time || 0));
         result = allTrades;
+        break;
+      }
+
+      // ===== DEPOSIT HISTORY =====
+      case "getDepositHistory": {
+        const { startTime, endTime, coin, status, limit: depLimit, offset } = payload;
+        const params: Record<string, string> = {};
+        if (startTime) params.startTime = String(startTime);
+        if (endTime) params.endTime = String(endTime);
+        if (coin) params.coin = coin;
+        if (status !== undefined) params.status = String(status);
+        if (depLimit) params.limit = String(depLimit);
+        if (offset) params.offset = String(offset);
+
+        result = await proxyGet("/sapi/v1/capital/deposit/hisrec", params);
+        break;
+      }
+
+      // ===== WITHDRAWAL HISTORY =====
+      case "getWithdrawHistory": {
+        const { startTime, endTime, coin, status, limit: wdLimit, offset } = payload;
+        const params: Record<string, string> = {};
+        if (startTime) params.startTime = String(startTime);
+        if (endTime) params.endTime = String(endTime);
+        if (coin) params.coin = coin;
+        if (status !== undefined) params.status = String(status);
+        if (wdLimit) params.limit = String(wdLimit);
+        if (offset) params.offset = String(offset);
+
+        result = await proxyGet("/sapi/v1/capital/withdraw/history", params);
+        break;
+      }
+
+      // ===== UNIVERSAL TRANSFER HISTORY =====
+      case "getTransferHistory": {
+        const { type: transferType, startTime, endTime, current, size } = payload;
+        // Transfer types: MAIN_UMFUTURE, MAIN_CMFUTURE, MAIN_MARGIN, MAIN_FUNDING, FUNDING_MAIN, etc.
+        if (!transferType) throw new Error("Missing: type (transfer type enum)");
+        const params: Record<string, string> = { type: transferType };
+        if (startTime) params.startTime = String(startTime);
+        if (endTime) params.endTime = String(endTime);
+        if (current) params.current = String(current);
+        if (size) params.size = String(size);
+
+        result = await proxyGet("/sapi/v1/asset/transfer", params);
         break;
       }
 

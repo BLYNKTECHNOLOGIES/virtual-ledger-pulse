@@ -36,14 +36,26 @@ export function TerminalSalesSyncTab() {
   const { data: syncRecords = [], isLoading, refetch } = useQuery({
     queryKey: ['terminal-sales-sync', statusFilter],
     queryFn: async () => {
+      // Only show today's orders onward (start of today in IST → UTC)
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istNow = new Date(now.getTime() + istOffset);
+      const todayStartIST = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
+      const todayStartUTC = new Date(todayStartIST.getTime() - istOffset);
+
       let query = supabase
         .from('terminal_sales_sync')
         .select('*')
+        .gte('synced_at', todayStartUTC.toISOString())
         .order('synced_at', { ascending: false })
         .limit(200);
 
-      if (statusFilter !== 'all') {
-        query = query.eq('sync_status', statusFilter);
+      if (statusFilter === 'rejected') {
+        query = query.eq('sync_status', 'rejected');
+      } else if (statusFilter !== 'all') {
+        query = query.eq('sync_status', statusFilter).neq('sync_status', 'rejected');
+      } else {
+        query = query.neq('sync_status', 'rejected');
       }
 
       const { data, error } = await query;

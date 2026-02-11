@@ -13,7 +13,6 @@ interface Wallet {
   id: string;
   wallet_name: string;
   wallet_address: string;
-  wallet_type: string;
   chain_name?: string;
   current_balance: number;
   is_active: boolean;
@@ -34,7 +33,6 @@ export function EditWalletDialog({ open, onOpenChange, wallet }: EditWalletDialo
   const [formData, setFormData] = useState({
     wallet_name: '',
     wallet_address: '',
-    wallet_type: 'USDT',
     chain_name: '',
     fee_percentage: '0',
     is_fee_enabled: true,
@@ -46,7 +44,6 @@ export function EditWalletDialog({ open, onOpenChange, wallet }: EditWalletDialo
       setFormData({
         wallet_name: wallet.wallet_name || '',
         wallet_address: wallet.wallet_address || '',
-        wallet_type: wallet.wallet_type || 'USDT',
         chain_name: wallet.chain_name || '',
         fee_percentage: (wallet.fee_percentage ?? 0).toString(),
         is_fee_enabled: wallet.is_fee_enabled ?? true,
@@ -64,7 +61,6 @@ export function EditWalletDialog({ open, onOpenChange, wallet }: EditWalletDialo
         .update({
           wallet_name: data.wallet_name,
           wallet_address: data.wallet_address,
-          wallet_type: data.wallet_type,
           chain_name: data.chain_name,
           fee_percentage: parseFloat(data.fee_percentage) || 0,
           is_fee_enabled: data.is_fee_enabled,
@@ -135,20 +131,6 @@ export function EditWalletDialog({ open, onOpenChange, wallet }: EditWalletDialo
                 <SelectItem value="Solana">Solana (SOL)</SelectItem>
                 <SelectItem value="Bitcoin">Bitcoin (BTC)</SelectItem>
                 <SelectItem value="APTOS">APTOS (APT)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div>
-            <Label htmlFor="wallet_type">Wallet Type</Label>
-            <Select value={formData.wallet_type} onValueChange={(value) => setFormData({ ...formData, wallet_type: value })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="USDT">USDT</SelectItem>
-                <SelectItem value="BTC">Bitcoin</SelectItem>
-                <SelectItem value="ETH">Ethereum</SelectItem>
               </SelectContent>
             </Select>
           </div>

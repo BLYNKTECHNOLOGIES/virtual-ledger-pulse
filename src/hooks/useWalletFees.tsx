@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 export interface WalletWithFees {
   id: string;
   wallet_name: string;
-  wallet_type: string;
   chain_name?: string;
   current_balance: number;
   fee_percentage: number;
@@ -20,7 +19,7 @@ export function useWalletFees(walletId?: string) {
       
       const { data, error } = await supabase
         .from('wallets')
-        .select('id, wallet_name, wallet_type, chain_name, current_balance, fee_percentage, is_fee_enabled, is_active')
+        .select('id, wallet_name, chain_name, current_balance, fee_percentage, is_fee_enabled, is_active')
         .eq('id', walletId)
         .single();
       
@@ -37,7 +36,7 @@ export function useWalletsWithFees() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wallets')
-        .select('id, wallet_name, wallet_type, chain_name, current_balance, fee_percentage, is_fee_enabled, is_active')
+        .select('id, wallet_name, chain_name, current_balance, fee_percentage, is_fee_enabled, is_active')
         .eq('is_active', true)
         .order('wallet_name');
       

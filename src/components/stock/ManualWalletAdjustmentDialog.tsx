@@ -71,7 +71,6 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       .insert({
         wallet_name: ADJUSTMENT_WALLET_NAME,
         wallet_address: "ADJUSTMENT-WALLET-001",
-        wallet_type: "USDT",
         chain_name: "Internal",
         current_balance: 0,
         total_received: 0,
@@ -101,7 +100,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       const [{ data: mainWallet, error: mainErr }, { data: adjWallet, error: adjErr }] = await Promise.all([
         supabase
           .from('wallets')
-          .select('id, wallet_name, wallet_type, current_balance')
+          .select('id, wallet_name, current_balance')
           .eq('id', wallet_id)
           .single(),
         supabase
@@ -239,7 +238,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
               <SelectContent>
                 {wallets?.filter(w => w.wallet_name !== ADJUSTMENT_WALLET_NAME).map((wallet) => (
                   <SelectItem key={wallet.id} value={wallet.id}>
-                    {wallet.wallet_name} ({wallet.wallet_type}) - {(Number(wallet.current_balance ?? 0)).toFixed(2)}
+                    {wallet.wallet_name} - {(Number(wallet.current_balance ?? 0)).toFixed(2)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -250,7 +249,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
             <div className="bg-muted p-3 rounded-md text-sm">
               <div className="flex justify-between">
                 <span>Current Balance:</span>
-                <span className="font-medium">{(Number(selectedWallet.current_balance ?? 0)).toFixed(2)} {selectedWallet.wallet_type}</span>
+                <span className="font-medium">{(Number(selectedWallet.current_balance ?? 0)).toFixed(2)} USDT</span>
               </div>
             </div>
           )}
@@ -302,7 +301,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
                   {(formData.adjustment_type === "CREDIT" 
                     ? Number(selectedWallet.current_balance ?? 0) + parseFloat(formData.amount || "0")
                     : Number(selectedWallet.current_balance ?? 0) - parseFloat(formData.amount || "0")
-                  ).toFixed(2)} {selectedWallet.wallet_type}
+                  ).toFixed(2)} USDT
                 </span>
               </div>
             </div>

@@ -5,7 +5,6 @@ import { getCurrentUserId } from "@/lib/system-action-logger";
 export interface WalletStockItem {
   wallet_id: string;
   wallet_name: string;
-  wallet_type: string;
   current_balance: number;
   chain_name: string;
 }
@@ -29,7 +28,6 @@ export function useWalletStock() {
     queryFn: async () => {
       console.log('🔄 Fetching wallet stock data...');
       
-      // Stock syncing is handled by database triggers automatically
       const { data: wallets, error } = await supabase
         .from('wallets')
         .select('*')
@@ -43,11 +41,10 @@ export function useWalletStock() {
 
       console.log('Raw wallet data:', wallets);
 
-      // Convert wallets to stock format
+      // Convert wallets to stock format - all wallets can hold any asset
       const result: WalletStockItem[] = wallets?.map(wallet => ({
         wallet_id: wallet.id,
         wallet_name: wallet.wallet_name,
-        wallet_type: wallet.wallet_type,
         current_balance: wallet.current_balance || 0,
         chain_name: wallet.chain_name || ''
       })) || [];
@@ -56,37 +53,34 @@ export function useWalletStock() {
       
       return result;
     },
-    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
-    staleTime: 0, // Always refetch to ensure fresh data
+    refetchInterval: 10000,
+    staleTime: 0,
   });
 }
 
 export function useProductStockSummary() {
   const { data: walletStock, isLoading, error } = useWalletStock();
 
+  // All wallets contribute to USDT stock (default asset view)
   const productSummaries = walletStock?.reduce((acc, wallet) => {
-    // For USDT, aggregate all wallet balances
-    if (wallet.wallet_type === 'USDT') {
-      if (!acc['USDT']) {
-        acc['USDT'] = {
-          product_id: 'USDT',
-          product_name: 'USDT',
-          product_code: 'USDT',
-          unit_of_measurement: 'Units',
-          total_stock: 0,
-          wallet_stocks: []
-        };
-      }
-
-      acc['USDT'].total_stock += wallet.current_balance;
-      
-      // Add wallet stocks (including zero balances for tracking)
-      acc['USDT'].wallet_stocks.push({
-        wallet_id: wallet.wallet_id,
-        wallet_name: wallet.wallet_name,
-        balance: wallet.current_balance
-      });
+    if (!acc['USDT']) {
+      acc['USDT'] = {
+        product_id: 'USDT',
+        product_name: 'USDT',
+        product_code: 'USDT',
+        unit_of_measurement: 'Units',
+        total_stock: 0,
+        wallet_stocks: []
+      };
     }
+
+    acc['USDT'].total_stock += wallet.current_balance;
+    
+    acc['USDT'].wallet_stocks.push({
+      wallet_id: wallet.wallet_id,
+      wallet_name: wallet.wallet_name,
+      balance: wallet.current_balance
+    });
 
     return acc;
   }, {} as Record<string, ProductStockSummary>);
@@ -108,7 +102,6 @@ export function useSyncProductStock() {
     if (!productSummaries) return;
 
     for (const product of productSummaries) {
-      // Update the product's current_stock_quantity to match wallet totals
       const { error } = await supabase
         .from('products')
         .update({ 
@@ -135,7 +128,6 @@ export async function createValidatedWalletTransaction(
   description?: string,
   createdBy?: string | null
 ) {
-  // Get current user ID for attribution if not provided
   let createdByUserId = createdBy;
   if (createdByUserId === undefined) {
     const rawUserId = getCurrentUserId();
@@ -143,7 +135,6 @@ export async function createValidatedWalletTransaction(
     createdByUserId = isValidUuid ? rawUserId : null;
   }
 
-  // Validate wallet balance for DEBIT movements
   if ((transactionType === 'DEBIT' || transactionType === 'TRANSFER_OUT') && amount > 0) {
     const { data: wallet } = await supabase
       .from('wallets')
@@ -156,7 +147,6 @@ export async function createValidatedWalletTransaction(
     }
   }
 
-  // Get current wallet balance
   const { data: wallet } = await supabase
     .from('wallets')
     .select('current_balance')
@@ -166,7 +156,6 @@ export async function createValidatedWalletTransaction(
   const currentBalance = wallet?.current_balance || 0;
   const newBalance = transactionType === 'CREDIT' ? currentBalance + amount : currentBalance - amount;
 
-  // Create the wallet transaction
   const { error } = await supabase
     .from('wallet_transactions')
     .insert({

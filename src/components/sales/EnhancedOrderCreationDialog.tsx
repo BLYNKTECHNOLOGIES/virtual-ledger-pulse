@@ -344,7 +344,7 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
                     <SelectContent>
                       {wallets?.map((wallet) => (
                         <SelectItem key={wallet.id} value={wallet.id}>
-                          {wallet.wallet_name} ({wallet.wallet_type})
+                          {wallet.wallet_name}
                         </SelectItem>
                       ))}
                     </SelectContent>

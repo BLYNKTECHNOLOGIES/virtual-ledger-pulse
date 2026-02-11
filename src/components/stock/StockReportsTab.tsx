@@ -367,7 +367,7 @@ export function StockReportsTab() {
                   <SelectItem value="all">All Wallets</SelectItem>
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type})
+                      {wallet.wallet_name}
                     </SelectItem>
                   ))}
                 </SelectContent>

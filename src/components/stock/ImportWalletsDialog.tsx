@@ -18,7 +18,6 @@ interface ImportWalletsDialogProps {
 interface ImportRow {
   wallet_name: string;
   wallet_address: string;
-  wallet_type: string;
   chain_name: string;
   initial_balance: number;
 }
@@ -32,14 +31,12 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
   const [isValidating, setIsValidating] = useState(false);
 
   const validChains = ['Ethereum', 'Binance Smart Chain', 'Polygon', 'Tron', 'Solana', 'Bitcoin', 'APTOS'];
-  const validTypes = ['USDT', 'BTC', 'ETH'];
 
   const downloadTemplate = () => {
     const template = [
       {
         wallet_name: "Example Wallet",
         wallet_address: "0x1234567890abcdef1234567890abcdef12345678",
-        wallet_type: "USDT",
         chain_name: "Tron",
         initial_balance: 1000
       }
@@ -49,15 +46,13 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wallets Template");
     
-    // Add column widths
     ws['!cols'] = [
-      { wch: 20 }, { wch: 50 }, { wch: 12 }, { wch: 20 }, { wch: 15 }
+      { wch: 20 }, { wch: 50 }, { wch: 20 }, { wch: 15 }
     ];
 
-    // Add a second sheet with valid options
     const optionsSheet = XLSX.utils.aoa_to_sheet([
-      ['Valid Chain Names', 'Valid Wallet Types'],
-      ...validChains.map((chain, i) => [chain, validTypes[i] || ''])
+      ['Valid Chain Names'],
+      ...validChains.map(chain => [chain])
     ]);
     XLSX.utils.book_append_sheet(wb, optionsSheet, "Valid Options");
 
@@ -98,10 +93,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
           validationErrors.push(`Row ${rowNum}: Wallet address is required`);
           hasError = true;
         }
-        if (!row.wallet_type || !validTypes.includes(row.wallet_type.toUpperCase())) {
-          validationErrors.push(`Row ${rowNum}: Wallet type must be one of: ${validTypes.join(', ')}`);
-          hasError = true;
-        }
         if (!row.chain_name || !validChains.includes(row.chain_name)) {
           validationErrors.push(`Row ${rowNum}: Chain name must be one of: ${validChains.join(', ')}`);
           hasError = true;
@@ -134,7 +125,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
       const walletsToInsert = rows.map(row => ({
         wallet_name: row.wallet_name,
         wallet_address: row.wallet_address,
-        wallet_type: row.wallet_type.toUpperCase(),
         chain_name: row.chain_name,
         current_balance: Number(row.initial_balance),
         total_received: 0,
@@ -196,7 +186,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Step 1: Download Template */}
           <div className="border rounded-lg p-4 space-y-2">
             <h4 className="font-medium flex items-center gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">1</span>
@@ -211,7 +200,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
             </Button>
           </div>
 
-          {/* Step 2: Upload Filled Template */}
           <div className="border rounded-lg p-4 space-y-2">
             <h4 className="font-medium flex items-center gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">2</span>
@@ -233,7 +221,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
             </div>
           </div>
 
-          {/* Validation Results */}
           {errors.length > 0 && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -257,7 +244,6 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
             </Alert>
           )}
 
-          {/* Step 3: Import */}
           <div className="border rounded-lg p-4 space-y-2">
             <h4 className="font-medium flex items-center gap-2">
               <span className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-sm">3</span>

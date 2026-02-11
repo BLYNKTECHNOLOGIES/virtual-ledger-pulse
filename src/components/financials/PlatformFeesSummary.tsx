@@ -21,8 +21,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
         .select(`
           *,
           wallets:wallet_id (
-            wallet_name,
-            wallet_type
+            wallet_name
           )
         `)
         .gte('created_at', format(startDate, 'yyyy-MM-dd'))
@@ -43,8 +42,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
         .select(`
           *,
           wallets:wallet_id (
-            wallet_name,
-            wallet_type
+            wallet_name
           )
         `)
         .eq('reference_type', 'TRANSFER_FEE')

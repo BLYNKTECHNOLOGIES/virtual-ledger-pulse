@@ -7182,6 +7182,7 @@ export type Database = {
       wallet_transactions: {
         Row: {
           amount: number
+          asset_code: string
           balance_after: number
           balance_before: number
           created_at: string
@@ -7195,6 +7196,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          asset_code?: string
           balance_after: number
           balance_before: number
           created_at?: string
@@ -7208,6 +7210,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          asset_code?: string
           balance_after?: number
           balance_before?: number
           created_at?: string
@@ -7250,7 +7253,7 @@ export type Database = {
           updated_at: string
           wallet_address: string
           wallet_name: string
-          wallet_type: string
+          wallet_type: string | null
         }
         Insert: {
           chain_name?: string | null
@@ -7265,7 +7268,7 @@ export type Database = {
           updated_at?: string
           wallet_address: string
           wallet_name: string
-          wallet_type?: string
+          wallet_type?: string | null
         }
         Update: {
           chain_name?: string | null
@@ -7280,7 +7283,7 @@ export type Database = {
           updated_at?: string
           wallet_address?: string
           wallet_name?: string
-          wallet_type?: string
+          wallet_type?: string | null
         }
         Relationships: []
       }

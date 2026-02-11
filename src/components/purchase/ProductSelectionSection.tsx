@@ -151,7 +151,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   <SelectContent>
                     {wallets?.map((wallet) => (
                       <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name} ({wallet.wallet_type})
+                        {wallet.wallet_name}
                       </SelectItem>
                     ))}
                   </SelectContent>

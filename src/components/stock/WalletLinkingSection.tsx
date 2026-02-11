@@ -62,7 +62,7 @@ export function WalletLinkingSection() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wallets')
-        .select('id, wallet_name, wallet_type')
+        .select('id, wallet_name')
         .eq('is_active', true)
         .order('wallet_name');
       if (error) throw error;
@@ -247,7 +247,7 @@ export function WalletLinkingSection() {
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select wallet" /></SelectTrigger>
                 <SelectContent className="bg-white border z-50">
                   {availableWallets.map((w: any) => (
-                    <SelectItem key={w.id} value={w.id}>{w.wallet_name} ({w.wallet_type})</SelectItem>
+                    <SelectItem key={w.id} value={w.id}>{w.wallet_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

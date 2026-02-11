@@ -318,7 +318,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   </div>
                   <div className="text-sm space-y-1">
                     <div>Name: {selectedWallet.wallet_name}</div>
-                    <div>Balance: {selectedWallet.current_balance?.toLocaleString()} {selectedWallet.wallet_type}</div>
+                    <div>Balance: {selectedWallet.current_balance?.toLocaleString()} USDT</div>
                     <div>Address: {selectedWallet.wallet_address?.substring(0, 10)}...{selectedWallet.wallet_address?.substring(selectedWallet.wallet_address.length - 6)}</div>
                   </div>
                 </div>
@@ -383,7 +383,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   <SelectContent>
                   {wallets?.filter(w => w.is_active).map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                      {wallet.wallet_name} ({wallet.wallet_type})
+                      {wallet.wallet_name}
                     </SelectItem>
                   ))}
                   </SelectContent>

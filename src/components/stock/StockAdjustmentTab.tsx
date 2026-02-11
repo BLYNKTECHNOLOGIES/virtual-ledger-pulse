@@ -344,7 +344,7 @@ export function StockAdjustmentTab() {
                     <SelectContent>
                       {wallets?.map((wallet) => (
                         <SelectItem key={wallet.id} value={wallet.id}>
-                          {wallet.wallet_name} ({wallet.wallet_type})
+                           {wallet.wallet_name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -360,7 +360,7 @@ export function StockAdjustmentTab() {
                     <SelectContent>
                       {wallets?.filter(w => w.id !== formData.from_wallet_id).map((wallet) => (
                         <SelectItem key={wallet.id} value={wallet.id}>
-                          {wallet.wallet_name} ({wallet.wallet_type})
+                          {wallet.wallet_name}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -11,7 +11,6 @@ interface WalletWithFees {
   id: string;
   wallet_name: string;
   wallet_address: string;
-  wallet_type: string;
   chain_name?: string;
   current_balance: number;
   is_active: boolean;
@@ -25,7 +24,7 @@ interface WalletSelectorProps {
   label?: string;
   placeholder?: string;
   showBalanceInfo?: boolean;
-  filterByType?: string; // e.g., 'USDT' to only show USDT wallets
+  filterByType?: string; // kept for backward compatibility but no longer filters
   onWalletSelect?: (wallet: WalletWithFees | null) => void;
 }
 
@@ -41,19 +40,15 @@ export function WalletSelector({
   
   // Fetch active wallets with fee info
   const { data: wallets } = useQuery({
-    queryKey: ['wallets_with_fees', filterByType],
+    queryKey: ['wallets_with_fees'],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('wallets')
-        .select('id, wallet_name, wallet_address, wallet_type, chain_name, current_balance, is_active, fee_percentage, is_fee_enabled')
+        .select('id, wallet_name, wallet_address, chain_name, current_balance, is_active, fee_percentage, is_fee_enabled')
         .eq('is_active', true)
         .order('wallet_name');
       
-      if (filterByType) {
-        query = query.eq('wallet_type', filterByType);
-      }
-      
-      const { data, error } = await query;
+      const { data: result, error: err } = await (() => ({ data, error }))();
       if (error) throw error;
       return data as WalletWithFees[];
     }
@@ -104,7 +99,7 @@ export function WalletSelector({
                   )}
                   {showBalanceInfo && balance !== null && (
                     <span className="text-sm text-muted-foreground ml-auto">
-                      ({balance.toFixed(2)} {wallet.wallet_type})
+                      ({balance.toFixed(2)} USDT)
                     </span>
                   )}
                 </div>

@@ -18,8 +18,7 @@ export function WalletManagementTab() {
   const [showWalletDialog, setShowWalletDialog] = useState(false);
   const [editingWallet, setEditingWallet] = useState<any>(null);
   const [walletForm, setWalletForm] = useState({
-    wallet_name: "",
-    wallet_type: ""
+    wallet_name: ""
   });
   const [adjustmentForm, setAdjustmentForm] = useState({
     product_id: "",
@@ -110,7 +109,7 @@ export function WalletManagementTab() {
       toast.success(editingWallet ? "Wallet updated successfully" : "Wallet created successfully");
       setShowWalletDialog(false);
       setEditingWallet(null);
-      setWalletForm({ wallet_name: "", wallet_type: "" });
+      setWalletForm({ wallet_name: "" });
     },
     onError: (error) => {
       toast.error("Failed to save wallet");
@@ -191,8 +190,7 @@ export function WalletManagementTab() {
   const handleEditWallet = (wallet: any) => {
     setEditingWallet(wallet);
     setWalletForm({
-      wallet_name: wallet.wallet_name,
-      wallet_type: wallet.wallet_type || ""
+      wallet_name: wallet.wallet_name
     });
     setShowWalletDialog(true);
   };
@@ -254,7 +252,7 @@ export function WalletManagementTab() {
               <DialogTrigger asChild>
                 <Button onClick={() => {
                   setEditingWallet(null);
-                  setWalletForm({ wallet_name: "", wallet_type: "" });
+                  setWalletForm({ wallet_name: "" });
                 }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Wallet
@@ -272,20 +270,6 @@ export function WalletManagementTab() {
                       onChange={(e) => setWalletForm(prev => ({ ...prev, wallet_name: e.target.value }))}
                       placeholder="Enter wallet name"
                     />
-                  </div>
-                  <div>
-                    <Label>Wallet Type</Label>
-                    <Select value={walletForm.wallet_type} onValueChange={(value) => setWalletForm(prev => ({ ...prev, wallet_type: value }))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select wallet type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USDT">USDT</SelectItem>
-                        <SelectItem value="BTC">BTC</SelectItem>
-                        <SelectItem value="ETH">ETH</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                   <Button onClick={handleCreateWallet} className="w-full">
                     {editingWallet ? 'Update Wallet' : 'Create Wallet'}
@@ -315,7 +299,7 @@ export function WalletManagementTab() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-xs text-muted-foreground mb-2">Type: {wallet.wallet_type}</div>
+                    <div className="text-xs text-muted-foreground mb-2">Balance: {wallet.current_balance}</div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Balance</span>

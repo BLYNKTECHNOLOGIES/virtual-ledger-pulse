@@ -69,16 +69,11 @@ export const createSellerClient = async (
   contactNumber?: string
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    // Check if client already exists
     const existingClient = await findClientByName(supplierName);
     if (existingClient) {
       return { id: existingClient.id, client_id: existingClient.client_id };
     }
-    
-    // Generate unique client ID
     const clientId = await generateUniqueClientId();
-    
-    // Create new client
     const { data, error } = await supabase
       .from('clients')
       .insert({
@@ -92,15 +87,52 @@ export const createSellerClient = async (
       })
       .select('id, client_id')
       .single();
-    
     if (error) {
       console.error('Error creating seller client:', error);
       return null;
     }
-    
     return data;
   } catch (error) {
     console.error('Error in createSellerClient:', error);
+    return null;
+  }
+};
+
+/**
+ * Create a new buyer client from sales order
+ */
+export const createBuyerClient = async (
+  buyerName: string,
+  contactNumber?: string,
+  state?: string
+): Promise<{ id: string; client_id: string } | null> => {
+  try {
+    const existingClient = await findClientByName(buyerName);
+    if (existingClient) {
+      return { id: existingClient.id, client_id: existingClient.client_id };
+    }
+    const clientId = await generateUniqueClientId();
+    const { data, error } = await supabase
+      .from('clients')
+      .insert({
+        name: buyerName.trim(),
+        client_id: clientId,
+        client_type: 'BUYER',
+        kyc_status: 'PENDING',
+        date_of_onboarding: new Date().toISOString().split('T')[0],
+        phone: contactNumber || null,
+        state: state || null,
+        risk_appetite: 'MEDIUM',
+      })
+      .select('id, client_id')
+      .single();
+    if (error) {
+      console.error('Error creating buyer client:', error);
+      return null;
+    }
+    return data;
+  } catch (error) {
+    console.error('Error in createBuyerClient:', error);
     return null;
   }
 };

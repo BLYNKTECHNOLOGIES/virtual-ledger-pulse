@@ -250,8 +250,10 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
         </div>
       )}
 
-      {/* PAN Collection */}
-      <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
+      {/* PAN Collection - only for BUY orders */}
+      {order.trade_type === 'BUY' && (
+        <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
+      )}
 
       {/* Contact & State Collection */}
       <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />

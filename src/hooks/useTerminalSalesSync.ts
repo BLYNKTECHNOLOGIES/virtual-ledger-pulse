@@ -8,7 +8,7 @@ import { getCurrentUserId } from "@/lib/system-action-logger";
 async function fetchVerifiedBuyerName(orderNumber: string): Promise<string | null> {
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: { action: 'getOrderDetail', payload: { orderNumber } },
+      body: { action: 'getOrderDetail', orderNumber },
     });
     if (error) return null;
     // The response structure: data.data.buyerRealName or data.data.sellerRealName

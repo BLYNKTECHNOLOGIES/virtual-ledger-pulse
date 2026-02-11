@@ -381,8 +381,8 @@ export function StockTransactionsTab() {
             reference_type: 'MANUAL_TRANSFER',
             reference_id: transferRefId,
             description: `Transfer to another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT)` : ''}: ${adjustmentData.description}`,
-            balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,  // Will be calculated by trigger
+            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
+            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
             created_by: createdByUserId
           });
 
@@ -398,8 +398,8 @@ export function StockTransactionsTab() {
             reference_type: 'MANUAL_TRANSFER',
             reference_id: transferRefId,
             description: `Transfer from another wallet${transferFee > 0 ? ` (Fee: ${transferFee.toFixed(4)} USDT deducted from sender)` : ''}: ${adjustmentData.description}`,
-            balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,  // Will be calculated by trigger
+            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
+            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
             created_by: createdByUserId
           });
 
@@ -416,8 +416,8 @@ export function StockTransactionsTab() {
               reference_type: 'TRANSFER_FEE',
               reference_id: transferRefId,
               description: `Transfer fee for wallet-to-wallet transfer: ${adjustmentData.description}`,
-              balance_before: 0,
-              balance_after: 0,
+              balance_before: 0, // Auto-set by DB trigger
+              balance_after: 0,  // Auto-set by DB trigger
               created_by: createdByUserId
             });
           
@@ -435,8 +435,8 @@ export function StockTransactionsTab() {
             reference_type: 'MANUAL_ADJUSTMENT',
             reference_id: null,
             description: adjustmentData.description,
-            balance_before: 0, // Will be calculated by trigger
-            balance_after: 0,  // Will be calculated by trigger
+            balance_before: 0, // Auto-set by DB trigger set_wallet_transaction_balances
+            balance_after: 0,  // Auto-set by DB trigger set_wallet_transaction_balances
             created_by: createdByUserId
           });
 
@@ -643,7 +643,7 @@ export function StockTransactionsTab() {
         unit_price: unitPrice,
         total_amount: totalAmount,
         products: p.products,
-        wallet_name: 'BINANCE BLYNK',
+        wallet_name: closingInfo?.wallet_name || null,
         created_by_user: (p.purchase_orders as any)?.created_by_user,
         closing_balance: closingInfo?.balance_after ?? null,
         closing_wallet: closingInfo?.wallet_name ?? null,

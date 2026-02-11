@@ -164,25 +164,29 @@ export function CompletedOrdersExport() {
 
   const getDisplayName = (o: CompletedOrder) => o.verified_name || o.counter_part_nick_name || '—';
 
-  const generateCSV = () => {
+  const generateCSV = async () => {
     const headers = ['Order Number', 'Verified Name', 'Order Type', 'Asset', 'Quantity', 'Price', 'Total Amount', 'Completion Timestamp'];
-    const rows = orders.map(o => [
-      o.order_number,
-      getDisplayName(o),
-      o.trade_type,
-      o.asset,
-      o.amount,
-      o.unit_price,
-      o.total_price,
-      format(new Date(o.create_time), 'yyyy-MM-dd HH:mm:ss'),
-    ]);
+    const BATCH = 2000;
+    const csvParts: string[] = [headers.join(',')];
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')),
-    ].join('\n');
+    for (let i = 0; i < orders.length; i += BATCH) {
+      const batch = orders.slice(i, i + BATCH);
+      const batchLines = batch.map(o => [
+        o.order_number,
+        getDisplayName(o),
+        o.trade_type,
+        o.asset,
+        o.amount,
+        o.unit_price,
+        o.total_price,
+        format(new Date(o.create_time), 'yyyy-MM-dd HH:mm:ss'),
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      csvParts.push(...batchLines);
+      // Yield to UI thread
+      await new Promise(r => setTimeout(r, 10));
+    }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvParts.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -275,7 +279,7 @@ export function CompletedOrdersExport() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      if (exportFormat === 'csv') generateCSV();
+      if (exportFormat === 'csv') await generateCSV();
       else generatePDF();
     } catch (err: any) {
       toast.error(`Export failed: ${err.message}`);
@@ -435,10 +439,10 @@ export function CompletedOrdersExport() {
       {isFetched && orders.length > 0 && (
         <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Preview (first 50 rows)</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground uppercase tracking-wider">Preview ({Math.min(orders.length, 200)} of {orders.length} rows)</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="max-h-[400px]">
+            <ScrollArea className="max-h-[500px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -453,7 +457,7 @@ export function CompletedOrdersExport() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.slice(0, 50).map((o) => (
+                  {orders.slice(0, 200).map((o) => (
                     <TableRow key={o.order_number}>
                       <TableCell className="font-mono text-xs">…{o.order_number.slice(-10)}</TableCell>
                       <TableCell className="text-xs">

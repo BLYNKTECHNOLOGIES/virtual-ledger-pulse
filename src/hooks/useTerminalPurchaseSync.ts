@@ -45,11 +45,11 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       return { synced: 0, duplicates: 0 };
     }
 
-    // 3. Get existing sync records to check duplicates
+    // 3. Get existing sync records to check duplicates AND rejected orders (never re-sync rejected)
     const orderNumbers = completedBuys.map(o => o.order_number);
     const { data: existingSyncs } = await supabase
       .from('terminal_purchase_sync')
-      .select('binance_order_number')
+      .select('binance_order_number, sync_status')
       .in('binance_order_number', orderNumbers);
 
     const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));

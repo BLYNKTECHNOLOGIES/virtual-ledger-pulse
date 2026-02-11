@@ -73,14 +73,21 @@ export function WalletLinkingSection() {
   // Link wallet mutation
   const linkMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedWalletId) throw new Error('No wallet selected');
+      
       // Deactivate any existing active link for this platform
-      await supabase
+      const { error: deactivateErr } = await supabase
         .from('terminal_wallet_links')
         .update({ status: 'dormant' })
         .eq('platform_source', 'terminal')
         .eq('status', 'active');
 
-      const { error } = await supabase
+      if (deactivateErr) {
+        console.error('[WalletLink] Deactivate error:', deactivateErr);
+        // Don't throw - there may be no existing active links
+      }
+
+      const { data, error } = await supabase
         .from('terminal_wallet_links')
         .insert({
           wallet_id: selectedWalletId,
@@ -89,8 +96,17 @@ export function WalletLinkingSection() {
           supported_assets: ['USDT'],
           fee_treatment: feeTreatment,
           status: linkStatus,
-        });
-      if (error) throw error;
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('[WalletLink] Insert error:', error);
+        throw error;
+      }
+      
+      console.log('[WalletLink] Successfully linked:', data);
+      return data;
     },
     onSuccess: () => {
       toast({ title: "Wallet linked to Terminal" });
@@ -99,7 +115,8 @@ export function WalletLinkingSection() {
       setSelectedWalletId("");
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      console.error('[WalletLink] Mutation error:', err);
+      toast({ title: "Link Wallet Failed", description: err.message || 'Unknown error', variant: "destructive" });
     },
   });
 

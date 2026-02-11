@@ -182,7 +182,7 @@ export function useBinanceOrderHistory() {
 
       while (page <= maxPages) {
         const result = await callBinanceAds('getOrderHistory', {
-          rows: 100,
+          rows: 50,
           page,
           startTimestamp,
           endTimestamp,
@@ -194,7 +194,7 @@ export function useBinanceOrderHistory() {
         if (!Array.isArray(orders) || orders.length === 0) break;
         allOrders.push(...orders);
         console.log(`[OrderHistory] total so far: ${allOrders.length}`);
-        if (orders.length < 100) break; // last page
+        if (orders.length < 50) break; // last page
         page++;
         // Small delay to avoid rate limits
         if (page <= maxPages) await new Promise(r => setTimeout(r, 500));

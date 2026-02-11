@@ -32,9 +32,10 @@ interface BinanceOrder {
   createTime: number;
   counterPartNickName: string;
   payMethodName?: string;
+  notifyPayEndTime?: number;
+  notifyPayedExpireMinute?: number;
 }
 
-// Template variable replacer
 function renderTemplate(template: string, order: BinanceOrder): string {
   return template
     .replace(/\{\{orderNumber\}\}/g, order.orderNumber)
@@ -47,43 +48,35 @@ function renderTemplate(template: string, order: BinanceOrder): string {
     .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
 }
 
-// Map Binance order status to trigger events
 function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
   const status = (order.orderStatus || "").toUpperCase();
 
-  // order_received: any active order (not completed/cancelled/appealed)
   if (!status.includes("COMPLETED") && !status.includes("CANCEL") && !status.includes("APPEAL") && !status.includes("EXPIRED")) {
     events.push("order_received");
   }
 
-  // payment_marked: buyer has paid (status codes 2, 3 or string contains PAID/PAYING)
   if (status === "2" || status === "3" || status.includes("PAID") || status.includes("PAYING")) {
     events.push("payment_marked");
   }
 
-  // order_completed
   if (status.includes("COMPLETED") || status === "4" || status === "5") {
     events.push("order_completed");
   }
 
-  // order_cancelled
   if (status.includes("CANCEL")) {
     events.push("order_cancelled");
   }
 
-  // order_appealed
   if (status.includes("APPEAL")) {
     events.push("order_appealed");
   }
 
-  // timer_breach: order older than 15 minutes and still active
   const ageMinutes = (Date.now() - order.createTime) / 60000;
   if (ageMinutes > 15 && !status.includes("COMPLETED") && !status.includes("CANCEL")) {
     events.push("timer_breach");
   }
 
-  // payment_pending: order older than 5 minutes, no payment yet (status 1 or similar)
   if (ageMinutes > 5 && (status === "1" || status === "" || status.includes("PENDING")) && !status.includes("PAID")) {
     events.push("payment_pending");
   }
@@ -125,16 +118,28 @@ serve(async (req) => {
       .order("priority", { ascending: false });
 
     if (rulesErr) throw rulesErr;
-    if (!rules || rules.length === 0) {
-      console.log("No active auto-reply rules found. Skipping.");
-      return new Response(JSON.stringify({ message: "No active rules", processed: 0 }), {
+
+    // 2. Fetch auto-pay settings
+    const { data: autoPaySettings } = await supabase
+      .from("p2p_auto_pay_settings")
+      .select("*")
+      .limit(1)
+      .maybeSingle();
+
+    const autoPayActive = autoPaySettings?.is_active === true;
+    const autoPayMinutes = autoPaySettings?.minutes_before_expiry || 3;
+
+    const hasRules = rules && rules.length > 0;
+    if (!hasRules && !autoPayActive) {
+      console.log("No active rules or auto-pay. Skipping.");
+      return new Response(JSON.stringify({ message: "Nothing active", processed: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Found ${rules.length} active auto-reply rules`);
+    console.log(`Rules: ${rules?.length || 0}, AutoPay: ${autoPayActive ? `ON (${autoPayMinutes}min)` : "OFF"}`);
 
-    // 2. Fetch active orders from Binance
+    // 3. Fetch active orders from Binance
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
       method: "POST",
       headers: proxyHeaders,
@@ -143,7 +148,7 @@ serve(async (req) => {
     const activeData = await activeRes.json();
     const activeOrders: BinanceOrder[] = activeData?.data || [];
 
-    // 3. Also check recent history for completed/cancelled events
+    // 4. Also check recent history for completed/cancelled events
     const historyRes = await fetch(
       `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`,
       {
@@ -166,102 +171,207 @@ serve(async (req) => {
 
     let processed = 0;
     let errors = 0;
+    let autoPaidCount = 0;
 
-    for (const order of allOrders) {
-      const triggerEvents = detectTriggerEvents(order);
+    // ===== AUTO-PAY LOGIC =====
+    if (autoPayActive) {
+      // Only process active BUY orders that haven't been paid yet
+      const buyOrdersPendingPayment = activeOrders.filter((o) => {
+        const status = (o.orderStatus || "").toUpperCase();
+        return (
+          o.tradeType === "BUY" &&
+          !status.includes("PAID") &&
+          !status.includes("PAYING") &&
+          !status.includes("COMPLETED") &&
+          !status.includes("CANCEL") &&
+          !status.includes("APPEAL") &&
+          !status.includes("EXPIRED")
+        );
+      });
 
-      for (const event of triggerEvents) {
-        // Find matching rules for this event
-        const matchingRules = (rules as AutoReplyRule[]).filter((r) => {
-          if (r.trigger_event !== event) return false;
-          if (r.trade_type && r.trade_type !== order.tradeType) return false;
-          return true;
-        });
+      console.log(`Auto-pay: ${buyOrdersPendingPayment.length} BUY orders pending payment`);
 
-        for (const rule of matchingRules) {
-          // Check if already processed
-          const { data: existing } = await supabase
-            .from("p2p_auto_reply_processed")
-            .select("id")
-            .eq("order_number", order.orderNumber)
-            .eq("trigger_event", event)
-            .eq("rule_id", rule.id)
-            .maybeSingle();
+      for (const order of buyOrdersPendingPayment) {
+        try {
+          // Calculate time remaining to expiry
+          let expiryTimeMs: number | null = null;
 
-          if (existing) continue; // Already sent
+          if (order.notifyPayEndTime) {
+            expiryTimeMs = order.notifyPayEndTime;
+          } else if (order.notifyPayedExpireMinute && order.createTime) {
+            expiryTimeMs = order.createTime + order.notifyPayedExpireMinute * 60 * 1000;
+          }
 
-          // Check delay (order age must exceed delay_seconds)
-          const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
-          if (orderAgeSeconds < rule.delay_seconds) continue;
+          if (!expiryTimeMs) {
+            // Fallback: assume 15 min payment window from createTime
+            expiryTimeMs = order.createTime + 15 * 60 * 1000;
+          }
 
-          // Render the message
-          const message = renderTemplate(rule.message_template, order);
+          const timeRemainingMs = expiryTimeMs - Date.now();
+          const minutesRemaining = timeRemainingMs / 60000;
 
-          try {
-            // Send via Binance Chat API — use same route as binance-ads sendChatMessage
-            const sendParams = new URLSearchParams({
-              orderNo: order.orderNumber,
-              content: message,
-              contentType: "TEXT",
-            });
-            const sendRes = await fetch(
-              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`,
+          console.log(`Order ${order.orderNumber}: ${minutesRemaining.toFixed(1)} min remaining, threshold: ${autoPayMinutes} min`);
+
+          // Check if within the auto-pay window (less than X minutes remaining, but still positive)
+          if (minutesRemaining <= autoPayMinutes && minutesRemaining > 0) {
+            // Check if already auto-paid
+            const { data: alreadyPaid } = await supabase
+              .from("p2p_auto_pay_log")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("status", "success")
+              .maybeSingle();
+
+            if (alreadyPaid) {
+              console.log(`Order ${order.orderNumber}: already auto-paid, skipping`);
+              continue;
+            }
+
+            // Mark as paid via Binance API
+            console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining)`);
+
+            const markPaidRes = await fetch(
+              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`,
               {
                 method: "POST",
                 headers: proxyHeaders,
+                body: JSON.stringify({ orderNumber: order.orderNumber }),
               }
             );
-            const sendResult = await sendRes.json();
+            const markPaidResult = await markPaidRes.json();
 
-            if (sendResult?.code === "000000" || sendRes.ok) {
-              // Mark as processed
-              await supabase.from("p2p_auto_reply_processed").insert({
+            if (markPaidResult?.code === "000000" || markPaidRes.ok) {
+              await supabase.from("p2p_auto_pay_log").insert({
                 order_number: order.orderNumber,
-                trigger_event: event,
-                rule_id: rule.id,
+                action: "mark_paid",
+                status: "success",
+                minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
               });
-
-              // Log execution
-              await supabase.from("p2p_auto_reply_log").insert({
-                rule_id: rule.id,
-                order_number: order.orderNumber,
-                trigger_event: event,
-                message_sent: message,
-                status: "sent",
-              });
-
-              console.log(`✅ Auto-reply sent: [${event}] ${rule.name} → Order ${order.orderNumber}`);
-              processed++;
+              console.log(`✅ Auto-paid order ${order.orderNumber}`);
+              autoPaidCount++;
             } else {
-              // Log failure
+              await supabase.from("p2p_auto_pay_log").insert({
+                order_number: order.orderNumber,
+                action: "mark_paid",
+                status: "failed",
+                minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
+                error_message: JSON.stringify(markPaidResult),
+              });
+              console.error(`❌ Auto-pay failed for ${order.orderNumber}: ${JSON.stringify(markPaidResult)}`);
+              errors++;
+            }
+          }
+        } catch (apErr) {
+          console.error(`Auto-pay error for ${order.orderNumber}:`, apErr);
+          await supabase.from("p2p_auto_pay_log").insert({
+            order_number: order.orderNumber,
+            action: "mark_paid",
+            status: "failed",
+            error_message: String(apErr),
+          });
+          errors++;
+        }
+      }
+    }
+
+    // ===== AUTO-REPLY LOGIC (existing) =====
+    if (hasRules) {
+      for (const order of allOrders) {
+        const triggerEvents = detectTriggerEvents(order);
+
+        for (const event of triggerEvents) {
+          const matchingRules = (rules as AutoReplyRule[]).filter((r) => {
+            if (r.trigger_event !== event) return false;
+            if (r.trade_type && r.trade_type !== order.tradeType) return false;
+            return true;
+          });
+
+          for (const rule of matchingRules) {
+            const { data: existing } = await supabase
+              .from("p2p_auto_reply_processed")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("trigger_event", event)
+              .eq("rule_id", rule.id)
+              .maybeSingle();
+
+            if (existing) continue;
+
+            const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
+            if (orderAgeSeconds < rule.delay_seconds) continue;
+
+            const message = renderTemplate(rule.message_template, order);
+
+            try {
+              const sendParams = new URLSearchParams({
+                orderNo: order.orderNumber,
+                content: message,
+                contentType: "TEXT",
+              });
+              const sendRes = await fetch(
+                `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`,
+                {
+                  method: "POST",
+                  headers: proxyHeaders,
+                }
+              );
+              const sendResult = await sendRes.json();
+
+              if (sendResult?.code === "000000" || sendRes.ok) {
+                await supabase.from("p2p_auto_reply_processed").insert({
+                  order_number: order.orderNumber,
+                  trigger_event: event,
+                  rule_id: rule.id,
+                });
+
+                await supabase.from("p2p_auto_reply_log").insert({
+                  rule_id: rule.id,
+                  order_number: order.orderNumber,
+                  trigger_event: event,
+                  message_sent: message,
+                  status: "sent",
+                });
+
+                console.log(`✅ Auto-reply sent: [${event}] ${rule.name} → Order ${order.orderNumber}`);
+                processed++;
+              } else {
+                await supabase.from("p2p_auto_reply_log").insert({
+                  rule_id: rule.id,
+                  order_number: order.orderNumber,
+                  trigger_event: event,
+                  message_sent: message,
+                  status: "failed",
+                  error_message: JSON.stringify(sendResult),
+                });
+                console.error(`❌ Auto-reply failed: ${rule.name} → ${JSON.stringify(sendResult)}`);
+                errors++;
+              }
+            } catch (sendErr) {
               await supabase.from("p2p_auto_reply_log").insert({
                 rule_id: rule.id,
                 order_number: order.orderNumber,
                 trigger_event: event,
                 message_sent: message,
                 status: "failed",
-                error_message: JSON.stringify(sendResult),
+                error_message: String(sendErr),
               });
-              console.error(`❌ Auto-reply failed: ${rule.name} → ${JSON.stringify(sendResult)}`);
+              console.error(`❌ Auto-reply error: ${rule.name} → ${sendErr}`);
               errors++;
             }
-          } catch (sendErr) {
-            await supabase.from("p2p_auto_reply_log").insert({
-              rule_id: rule.id,
-              order_number: order.orderNumber,
-              trigger_event: event,
-              message_sent: message,
-              status: "failed",
-              error_message: String(sendErr),
-            });
-            console.error(`❌ Auto-reply error: ${rule.name} → ${sendErr}`);
-            errors++;
           }
         }
       }
     }
 
-    const result = { message: "Execution complete", processed, errors, ordersChecked: allOrders.length, rulesActive: rules.length };
+    const result = {
+      message: "Execution complete",
+      processed,
+      autoPaid: autoPaidCount,
+      errors,
+      ordersChecked: allOrders.length,
+      rulesActive: rules?.length || 0,
+      autoPayActive,
+    };
     console.log("Auto-reply engine result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {

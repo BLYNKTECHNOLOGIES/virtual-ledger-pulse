@@ -261,7 +261,10 @@ export function WalletLinkingSection() {
               <div className="mt-1 p-2 rounded-md bg-muted text-sm">USDT</div>
             </div>
             <div>
-              <Label className="text-xs">Fee Treatment</Label>
+              <Label className="text-xs font-semibold">Fee Treatment</Label>
+              <p className="text-[10px] text-muted-foreground mb-1.5">
+                How Binance P2P commission fees are handled in accounting
+              </p>
               <Select value={feeTreatment} onValueChange={setFeeTreatment}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-white border z-50">
@@ -269,12 +272,26 @@ export function WalletLinkingSection() {
                   <SelectItem value="expense">Expense (book separately)</SelectItem>
                 </SelectContent>
               </Select>
+              {feeTreatment === 'capitalize' ? (
+                <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted/50 rounded p-1.5">
+                  Commission is added to the per-unit purchase cost, increasing inventory value. Best for P2P where fees are a cost of acquisition.
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground mt-1.5 bg-muted/50 rounded p-1.5">
+                  Commission is booked as a separate operating expense entry. Best when fees need to be tracked independently for reporting.
+                </p>
+              )}
             </div>
-            <div className="flex items-center justify-between">
-              <Label className="text-xs">Status</Label>
+            <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30">
+              <div>
+                <Label className="text-xs font-semibold">Link Status</Label>
+                <p className="text-[10px] text-muted-foreground">Enable to make this the active terminal wallet</p>
+              </div>
               <div className="flex items-center gap-2">
                 <Switch checked={linkStatus === 'active'} onCheckedChange={(c) => setLinkStatus(c ? 'active' : 'dormant')} />
-                <span className="text-xs">{linkStatus === 'active' ? 'Active' : 'Dormant'}</span>
+                <Badge variant={linkStatus === 'active' ? 'default' : 'secondary'} className="text-[10px] min-w-[55px] justify-center">
+                  {linkStatus === 'active' ? '● Active' : 'Dormant'}
+                </Badge>
               </div>
             </div>
           </div>

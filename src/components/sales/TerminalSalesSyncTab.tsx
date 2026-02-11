@@ -91,7 +91,8 @@ export function TerminalSalesSyncTab() {
           const { data } = await supabase.functions.invoke('binance-ads', {
             body: { action: 'getOrderDetail', orderNumber },
           });
-          const detail = data?.data;
+          const apiResult = data?.data;
+          const detail = apiResult?.data || apiResult;
           const buyerName = detail?.buyerRealName || detail?.buyerName || null;
           if (buyerName) {
             const od = record.order_data as any;

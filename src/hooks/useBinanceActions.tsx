@@ -172,64 +172,64 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   });
 }
 
-/** Fetch ALL order history for the last 30 days using time-windowing to bypass 1000-row API cap */
+/** Fetch order history from the local binance_order_history DB table (fast, no API calls).
+ *  Falls back to empty array if DB is unavailable. */
 export function useBinanceOrderHistory() {
   return useQuery({
     queryKey: ['binance-order-history-bulk'],
     queryFn: async () => {
-      const startTimestamp = Date.now() - 30 * 24 * 60 * 60 * 1000;
-      let windowEnd = Date.now();
-      const allOrders: Array<{ orderNumber: string; orderStatus: string; createTime: number; [k: string]: any }> = [];
-      const seenOrderNumbers = new Set<string>();
-      const maxWindows = 30; // supports up to ~30,000 orders
-      let windowCount = 0;
+      const { supabase } = await import('@/integrations/supabase/client');
+      const batchSize = 1000;
+      const allOrders: any[] = [];
+      let offset = 0;
+      let hasMore = true;
 
-      while (windowEnd > startTimestamp && windowCount < maxWindows) {
-        windowCount++;
-        let page = 1;
-        const maxPages = 20;
-        let oldestInWindow = windowEnd;
-        let windowOrders = 0;
+      // Paginate to bypass the 1000-row default limit
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('binance_order_history')
+          .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+          .order('create_time', { ascending: false })
+          .range(offset, offset + batchSize - 1);
 
-        while (page <= maxPages) {
-          const result = await callBinanceAds('getOrderHistory', {
-            rows: 50,
-            page,
-            startTimestamp,
-            endTimestamp: windowEnd,
-          });
-          const orders = result?.data || result || [];
-          if (!Array.isArray(orders) || orders.length === 0) break;
-
-          for (const o of orders) {
-            if (!seenOrderNumbers.has(o.orderNumber)) {
-              seenOrderNumbers.add(o.orderNumber);
-              allOrders.push(o);
-            }
-            if (o.createTime && o.createTime < oldestInWindow) {
-              oldestInWindow = o.createTime;
-            }
-          }
-          windowOrders += orders.length;
-          console.log(`[OrderHistory] window=${windowCount}, page=${page}, received=${orders.length}, total=${allOrders.length}`);
-
-          if (orders.length < 50) break;
-          page++;
-          await new Promise(r => setTimeout(r, 300));
+        if (error) {
+          console.error('[OrderHistory] DB fetch error:', error);
+          break;
         }
 
-        // If we got fewer than 1000 in this window, we've reached the end
-        if (windowOrders < 1000) break;
-        // Move window end to 1ms before the oldest order to get the next batch
-        windowEnd = oldestInWindow - 1;
-        console.log(`[OrderHistory] Moving window end to ${new Date(windowEnd).toISOString()}, total so far: ${allOrders.length}`);
+        if (data && data.length > 0) {
+          for (const row of data) {
+            allOrders.push({
+              orderNumber: row.order_number,
+              advNo: row.adv_no,
+              tradeType: row.trade_type,
+              asset: row.asset || 'USDT',
+              fiat: row.fiat_unit || 'INR',
+              fiatUnit: row.fiat_unit || 'INR',
+              amount: row.amount,
+              totalPrice: row.total_price,
+              unitPrice: row.unit_price,
+              commission: row.commission,
+              orderStatus: row.order_status,
+              createTime: row.create_time,
+              payMethodName: row.pay_method_name,
+              counterPartNickName: row.counter_part_nick_name,
+              verifiedName: row.verified_name,
+              additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
+            });
+          }
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      console.log(`[OrderHistory] FINAL total orders: ${allOrders.length}, windows used: ${windowCount}`);
+      console.log(`[OrderHistory] Loaded ${allOrders.length} orders from DB`);
       return allOrders;
     },
-    staleTime: 60 * 1000,
-    refetchInterval: 120 * 1000,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   });
 }
 

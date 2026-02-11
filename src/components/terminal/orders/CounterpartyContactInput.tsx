@@ -81,10 +81,46 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
             .eq('id', clients[0].id);
         }
       }
+
+      // Propagate to terminal_sales_sync records that match this counterparty
+      // This ensures post-approval updates are reflected
+      const syncUpdates: any = {};
+      if (trimmedPhone) syncUpdates.contact_number = trimmedPhone;
+      if (trimmedState) syncUpdates.state = trimmedState;
+      if (Object.keys(syncUpdates).length > 0) {
+        // Match by counterparty_nickname (masked) using prefix
+        const prefix = counterpartyNickname.slice(0, 3);
+        await supabase
+          .from('terminal_sales_sync')
+          .update(syncUpdates)
+          .ilike('order_data->>counterparty_nickname', `${prefix}%`);
+
+        // Also update linked sales_orders
+        const { data: syncRecords } = await supabase
+          .from('terminal_sales_sync')
+          .select('sales_order_id')
+          .ilike('order_data->>counterparty_nickname', `${prefix}%`)
+          .not('sales_order_id', 'is', null);
+
+        if (syncRecords && syncRecords.length > 0) {
+          const soUpdates: any = {};
+          if (trimmedPhone) soUpdates.client_phone = trimmedPhone;
+          if (trimmedState) soUpdates.client_state = trimmedState;
+          const orderIds = syncRecords.map(r => r.sales_order_id).filter(Boolean);
+          if (orderIds.length > 0) {
+            await supabase
+              .from('sales_orders')
+              .update(soUpdates)
+              .in('id', orderIds);
+          }
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Contact details saved");
       queryClient.invalidateQueries({ queryKey: ['counterparty-contact', counterpartyNickname] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       setIsEditing(false);
     },
     onError: (err: Error) => {

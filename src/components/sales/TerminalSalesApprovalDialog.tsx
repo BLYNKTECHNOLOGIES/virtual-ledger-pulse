@@ -39,15 +39,34 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
 
   // Auto-fetch verified name if missing when dialog opens
+  // Also pre-fill contact & state from counterparty_contact_records
   useEffect(() => {
     setLinkedClientId(syncRecord?.client_id || '');
     setContactNumber(syncRecord?.contact_number || '');
     setClientState(syncRecord?.state || '');
     setEnrichedName(null);
 
+    if (!open || !syncRecord) return;
+
+    // Fetch contact/state from counterparty_contact_records if not already on sync record
+    const nickname = od.counterparty_nickname || syncRecord?.counterparty_name;
+    if (nickname && !syncRecord?.contact_number && !syncRecord?.state) {
+      supabase
+        .from('counterparty_contact_records')
+        .select('contact_number, state')
+        .eq('counterparty_nickname', nickname)
+        .maybeSingle()
+        .then(({ data: contactData }) => {
+          if (contactData) {
+            if (contactData.contact_number) setContactNumber(contactData.contact_number);
+            if (contactData.state) setClientState(contactData.state);
+          }
+        });
+    }
+
     const orderNumber = od.order_number || syncRecord?.binance_order_number;
     const hasVerifiedName = !!od.verified_name;
-    if (!hasVerifiedName && orderNumber && open) {
+    if (!hasVerifiedName && orderNumber) {
       // Fetch verified name from Binance order detail API
       supabase.functions.invoke('binance-ads', {
         body: { action: 'getOrderDetail', orderNumber },

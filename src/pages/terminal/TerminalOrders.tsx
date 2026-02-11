@@ -498,7 +498,7 @@ export default function TerminalOrders() {
                 </TableHeader>
                 <TableBody>
                   {visibleOrders.map((order) => {
-                    const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
+                    const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
                     const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
                     // For sell orders needing verification (kyc=1), show "Verification Pending" instead of "Pending Payment"
                     const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';

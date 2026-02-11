@@ -62,7 +62,7 @@ export default function TerminalDashboard() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={() => syncMutation.mutate()}
+            onClick={() => syncMutation.mutate({ fullSync: false })}
             disabled={isSyncing || syncMutation.isPending}
             title="Sync orders from Binance"
           >

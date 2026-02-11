@@ -6,13 +6,14 @@ import { toast } from 'sonner';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates
+const DATA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 
 // ---- DB Read: Get all cached orders for last 30 days ----
 export function useCachedOrderHistory() {
   return useQuery({
     queryKey: ['cached-order-history'],
     queryFn: async () => {
-      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const cutoff = Date.now() - DATA_RETENTION_MS;
       const allRows: any[] = [];
       const PAGE_SIZE = 1000;
       let from = 0;
@@ -21,7 +22,7 @@ export function useCachedOrderHistory() {
         const { data, error } = await supabase
           .from('binance_order_history')
           .select('*')
-          .gte('create_time', thirtyDaysAgo)
+          .gte('create_time', cutoff)
           .order('create_time', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
@@ -155,7 +156,7 @@ export function useSyncOrderHistory() {
   return useMutation({
     mutationFn: async ({ fullSync = false }: { fullSync?: boolean } = {}) => {
       const startTime = Date.now();
-      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const cutoff = Date.now() - DATA_RETENTION_MS;
       const dbCount = await getDBOrderCount();
       const newestTs = await getNewestOrderTimestamp();
 
@@ -164,7 +165,7 @@ export function useSyncOrderHistory() {
 
       if (needsFullSync) {
         console.log(`[Sync] FULL sync — dbCount=${dbCount}, fullSync=${fullSync}`);
-        const allOrders = await fetchOrdersFromBinance(thirtyDaysAgo, Date.now(), 30);
+        const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365);
         console.log(`[Sync] Full fetch: ${allOrders.length} orders. Upserting...`);
         await upsertOrdersToDB(allOrders);
         const duration = Date.now() - startTime;
@@ -175,7 +176,7 @@ export function useSyncOrderHistory() {
 
       // INCREMENTAL: fetch from (newest - overlap) to now
       // The overlap ensures we catch status changes on recent orders
-      const incrementalStart = Math.max(thirtyDaysAgo, newestTs - STATUS_OVERLAP_MS);
+      const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
       console.log(`[Sync] INCREMENTAL sync — from ${new Date(incrementalStart).toISOString()}, dbCount=${dbCount}`);
 
       const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5);
@@ -189,7 +190,7 @@ export function useSyncOrderHistory() {
       const { error: cleanupError } = await supabase
         .from('binance_order_history')
         .delete()
-        .lt('create_time', thirtyDaysAgo);
+        .lt('create_time', cutoff);
       if (cleanupError) console.warn('[Sync] Cleanup failed:', cleanupError);
 
       const duration = Date.now() - startTime;

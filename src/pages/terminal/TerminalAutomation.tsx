@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Zap,
   FileDown,
+  Timer,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -47,6 +48,7 @@ import { AutoReplyRuleDialog } from '@/components/automation/AutoReplyRuleDialog
 import { ScheduleDialog } from '@/components/automation/ScheduleDialog';
 import { format } from 'date-fns';
 import { CompletedOrdersExport } from '@/components/terminal/automation/CompletedOrdersExport';
+import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySettings';
 
 const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
@@ -126,6 +128,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="logs" className="gap-1.5">
             <Zap className="h-3.5 w-3.5" />
             Execution Log
+          </TabsTrigger>
+          <TabsTrigger value="auto-pay" className="gap-1.5">
+            <Timer className="h-3.5 w-3.5" />
+            Auto-Pay
           </TabsTrigger>
           <TabsTrigger value="export" className="gap-1.5">
             <FileDown className="h-3.5 w-3.5" />
@@ -351,6 +357,11 @@ export default function TerminalAutomation() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ═══ AUTO-PAY ═══ */}
+        <TabsContent value="auto-pay" className="mt-4">
+          <AutoPaySettings />
         </TabsContent>
 
         {/* ═══ EXPORT ORDERS ═══ */}

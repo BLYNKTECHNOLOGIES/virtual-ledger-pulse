@@ -3949,6 +3949,60 @@ export type Database = {
           },
         ]
       }
+      p2p_auto_pay_log: {
+        Row: {
+          action: string
+          error_message: string | null
+          executed_at: string
+          id: string
+          minutes_remaining: number | null
+          order_number: string
+          status: string
+        }
+        Insert: {
+          action?: string
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          minutes_remaining?: number | null
+          order_number: string
+          status?: string
+        }
+        Update: {
+          action?: string
+          error_message?: string | null
+          executed_at?: string
+          id?: string
+          minutes_remaining?: number | null
+          order_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      p2p_auto_pay_settings: {
+        Row: {
+          id: string
+          is_active: boolean
+          minutes_before_expiry: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_active?: boolean
+          minutes_before_expiry?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_active?: boolean
+          minutes_before_expiry?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       p2p_auto_reply_log: {
         Row: {
           error_message: string | null

@@ -6373,7 +6373,7 @@ export type Database = {
       spot_trade_history: {
         Row: {
           binance_order_id: string | null
-          binance_trade_id: string | null
+          binance_trade_id: string
           commission: number | null
           commission_asset: string | null
           created_at: string
@@ -6396,7 +6396,7 @@ export type Database = {
         }
         Insert: {
           binance_order_id?: string | null
-          binance_trade_id?: string | null
+          binance_trade_id?: string
           commission?: number | null
           commission_asset?: string | null
           created_at?: string
@@ -6419,7 +6419,7 @@ export type Database = {
         }
         Update: {
           binance_order_id?: string | null
-          binance_trade_id?: string | null
+          binance_trade_id?: string
           commission?: number | null
           commission_asset?: string | null
           created_at?: string

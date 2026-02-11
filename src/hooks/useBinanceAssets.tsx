@@ -188,8 +188,8 @@ export function useSpotTradeHistory() {
       const { data, error } = await supabase
         .from("spot_trade_history")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("trade_time", { ascending: false })
+        .limit(200);
       if (error) throw error;
       return data;
     },

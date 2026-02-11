@@ -516,13 +516,17 @@ serve(async (req) => {
 
         // If RPC doesn't exist, fall back to manual query
         let movements: any[] = [];
+        // Feb 12, 2026 00:00:00 IST in milliseconds
+        const cutoffTime = new Date("2026-02-12T00:00:00+05:30").getTime();
+        
         if (uqErr) {
           console.log("RPC not available, using manual query");
-          // Get all completed deposits and withdrawals
+          // Get all completed deposits and withdrawals from Feb 12 onward
           const { data: allMovements } = await sb
             .from("asset_movement_history")
             .select("*")
             .in("movement_type", ["deposit", "withdrawal"])
+            .gte("movement_time", cutoffTime)
             .order("movement_time", { ascending: false });
 
           // Get existing queue entries
@@ -538,7 +542,8 @@ serve(async (req) => {
             return (isCompletedDeposit || isCompletedWithdrawal) && !existingIds.has(m.id);
           });
         } else {
-          movements = unqueued || [];
+          // Filter RPC results to only include movements from Feb 12 onward
+          movements = (unqueued || []).filter((m: any) => m.movement_time >= cutoffTime);
         }
 
         if (movements.length === 0) {

@@ -22,9 +22,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   const queryClient = useQueryClient();
   const isDeposit = item.movement_type === "deposit";
 
-  // For deposits: from = external/mapped wallet, to = user selects
-  // For withdrawals: from = mapped wallet, to = user selects
-  const [destinationWalletId, setDestinationWalletId] = useState("");
+  // For deposits: "To Wallet" is pre-filled (mapped wallet), "From Wallet" is user-selected
+  // For withdrawals: "From Wallet" is pre-filled (mapped wallet), "To Wallet" is user-selected
+  const [selectedWalletId, setSelectedWalletId] = useState("");
 
   const { data: wallets } = useQuery({
     queryKey: ["wallets"],
@@ -39,22 +39,22 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
     },
   });
 
-  const sourceWallet = wallets?.find((w) => w.id === item.wallet_id);
-  const sourceWalletName = sourceWallet?.wallet_name || "Binance Blynk";
+  const mappedWallet = wallets?.find((w) => w.id === item.wallet_id);
+  const mappedWalletName = mappedWallet?.wallet_name || "Binance Blynk";
+
+  // Derive actual from/to based on movement type
+  const fromWalletId = isDeposit ? selectedWalletId : item.wallet_id;
+  const toWalletId = isDeposit ? item.wallet_id : selectedWalletId;
+  const fromWalletLabel = isDeposit ? (wallets?.find(w => w.id === selectedWalletId)?.wallet_name || "—") : mappedWalletName;
+  const toWalletLabel = isDeposit ? mappedWalletName : (wallets?.find(w => w.id === selectedWalletId)?.wallet_name || "—");
 
   const transferMutation = useMutation({
     mutationFn: async () => {
-      if (!destinationWalletId) throw new Error("Please select a destination wallet");
-      
-      const fromWalletId = isDeposit ? item.wallet_id : item.wallet_id;
-      const toWalletId = destinationWalletId;
-      
-      if (!fromWalletId) throw new Error("Source wallet not mapped");
+      if (!selectedWalletId) throw new Error(isDeposit ? "Please select source wallet" : "Please select destination wallet");
+      if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
 
-      // Create transfer transactions (debit from source, credit to destination)
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
-      
-      // Get fresh balances
+
       const [{ data: fromW }, { data: toW }] = await Promise.all([
         supabase.from("wallets").select("current_balance").eq("id", fromWalletId).single(),
         supabase.from("wallets").select("current_balance").eq("id", toWalletId).single(),
@@ -72,7 +72,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer to destination wallet (${item.movement_type} reconciliation)`,
+          description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)`,
           balance_before: fromBefore,
           balance_after: fromBefore - amount,
         },
@@ -83,7 +83,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer from ${sourceWalletName} (${item.movement_type} reconciliation)`,
+          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)`,
           balance_before: toBefore,
           balance_after: toBefore + amount,
         },
@@ -92,7 +92,6 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       const { error: txErr } = await supabase.from("wallet_transactions").insert(transactions);
       if (txErr) throw txErr;
 
-      // Update wallet balances
       await Promise.all([
         supabase.from("wallets").update({ current_balance: fromBefore - amount }).eq("id", fromWalletId),
         supabase.from("wallets").update({ current_balance: toBefore + amount }).eq("id", toWalletId),
@@ -122,28 +121,55 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
         </DialogHeader>
 
         <div className="space-y-4">
-          <div>
-            <Label>From Wallet</Label>
-            <Input value={sourceWalletName} disabled className="bg-muted" />
-          </div>
-
-          <div>
-            <Label>To Wallet</Label>
-            <Select value={destinationWalletId} onValueChange={setDestinationWalletId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select destination wallet" />
-              </SelectTrigger>
-              <SelectContent>
-                {wallets
-                  ?.filter((w) => w.id !== item.wallet_id)
-                  .map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.wallet_name} — {Number(w.current_balance ?? 0).toFixed(2)}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isDeposit ? (
+            <>
+              <div>
+                <Label>From Wallet</Label>
+                <Select value={selectedWalletId} onValueChange={setSelectedWalletId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select source wallet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets
+                      ?.filter((w) => w.id !== item.wallet_id)
+                      .map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.wallet_name} — {Number(w.current_balance ?? 0).toFixed(2)}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>To Wallet (Pre-filled)</Label>
+                <Input value={mappedWalletName} disabled className="bg-muted" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <Label>From Wallet (Pre-filled)</Label>
+                <Input value={mappedWalletName} disabled className="bg-muted" />
+              </div>
+              <div>
+                <Label>To Wallet</Label>
+                <Select value={selectedWalletId} onValueChange={setSelectedWalletId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select destination wallet" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {wallets
+                      ?.filter((w) => w.id !== item.wallet_id)
+                      .map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.wallet_name} — {Number(w.current_balance ?? 0).toFixed(2)}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -159,7 +185,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           <div className="flex gap-2 pt-2">
             <Button
               onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending || !destinationWalletId}
+              disabled={transferMutation.isPending || !selectedWalletId}
               className="flex-1"
             >
               {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}

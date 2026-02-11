@@ -22,6 +22,22 @@ export function ProductCardListingTab() {
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
   const { data: binanceBalances } = useBinanceBalances();
 
+  // Get the active terminal wallet link to know which wallet is API-mapped
+  const { data: activeWalletLink } = useQuery({
+    queryKey: ['terminal-wallet-link-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_wallet_links')
+        .select('wallet_id')
+        .eq('status', 'active')
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const apiLinkedWalletId = activeWalletLink?.wallet_id;
+
   // Build a map of Binance total balances by asset for reference comparison
   const binanceBalanceMap = new Map<string, number>();
   binanceBalances?.forEach(b => {
@@ -177,8 +193,8 @@ export function ProductCardListingTab() {
                           <div className="text-right flex items-center gap-1.5">
                             <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                             {(() => {
-                              // Show API diff only for the first Binance-named wallet
-                              if (!wallet.wallet_name.toLowerCase().includes('binance')) return null;
+                              // Show API diff only for the wallet linked via terminal_wallet_links
+                              if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
                               const binanceBalance = binanceBalanceMap.get(product.code);
                               if (binanceBalance === undefined) return null;
                               const diff = binanceBalance - wallet.balance;

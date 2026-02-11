@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown } from "lucide-react";
+import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown, Link2 } from "lucide-react";
 import { format } from "date-fns";
+import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,19 @@ export default function Purchase() {
     queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
     queryClient.invalidateQueries({ queryKey: ['tds-records'] });
   };
+
+  // Fetch terminal sync pending count
+  const { data: terminalSyncCount = 0 } = useQuery({
+    queryKey: ['terminal-sync-pending-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('terminal_purchase_sync')
+        .select('*', { count: 'exact', head: true })
+        .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']);
+      if (error) throw error;
+      return count || 0;
+    },
+  });
 
   // Fetch purchase orders summary for badges
   const { data: ordersSummary } = useQuery({
@@ -318,7 +332,7 @@ export default function Purchase() {
         <Card className="w-full">
         <CardContent className="p-3 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-4 md:mb-6 h-auto">
+            <TabsList className="grid w-full grid-cols-5 mb-4 md:mb-6 h-auto">
               <TabsTrigger value="buy_orders" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="truncate">Buy Orders</span>
@@ -342,6 +356,13 @@ export default function Purchase() {
                 <span className="truncate">Completed</span>
                 {ordersSummary?.completed ? (
                   <Badge variant="default" className="text-xs">{ordersSummary.completed}</Badge>
+                ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="terminal_sync" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <Link2 className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="truncate">Terminal Sync</span>
+                {terminalSyncCount > 0 ? (
+                  <Badge variant="default" className="text-xs">{terminalSyncCount}</Badge>
                 ) : null}
               </TabsTrigger>
             </TabsList>
@@ -376,6 +397,10 @@ export default function Purchase() {
                 dateFrom={filterDateFrom}
                 dateTo={filterDateTo}
               />
+            </TabsContent>
+
+            <TabsContent value="terminal_sync">
+              <TerminalSyncTab />
             </TabsContent>
           </Tabs>
         </CardContent>

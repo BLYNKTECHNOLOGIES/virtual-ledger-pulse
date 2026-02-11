@@ -968,6 +968,33 @@ export type Database = {
         }
         Relationships: []
       }
+      counterparty_pan_records: {
+        Row: {
+          collected_by: string | null
+          counterparty_nickname: string
+          created_at: string
+          id: string
+          pan_number: string
+          updated_at: string
+        }
+        Insert: {
+          collected_by?: string | null
+          counterparty_nickname: string
+          created_at?: string
+          id?: string
+          pan_number: string
+          updated_at?: string
+        }
+        Update: {
+          collected_by?: string | null
+          counterparty_nickname?: string
+          created_at?: string
+          id?: string
+          pan_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_gross_profit_history: {
         Row: {
           avg_sales_rate: number
@@ -5558,11 +5585,13 @@ export type Database = {
           product_name: string | null
           purchase_payment_method_id: string | null
           quantity: number | null
+          source: string
           status: string
           supplier_name: string
           tax_amount: number | null
           tds_amount: number | null
           tds_applied: boolean | null
+          terminal_sync_id: string | null
           timer_end_at: string | null
           total_amount: number
           total_paid: number | null
@@ -5605,11 +5634,13 @@ export type Database = {
           product_name?: string | null
           purchase_payment_method_id?: string | null
           quantity?: number | null
+          source?: string
           status?: string
           supplier_name: string
           tax_amount?: number | null
           tds_amount?: number | null
           tds_applied?: boolean | null
+          terminal_sync_id?: string | null
           timer_end_at?: string | null
           total_amount: number
           total_paid?: number | null
@@ -5652,11 +5683,13 @@ export type Database = {
           product_name?: string | null
           purchase_payment_method_id?: string | null
           quantity?: number | null
+          source?: string
           status?: string
           supplier_name?: string
           tax_amount?: number | null
           tds_amount?: number | null
           tds_applied?: boolean | null
+          terminal_sync_id?: string | null
           timer_end_at?: string | null
           total_amount?: number
           total_paid?: number | null
@@ -5692,6 +5725,13 @@ export type Database = {
             columns: ["purchase_payment_method_id"]
             isOneToOne: false
             referencedRelation: "purchase_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_terminal_sync_id_fkey"
+            columns: ["terminal_sync_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_purchase_sync"
             referencedColumns: ["id"]
           },
           {
@@ -6741,6 +6781,116 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_purchase_sync: {
+        Row: {
+          binance_order_number: string
+          client_id: string | null
+          counterparty_name: string
+          created_at: string
+          id: string
+          order_data: Json
+          pan_number: string | null
+          purchase_order_id: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sync_status: string
+          synced_at: string
+          synced_by: string | null
+        }
+        Insert: {
+          binance_order_number: string
+          client_id?: string | null
+          counterparty_name: string
+          created_at?: string
+          id?: string
+          order_data?: Json
+          pan_number?: string | null
+          purchase_order_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sync_status?: string
+          synced_at?: string
+          synced_by?: string | null
+        }
+        Update: {
+          binance_order_number?: string
+          client_id?: string | null
+          counterparty_name?: string
+          created_at?: string
+          id?: string
+          order_data?: Json
+          pan_number?: string | null
+          purchase_order_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sync_status?: string
+          synced_at?: string
+          synced_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_purchase_sync_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_purchase_sync_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_wallet_links: {
+        Row: {
+          api_identifier: string
+          created_at: string
+          fee_treatment: string
+          id: string
+          platform_source: string
+          status: string
+          supported_assets: string[]
+          updated_at: string
+          wallet_id: string
+        }
+        Insert: {
+          api_identifier?: string
+          created_at?: string
+          fee_treatment?: string
+          id?: string
+          platform_source?: string
+          status?: string
+          supported_assets?: string[]
+          updated_at?: string
+          wallet_id: string
+        }
+        Update: {
+          api_identifier?: string
+          created_at?: string
+          fee_treatment?: string
+          id?: string
+          platform_source?: string
+          status?: string
+          supported_assets?: string[]
+          updated_at?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_wallet_links_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
             referencedColumns: ["id"]
           },
         ]

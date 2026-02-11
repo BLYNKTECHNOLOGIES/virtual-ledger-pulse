@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from './useBinanceActions';
 import { toast } from 'sonner';
+import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates
@@ -198,11 +199,24 @@ export function useSyncOrderHistory() {
       console.log(`[Sync] Incremental sync complete. ${newOrders.length} orders in ${(duration / 1000).toFixed(1)}s`);
       return { count: newOrders.length, duration, type: 'incremental' as const };
     },
-    onSuccess: ({ count, duration, type }) => {
+    onSuccess: async ({ count, duration, type }) => {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
       toast.success(`${label}: ${count.toLocaleString()} orders in ${(duration / 1000).toFixed(0)}s`);
+      
+      // Post-sync: sync completed BUY orders to terminal_purchase_sync
+      try {
+        const { synced, duplicates } = await syncCompletedBuyOrders();
+        if (synced > 0) {
+          toast.info(`${synced} new purchase(s) synced to ERP for approval`);
+        }
+      } catch (err) {
+        console.error('[PostSync] Purchase sync failed:', err);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['cached-order-history'] });
       queryClient.invalidateQueries({ queryKey: ['binance-sync-metadata'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
     },
     onError: (err: Error) => {
       toast.error(`Sync failed: ${err.message}`);

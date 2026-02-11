@@ -7,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Package, Search, Plus, TrendingUp, Building, DollarSign } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Package, Search, Plus, TrendingUp, Building, DollarSign, AlertTriangle } from "lucide-react";
 import { AddProductDialog } from "./AddProductDialog";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
+import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 
 export function ProductCardListingTab() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,6 +20,13 @@ export function ProductCardListingTab() {
   const [, setSearchParams] = useSearchParams();
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
+  const { data: binanceBalances } = useBinanceBalances();
+
+  // Build a map of Binance total balances by asset for reference comparison
+  const binanceBalanceMap = new Map<string, number>();
+  binanceBalances?.forEach(b => {
+    binanceBalanceMap.set(b.asset, b.total_balance);
+  });
 
   // Also fetch products that might not have stock yet  
   const { data: allProducts } = useQuery({
@@ -111,7 +120,32 @@ export function ProductCardListingTab() {
                       #{product.code}
                     </Badge>
                   </div>
+                <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />
+                  {(() => {
+                    const binanceBalance = binanceBalanceMap.get(product.code);
+                    if (binanceBalance === undefined) return null;
+                    const diff = Math.abs(binanceBalance - product.total_stock);
+                    const hasMismatch = diff > 5;
+                    return (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] gap-0.5 ${hasMismatch ? 'border-red-500 text-red-500 bg-red-500/5 animate-pulse' : 'border-muted-foreground/30 text-muted-foreground'}`}
+                          >
+                            {hasMismatch && <AlertTriangle className="h-2.5 w-2.5" />}
+                            API: {binanceBalance.toFixed(4)}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Binance API Balance (Reference Only)</p>
+                          {hasMismatch && <p className="text-xs text-red-400">⚠ Difference: {diff.toFixed(4)} USDT</p>}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })()}
+                </div>
                 </div>
               </CardHeader>
               

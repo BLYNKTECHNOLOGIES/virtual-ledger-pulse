@@ -86,8 +86,7 @@ export default function Dashboard() {
   const { data: metrics, refetch: refetchMetrics } = useQuery({
     queryKey: ['dashboard_metrics', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
-      // Sync USDT stock first to ensure accurate stock values
-      await supabase.rpc('sync_usdt_stock');
+      // ERP balances are source of truth - no auto-sync from Binance
       
       // Get sales orders within date range
       const { data: salesData } = await supabase
@@ -164,13 +163,8 @@ export default function Dashboard() {
   const { data: warehouseStock, refetch: refetchWarehouseStock } = useQuery({
     queryKey: ['dashboard_asset_inventory'],
     queryFn: async () => {
-      // Sync USDT stock first
-      try {
-        await supabase.rpc('sync_usdt_stock');
-      } catch (e) {
-        console.log('sync_usdt_stock not available or failed', e);
-      }
-      
+      // ERP balances are source of truth - no auto-sync from Binance
+
       const { data: wallets, error: walletsError } = await supabase
         .from('wallets')
         .select('*')

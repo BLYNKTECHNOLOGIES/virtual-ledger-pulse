@@ -170,11 +170,14 @@ export default function TerminalOrders() {
 
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
+    const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];
     let enriched = rawOrders.map(o => {
-      // Active orders (from live endpoint) use their own status — don't override with potentially stale history
       const liveStatus = mapOrderStatusCode(o.orderStatus);
       const historyStatus = historyStatusMap.get(o.orderNumber);
-      const resolvedStatus = o._isActiveOrder ? liveStatus : (historyStatus || liveStatus);
+      // If history has a terminal/final status, always trust it (it's the source of truth for completed/cancelled)
+      // Otherwise, for active orders use their live status
+      const historyIsTerminal = historyStatus && TERMINAL_STATUSES.some(t => historyStatus.includes(t));
+      const resolvedStatus = historyIsTerminal ? historyStatus : (historyStatus || liveStatus);
       return { ...o, _resolvedStatus: resolvedStatus };
     });
 

@@ -16,11 +16,9 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Cron runs at midnight, so we snapshot YESTERDAY's completed data
+    // Cron runs at 11:59 PM, so we snapshot TODAY's completed data
     const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const snapshotDate = yesterday.toISOString().split("T")[0];
+    const snapshotDate = now.toISOString().split("T")[0];
     const dayStart = snapshotDate + "T00:00:00";
     const dayEnd = snapshotDate + "T23:59:59";
 

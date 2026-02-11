@@ -163,7 +163,7 @@ export function TerminalSalesSyncTab() {
                 return (
                   <TableRow key={record.id}>
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
-                    <TableCell className="text-xs">{record.counterparty_name}</TableCell>
+                    <TableCell className="text-xs">{(od?.verified_name || record.counterparty_name || od?.counterparty_name || '—')}</TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>

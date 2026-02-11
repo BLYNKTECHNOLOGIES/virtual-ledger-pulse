@@ -28,6 +28,7 @@ import {
   XCircle,
   AlertTriangle,
   Zap,
+  FileDown,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -45,6 +46,7 @@ import {
 import { AutoReplyRuleDialog } from '@/components/automation/AutoReplyRuleDialog';
 import { ScheduleDialog } from '@/components/automation/ScheduleDialog';
 import { format } from 'date-fns';
+import { CompletedOrdersExport } from '@/components/terminal/automation/CompletedOrdersExport';
 
 const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
@@ -124,6 +126,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="logs" className="gap-1.5">
             <Zap className="h-3.5 w-3.5" />
             Execution Log
+          </TabsTrigger>
+          <TabsTrigger value="export" className="gap-1.5">
+            <FileDown className="h-3.5 w-3.5" />
+            Export Orders
           </TabsTrigger>
         </TabsList>
 
@@ -345,6 +351,11 @@ export default function TerminalAutomation() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ═══ EXPORT ORDERS ═══ */}
+        <TabsContent value="export" className="mt-4">
+          <CompletedOrdersExport />
         </TabsContent>
       </Tabs>
 

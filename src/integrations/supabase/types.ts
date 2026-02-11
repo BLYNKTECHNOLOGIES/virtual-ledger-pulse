@@ -608,6 +608,7 @@ export type Database = {
           total_price: string | null
           trade_type: string | null
           unit_price: string | null
+          verified_name: string | null
         }
         Insert: {
           adv_no?: string | null
@@ -625,6 +626,7 @@ export type Database = {
           total_price?: string | null
           trade_type?: string | null
           unit_price?: string | null
+          verified_name?: string | null
         }
         Update: {
           adv_no?: string | null
@@ -642,6 +644,7 @@ export type Database = {
           total_price?: string | null
           trade_type?: string | null
           unit_price?: string | null
+          verified_name?: string | null
         }
         Relationships: []
       }

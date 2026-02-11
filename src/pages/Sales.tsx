@@ -23,6 +23,7 @@ import { UserPayingStatusDialog } from "@/components/sales/UserPayingStatusDialo
 import { PaymentMethodSelectionDialog } from "@/components/sales/PaymentMethodSelectionDialog";
 import { OrderCompletionForm } from "@/components/sales/OrderCompletionForm";
 import { PermissionGate } from "@/components/PermissionGate";
+import { TerminalSalesSyncTab } from "@/components/sales/TerminalSalesSyncTab";
 
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -657,12 +658,15 @@ export default function Sales() {
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="pending">
                   Pending Orders ({pendingOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
                   Completed Orders ({completedOrders.length})
+                </TabsTrigger>
+                <TabsTrigger value="terminal-sync">
+                  Terminal Sync
                 </TabsTrigger>
               </TabsList>
               
@@ -678,6 +682,10 @@ export default function Sales() {
                   </div>
                   {renderOrdersTable(completedOrders, true)}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="terminal-sync" className="mt-6">
+                <TerminalSalesSyncTab />
               </TabsContent>
             </Tabs>
           )}

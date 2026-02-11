@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield } from 'lucide-react';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
+import { CounterpartyContactInput } from './CounterpartyContactInput';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
@@ -251,6 +252,9 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
 
       {/* PAN Collection */}
       <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
+
+      {/* Contact & State Collection */}
+      <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />
     </div>
   );
 }

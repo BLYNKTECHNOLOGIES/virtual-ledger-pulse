@@ -1040,6 +1040,36 @@ export type Database = {
         }
         Relationships: []
       }
+      counterparty_contact_records: {
+        Row: {
+          collected_by: string | null
+          contact_number: string | null
+          counterparty_nickname: string
+          created_at: string
+          id: string
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          collected_by?: string | null
+          contact_number?: string | null
+          counterparty_nickname: string
+          created_at?: string
+          id?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          collected_by?: string | null
+          contact_number?: string | null
+          counterparty_nickname?: string
+          created_at?: string
+          id?: string
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       counterparty_pan_records: {
         Row: {
           collected_by: string | null
@@ -6310,7 +6340,9 @@ export type Database = {
           settled_at: string | null
           settlement_batch_id: string | null
           settlement_status: string | null
+          source: string | null
           status: string
+          terminal_sync_id: string | null
           total_amount: number
           updated_at: string
           usdt_amount: number | null
@@ -6342,7 +6374,9 @@ export type Database = {
           settled_at?: string | null
           settlement_batch_id?: string | null
           settlement_status?: string | null
+          source?: string | null
           status?: string
+          terminal_sync_id?: string | null
           total_amount: number
           updated_at?: string
           usdt_amount?: number | null
@@ -6374,7 +6408,9 @@ export type Database = {
           settled_at?: string | null
           settlement_batch_id?: string | null
           settlement_status?: string | null
+          source?: string | null
           status?: string
+          terminal_sync_id?: string | null
           total_amount?: number
           updated_at?: string
           usdt_amount?: number | null
@@ -6401,6 +6437,13 @@ export type Database = {
             columns: ["sales_payment_method_id"]
             isOneToOne: false
             referencedRelation: "sales_payment_methods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_terminal_sync_id_fkey"
+            columns: ["terminal_sync_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_sales_sync"
             referencedColumns: ["id"]
           },
           {
@@ -6994,6 +7037,72 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_sales_sync: {
+        Row: {
+          binance_order_number: string
+          client_id: string | null
+          contact_number: string | null
+          counterparty_name: string | null
+          id: string
+          order_data: Json | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sales_order_id: string | null
+          state: string | null
+          sync_status: string
+          synced_at: string | null
+          synced_by: string | null
+        }
+        Insert: {
+          binance_order_number: string
+          client_id?: string | null
+          contact_number?: string | null
+          counterparty_name?: string | null
+          id?: string
+          order_data?: Json | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sales_order_id?: string | null
+          state?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          synced_by?: string | null
+        }
+        Update: {
+          binance_order_number?: string
+          client_id?: string | null
+          contact_number?: string | null
+          counterparty_name?: string | null
+          id?: string
+          order_data?: Json | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sales_order_id?: string | null
+          state?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          synced_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_sales_sync_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_sales_sync_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
         ]

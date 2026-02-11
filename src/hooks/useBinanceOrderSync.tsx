@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from './useBinanceActions';
 import { toast } from 'sonner';
 import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
+import { syncCompletedSellOrders } from './useTerminalSalesSync';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates
@@ -213,10 +214,22 @@ export function useSyncOrderHistory() {
         console.error('[PostSync] Purchase sync failed:', err);
       }
 
+      // Post-sync: sync completed SELL orders to terminal_sales_sync
+      try {
+        const { synced: sellSynced } = await syncCompletedSellOrders();
+        if (sellSynced > 0) {
+          toast.info(`${sellSynced} new sale(s) synced to ERP for approval`);
+        }
+      } catch (err) {
+        console.error('[PostSync] Sales sync failed:', err);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['cached-order-history'] });
       queryClient.invalidateQueries({ queryKey: ['binance-sync-metadata'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
     },
     onError: (err: Error) => {
       toast.error(`Sync failed: ${err.message}`);

@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Repeat, LayoutList } from "lucide-react";
+import { Loader2, ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Repeat, LayoutList, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 type MovementType = "all" | "deposit" | "withdrawal" | "transfer" | "p2p";
 
@@ -26,71 +27,42 @@ interface UnifiedMovement {
   fiatAmount?: number;
 }
 
-// Fetch deposit history
-function useDepositHistory() {
+const DEPOSIT_STATUS: Record<string, string> = {
+  "0": "Pending",
+  "6": "Credited",
+  "1": "Success",
+  "7": "Wrong Deposit",
+  "8": "Waiting User Confirm",
+};
+
+const WITHDRAW_STATUS: Record<string, string> = {
+  "0": "Email Sent",
+  "1": "Cancelled",
+  "2": "Awaiting Approval",
+  "3": "Rejected",
+  "4": "Processing",
+  "5": "Failure",
+  "6": "Completed",
+};
+
+// Read cached movements from DB
+function useMovementsFromDB() {
   return useQuery({
-    queryKey: ["binance_deposit_history"],
+    queryKey: ["asset_movement_history_db"],
     queryFn: async () => {
-      const now = Date.now();
-      const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
-      const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getDepositHistory", startTime: ninetyDaysAgo, endTime: now, limit: 200 },
-      });
+      const { data, error } = await supabase
+        .from("asset_movement_history")
+        .select("*")
+        .order("movement_time", { ascending: false })
+        .limit(500);
       if (error) throw error;
-      if (!data?.success) return [];
-      return Array.isArray(data.data) ? data.data : [];
+      return data || [];
     },
-    staleTime: 60000,
+    staleTime: 10000,
   });
 }
 
-// Fetch withdrawal history
-function useWithdrawHistory() {
-  return useQuery({
-    queryKey: ["binance_withdraw_history"],
-    queryFn: async () => {
-      const now = Date.now();
-      const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
-      const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getWithdrawHistory", startTime: ninetyDaysAgo, endTime: now, limit: 200 },
-      });
-      if (error) throw error;
-      if (!data?.success) return [];
-      return Array.isArray(data.data) ? data.data : [];
-    },
-    staleTime: 60000,
-  });
-}
-
-// Fetch transfer history (FUNDING_MAIN and MAIN_FUNDING)
-function useTransferHistory() {
-  return useQuery({
-    queryKey: ["binance_transfer_history"],
-    queryFn: async () => {
-      const results: any[] = [];
-      const transferTypes = ["MAIN_FUNDING", "FUNDING_MAIN"];
-      
-      for (const tType of transferTypes) {
-        try {
-          const { data, error } = await supabase.functions.invoke("binance-assets", {
-            body: { action: "getTransferHistory", type: tType, size: 100 },
-          });
-          if (!error && data?.success && data.data?.rows) {
-            for (const row of data.data.rows) {
-              results.push({ ...row, transferType: tType });
-            }
-          }
-        } catch {
-          // skip failed type
-        }
-      }
-      return results;
-    },
-    staleTime: 60000,
-  });
-}
-
-// Fetch P2P history from DB
+// Read P2P from existing DB table
 function useP2PHistory() {
   return useQuery({
     queryKey: ["binance_p2p_movement_history"],
@@ -108,95 +80,94 @@ function useP2PHistory() {
   });
 }
 
-const DEPOSIT_STATUS: Record<number, string> = {
-  0: "Pending",
-  6: "Credited",
-  1: "Success",
-  7: "Wrong Deposit",
-  8: "Waiting User Confirm",
-};
+// Sync trigger
+function useSyncMovements() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (force: boolean = false) => {
+      const { data, error } = await supabase.functions.invoke("binance-assets", {
+        body: { action: "syncAssetMovements", force },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["asset_movement_history_db"] });
+      if (data?.data?.synced) {
+        toast.success(`Synced ${data.data.totalUpserted} movements`);
+      }
+    },
+    onError: (err: Error) => toast.error(`Sync failed: ${err.message}`),
+  });
+}
 
-const WITHDRAW_STATUS: Record<number, string> = {
-  0: "Email Sent",
-  1: "Cancelled",
-  2: "Awaiting Approval",
-  3: "Rejected",
-  4: "Processing",
-  5: "Failure",
-  6: "Completed",
-};
+// Auto-sync on mount if stale
+function useAutoSync() {
+  const sync = useSyncMovements();
+  const [hasTriggered, setHasTriggered] = useState(false);
+
+  useEffect(() => {
+    if (hasTriggered) return;
+    setHasTriggered(true);
+    // Check sync metadata
+    supabase
+      .from("asset_movement_sync_metadata")
+      .select("last_sync_at")
+      .eq("id", "default")
+      .maybeSingle()
+      .then(({ data }) => {
+        const lastSync = data?.last_sync_at ? new Date(data.last_sync_at).getTime() : 0;
+        const fiveMin = 5 * 60 * 1000;
+        if (Date.now() - lastSync > fiveMin) {
+          sync.mutate(false);
+        }
+      });
+  }, [hasTriggered]);
+
+  return sync;
+}
 
 export function AssetMovementHistory() {
   const [filter, setFilter] = useState<MovementType>("all");
-  
-  const { data: deposits, isLoading: loadingDeposits } = useDepositHistory();
-  const { data: withdrawals, isLoading: loadingWithdrawals } = useWithdrawHistory();
-  const { data: transfers, isLoading: loadingTransfers } = useTransferHistory();
+  const { data: dbMovements, isLoading: loadingDB } = useMovementsFromDB();
   const { data: p2pOrders, isLoading: loadingP2P } = useP2PHistory();
+  const sync = useAutoSync();
 
-  const isLoading = loadingDeposits || loadingWithdrawals || loadingTransfers || loadingP2P;
+  const isLoading = loadingDB || loadingP2P;
 
   const unified = useMemo(() => {
     const movements: UnifiedMovement[] = [];
 
-    // Deposits
-    if (deposits) {
-      for (const d of deposits) {
+    // DB cached movements (deposits, withdrawals, transfers)
+    if (dbMovements) {
+      for (const m of dbMovements) {
+        const mType = m.movement_type as MovementType;
+        let statusLabel = m.status || "";
+        if (mType === "deposit") statusLabel = DEPOSIT_STATUS[m.status || ""] || m.status || "";
+        if (mType === "withdrawal") statusLabel = WITHDRAW_STATUS[m.status || ""] || m.status || "";
+
+        let details = "";
+        if (mType === "deposit") details = `${m.network || ""} Deposit`;
+        else if (mType === "withdrawal") details = `${m.network || ""} Withdrawal`;
+        else if (mType === "transfer") details = m.transfer_direction || "Internal Transfer";
+
         movements.push({
-          id: `dep-${d.id || d.txId}`,
-          type: "deposit",
-          asset: d.coin || "",
-          amount: parseFloat(d.amount || "0"),
-          status: DEPOSIT_STATUS[d.status] || String(d.status),
-          timestamp: d.insertTime || 0,
-          details: `${d.network || ""} Deposit`,
-          network: d.network,
-          txId: d.txId,
-          address: d.address,
+          id: m.id,
+          type: mType,
+          asset: m.asset || "",
+          amount: Number(m.amount) || 0,
+          status: statusLabel,
+          timestamp: Number(m.movement_time) || 0,
+          details,
+          network: m.network || undefined,
+          txId: m.tx_id || undefined,
+          address: m.address || undefined,
+          fee: Number(m.fee) || undefined,
         });
       }
     }
 
-    // Withdrawals
-    if (withdrawals) {
-      for (const w of withdrawals) {
-        movements.push({
-          id: `wd-${w.id}`,
-          type: "withdrawal",
-          asset: w.coin || "",
-          amount: parseFloat(w.amount || "0"),
-          status: WITHDRAW_STATUS[w.status] || String(w.status),
-          timestamp: new Date(w.applyTime || 0).getTime(),
-          details: `${w.network || ""} Withdrawal`,
-          network: w.network,
-          txId: w.txId,
-          address: w.address,
-          fee: parseFloat(w.transactionFee || "0"),
-        });
-      }
-    }
-
-    // Transfers
-    if (transfers) {
-      for (const t of transfers) {
-        const fromTo = t.transferType === "FUNDING_MAIN" 
-          ? "Funding → Spot" 
-          : t.transferType === "MAIN_FUNDING"
-          ? "Spot → Funding"
-          : t.transferType?.replace(/_/g, " → ");
-        movements.push({
-          id: `tr-${t.tranId}`,
-          type: "transfer",
-          asset: t.asset || "",
-          amount: parseFloat(t.amount || "0"),
-          status: t.status || "CONFIRMED",
-          timestamp: t.timestamp || 0,
-          details: fromTo || "Internal Transfer",
-        });
-      }
-    }
-
-    // P2P
+    // P2P from order history
     if (p2pOrders) {
       for (const o of p2pOrders) {
         movements.push({
@@ -215,10 +186,9 @@ export function AssetMovementHistory() {
       }
     }
 
-    // Sort by time descending
     movements.sort((a, b) => b.timestamp - a.timestamp);
     return movements;
-  }, [deposits, withdrawals, transfers, p2pOrders]);
+  }, [dbMovements, p2pOrders]);
 
   const filtered = filter === "all" ? unified : unified.filter((m) => m.type === filter);
 
@@ -273,7 +243,7 @@ export function AssetMovementHistory() {
     { key: "p2p", label: "P2P", icon: <Repeat className="h-3 w-3 mr-1" /> },
   ];
 
-  if (isLoading) {
+  if (isLoading && !dbMovements?.length) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -289,6 +259,16 @@ export function AssetMovementHistory() {
             Asset Movement History
           </CardTitle>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] gap-1"
+              onClick={() => sync.mutate(true)}
+              disabled={sync.isPending}
+            >
+              <RefreshCw className={`h-3 w-3 ${sync.isPending ? "animate-spin" : ""}`} />
+              {sync.isPending ? "Syncing..." : "Sync"}
+            </Button>
             <div className="flex items-center bg-muted/50 rounded-md p-0.5">
               {filters.map((f) => (
                 <Button

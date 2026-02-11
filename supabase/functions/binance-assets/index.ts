@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -353,6 +354,142 @@ serve(async (req) => {
         if (size) params.size = String(size);
 
         result = await proxyGet("/sapi/v1/asset/transfer", params);
+        break;
+      }
+
+      // ===== SYNC ASSET MOVEMENTS TO DB =====
+      case "syncAssetMovements": {
+        const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
+        const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+        // Check last sync time
+        const { data: syncMeta } = await sb
+          .from("asset_movement_sync_metadata")
+          .select("*")
+          .eq("id", "default")
+          .maybeSingle();
+
+        const lastSync = syncMeta?.last_sync_at ? new Date(syncMeta.last_sync_at).getTime() : 0;
+        const fiveMinutes = 5 * 60 * 1000;
+        const now = Date.now();
+        const forceSync = payload.force === true;
+
+        if (!forceSync && lastSync > 0 && (now - lastSync) < fiveMinutes) {
+          console.log("syncAssetMovements: data is fresh, skipping sync");
+          result = { synced: false, reason: "fresh" };
+          break;
+        }
+
+        console.log("syncAssetMovements: starting sync...");
+        const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+        let totalUpserted = 0;
+
+        // --- Deposits ---
+        try {
+          const depParams: Record<string, string> = {
+            startTime: String(ninetyDaysAgo),
+            endTime: String(now),
+            limit: "200",
+          };
+          const deposits = await proxyGet("/sapi/v1/capital/deposit/hisrec", depParams);
+          if (Array.isArray(deposits)) {
+            const rows = deposits.map((d: any) => ({
+              id: `dep-${d.id || d.txId || d.insertTime}`,
+              movement_type: "deposit",
+              asset: d.coin || "",
+              amount: parseFloat(d.amount || "0"),
+              fee: 0,
+              status: String(d.status ?? ""),
+              network: d.network || null,
+              tx_id: d.txId || null,
+              address: d.address || null,
+              transfer_direction: null,
+              raw_data: d,
+              movement_time: d.insertTime || 0,
+              synced_at: new Date().toISOString(),
+            }));
+            if (rows.length > 0) {
+              const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
+              if (error) console.error("Deposit upsert error:", error);
+              else totalUpserted += rows.length;
+            }
+            console.log(`Synced ${rows.length} deposits`);
+          }
+        } catch (e) { console.error("Deposit sync error:", e); }
+
+        // --- Withdrawals ---
+        try {
+          const wdParams: Record<string, string> = {
+            startTime: String(ninetyDaysAgo),
+            endTime: String(now),
+            limit: "200",
+          };
+          const withdrawals = await proxyGet("/sapi/v1/capital/withdraw/history", wdParams);
+          if (Array.isArray(withdrawals)) {
+            const rows = withdrawals.map((w: any) => ({
+              id: `wd-${w.id}`,
+              movement_type: "withdrawal",
+              asset: w.coin || "",
+              amount: parseFloat(w.amount || "0"),
+              fee: parseFloat(w.transactionFee || "0"),
+              status: String(w.status ?? ""),
+              network: w.network || null,
+              tx_id: w.txId || null,
+              address: w.address || null,
+              transfer_direction: null,
+              raw_data: w,
+              movement_time: new Date(w.applyTime || 0).getTime(),
+              synced_at: new Date().toISOString(),
+            }));
+            if (rows.length > 0) {
+              const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
+              if (error) console.error("Withdrawal upsert error:", error);
+              else totalUpserted += rows.length;
+            }
+            console.log(`Synced ${rows.length} withdrawals`);
+          }
+        } catch (e) { console.error("Withdrawal sync error:", e); }
+
+        // --- Transfers (MAIN_FUNDING + FUNDING_MAIN) ---
+        for (const tType of ["MAIN_FUNDING", "FUNDING_MAIN"]) {
+          try {
+            const trParams: Record<string, string> = { type: tType, size: "100" };
+            const trData = await proxyGet("/sapi/v1/asset/transfer", trParams);
+            const trRows = trData?.rows || [];
+            if (Array.isArray(trRows) && trRows.length > 0) {
+              const direction = tType === "FUNDING_MAIN" ? "Funding → Spot" : "Spot → Funding";
+              const rows = trRows.map((t: any) => ({
+                id: `tr-${t.tranId}`,
+                movement_type: "transfer",
+                asset: t.asset || "",
+                amount: parseFloat(t.amount || "0"),
+                fee: 0,
+                status: t.status || "CONFIRMED",
+                network: null,
+                tx_id: null,
+                address: null,
+                transfer_direction: direction,
+                raw_data: t,
+                movement_time: t.timestamp || 0,
+                synced_at: new Date().toISOString(),
+              }));
+              const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
+              if (error) console.error(`Transfer upsert error (${tType}):`, error);
+              else totalUpserted += rows.length;
+              console.log(`Synced ${rows.length} transfers (${tType})`);
+            }
+          } catch (e) { console.error(`Transfer sync error (${tType}):`, e); }
+        }
+
+        // Update sync metadata
+        await sb.from("asset_movement_sync_metadata").upsert({
+          id: "default",
+          last_sync_at: new Date().toISOString(),
+        }, { onConflict: "id" });
+
+        console.log(`syncAssetMovements: total upserted ${totalUpserted}`);
+        result = { synced: true, totalUpserted };
         break;
       }
 

@@ -47,6 +47,7 @@ export function SellerOnboardingApprovals() {
         .is('pan_card_url', null)
         .is('aadhar_front_url', null)
         .in('kyc_status', ['PENDING', 'PENDING_APPROVAL'])
+        .eq('is_seller', true)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

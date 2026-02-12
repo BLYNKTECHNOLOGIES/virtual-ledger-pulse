@@ -58,10 +58,12 @@ serve(async (req) => {
     let totalPurchaseQty = 0;
 
     if (purchaseOrderIds.length > 0) {
+      // Filter by USDT product only (matches P&L page logic)
       const { data: purchaseItems } = await supabase
         .from("purchase_order_items")
-        .select("quantity, unit_price")
-        .in("purchase_order_id", purchaseOrderIds);
+        .select("quantity, unit_price, products!inner(code)")
+        .in("purchase_order_id", purchaseOrderIds)
+        .eq("products.code", "USDT");
 
       for (const item of purchaseItems || []) {
         const qty = Number(item.quantity) || 0;

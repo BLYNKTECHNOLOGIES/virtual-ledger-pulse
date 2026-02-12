@@ -102,6 +102,7 @@ export function useExecuteTrade() {
           quantity: parseFloat(params.quantity || params.quoteOrderQty || "0"),
           status: "PENDING",
           execution_method: "SPOT",
+          binance_trade_id: `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         })
         .select("id")
         .single();

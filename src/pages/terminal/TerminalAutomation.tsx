@@ -30,6 +30,7 @@ import {
   Zap,
   FileDown,
   Timer,
+  Package,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -49,6 +50,7 @@ import { ScheduleDialog } from '@/components/automation/ScheduleDialog';
 import { format } from 'date-fns';
 import { CompletedOrdersExport } from '@/components/terminal/automation/CompletedOrdersExport';
 import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySettings';
+import { SmallSalesConfig } from '@/components/terminal/automation/SmallSalesConfig';
 
 const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
@@ -136,6 +138,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="export" className="gap-1.5">
             <FileDown className="h-3.5 w-3.5" />
             Export Orders
+          </TabsTrigger>
+          <TabsTrigger value="small-sales" className="gap-1.5">
+            <Package className="h-3.5 w-3.5" />
+            Small Sales
           </TabsTrigger>
         </TabsList>
 
@@ -367,6 +373,11 @@ export default function TerminalAutomation() {
         {/* ═══ EXPORT ORDERS ═══ */}
         <TabsContent value="export" className="mt-4">
           <CompletedOrdersExport />
+        </TabsContent>
+
+        {/* ═══ SMALL SALES CONFIG ═══ */}
+        <TabsContent value="small-sales" className="mt-4">
+          <SmallSalesConfig />
         </TabsContent>
       </Tabs>
 

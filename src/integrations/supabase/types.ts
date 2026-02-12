@@ -6646,6 +6646,7 @@ export type Database = {
           product_id: string | null
           quantity: number
           risk_level: string | null
+          sale_type: string
           sales_payment_method_id: string | null
           settled_at: string | null
           settlement_batch_id: string | null
@@ -6680,6 +6681,7 @@ export type Database = {
           product_id?: string | null
           quantity: number
           risk_level?: string | null
+          sale_type?: string
           sales_payment_method_id?: string | null
           settled_at?: string | null
           settlement_batch_id?: string | null
@@ -6714,6 +6716,7 @@ export type Database = {
           product_id?: string | null
           quantity?: number
           risk_level?: string | null
+          sale_type?: string
           sales_payment_method_id?: string | null
           settled_at?: string | null
           settlement_batch_id?: string | null
@@ -6848,6 +6851,173 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      small_sales_config: {
+        Row: {
+          currency: string
+          id: string
+          is_enabled: boolean
+          max_amount: number
+          min_amount: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          currency?: string
+          id?: string
+          is_enabled?: boolean
+          max_amount?: number
+          min_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          currency?: string
+          id?: string
+          is_enabled?: boolean
+          max_amount?: number
+          min_amount?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      small_sales_order_map: {
+        Row: {
+          binance_order_number: string
+          created_at: string
+          id: string
+          order_data: Json | null
+          small_sales_sync_id: string
+        }
+        Insert: {
+          binance_order_number: string
+          created_at?: string
+          id?: string
+          order_data?: Json | null
+          small_sales_sync_id: string
+        }
+        Update: {
+          binance_order_number?: string
+          created_at?: string
+          id?: string
+          order_data?: Json | null
+          small_sales_sync_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "small_sales_order_map_small_sales_sync_id_fkey"
+            columns: ["small_sales_sync_id"]
+            isOneToOne: false
+            referencedRelation: "small_sales_sync"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      small_sales_sync: {
+        Row: {
+          asset_code: string
+          avg_price: number
+          id: string
+          order_count: number
+          order_numbers: string[]
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sales_order_id: string | null
+          sync_batch_id: string
+          sync_status: string
+          synced_at: string
+          synced_by: string | null
+          time_window_end: string | null
+          time_window_start: string | null
+          total_amount: number
+          total_fee: number
+          total_quantity: number
+          wallet_id: string | null
+          wallet_name: string | null
+        }
+        Insert: {
+          asset_code: string
+          avg_price?: number
+          id?: string
+          order_count?: number
+          order_numbers?: string[]
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sales_order_id?: string | null
+          sync_batch_id: string
+          sync_status?: string
+          synced_at?: string
+          synced_by?: string | null
+          time_window_end?: string | null
+          time_window_start?: string | null
+          total_amount?: number
+          total_fee?: number
+          total_quantity?: number
+          wallet_id?: string | null
+          wallet_name?: string | null
+        }
+        Update: {
+          asset_code?: string
+          avg_price?: number
+          id?: string
+          order_count?: number
+          order_numbers?: string[]
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sales_order_id?: string | null
+          sync_batch_id?: string
+          sync_status?: string
+          synced_at?: string
+          synced_by?: string | null
+          time_window_end?: string | null
+          time_window_start?: string | null
+          total_amount?: number
+          total_fee?: number
+          total_quantity?: number
+          wallet_id?: string | null
+          wallet_name?: string | null
+        }
+        Relationships: []
+      }
+      small_sales_sync_log: {
+        Row: {
+          entries_created: number
+          id: string
+          sync_batch_id: string
+          sync_completed_at: string | null
+          sync_started_at: string
+          synced_by: string | null
+          time_window_end: string
+          time_window_start: string
+          total_orders_processed: number
+        }
+        Insert: {
+          entries_created?: number
+          id?: string
+          sync_batch_id: string
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          synced_by?: string | null
+          time_window_end: string
+          time_window_start: string
+          total_orders_processed?: number
+        }
+        Update: {
+          entries_created?: number
+          id?: string
+          sync_batch_id?: string
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          synced_by?: string | null
+          time_window_end?: string
+          time_window_start?: string
+          total_orders_processed?: number
+        }
+        Relationships: []
       }
       spot_trade_history: {
         Row: {

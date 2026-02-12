@@ -139,10 +139,16 @@ export default function ProfitLoss() {
       
       let purchaseItems: any[] = [];
       if (periodPurchaseOrderIds.length > 0) {
-        const { data: items } = await supabase
+        let purchaseQuery = supabase
           .from('purchase_order_items')
-          .select('purchase_order_id, product_id, quantity, unit_price')
+          .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
           .in('purchase_order_id', periodPurchaseOrderIds);
+        
+        if (selectedAsset !== 'all') {
+          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
+        }
+        
+        const { data: items } = await purchaseQuery;
         purchaseItems = items || [];
       }
 

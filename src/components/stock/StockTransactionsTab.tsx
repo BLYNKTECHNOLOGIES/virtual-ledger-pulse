@@ -883,10 +883,15 @@ export function StockTransactionsTab() {
                         {getTransactionBadge(entry.transaction_type, entry.reference_type)}
                       </td>
                       <td className="py-3 px-4">
-                        {parseFloat(entry.quantity.toString()).toLocaleString('en-IN', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 3
-                        })} {entry.products?.unit_of_measurement}
+                        {(() => {
+                          const assetCode = entry.products?.code || entry.closing_asset || 'USDT';
+                          const isStable = ['USDT', 'USDC', 'FDUSD'].includes(assetCode);
+                          const maxDecimals = isStable ? 4 : 8;
+                          return `${parseFloat(entry.quantity.toString()).toLocaleString('en-IN', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: maxDecimals
+                          })} ${entry.products?.unit_of_measurement}`;
+                        })()}
                       </td>
                       <td className="py-3 px-4">
                         {entry.wallet_name ? (
@@ -915,7 +920,12 @@ export function StockTransactionsTab() {
                         {entry.closing_balance !== null && entry.closing_balance !== undefined ? (
                           <div>
                             <span className="font-medium text-sm tabular-nums">
-                              {parseFloat(entry.closing_balance.toString()).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                              {(() => {
+                                const assetCode = entry.closing_asset || entry.products?.code || 'USDT';
+                                const isStable = ['USDT', 'USDC', 'FDUSD'].includes(assetCode);
+                                const maxDecimals = isStable ? 4 : 8;
+                                return parseFloat(entry.closing_balance.toString()).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals });
+                              })()}
                             </span>
                             {entry.closing_wallet && (
                               <div className="text-[10px] text-muted-foreground">{entry.closing_wallet}</div>

@@ -29,15 +29,11 @@ export function InterProductConversionTab() {
         </TabsList>
 
         <TabsContent value="create">
-          <PermissionGate permissions={["stock_conversion_create"]}>
-            <CreateConversionForm />
-          </PermissionGate>
+          <CreateConversionForm />
         </TabsContent>
 
         <TabsContent value="pending">
-          <PermissionGate permissions={["stock_conversion_approve"]}>
-            <PendingConversionsTable />
-          </PermissionGate>
+          <PendingConversionsTable />
         </TabsContent>
 
         <TabsContent value="history">

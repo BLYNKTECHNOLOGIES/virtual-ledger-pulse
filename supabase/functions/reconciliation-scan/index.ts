@@ -40,6 +40,12 @@ serve(async (req) => {
     const scanId = scanLog.id;
     const startTime = Date.now();
 
+    // Clear previous open findings before new scan
+    await supabase
+      .from("reconciliation_findings")
+      .delete()
+      .eq("status", "open");
+
     const findings: any[] = [];
     const scopeAll = scope.includes("all");
 

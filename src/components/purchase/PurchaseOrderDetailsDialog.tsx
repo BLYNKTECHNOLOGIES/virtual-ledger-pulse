@@ -53,16 +53,28 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     enabled: !!order?.bank_account_id,
   });
 
-  // Fetch split payment details
+  // Fetch split payment details (separate queries to avoid ambiguous FK with bank_accounts view)
   const { data: paymentSplits } = useQuery({
     queryKey: ['payment_splits', order?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: splits, error } = await supabase
         .from('purchase_order_payment_splits')
-        .select('id, amount, bank_account_id, bank_accounts:bank_accounts!purchase_order_payment_splits_bank_account_id_fkey(account_name, bank_name, account_number)')
+        .select('id, amount, bank_account_id')
         .eq('purchase_order_id', order.id);
-      if (error) return null;
-      return data;
+      if (error || !splits?.length) return null;
+
+      // Fetch bank account details separately
+      const bankIds = [...new Set(splits.map(s => s.bank_account_id))];
+      const { data: banks } = await supabase
+        .from('bank_accounts')
+        .select('id, account_name, bank_name, account_number')
+        .in('id', bankIds);
+
+      const bankMap = new Map((banks || []).map(b => [b.id, b]));
+      return splits.map(s => ({
+        ...s,
+        bank_accounts: bankMap.get(s.bank_account_id) || null,
+      }));
     },
     enabled: !!order?.id,
   });

@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -118,17 +119,17 @@ export function ConversionHistoryTable() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{c.asset_code}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{Number(c.quantity).toFixed(6)}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">${Number(c.price_usd).toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">${Number(c.gross_usd_value).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{formatSmartDecimal(c.quantity)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.price_usd, 9)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.gross_usd_value)}</TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {Number(c.fee_amount) > 0 ? `${Number(c.fee_amount).toFixed(8)} ${c.fee_asset}` : '—'}
+                      {Number(c.fee_amount) > 0 ? `${formatSmartDecimal(c.fee_amount, 9)} ${c.fee_asset}` : '—'}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {c.side === 'BUY' ? '+' : '-'}{Number(c.net_asset_change).toFixed(6)}
+                      {c.side === 'BUY' ? '+' : '-'}{formatSmartDecimal(c.net_asset_change)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
-                      {c.side === 'BUY' ? '-' : '+'}{Number(c.net_usdt_change).toFixed(2)}
+                      {c.side === 'BUY' ? '-' : '+'}{formatSmartDecimal(c.net_usdt_change)}
                     </TableCell>
                     <TableCell>
                       <Badge className={`text-[10px] ${STATUS_COLORS[c.status] || ''}`} variant="outline">

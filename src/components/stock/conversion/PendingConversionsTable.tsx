@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -130,11 +131,11 @@ export function PendingConversionsTable() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">{c.asset_code}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">{Number(c.quantity).toFixed(6)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">${Number(c.price_usd).toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-mono text-xs">${Number(c.gross_usd_value).toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatSmartDecimal(c.quantity)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.price_usd, 9)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">${formatSmartDecimal(c.gross_usd_value)}</TableCell>
                         <TableCell className="text-right font-mono text-xs">
-                          {Number(c.fee_amount) > 0 ? `${Number(c.fee_amount).toFixed(8)} ${c.fee_asset}` : '—'}
+                          {Number(c.fee_amount) > 0 ? `${formatSmartDecimal(c.fee_amount, 9)} ${c.fee_asset}` : '—'}
                         </TableCell>
                         <TableCell>
                           {isFromSpotSync ? (

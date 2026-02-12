@@ -209,7 +209,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
           </div>
 
           {/* Platform Fee Information */}
-          {(order.fee_amount > 0 || order.fee_percentage > 0) && (
+          {!order.off_market && (order.fee_amount > 0 || order.fee_percentage > 0) && (
             <div className="p-4 bg-amber-50 rounded-lg border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
               <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-400 mb-3 flex items-center gap-2">
                 <Coins className="h-4 w-4" />

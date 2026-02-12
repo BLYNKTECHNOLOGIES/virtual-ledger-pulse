@@ -139,16 +139,16 @@ export default function ProfitLoss() {
       
       let purchaseItems: any[] = [];
       if (periodPurchaseOrderIds.length > 0) {
-        let purchaseQuery = supabase
+        // Always filter to USDT purchases for financial calculations when "All Assets" is selected,
+        // since sales are USDT-denominated and mixing non-USDT assets (BTC, SHIB) distorts rates.
+        const assetFilter = selectedAsset === 'all' ? 'USDT' : selectedAsset;
+        
+        const { data: items } = await supabase
           .from('purchase_order_items')
           .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
-          .in('purchase_order_id', periodPurchaseOrderIds);
+          .in('purchase_order_id', periodPurchaseOrderIds)
+          .eq('products.code', assetFilter);
         
-        if (selectedAsset !== 'all') {
-          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
-        }
-        
-        const { data: items } = await purchaseQuery;
         purchaseItems = items || [];
       }
 

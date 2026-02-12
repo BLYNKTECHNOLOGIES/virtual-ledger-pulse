@@ -5,7 +5,7 @@ import { BarChart3, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts";
 
 type ViewMode = "day" | "month";
 
@@ -29,21 +29,34 @@ export function GrossProfitHistoryTab() {
     if (!historyData?.length) return [];
 
     if (viewMode === "day") {
-      return historyData.map((item) => ({
-        date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
-        value: Number(item.gross_profit),
-      }));
+      return historyData.map((item) => {
+        const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
+        return {
+          date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
+          value: Number(item.gross_profit),
+          npm: Number(item.total_sales_qty) > 0 ? npm : 0,
+        };
+      });
     }
 
-    // Month aggregation - sum gross profit per month
-    const monthMap = new Map<string, number>();
+    // Month aggregation
+    const monthMap = new Map<string, { profit: number; totalNpm: number; days: number }>();
     for (const item of historyData) {
       const monthKey = format(new Date(item.snapshot_date), "yyyy-MM");
-      monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + Number(item.gross_profit));
+      const existing = monthMap.get(monthKey) || { profit: 0, totalNpm: 0, days: 0 };
+      const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
+      const hasSales = Number(item.total_sales_qty) > 0;
+      existing.profit += Number(item.gross_profit);
+      if (hasSales) {
+        existing.totalNpm += npm;
+        existing.days += 1;
+      }
+      monthMap.set(monthKey, existing);
     }
-    return Array.from(monthMap.entries()).map(([key, value]) => ({
+    return Array.from(monthMap.entries()).map(([key, v]) => ({
       date: format(new Date(key + "-01"), "MMM yyyy"),
-      value,
+      value: v.profit,
+      npm: v.days > 0 ? v.totalNpm / v.days : 0,
     }));
   }, [historyData, viewMode]);
 
@@ -143,7 +156,7 @@ export function GrossProfitHistoryTab() {
           ) : (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
+                <ComposedChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
@@ -153,22 +166,48 @@ export function GrossProfitHistoryTab() {
                     height={60}
                   />
                   <YAxis
+                    yAxisId="left"
                     tickFormatter={(v) => `₹${(v / 1000).toFixed(1)}K`}
                     tick={{ fontSize: 11 }}
                   />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickFormatter={(v) => `₹${Number(v).toFixed(1)}`}
+                    tick={{ fontSize: 11 }}
+                    label={{ value: "NPM (₹/unit)", angle: 90, position: "insideRight", style: { fontSize: 10, fill: "#6366f1" } }}
+                  />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), "Gross Profit"]}
+                    formatter={(value: number, name: string) => [
+                      name === "npm" ? `₹${Number(value).toFixed(2)}` : formatCurrency(value),
+                      name === "npm" ? "NPM (per unit)" : "Gross Profit"
+                    ]}
                     labelStyle={{ fontWeight: "bold" }}
                   />
+                  <Legend
+                    formatter={(value) => value === "npm" ? "NPM (per unit)" : "Gross Profit"}
+                  />
                   <Area
+                    yAxisId="left"
                     type="monotone"
                     dataKey="value"
+                    name="value"
                     stroke="#059669"
                     fill="#059669"
                     fillOpacity={0.15}
                     strokeWidth={2}
                   />
-                </AreaChart>
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="npm"
+                    name="npm"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: "#6366f1" }}
+                    activeDot={{ r: 6 }}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           )}

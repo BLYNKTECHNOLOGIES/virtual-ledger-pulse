@@ -2,22 +2,30 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight } from "lucide-react";
+import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight, Brain, Settings2 } from "lucide-react";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
 import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
 import { InterProductConversionTab } from "@/components/stock/InterProductConversionTab";
+import { AISettingsTab } from "@/components/stock/AISettingsTab";
+import { AIReconciliationTab } from "@/components/stock/AIReconciliationTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useAIReconciliationSetting } from "@/hooks/useAIReconciliationSetting";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 
 export default function StockManagement() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'quickview');
+  const { isAdmin } = useAuth();
+  const { isEnabled: aiEnabled, isLoading: aiSettingLoading } = useAIReconciliationSetting();
+  const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -25,6 +33,9 @@ export default function StockManagement() {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  // Show AI Reconciliation tab only when enabled + user has access
+  const showAIRecon = aiEnabled && hasReconAccess;
   
   return (
     <PermissionGate
@@ -81,7 +92,7 @@ export default function StockManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid" style={{ gridTemplateColumns: `repeat(${6 + (showAIRecon ? 1 : 0) + (isAdmin ? 1 : 0)}, minmax(0, 1fr))` }}>
           <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Grid className="h-4 w-4" />
             <span className="hidden sm:inline">Quick View</span>
@@ -110,6 +121,20 @@ export default function StockManagement() {
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
+          {showAIRecon && (
+            <TabsTrigger value="ai-reconciliation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Reconciliation</span>
+              <span className="sm:hidden">AI</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="ai-settings" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+              <Settings2 className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Settings</span>
+              <span className="sm:hidden">⚙️ AI</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="quickview">
@@ -135,6 +160,18 @@ export default function StockManagement() {
         <TabsContent value="reports">
           <StockReportsTab />
         </TabsContent>
+
+        {showAIRecon && (
+          <TabsContent value="ai-reconciliation">
+            <AIReconciliationTab />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="ai-settings">
+            <AISettingsTab />
+          </TabsContent>
+        )}
       </Tabs>
       </div>
     </div>

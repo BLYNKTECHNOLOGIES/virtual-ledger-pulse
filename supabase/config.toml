@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.binance-assets]
 verify_jwt = false
+
+[functions.reconciliation-scan]
+verify_jwt = false

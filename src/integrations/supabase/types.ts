@@ -6284,6 +6284,134 @@ export type Database = {
           },
         ]
       }
+      reconciliation_findings: {
+        Row: {
+          ai_reasoning: string | null
+          asset: string | null
+          category: string
+          confidence: number | null
+          created_at: string
+          details: Json | null
+          erp_amount: number | null
+          erp_ref: string | null
+          feedback_at: string | null
+          feedback_by: string | null
+          feedback_note: string | null
+          finding_type: string
+          id: string
+          scan_id: string
+          severity: string
+          status: string
+          suggested_action: string | null
+          terminal_amount: number | null
+          terminal_ref: string | null
+          variance: number | null
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          asset?: string | null
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          details?: Json | null
+          erp_amount?: number | null
+          erp_ref?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_note?: string | null
+          finding_type: string
+          id?: string
+          scan_id: string
+          severity?: string
+          status?: string
+          suggested_action?: string | null
+          terminal_amount?: number | null
+          terminal_ref?: string | null
+          variance?: number | null
+        }
+        Update: {
+          ai_reasoning?: string | null
+          asset?: string | null
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          details?: Json | null
+          erp_amount?: number | null
+          erp_ref?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_note?: string | null
+          finding_type?: string
+          id?: string
+          scan_id?: string
+          severity?: string
+          status?: string
+          suggested_action?: string | null
+          terminal_amount?: number | null
+          terminal_ref?: string | null
+          variance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_findings_scan_id_fkey"
+            columns: ["scan_id"]
+            isOneToOne: false
+            referencedRelation: "reconciliation_scan_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reconciliation_scan_log: {
+        Row: {
+          ai_summary: string | null
+          completed_at: string | null
+          critical_count: number | null
+          duration_ms: number | null
+          error_message: string | null
+          findings_count: number | null
+          id: string
+          info_count: number | null
+          review_count: number | null
+          scan_scope: string[] | null
+          started_at: string
+          status: string
+          triggered_by: string | null
+          warning_count: number | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          completed_at?: string | null
+          critical_count?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          findings_count?: number | null
+          id?: string
+          info_count?: number | null
+          review_count?: number | null
+          scan_scope?: string[] | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+          warning_count?: number | null
+        }
+        Update: {
+          ai_summary?: string | null
+          completed_at?: string | null
+          critical_count?: number | null
+          duration_ms?: number | null
+          error_message?: string | null
+          findings_count?: number | null
+          id?: string
+          info_count?: number | null
+          review_count?: number | null
+          scan_scope?: string[] | null
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+          warning_count?: number | null
+        }
+        Relationships: []
+      }
       rekyc_requests: {
         Row: {
           aadhar_back_url: string | null

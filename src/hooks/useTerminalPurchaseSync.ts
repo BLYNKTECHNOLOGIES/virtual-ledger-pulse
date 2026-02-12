@@ -32,12 +32,12 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       .single();
 
     // 2. Get completed BUY orders from binance_order_history — only today's orders (from 00:00 IST)
-    const now = new Date();
-    const startOfTodayIST = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-    );
-    startOfTodayIST.setHours(0, 0, 0, 0);
-    const cutoffTime = startOfTodayIST.getTime();
+    // IST is UTC+5:5h. Calculate midnight IST in UTC epoch ms reliably.
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    const nowUTC = Date.now();
+    // Shift to IST, floor to day boundary, shift back to UTC
+    const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
+    const cutoffTime = midnightISTinUTC;
     console.log('[PurchaseSync] Cutoff (today 00:00 IST):', new Date(cutoffTime).toISOString(), 'cutoffMs:', cutoffTime);
     const { data: completedBuys, error: fetchErr } = await supabase
       .from('binance_order_history')

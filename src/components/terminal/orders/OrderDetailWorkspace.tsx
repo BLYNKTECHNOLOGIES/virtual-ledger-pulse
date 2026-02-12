@@ -11,7 +11,7 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { PastInteractionsPanel } from './PastInteractionsPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount } from '@/hooks/useBinanceActions';
 
 interface Props {
   order: P2POrderRecord;
@@ -122,7 +122,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           </div>
 
           {rightPanel === 'profile' ? (
-            <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} />
+            <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} />
           ) : (
             <PastInteractionsPanel
               counterpartyId={order.counterparty_id}
@@ -135,7 +135,8 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats }: { counterparty: any; order: P2POrderRecord; binanceStats: any }) {
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string }) {
+  const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyNickname);
   // Parse Binance stats — API returns fields like completedOrderNum, finishRateLatest30Day, etc.
   const stats = binanceStats?.data || binanceStats;
   const hasApiStats = stats && (
@@ -162,6 +163,17 @@ function CounterpartyProfile({ counterparty, order, binanceStats }: { counterpar
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
           <Calendar className="h-3 w-3" />
           <span>Joined {stats.registerDays} days ago</span>
+        </div>
+      )}
+
+      {/* Trade relationship with us */}
+      {completedWithUs !== undefined && completedWithUs !== null && (
+        <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
+          </div>
+          <span className="text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
         </div>
       )}
 

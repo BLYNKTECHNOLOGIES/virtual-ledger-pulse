@@ -244,6 +244,24 @@ export function useCounterpartyBinanceStats(orderNumber: string | null) {
   });
 }
 
+// Count completed orders with a specific counterparty from synced history
+export function useCounterpartyCompletedOrderCount(counterpartyNickname: string | null) {
+  return useQuery({
+    queryKey: ['counterparty-completed-count', counterpartyNickname],
+    queryFn: async () => {
+      const { count, error } = await (await import('@/integrations/supabase/client')).supabase
+        .from('binance_order_history')
+        .select('*', { count: 'exact', head: true })
+        .eq('counter_part_nick_name', counterpartyNickname!)
+        .eq('order_status', 'COMPLETED');
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!counterpartyNickname,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 // ==================== CHAT ====================
 
 export interface BinanceChatMessage {

@@ -148,15 +148,19 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
 
       if (updateError) throw updateError;
 
-      // Process wallet deduction if wallet and USDT amount are specified
+      // Process wallet deduction if wallet and amount are specified
       if (walletId && usdtAmount > 0) {
+        // Determine asset code from the selected product
+        const assetCode = selectedProduct?.code || 'USDT';
+        
         // Deduct only the quantity sold (not including fees)
         const { error: walletDeductError } = await supabase.rpc(
           'process_sales_order_wallet_deduction',
           {
             sales_order_id: order.id,
             wallet_id: walletId,
-            usdt_amount: usdtAmount
+            usdt_amount: usdtAmount,
+            p_asset_code: assetCode
           }
         );
 

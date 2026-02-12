@@ -61,7 +61,6 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
         .from('purchase_order_payment_splits')
         .select('id, amount, bank_account_id')
         .eq('purchase_order_id', order.id);
-      console.log('[PaymentSplits] order.id:', order.id, 'splits:', splits, 'error:', error);
       if (error || !splits?.length) return [];
 
       // Fetch bank account details separately

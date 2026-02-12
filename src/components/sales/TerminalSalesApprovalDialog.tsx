@@ -252,6 +252,49 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           await supabase.from('sales_orders').delete().eq('id', salesOrder.id);
           throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
         }
+
+        // Deduct Binance commission as separate SALES_ORDER_FEE transaction
+        if (commission > 0) {
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: od.wallet_id,
+              transaction_type: 'DEBIT',
+              amount: commission,
+              reference_type: 'SALES_ORDER_FEE',
+              reference_id: salesOrder.id,
+              description: `Platform fee for sales order #${orderNumber} (Binance commission)`,
+              balance_before: 0,
+              balance_after: 0,
+              asset_code: 'USDT',
+            });
+
+          // Fetch average buying price for INR valuation
+          const { data: usdtProd } = await supabase
+            .from('products')
+            .select('average_buying_price')
+            .eq('code', 'USDT')
+            .single();
+          const avgBuyPrice = Number(usdtProd?.average_buying_price || 0);
+
+          // Record in wallet_fee_deductions for Platform Fees dashboard
+          await supabase
+            .from('wallet_fee_deductions')
+            .insert({
+              wallet_id: od.wallet_id,
+              order_id: salesOrder.id,
+              order_type: 'SALES',
+              order_number: orderNumber,
+              gross_amount: totalAmount,
+              fee_percentage: 0,
+              fee_amount: commission,
+              net_amount: totalAmount,
+              fee_usdt_amount: commission,
+              usdt_rate_used: 0,
+              average_buying_price: avgBuyPrice,
+              fee_inr_value_at_buying_price: commission * avgBuyPrice,
+            });
+        }
       }
 
       // Handle bank transaction / payment gateway usage (same as manual sales)

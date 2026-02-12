@@ -738,7 +738,10 @@ export function StockTransactionsTab() {
 
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
-  const uniqueProducts = Array.from(new Set(allEntries.map(e => e.products?.code).filter(Boolean))).sort();
+  const uniqueProducts = Array.from(new Set([
+    ...(assetCodes || []),
+    ...allEntries.map(e => e.products?.code).filter(Boolean)
+  ])).sort();
 
   console.log('📈 Total combined entries:', allEntries.length);
   console.log('🔍 Filtered entries:', filteredEntries.length);

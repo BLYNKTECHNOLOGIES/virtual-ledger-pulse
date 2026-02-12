@@ -51,14 +51,16 @@ export const findClientByName = async (name: string) => {
     .from('clients')
     .select('*')
     .ilike('name', name.trim())
-    .maybeSingle();
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true })
+    .limit(1);
   
   if (error) {
     console.error('Error finding client by name:', error);
     return null;
   }
   
-  return data;
+  return data && data.length > 0 ? data[0] : null;
 };
 
 /**

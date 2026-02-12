@@ -1618,6 +1618,110 @@ export type Database = {
           },
         ]
       }
+      erp_product_conversions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          asset_code: string
+          created_at: string
+          created_by: string
+          fee_amount: number | null
+          fee_asset: string | null
+          fee_percentage: number | null
+          gross_usd_value: number
+          id: string
+          metadata: Json | null
+          net_asset_change: number
+          net_usdt_change: number
+          price_usd: number
+          quantity: number
+          reference_no: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          side: string
+          status: string
+          wallet_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          asset_code: string
+          created_at?: string
+          created_by: string
+          fee_amount?: number | null
+          fee_asset?: string | null
+          fee_percentage?: number | null
+          gross_usd_value: number
+          id?: string
+          metadata?: Json | null
+          net_asset_change: number
+          net_usdt_change: number
+          price_usd: number
+          quantity: number
+          reference_no?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          side: string
+          status?: string
+          wallet_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          asset_code?: string
+          created_at?: string
+          created_by?: string
+          fee_amount?: number | null
+          fee_asset?: string | null
+          fee_percentage?: number | null
+          gross_usd_value?: number
+          id?: string
+          metadata?: Json | null
+          net_asset_change?: number
+          net_usdt_change?: number
+          price_usd?: number
+          quantity?: number
+          reference_no?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          side?: string
+          status?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_product_conversions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_conversions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_conversions_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_conversions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_attendance: {
         Row: {
           attendance_date: string
@@ -7682,6 +7786,10 @@ export type Database = {
             Args: { new_password: string; user_email: string }
             Returns: boolean
           }
+      approve_product_conversion: {
+        Args: { p_approved_by: string; p_conversion_id: string }
+        Returns: Json
+      }
       approve_registration: {
         Args: {
           p_approved_by?: string
@@ -8124,6 +8232,14 @@ export type Database = {
         }
         Returns: string
       }
+      reject_product_conversion: {
+        Args: {
+          p_conversion_id: string
+          p_reason?: string
+          p_rejected_by: string
+        }
+        Returns: Json
+      }
       reject_registration: {
         Args: {
           p_reason?: string
@@ -8404,6 +8520,8 @@ export type Database = {
         | "statistics_manage"
         | "ems_view"
         | "ems_manage"
+        | "stock_conversion_create"
+        | "stock_conversion_approve"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
       terminal_permission:
@@ -8625,6 +8743,8 @@ export const Constants = {
         "statistics_manage",
         "ems_view",
         "ems_manage",
+        "stock_conversion_create",
+        "stock_conversion_approve",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

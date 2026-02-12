@@ -117,13 +117,23 @@ export function useExecuteTrade() {
       });
 
       if (error) {
+        // Extract actual error message from edge function response
+        let errMsg = error.message;
+        try {
+          const ctx = await (error as any).context?.json?.();
+          if (ctx?.error) errMsg = ctx.error;
+        } catch { /* ignore */ }
+        // Also check if data contains the error (supabase may put response body in data)
+        if (!errMsg || errMsg === 'Edge Function returned a non-2xx status code') {
+          errMsg = (data as any)?.error || error.message;
+        }
         if (tradeId) {
           await supabase
             .from("spot_trade_history")
-            .update({ status: "FAILED", error_message: error.message })
+            .update({ status: "FAILED", error_message: errMsg })
             .eq("id", tradeId);
         }
-        throw error;
+        throw new Error(errMsg);
       }
 
       if (!data?.success) {

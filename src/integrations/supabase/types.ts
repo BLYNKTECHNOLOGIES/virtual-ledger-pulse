@@ -1040,6 +1040,47 @@ export type Database = {
         }
         Relationships: []
       }
+      conversion_journal_entries: {
+        Row: {
+          asset_code: string
+          conversion_id: string
+          created_at: string
+          id: string
+          line_type: string
+          notes: string | null
+          qty_delta: number | null
+          usdt_delta: number | null
+        }
+        Insert: {
+          asset_code: string
+          conversion_id: string
+          created_at?: string
+          id?: string
+          line_type: string
+          notes?: string | null
+          qty_delta?: number | null
+          usdt_delta?: number | null
+        }
+        Update: {
+          asset_code?: string
+          conversion_id?: string
+          created_at?: string
+          id?: string
+          line_type?: string
+          notes?: string | null
+          qty_delta?: number | null
+          usdt_delta?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversion_journal_entries_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "erp_product_conversions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       counterparty_contact_records: {
         Row: {
           collected_by: string | null
@@ -1623,23 +1664,33 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           asset_code: string
+          cost_out_usdt: number | null
           created_at: string
           created_by: string
+          execution_rate_usdt: number | null
           fee_amount: number | null
           fee_asset: string | null
           fee_percentage: number | null
+          fx_rate_to_usdt: number | null
           gross_usd_value: number
           id: string
+          local_currency: string | null
+          local_price: number | null
+          market_rate_snapshot: number | null
           metadata: Json | null
           net_asset_change: number
           net_usdt_change: number
           price_usd: number
           quantity: number
+          quantity_gross: number | null
+          quantity_net: number | null
+          realized_pnl_usdt: number | null
           reference_no: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
           side: string
+          source: string | null
           spot_trade_id: string | null
           status: string
           wallet_id: string
@@ -1648,23 +1699,33 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           asset_code: string
+          cost_out_usdt?: number | null
           created_at?: string
           created_by: string
+          execution_rate_usdt?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
           fee_percentage?: number | null
+          fx_rate_to_usdt?: number | null
           gross_usd_value: number
           id?: string
+          local_currency?: string | null
+          local_price?: number | null
+          market_rate_snapshot?: number | null
           metadata?: Json | null
           net_asset_change: number
           net_usdt_change: number
           price_usd: number
           quantity: number
+          quantity_gross?: number | null
+          quantity_net?: number | null
+          realized_pnl_usdt?: number | null
           reference_no?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
           side: string
+          source?: string | null
           spot_trade_id?: string | null
           status?: string
           wallet_id: string
@@ -1673,23 +1734,33 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           asset_code?: string
+          cost_out_usdt?: number | null
           created_at?: string
           created_by?: string
+          execution_rate_usdt?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
           fee_percentage?: number | null
+          fx_rate_to_usdt?: number | null
           gross_usd_value?: number
           id?: string
+          local_currency?: string | null
+          local_price?: number | null
+          market_rate_snapshot?: number | null
           metadata?: Json | null
           net_asset_change?: number
           net_usdt_change?: number
           price_usd?: number
           quantity?: number
+          quantity_gross?: number | null
+          quantity_net?: number | null
+          realized_pnl_usdt?: number | null
           reference_no?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
           side?: string
+          source?: string | null
           spot_trade_id?: string | null
           status?: string
           wallet_id?: string
@@ -6156,6 +6227,63 @@ export type Database = {
           },
         ]
       }
+      realized_pnl_events: {
+        Row: {
+          asset_code: string
+          avg_cost_at_sale: number
+          conversion_id: string
+          cost_out_usdt: number
+          created_at: string
+          id: string
+          proceeds_usdt_gross: number
+          proceeds_usdt_net: number
+          realized_pnl_usdt: number
+          sell_qty: number
+          wallet_id: string
+        }
+        Insert: {
+          asset_code: string
+          avg_cost_at_sale: number
+          conversion_id: string
+          cost_out_usdt: number
+          created_at?: string
+          id?: string
+          proceeds_usdt_gross: number
+          proceeds_usdt_net: number
+          realized_pnl_usdt: number
+          sell_qty: number
+          wallet_id: string
+        }
+        Update: {
+          asset_code?: string
+          avg_cost_at_sale?: number
+          conversion_id?: string
+          cost_out_usdt?: number
+          created_at?: string
+          id?: string
+          proceeds_usdt_gross?: number
+          proceeds_usdt_net?: number
+          realized_pnl_usdt?: number
+          sell_qty?: number
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "realized_pnl_events_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "erp_product_conversions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "realized_pnl_events_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rekyc_requests: {
         Row: {
           aadhar_back_url: string | null
@@ -7589,6 +7717,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "wallet_asset_balances_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_asset_positions: {
+        Row: {
+          asset_code: string
+          avg_cost_usdt: number
+          cost_pool_usdt: number
+          id: string
+          qty_on_hand: number
+          updated_at: string
+          wallet_id: string
+        }
+        Insert: {
+          asset_code: string
+          avg_cost_usdt?: number
+          cost_pool_usdt?: number
+          id?: string
+          qty_on_hand?: number
+          updated_at?: string
+          wallet_id: string
+        }
+        Update: {
+          asset_code?: string
+          avg_cost_usdt?: number
+          cost_pool_usdt?: number
+          id?: string
+          qty_on_hand?: number
+          updated_at?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_asset_positions_wallet_id_fkey"
             columns: ["wallet_id"]
             isOneToOne: false
             referencedRelation: "wallets"

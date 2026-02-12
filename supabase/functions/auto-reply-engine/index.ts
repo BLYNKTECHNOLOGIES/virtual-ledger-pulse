@@ -28,7 +28,7 @@ interface BinanceOrder {
   totalPrice: string;
   amount: string;
   unitPrice: string;
-  orderStatus: string;
+  orderStatus: string | number;
   createTime: number;
   counterPartNickName: string;
   payMethodName?: string;
@@ -50,7 +50,7 @@ function renderTemplate(template: string, order: BinanceOrder): string {
 
 function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
-  const status = (order.orderStatus || "").toUpperCase();
+  const status = String(order.orderStatus ?? "").toUpperCase();
 
   if (!status.includes("COMPLETED") && !status.includes("CANCEL") && !status.includes("APPEAL") && !status.includes("EXPIRED")) {
     events.push("order_received");
@@ -177,7 +177,7 @@ serve(async (req) => {
     if (autoPayActive) {
       // Only process active BUY orders that haven't been paid yet
       const buyOrdersPendingPayment = activeOrders.filter((o) => {
-        const status = (o.orderStatus || "").toUpperCase();
+        const status = String(o.orderStatus ?? "").toUpperCase();
         return (
           o.tradeType === "BUY" &&
           !status.includes("PAID") &&

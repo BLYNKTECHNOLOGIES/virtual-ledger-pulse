@@ -59,7 +59,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_order_payment_splits')
-        .select('id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name, account_number)')
+        .select('id, amount, bank_account_id, bank_accounts:bank_accounts!purchase_order_payment_splits_bank_account_id_fkey(account_name, bank_name, account_number)')
         .eq('purchase_order_id', order.id);
       if (error) return null;
       return data;

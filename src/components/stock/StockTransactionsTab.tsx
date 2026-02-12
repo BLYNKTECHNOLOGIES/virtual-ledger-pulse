@@ -596,9 +596,18 @@ export function StockTransactionsTab() {
   };
 
   const getTransactionBadge = (type: string, refType?: string) => {
-    // Check reference type for conversions
     if (refType === 'ERP_CONVERSION') {
       return <Badge className="bg-indigo-100 text-indigo-800">Conversion</Badge>;
+    }
+    if (refType === 'WALLET_TRANSFER') {
+      if (type === 'CREDIT') return <Badge className="bg-purple-100 text-purple-800">Transfer In</Badge>;
+      if (type === 'DEBIT') return <Badge className="bg-orange-100 text-orange-800">Transfer Out</Badge>;
+    }
+    if (refType === 'TRANSFER_FEE') {
+      return <Badge className="bg-amber-100 text-amber-800">Transfer Fee</Badge>;
+    }
+    if (refType === 'SALES_ORDER_FEE') {
+      return <Badge className="bg-amber-100 text-amber-800">Platform Fee</Badge>;
     }
     switch (type) {
       case 'IN':
@@ -608,7 +617,6 @@ export function StockTransactionsTab() {
       case 'PURCHASE':
         return <Badge className="bg-blue-100 text-blue-800">Purchase</Badge>;
       case 'Sales':
-        return <Badge className="bg-red-100 text-red-800">Sales</Badge>;
       case 'SALES_ORDER':
         return <Badge className="bg-red-100 text-red-800">Sales</Badge>;
       case 'TRANSFER_IN':

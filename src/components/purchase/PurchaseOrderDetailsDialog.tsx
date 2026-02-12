@@ -140,7 +140,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
           <DialogTitle>Purchase Order Details - {order.order_number}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Order Number</label>

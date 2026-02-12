@@ -50,16 +50,27 @@ export default function Purchase() {
     queryClient.invalidateQueries({ queryKey: ['tds-records'] });
   };
 
-  // Fetch terminal sync pending count
+  // Fetch terminal sync pending count (today only, matching TerminalSyncTab filter)
   const { data: terminalSyncCount = 0 } = useQuery({
     queryKey: ['terminal-sync-pending-count'],
     queryFn: async () => {
-      const { count, error } = await supabase
+      // Only count today's orders (00:00 IST onwards)
+      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+      const nowUTC = Date.now();
+      const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
+
+      const { data, error } = await supabase
         .from('terminal_purchase_sync')
-        .select('*', { count: 'exact', head: true })
+        .select('id, order_data, sync_status')
         .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']);
       if (error) throw error;
-      return count || 0;
+
+      // Filter by today's orders using order create_time from order_data
+      return (data || []).filter(record => {
+        const od = record.order_data as any;
+        const createTime = od?.create_time ? Number(od.create_time) : 0;
+        return createTime >= midnightISTinUTC;
+      }).length;
     },
   });
 

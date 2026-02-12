@@ -509,6 +509,14 @@ export function WalletManagementTab() {
 
     const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
+      if (!formData.wallet_id) {
+        toast({
+          title: "Error",
+          description: "Please select a wallet",
+          variant: "destructive"
+        });
+        return;
+      }
       const amount = parseFloat(formData.amount);
       if (isNaN(amount) || amount <= 0) {
         toast({

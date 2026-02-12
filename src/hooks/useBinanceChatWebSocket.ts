@@ -47,6 +47,10 @@ export function useBinanceChatWebSocket(
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track the active order in a ref so WS callbacks always see the current value
+  const activeOrderRef = useRef<string | null>(activeOrderNo);
+  activeOrderRef.current = activeOrderNo;
+
   const wsRef = useRef<WebSocket | null>(null);
   const relayInfoRef = useRef<RelayInfo | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -119,18 +123,18 @@ export function useBinanceChatWebSocket(
       const restGroupId = result?.data?.groupId || result?.groupId;
       if (restGroupId && orderNo) {
         groupIdMapRef.current.set(orderNo, restGroupId);
-        console.log('✅ Captured groupId from REST:', restGroupId, 'for order:', orderNo);
       }
       if (Array.isArray(list) && list.length > 0) {
-        // Try to capture groupId from any message in the list
         for (const msg of list) {
           if (msg.groupId && orderNo && !groupIdMapRef.current.has(orderNo)) {
             groupIdMapRef.current.set(orderNo, msg.groupId);
-            console.log('✅ Captured groupId from chat message:', msg.groupId, 'for order:', orderNo);
             break;
           }
         }
-        setMessages(() => [...list]);
+        // CRITICAL: Only update messages if this order is still the active one
+        if (activeOrderRef.current === orderNo) {
+          setMessages(() => [...list]);
+        }
         pollIntervalRef.current = 5000;
         return true;
       }
@@ -141,8 +145,11 @@ export function useBinanceChatWebSocket(
     }
   }, []);
 
-  // ---- Polling loop for live updates ----
+  // ---- Clear messages and restart polling when order changes ----
   useEffect(() => {
+    // Immediately clear stale messages from previous order
+    setMessages([]);
+
     if (!activeOrderNo) return;
 
     // Pre-fetch groupId so we can send messages even before receiving any
@@ -150,6 +157,8 @@ export function useBinanceChatWebSocket(
     fetchChatHistory(activeOrderNo);
 
     const poll = async () => {
+      // Guard: only poll if this order is still active
+      if (activeOrderRef.current !== activeOrderNo) return;
       await fetchChatHistory(activeOrderNo);
       pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
       pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
@@ -237,11 +246,17 @@ export function useBinanceChatWebSocket(
           // Handle new chat message
           const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
           if (isChatMessage) {
+            // CRITICAL: Only process messages belonging to the currently active order
+            const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
+            if (msgOrderNo && msgOrderNo !== activeOrderRef.current) {
+              console.log('⏭️ Skipping WS message for different order:', msgOrderNo, '(active:', activeOrderRef.current, ')');
+              return;
+            }
+
             const isSelfEcho = data.self === true || data.self === 'true';
 
-            // Skip WS echoes of our own messages — the optimistic entry + poll already cover it
+            // Skip WS echoes of our own messages — the poll already covers it
             if (isSelfEcho) {
-              console.log('⏭️ Skipping WS echo of own message');
               pollIntervalRef.current = 2000;
               return;
             }

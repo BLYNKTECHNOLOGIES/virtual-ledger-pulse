@@ -80,8 +80,19 @@ interface ExpenseIncomeEntry {
 }
 
 export default function ProfitLoss() {
-  const [datePreset, setDatePreset] = useState<DateRangePreset>('thisMonth');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset('thisMonth'));
+  const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
+    const saved = localStorage.getItem('pnl_date_preset');
+    return (saved as DateRangePreset) || 'today';
+  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const saved = localStorage.getItem('pnl_date_preset');
+    return getDateRangeFromPreset((saved as DateRangePreset) || 'today');
+  });
+
+  const handleDatePresetChange = (preset: DateRangePreset) => {
+    setDatePreset(preset);
+    localStorage.setItem('pnl_date_preset', preset);
+  };
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
 
   const getDateRange = () => {
@@ -372,7 +383,7 @@ export default function ProfitLoss() {
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
                 preset={datePreset}
-                onPresetChange={setDatePreset}
+                onPresetChange={handleDatePresetChange}
                 className="w-52"
               />
 

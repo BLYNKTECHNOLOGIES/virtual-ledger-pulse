@@ -102,101 +102,91 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     mutationFn: async (data: typeof formData) => {
       const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
       const quantityChanged = order.quantity !== data.quantity;
+      const amountChanged = order.total_amount !== data.total_amount;
       const paymentMethodChanged = originalPaymentMethodId !== data.sales_payment_method_id;
+      const isCompleted = order.payment_status === 'COMPLETED';
 
-       const selectedPaymentMethod = paymentMethods?.find((m: any) => m.id === data.sales_payment_method_id);
-       const selectedIsGateway = Boolean((selectedPaymentMethod as any)?.payment_gateway);
-      
-      // If wallet changed and order was completed, handle wallet transaction transfer
-      if (walletChanged && order.payment_status === 'COMPLETED') {
-        console.log('🔄 Wallet changed, processing wallet transaction transfer...');
-        
-        // Call RPC to handle wallet change (reverse from old, deduct from new)
-        const { error: transferError } = await supabase.rpc('handle_sales_order_wallet_change', {
-          p_order_id: order.id,
-          p_old_wallet_id: originalWalletId,
-          p_new_wallet_id: data.warehouse_id,
-          p_quantity: data.quantity
-        });
-        
-        if (transferError) {
-          console.error('Error transferring wallet transaction:', transferError);
-          throw new Error(`Failed to transfer wallet transaction: ${transferError.message}`);
+      // For completed orders, use comprehensive reconciliation RPC
+      // when financial fields (amount, quantity, wallet) change
+      if (isCompleted && (amountChanged || quantityChanged || walletChanged)) {
+        // Get wallet fee percentage
+        let feePercentage = 0;
+        let isOffMarket = order.is_off_market || false;
+        if (data.warehouse_id) {
+          const { data: walletData } = await supabase
+            .from('wallets')
+            .select('fee_percentage, is_fee_enabled')
+            .eq('id', data.warehouse_id)
+            .single();
+          if (walletData?.is_fee_enabled) {
+            feePercentage = walletData.fee_percentage || 0;
+          }
         }
-        console.log('✅ Wallet transaction transfer completed');
-      } else if (!walletChanged && quantityChanged && order.payment_status === 'COMPLETED' && data.warehouse_id) {
-        // Quantity changed but same wallet - adjust the difference
-        console.log('🔄 Quantity changed, adjusting wallet balance...');
-        
-        const { error: adjustError } = await supabase.rpc('handle_sales_order_quantity_change', {
+
+        const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_sales_order_edit', {
           p_order_id: order.id,
-          p_wallet_id: data.warehouse_id,
+          p_order_number: data.order_number,
+          p_old_total_amount: order.total_amount,
+          p_new_total_amount: data.total_amount,
           p_old_quantity: order.quantity,
-          p_new_quantity: data.quantity
+          p_new_quantity: data.quantity,
+          p_old_wallet_id: originalWalletId,
+          p_new_wallet_id: data.warehouse_id || null,
+          p_payment_method_id: data.sales_payment_method_id || null,
+          p_client_name: data.client_name,
+          p_order_date: data.order_date,
+          p_is_off_market: isOffMarket,
+          p_fee_percentage: feePercentage,
         });
-        
-        if (adjustError) {
-          console.error('Error adjusting quantity:', adjustError);
-          throw new Error(`Failed to adjust quantity: ${adjustError.message}`);
+
+        if (reconcileError) {
+          console.error('Reconciliation error:', reconcileError);
+          throw new Error(`Failed to reconcile: ${reconcileError.message}`);
         }
-        console.log('✅ Quantity adjustment completed');
+
+        const result = reconcileResult as any;
+        if (result && !result.success) {
+          throw new Error(result.error || 'Reconciliation failed');
+        }
+
+        console.log('✅ Sales order reconciliation completed:', result);
+      } else if (isCompleted) {
+        // Handle payment method change only (no financial field change)
+        if (paymentMethodChanged) {
+          console.log('🔄 Payment method changed, processing...');
+          const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
+            p_order_id: order.id,
+            p_old_payment_method_id: originalPaymentMethodId,
+            p_new_payment_method_id: data.sales_payment_method_id || null,
+            p_total_amount: data.total_amount
+          });
+
+          if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
+          if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
+          console.log('✅ Payment method change processed', pmResult);
+        }
+
+        // Repair: if order is completed + has payment method + no INCOME tx exists
+        const selectedPaymentMethod = paymentMethods?.find((m: any) => m.id === data.sales_payment_method_id);
+        const selectedIsGateway = Boolean((selectedPaymentMethod as any)?.payment_gateway);
+        if (!paymentMethodChanged && data.sales_payment_method_id && !selectedIsGateway) {
+          const { count } = await supabase
+            .from('bank_transactions')
+            .select('id', { count: 'exact', head: true })
+            .eq('reference_number', data.order_number)
+            .eq('transaction_type', 'INCOME');
+
+          if ((count || 0) === 0) {
+            console.log('🩹 Missing INCOME bank transaction detected; repairing...');
+            await supabase.rpc('handle_sales_order_payment_method_change', {
+              p_order_id: order.id,
+              p_old_payment_method_id: null,
+              p_new_payment_method_id: data.sales_payment_method_id,
+              p_total_amount: data.total_amount,
+            });
+          }
+        }
       }
-      
-      // If payment method changed and order was completed, handle bank transaction transfer
-       if (paymentMethodChanged && order.payment_status === 'COMPLETED') {
-        console.log('🔄 Payment method changed, processing bank transaction transfer...');
-        
-        const { data: result, error: transferError } = await supabase.rpc('handle_sales_order_payment_method_change', {
-          p_order_id: order.id,
-          p_old_payment_method_id: originalPaymentMethodId,
-          p_new_payment_method_id: data.sales_payment_method_id || null,
-          p_total_amount: data.total_amount
-        });
-        
-        if (transferError) {
-          console.error('Error transferring payment method:', transferError);
-          throw new Error(`Failed to transfer payment method: ${transferError.message}`);
-        }
-        
-        if (result && !(result as any).success) {
-          throw new Error((result as any).error || 'Failed to process payment method change');
-        }
-        
-        console.log('✅ Payment method change processed', result);
-      }
-
-       // Repair: if order is completed + selected method is NOT a gateway, but there is no INCOME tx,
-       // ensure the bank transaction exists so balances reflect correctly.
-       if (!paymentMethodChanged && order.payment_status === 'COMPLETED' && data.sales_payment_method_id && !selectedIsGateway) {
-         const { count, error: countError } = await supabase
-           .from('bank_transactions')
-           .select('id', { count: 'exact', head: true })
-           .eq('reference_number', data.order_number)
-           .eq('transaction_type', 'INCOME');
-
-         if (countError) {
-           console.warn('Could not verify bank transaction existence:', countError);
-         } else if ((count || 0) === 0) {
-           console.log('🩹 Missing INCOME bank transaction detected; repairing...');
-           const { data: result, error: repairError } = await supabase.rpc('handle_sales_order_payment_method_change', {
-             p_order_id: order.id,
-             p_old_payment_method_id: null,
-             p_new_payment_method_id: data.sales_payment_method_id,
-             p_total_amount: data.total_amount,
-           });
-
-           if (repairError) {
-             console.error('Error repairing payment method transaction:', repairError);
-             throw new Error(`Failed to repair bank balance posting: ${repairError.message}`);
-           }
-
-           if (result && !(result as any).success) {
-             throw new Error((result as any).error || 'Failed to repair bank balance posting');
-           }
-
-           console.log('✅ Bank transaction repaired', result);
-         }
-       }
       
       const { data: result, error } = await supabase
         .from('sales_orders')
@@ -241,6 +231,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

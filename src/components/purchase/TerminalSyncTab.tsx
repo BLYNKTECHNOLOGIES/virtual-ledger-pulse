@@ -159,11 +159,22 @@ export function TerminalSyncTab() {
               {syncRecords.map((record) => {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
+                const verifiedName = od?.verified_name;
+                const sellerDisplay = verifiedName || record.counterparty_name;
+                const isMaskedName = !verifiedName && (record.counterparty_name?.includes('***'));
 
                 return (
                   <TableRow key={record.id}>
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
-                    <TableCell className="text-xs">{record.counterparty_name}</TableCell>
+                    <TableCell className="text-xs">
+                      {isMaskedName ? (
+                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                          Awaiting Verified Name
+                        </Badge>
+                      ) : (
+                        sellerDisplay
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>

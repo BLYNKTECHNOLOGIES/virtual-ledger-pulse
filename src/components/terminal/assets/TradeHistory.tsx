@@ -15,7 +15,27 @@ export function TradeHistory() {
   // Trigger background sync of Binance spot trades
   useSpotTradeSync();
 
-  const filteredTrades = trades?.filter((trade: any) => {
+  // Deduplicate trades with same binance_order_id (Terminal + Binance sync create two entries)
+  // Prefer the binance_app record (has commission data)
+  const deduplicatedTrades = (() => {
+    if (!trades) return [];
+    const orderMap = new Map<string, any>();
+    for (const trade of trades) {
+      const key = trade.binance_order_id || trade.id;
+      const existing = orderMap.get(key);
+      if (!existing) {
+        orderMap.set(key, trade);
+      } else {
+        // Prefer binance_app source (has commission data)
+        if (trade.source === "binance_app" && existing.source === "terminal") {
+          orderMap.set(key, trade);
+        }
+      }
+    }
+    return Array.from(orderMap.values());
+  })();
+
+  const filteredTrades = deduplicatedTrades.filter((trade: any) => {
     if (sourceFilter === "all") return true;
     return trade.source === sourceFilter;
   });

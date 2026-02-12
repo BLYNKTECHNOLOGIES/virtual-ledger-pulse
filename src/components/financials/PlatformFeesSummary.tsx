@@ -55,6 +55,36 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     },
   });
 
+  // Fetch conversion fees from erp_product_conversions
+  const { data: conversionFeeData } = useQuery({
+    queryKey: ['conversion_fees', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('erp_product_conversions' as any)
+        .select(`
+          id, side, asset_code, fee_amount, fee_asset, fee_percentage, quantity, gross_usd_value, status, approved_at, created_at, reference_no,
+          wallets:wallet_id (wallet_name)
+        `)
+        .eq('status', 'APPROVED')
+        .gt('fee_amount', 0)
+        .gte('created_at', format(startDate, 'yyyy-MM-dd'))
+        .lte('created_at', format(endDate, 'yyyy-MM-dd') + 'T23:59:59')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  // Conversion fee totals (fees are in asset for BUY, USDT for SELL)
+  const conversionFeesUSDT = conversionFeeData?.reduce((sum, c) => {
+    // For SELL side, fee is in USDT directly
+    if (c.fee_asset === 'USDT') return sum + Number(c.fee_amount || 0);
+    // For BUY side, fee is in the asset - approximate USDT value using price
+    const priceUsd = c.gross_usd_value / c.quantity;
+    return sum + (Number(c.fee_amount || 0) * priceUsd);
+  }, 0) || 0;
+
   // Calculate summary statistics - now using fee_inr_value_at_buying_price for accounting
   const totalFeesINR = feeData?.reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
   const totalFeesUSDT = feeData?.reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
@@ -62,8 +92,8 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   // Transfer fees (already in USDT)
   const transferFeesUSDT = transferFeeData?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;
   
-  // Combined totals
-  const combinedTotalUSDT = totalFeesUSDT + transferFeesUSDT;
+  // Combined totals (include conversion fees)
+  const combinedTotalUSDT = totalFeesUSDT + transferFeesUSDT + conversionFeesUSDT;
   
   const salesFeesINR = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
   const salesFeesUSDT = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
@@ -108,7 +138,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-gradient-to-br from-amber-500 to-orange-600 text-white border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -155,6 +185,24 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
               </div>
               <div className="bg-blue-600 p-3 rounded-xl">
                 <DollarSign className="h-6 w-6" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-cyan-500 to-teal-600 text-white border-0">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-cyan-100 text-sm font-medium">Conversion Fees</p>
+                <p className="text-2xl font-bold mt-2">{formatUSDT(conversionFeesUSDT)}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <ArrowRightLeft className="h-3 w-3" />
+                  <span className="text-sm text-cyan-200">{conversionFeeData?.length || 0} conversions</span>
+                </div>
+              </div>
+              <div className="bg-cyan-600 p-3 rounded-xl">
+                <Coins className="h-6 w-6" />
               </div>
             </div>
           </CardContent>
@@ -255,7 +303,54 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
         </Card>
       )}
 
-      {/* Fees by Wallet */}
+      {/* Conversion Fees Section */}
+      {conversionFeeData && conversionFeeData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Coins className="h-5 w-5" />
+              Conversion Fees (Spot Trade)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Reference</TableHead>
+                  <TableHead>Side</TableHead>
+                  <TableHead>Asset</TableHead>
+                  <TableHead>Wallet</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
+                  <TableHead className="text-right">Fee</TableHead>
+                  <TableHead className="text-right">Fee (USDT eq.)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {conversionFeeData.slice(0, 15).map((c: any) => {
+                  const priceUsd = c.quantity > 0 ? c.gross_usd_value / c.quantity : 0;
+                  const feeUsdtEq = c.fee_asset === 'USDT' ? Number(c.fee_amount) : Number(c.fee_amount) * priceUsd;
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>{format(new Date(c.created_at), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell className="font-mono text-sm">{c.reference_no || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={c.side === 'BUY' ? 'default' : 'secondary'}>{c.side}</Badge>
+                      </TableCell>
+                      <TableCell>{c.asset_code}</TableCell>
+                      <TableCell>{c.wallets?.wallet_name || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{Number(c.quantity).toFixed(6)}</TableCell>
+                      <TableCell className="text-right">{Number(c.fee_amount).toFixed(6)} {c.fee_asset}</TableCell>
+                      <TableCell className="text-right text-cyan-600 font-medium">{feeUsdtEq.toFixed(4)} USDT</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
       {feesByWallet && Object.keys(feesByWallet).length > 0 && (
         <Card>
           <CardHeader>

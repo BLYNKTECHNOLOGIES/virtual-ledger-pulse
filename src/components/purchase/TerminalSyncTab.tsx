@@ -36,14 +36,16 @@ export function TerminalSyncTab() {
   const { data: syncRecords = [], isLoading, refetch } = useQuery({
     queryKey: ['terminal-purchase-sync', statusFilter],
     queryFn: async () => {
-      // Only show records from 12 Feb 2025 00:00 IST onwards
-      const cutoffDate = new Date('2025-02-12T00:00:00+05:30').toISOString();
+      // Only show orders from today (00:00 IST onwards) based on order create_time
+      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+      const nowUTC = Date.now();
+      const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
+
       let query = supabase
         .from('terminal_purchase_sync')
         .select('*')
-        .gte('synced_at', cutoffDate)
         .order('synced_at', { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (statusFilter !== 'all') {
         query = query.eq('sync_status', statusFilter);
@@ -51,7 +53,13 @@ export function TerminalSyncTab() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+
+      // Filter client-side by order create_time (from order_data JSONB)
+      return (data || []).filter(record => {
+        const od = record.order_data as any;
+        const createTime = od?.create_time ? Number(od.create_time) : 0;
+        return createTime >= midnightISTinUTC;
+      });
     },
   });
 

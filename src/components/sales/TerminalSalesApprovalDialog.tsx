@@ -240,17 +240,17 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       if (soErr) throw soErr;
 
-      // Process wallet deduction (inventory reduction)
+      // Process wallet deduction (inventory reduction) — MUST succeed for order integrity
       if (od.wallet_id && quantity > 0) {
-        try {
-          const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
-            sales_order_id: salesOrder.id,
-            usdt_amount: quantity,
-            wallet_id: od.wallet_id,
-          });
-          if (walletErr) console.warn('[SalesApproval] Wallet deduction warning:', walletErr);
-        } catch (e) {
-          console.warn('[SalesApproval] Wallet deduction failed:', e);
+        const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
+          sales_order_id: salesOrder.id,
+          usdt_amount: quantity,
+          wallet_id: od.wallet_id,
+        });
+        if (walletErr) {
+          // Rollback: delete the sales order since deduction failed
+          await supabase.from('sales_orders').delete().eq('id', salesOrder.id);
+          throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
         }
       }
 

@@ -1,0 +1,79 @@
+
+-- Insert missing SALES_ORDER wallet_transactions for 14 completed sales orders
+-- These orders were approved but the wallet deduction was silently skipped/failed
+-- We insert with balance_before=0, balance_after=0 since the trigger will override them
+
+INSERT INTO public.wallet_transactions (wallet_id, transaction_type, amount, asset_code, reference_type, reference_id, description, balance_before, balance_after, created_at)
+SELECT 
+  so.wallet_id,
+  'DEBIT',
+  so.quantity,
+  'USDT',
+  'SALES_ORDER',
+  so.id,
+  'USDT sold via sales order',
+  0, -- trigger overrides
+  0, -- trigger overrides
+  so.created_at
+FROM sales_orders so
+WHERE so.status = 'COMPLETED' 
+  AND so.wallet_id IS NOT NULL
+  AND so.id IN (
+    '76f2578d-0fe5-4cd4-a649-f3f25bc3bb4c',
+    'd74d9609-8e77-43bc-a7cf-f3e024169dd2',
+    'f1d297f1-ca7d-422f-b4b4-73604226aab8',
+    '083ed2e8-441f-4801-9d93-17127825b490',
+    'be8fa1e4-db89-4eb2-acd6-a08d8b6482aa',
+    'ef62804f-e089-4852-ba8d-73c4ccd6c090',
+    'acb77d1e-a0be-4423-b136-c4321723d2fd',
+    'ec47fbd1-3961-4d58-9ee8-80a18993f0ec',
+    '8340d878-5d04-4444-9785-49c9087c4ec0',
+    '86cf9873-03bb-4267-8dfc-878a0f2d2e5f',
+    'a0af59a4-e0d4-410f-82d6-c08aa1baf63e',
+    'e7bb8663-77dc-4fec-ae17-37f9ccc72290',
+    '9ecbaced-92e2-4de0-a1ed-8db09e2740eb',
+    'b09a48ca-1b07-4516-a373-16fc67b4fd5a'
+  )
+ORDER BY so.created_at ASC;
+
+-- Now replay the ENTIRE USDT ledger for BINANCE BLYNK to fix balance chain
+DO $$
+DECLARE
+  running_balance NUMERIC := 0;
+  rec RECORD;
+BEGIN
+  FOR rec IN
+    SELECT id, transaction_type, amount
+    FROM public.wallet_transactions
+    WHERE wallet_id = '6d9114f1-357b-41ee-8e5a-0dea754d5b4f' 
+      AND asset_code = 'USDT'
+    ORDER BY created_at ASC, id ASC
+  LOOP
+    UPDATE public.wallet_transactions
+    SET balance_before = running_balance,
+        balance_after = CASE 
+          WHEN rec.transaction_type IN ('CREDIT', 'TRANSFER_IN') THEN running_balance + rec.amount
+          WHEN rec.transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN running_balance - rec.amount
+          ELSE running_balance
+        END
+    WHERE id = rec.id;
+
+    IF rec.transaction_type IN ('CREDIT', 'TRANSFER_IN') THEN
+      running_balance := running_balance + rec.amount;
+    ELSIF rec.transaction_type IN ('DEBIT', 'TRANSFER_OUT') THEN
+      running_balance := running_balance - rec.amount;
+    END IF;
+  END LOOP;
+
+  -- Update wallet_asset_balances to match final replayed balance
+  UPDATE public.wallet_asset_balances
+  SET balance = running_balance, updated_at = now()
+  WHERE wallet_id = '6d9114f1-357b-41ee-8e5a-0dea754d5b4f' AND asset_code = 'USDT';
+
+  -- Update wallets.current_balance to match
+  UPDATE public.wallets
+  SET current_balance = running_balance, updated_at = now()
+  WHERE id = '6d9114f1-357b-41ee-8e5a-0dea754d5b4f';
+
+  RAISE NOTICE 'Final replayed balance: %', running_balance;
+END $$;

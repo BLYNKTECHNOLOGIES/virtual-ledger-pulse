@@ -18,7 +18,7 @@ export function useReconciliationFindings(filters: FindingsFilter = {}) {
       let query = supabase
         .from('reconciliation_findings')
         .select('*')
-        .not('finding_type', 'in', '("payment_method_drift","small_sales_gap")')
+        .not('finding_type', 'in', '("payment_method_drift","small_sales_gap","missing_small_sale")')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -40,7 +40,7 @@ export function useReconciliationFindings(filters: FindingsFilter = {}) {
       const { data, error } = await supabase
         .from('reconciliation_findings')
         .select('category, severity, status')
-        .not('finding_type', 'in', '("payment_method_drift","small_sales_gap")');
+        .not('finding_type', 'in', '("payment_method_drift","small_sales_gap","missing_small_sale")');
 
       if (error) throw error;
       const items = data || [];

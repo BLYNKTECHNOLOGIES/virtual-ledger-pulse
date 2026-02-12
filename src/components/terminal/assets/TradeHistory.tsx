@@ -154,7 +154,7 @@ export function TradeHistory() {
                     </td>
                     <td className="py-2 px-3 text-right text-muted-foreground tabular-nums">
                       {trade.commission
-                        ? `${parseFloat(trade.commission).toFixed(6)} ${trade.commission_asset || ""}`
+                        ? `${parseFloat(trade.commission).toFixed(8)} ${trade.commission_asset || ""}`
                         : "—"}
                     </td>
                     <td className="py-2 px-3 text-center">

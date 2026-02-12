@@ -739,6 +739,7 @@ export function StockTransactionsTab() {
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
   const uniqueProducts = Array.from(new Set([
+    "USDT", "BTC", "ETH", "BNB", "XRP", "SOL", "TRX", "SHIB", "TON", "USDC", "FDUSD",
     ...(assetCodes || []),
     ...allEntries.map(e => e.products?.code).filter(Boolean)
   ])).sort();

@@ -13,6 +13,7 @@ import { AddProductDialog } from "./AddProductDialog";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
+import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 
 export function ProductCardListingTab() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,7 +151,7 @@ export function ProductCardListingTab() {
                       In Stock
                     </span>
                     <p className="font-semibold text-lg text-green-600">
-                      {product.total_stock.toFixed(2)} {product.unit_of_measurement}
+                      {formatSmartDecimal(product.total_stock)} {product.unit_of_measurement}
                     </p>
                   </div>
                   <div>
@@ -159,7 +160,7 @@ export function ProductCardListingTab() {
                       Avg Cost
                     </span>
                     <p className="font-semibold text-lg text-blue-600">
-                      ₹{product.average_cost.toFixed(2)}
+                      ₹{formatSmartDecimal(product.average_cost)}
                     </p>
                   </div>
                 </div>
@@ -211,7 +212,7 @@ export function ProductCardListingTab() {
                               <span className="text-gray-600">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
-                              <span className="font-medium">{wallet.balance.toFixed(4)}</span>
+                              <span className="font-medium">{formatSmartDecimal(wallet.balance)}</span>
                               {(() => {
                                 if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
                                 const bBal = binanceBalanceMap.get(product.code);

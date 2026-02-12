@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface WalletTransferWrapperProps {
   item: ErpActionQueueItem;
@@ -37,6 +39,23 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
     },
   });
 
+  // Fetch asset-specific balances (source of truth for the trigger)
+  const { data: assetBalances } = useQuery({
+    queryKey: ["wallet_asset_balances", item.asset],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wallet_asset_balances")
+        .select("wallet_id, balance")
+        .eq("asset_code", item.asset);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const getAssetBalance = (walletId: string) => {
+    return Number(assetBalances?.find(b => b.wallet_id === walletId)?.balance ?? 0);
+  };
+
   const mappedWallet = wallets?.find((w) => w.id === item.wallet_id);
   const mappedWalletName = mappedWallet?.wallet_name || "Binance Blynk";
 
@@ -47,6 +66,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
 
   const feeAmount = parseFloat(fee) || 0;
   const transferAmount = Number(item.amount);
+  const sourceBalance = fromWalletId ? getAssetBalance(fromWalletId) : 0;
+  const totalRequired = transferAmount + feeAmount;
+  const hasInsufficientBalance = fromWalletId ? sourceBalance < totalRequired : false;
 
   const transferMutation = useMutation({
     mutationFn: async () => {
@@ -133,7 +155,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
                       ?.filter((w) => w.id !== item.wallet_id)
                       .map((w) => (
                         <SelectItem key={w.id} value={w.id}>
-                          {w.wallet_name} — {Number(w.current_balance ?? 0).toFixed(2)}
+                          {w.wallet_name} — {getAssetBalance(w.id).toFixed(4)} {item.asset}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -161,7 +183,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
                       ?.filter((w) => w.id !== item.wallet_id)
                       .map((w) => (
                         <SelectItem key={w.id} value={w.id}>
-                          {w.wallet_name} — {Number(w.current_balance ?? 0).toFixed(2)}
+                          {w.wallet_name} — {getAssetBalance(w.id).toFixed(4)} {item.asset}
                         </SelectItem>
                       ))}
                   </SelectContent>
@@ -213,10 +235,19 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             </div>
           )}
 
+          {hasInsufficientBalance && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Insufficient {item.asset} balance in source wallet. Available: {sourceBalance.toFixed(4)}, Required: {totalRequired.toFixed(4)}
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex gap-2 pt-2">
             <Button
               onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending || !selectedWalletId}
+              disabled={transferMutation.isPending || !selectedWalletId || hasInsufficientBalance}
               className="flex-1"
             >
               {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}

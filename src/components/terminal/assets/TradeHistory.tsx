@@ -32,7 +32,12 @@ export function TradeHistory() {
         }
       }
     }
-    return Array.from(orderMap.values());
+    // Re-sort after deduplication using display time logic
+    return Array.from(orderMap.values()).sort((a, b) => {
+      const timeA = a.trade_time ? Number(a.trade_time) : new Date(a.created_at).getTime();
+      const timeB = b.trade_time ? Number(b.trade_time) : new Date(b.created_at).getTime();
+      return timeB - timeA;
+    });
   })();
 
   const filteredTrades = deduplicatedTrades.filter((trade: any) => {

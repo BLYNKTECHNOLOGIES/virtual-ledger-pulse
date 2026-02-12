@@ -8009,8 +8009,8 @@ export type Database = {
         Insert: {
           amount: number
           asset_code?: string
-          balance_after: number
-          balance_before: number
+          balance_after?: number
+          balance_before?: number
           created_at?: string
           created_by?: string | null
           description?: string | null

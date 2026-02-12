@@ -100,14 +100,18 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     const contactMap = new Map((contactRecords || []).map(c => [c.counterparty_nickname, c]));
 
-    // 5. Try to match clients
+    // 5. Try to match clients — use case-insensitive matching to prevent duplicates
     const verifiedNames = [...new Set(filteredSells.map(o => o.verified_name || o.counter_part_nick_name).filter(Boolean))];
     const { data: matchedClients } = await supabase
       .from('clients')
       .select('id, name')
-      .in('name', verifiedNames.length > 0 ? verifiedNames : ['__none__']);
+      .eq('is_deleted', false);
 
-    const clientMap = new Map((matchedClients || []).map(c => [c.name.toLowerCase(), c.id]));
+    // Build case-insensitive name→id map from ALL non-deleted clients
+    const clientMap = new Map<string, string>();
+    for (const c of (matchedClients || [])) {
+      clientMap.set(c.name.trim().toLowerCase(), c.id);
+    }
 
     const userId = getCurrentUserId();
 

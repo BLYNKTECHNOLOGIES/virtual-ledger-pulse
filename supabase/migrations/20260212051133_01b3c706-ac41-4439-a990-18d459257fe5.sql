@@ -1,0 +1,2 @@
+-- Clear existing pending purchase sync records so they re-sync with enriched verified names
+DELETE FROM public.terminal_purchase_sync WHERE sync_status IN ('synced_pending_approval', 'client_mapping_pending');

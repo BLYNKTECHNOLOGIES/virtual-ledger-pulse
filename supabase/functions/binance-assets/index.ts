@@ -221,9 +221,23 @@ serve(async (req) => {
 
         if (!symbol || !side) throw new Error("Missing: symbol, side");
         const orderParams: Record<string, string> = { symbol, side, type: "MARKET" };
-        if (quoteOrderQty) orderParams.quoteOrderQty = String(quoteOrderQty);
-        else if (quantity) orderParams.quantity = String(quantity);
-        else throw new Error("Either quantity or quoteOrderQty required");
+        if (quoteOrderQty) {
+          orderParams.quoteOrderQty = String(quoteOrderQty);
+        } else if (quantity) {
+          // Round quantity down to LOT_SIZE stepSize to avoid Filter failure: LOT_SIZE
+          // Common step sizes: BTC=0.00001(5dp), ETH=0.0001(4dp), BNB=0.001(3dp), etc.
+          const stepSizes: Record<string, number> = {
+            BTCUSDT: 5, ETHUSDT: 4, BNBUSDT: 3, XRPUSDT: 1, SOLUSDT: 3,
+            TRXUSDT: 0, SHIBUSDT: 0, TONUSDT: 2, USDCUSDT: 2, FDUSDUSDT: 2,
+          };
+          const decimals = stepSizes[symbol] ?? 5;
+          const factor = Math.pow(10, decimals);
+          const rounded = Math.floor(parseFloat(String(quantity)) * factor) / factor;
+          orderParams.quantity = rounded.toFixed(decimals);
+          console.log(`Quantity rounded: ${quantity} -> ${orderParams.quantity} (${decimals} dp for ${symbol})`);
+        } else {
+          throw new Error("Either quantity or quoteOrderQty required");
+        }
 
         const orderQs = new URLSearchParams(orderParams).toString();
         const orderUrl = `${BINANCE_PROXY_URL}/api/api/v3/order?${orderQs}`;

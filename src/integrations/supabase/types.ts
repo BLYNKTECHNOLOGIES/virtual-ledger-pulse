@@ -8687,24 +8687,15 @@ export type Database = {
         }
         Returns: Json
       }
-      process_sales_order_wallet_deduction:
-        | {
-            Args: {
-              sales_order_id: string
-              usdt_amount: number
-              wallet_id: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              p_asset_code?: string
-              sales_order_id: string
-              usdt_amount: number
-              wallet_id: string
-            }
-            Returns: boolean
-          }
+      process_sales_order_wallet_deduction: {
+        Args: {
+          p_asset_code?: string
+          sales_order_id: string
+          usdt_amount: number
+          wallet_id: string
+        }
+        Returns: boolean
+      }
       recalculate_wallet_balance: {
         Args: { wallet_id_param: string }
         Returns: undefined

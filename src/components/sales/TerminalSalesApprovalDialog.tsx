@@ -309,6 +309,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_transactions'] });
       onSuccess();
     },
     onError: (err: Error) => {

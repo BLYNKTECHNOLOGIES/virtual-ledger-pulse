@@ -101,7 +101,10 @@ export function ConversionHistoryTable() {
                   <TableHead className="text-right">Gross USD</TableHead>
                   <TableHead className="text-right">Fee</TableHead>
                   <TableHead className="text-right">Net Asset</TableHead>
-                  <TableHead className="text-right">Net USDT</TableHead>
+                   <TableHead className="text-right">Net USDT</TableHead>
+                  <TableHead className="text-right">Exec Rate</TableHead>
+                  <TableHead className="text-right">Cost Out</TableHead>
+                  <TableHead className="text-right">Realized P&L</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created By</TableHead>
                   <TableHead>Approved/Rejected By</TableHead>
@@ -130,6 +133,19 @@ export function ConversionHistoryTable() {
                     </TableCell>
                     <TableCell className="text-right font-mono text-xs">
                       {c.side === 'BUY' ? '-' : '+'}{formatSmartDecimal(c.net_usdt_change)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      {(c as any).execution_rate_usdt ? `$${formatSmartDecimal((c as any).execution_rate_usdt)}` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-xs">
+                      {c.side === 'SELL' && (c as any).cost_out_usdt ? `$${formatSmartDecimal((c as any).cost_out_usdt, 4)}` : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {c.side === 'SELL' && (c as any).realized_pnl_usdt != null ? (
+                        <span className={`font-mono text-xs ${Number((c as any).realized_pnl_usdt) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {Number((c as any).realized_pnl_usdt) >= 0 ? '+' : ''}${formatSmartDecimal((c as any).realized_pnl_usdt, 4)}
+                        </span>
+                      ) : '—'}
                     </TableCell>
                     <TableCell>
                       <Badge className={`text-[10px] ${STATUS_COLORS[c.status] || ''}`} variant="outline">

@@ -245,19 +245,31 @@ export function useCounterpartyBinanceStats(orderNumber: string | null) {
 }
 
 // Count completed orders with a specific counterparty from synced history
-export function useCounterpartyCompletedOrderCount(counterpartyNickname: string | null) {
+// Uses verified_name for matching since counter_part_nick_name is masked in history
+export function useCounterpartyCompletedOrderCount(
+  verifiedName: string | null | undefined,
+  currentOrderNumber?: string
+) {
   return useQuery({
-    queryKey: ['counterparty-completed-count', counterpartyNickname],
+    queryKey: ['counterparty-completed-count', verifiedName, currentOrderNumber],
     queryFn: async () => {
-      const { count, error } = await (await import('@/integrations/supabase/client')).supabase
+      const { supabase } = await import('@/integrations/supabase/client');
+      let query = supabase
         .from('binance_order_history')
         .select('*', { count: 'exact', head: true })
-        .eq('counter_part_nick_name', counterpartyNickname!)
+        .eq('verified_name', verifiedName!)
         .eq('order_status', 'COMPLETED');
+      
+      // Exclude current order so count reflects only past trades
+      if (currentOrderNumber) {
+        query = query.neq('order_number', currentOrderNumber);
+      }
+
+      const { count, error } = await query;
       if (error) throw error;
       return count ?? 0;
     },
-    enabled: !!counterpartyNickname,
+    enabled: !!verifiedName && verifiedName.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 }

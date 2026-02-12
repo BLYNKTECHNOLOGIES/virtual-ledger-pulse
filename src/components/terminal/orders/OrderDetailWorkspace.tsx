@@ -122,7 +122,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           </div>
 
           {rightPanel === 'profile' ? (
-            <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} />
+            <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
           ) : (
             <PastInteractionsPanel
               counterpartyId={order.counterparty_id}
@@ -135,8 +135,8 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string }) {
-  const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyNickname);
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string }) {
+  const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
   // Parse Binance stats — API returns fields like completedOrderNum, finishRateLatest30Day, etc.
   const stats = binanceStats?.data || binanceStats;
   const hasApiStats = stats && (
@@ -242,7 +242,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <div className="pt-2 border-t border-border/50">
               <StatRow
                 label="Trades with us (30d)"
-                value={String(Math.max(0, Number(stats.numberOfTradesWithCounterpartyCompleted30day) - 1))}
+                value={String(stats.numberOfTradesWithCounterpartyCompleted30day)}
               />
             </div>
           )}

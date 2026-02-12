@@ -134,7 +134,7 @@ export function PendingConversionsTable() {
                         <TableCell className="text-right font-mono text-xs">${Number(c.price_usd).toFixed(2)}</TableCell>
                         <TableCell className="text-right font-mono text-xs">${Number(c.gross_usd_value).toFixed(2)}</TableCell>
                         <TableCell className="text-right font-mono text-xs">
-                          {Number(c.fee_amount) > 0 ? `${Number(c.fee_amount).toFixed(6)} ${c.fee_asset}` : '—'}
+                          {Number(c.fee_amount) > 0 ? `${Number(c.fee_amount).toFixed(8)} ${c.fee_asset}` : '—'}
                         </TableCell>
                         <TableCell>
                           {isFromSpotSync ? (

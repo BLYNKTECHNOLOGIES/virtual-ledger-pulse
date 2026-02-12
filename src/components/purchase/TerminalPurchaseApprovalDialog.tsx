@@ -77,11 +77,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     },
   });
 
-  // Find USDT product
-  const usdtProduct = useMemo(() =>
-    products.find((p: any) => p.product_name?.toUpperCase().includes('USDT')),
-    [products]
-  );
+  // Find product matching the order asset (USDT, BTC, etc.)
+  const matchedProduct = useMemo(() => {
+    const asset = (od.asset || 'USDT').toUpperCase();
+    return products.find((p: any) => 
+      p.name?.toUpperCase() === asset || p.code?.toUpperCase() === asset
+    );
+  }, [products, od.asset]);
 
   // TDS calculation
   const totalAmount = parseFloat(od.total_price) || 0;
@@ -182,7 +184,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: settlementDate,
           p_total_amount: totalAmount,
-          p_product_id: usdtProduct?.id,
+          p_product_id: matchedProduct?.id,
           p_quantity: parseFloat(od.amount) || 0,
           p_unit_price: parseFloat(od.unit_price) || 0,
           p_description: `Terminal P2P Purchase - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
@@ -204,7 +206,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: settlementDate,
           p_total_amount: totalAmount,
-          p_product_id: usdtProduct?.id || null,
+          p_product_id: matchedProduct?.id || null,
           p_quantity: parseFloat(od.amount) || 0,
           p_unit_price: parseFloat(od.unit_price) || 0,
           p_bank_account_id: bankAccountId,

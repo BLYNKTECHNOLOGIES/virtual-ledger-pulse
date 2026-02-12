@@ -31,14 +31,30 @@ export function useUnsyncedSpotTrades() {
       // Get all FILLED spot trades from 12 Feb 2026 onwards
       // 12 Feb 2026 00:00 IST = 11 Feb 2026 18:30 UTC
       const cutoffDate = "2026-02-11T18:30:00Z";
-      const { data: trades, error: tradeErr } = await supabase
+      const { data: rawTrades, error: tradeErr } = await supabase
         .from("spot_trade_history")
-        .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at")
+        .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at, binance_order_id")
         .eq("status", "FILLED")
         .gte("created_at", cutoffDate)
         .order("trade_time", { ascending: false });
 
       if (tradeErr) throw tradeErr;
+
+      // Deduplicate by binance_order_id — prefer the record with commission data (binance_app source)
+      const orderMap = new Map<string, any>();
+      for (const t of (rawTrades || [])) {
+        const key = t.binance_order_id || t.id; // fallback to id if no binance_order_id
+        const existing = orderMap.get(key);
+        if (!existing) {
+          orderMap.set(key, t);
+        } else {
+          // Prefer the one with commission data
+          if (t.commission != null && t.commission > 0 && (!existing.commission || existing.commission === 0)) {
+            orderMap.set(key, t);
+          }
+        }
+      }
+      const trades = Array.from(orderMap.values());
 
       // Get already synced trade IDs
       const { data: synced, error: syncErr } = await supabase
@@ -50,7 +66,7 @@ export function useUnsyncedSpotTrades() {
 
       const syncedIds = new Set((synced || []).map((s: any) => s.spot_trade_id));
 
-      return (trades || []).map((t: any) => ({
+      return trades.map((t: any) => ({
         ...t,
         already_synced: syncedIds.has(t.id),
       })) as SpotTradeForSync[];

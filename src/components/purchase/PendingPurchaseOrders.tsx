@@ -170,49 +170,56 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
       if (itemsError) throw itemsError;
 
-      // Process each item based on product type
+      // Process each item - credit wallet with correct asset_code
       for (const item of orderItems || []) {
         const product = item.products;
+        const assetCode = product?.code || 'USDT';
         
-        if (product?.code === 'USDT') {
-          // For USDT, find an active USDT wallet and credit it
-          const { data: usdtWallets, error: walletError } = await supabase
+        // Find the wallet to credit (use order's wallet_id or first active wallet)
+        const walletId = order.wallet_id;
+        
+        if (walletId) {
+          // Credit the wallet with correct asset_code
+          const { error: transactionError } = await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: walletId,
+              transaction_type: 'CREDIT',
+              amount: item.quantity,
+              asset_code: assetCode,
+              reference_type: 'PURCHASE_ORDER',
+              reference_id: orderId,
+              description: `${assetCode} purchased via purchase order ${order.order_number}`,
+              balance_before: 0, // Will be updated by trigger
+              balance_after: 0   // Will be updated by trigger
+            });
+
+          if (transactionError) throw transactionError;
+        } else {
+          // No wallet assigned - find first active wallet
+          const { data: activeWallets } = await supabase
             .from('wallets')
-            .select('*')
+            .select('id')
             .eq('is_active', true)
             .limit(1);
 
-          if (walletError) throw walletError;
-
-          if (usdtWallets && usdtWallets.length > 0) {
-            const wallet = usdtWallets[0];
-            
-            // Credit the wallet
+          if (activeWallets && activeWallets.length > 0) {
             const { error: transactionError } = await supabase
               .from('wallet_transactions')
               .insert({
-                wallet_id: wallet.id,
+                wallet_id: activeWallets[0].id,
                 transaction_type: 'CREDIT',
                 amount: item.quantity,
+                asset_code: assetCode,
                 reference_type: 'PURCHASE_ORDER',
                 reference_id: orderId,
-                description: `USDT purchased via purchase order ${order.order_number}`,
-                balance_before: 0, // Will be updated by trigger
-                balance_after: 0   // Will be updated by trigger
+                description: `${assetCode} purchased via purchase order ${order.order_number}`,
+                balance_before: 0,
+                balance_after: 0
               });
 
             if (transactionError) throw transactionError;
           }
-        } else {
-          // For non-USDT products, update stock directly
-          const { error: stockError } = await supabase
-            .from('products')
-            .update({ 
-              current_stock_quantity: item.quantity 
-            })
-            .eq('id', item.product_id);
-
-          if (stockError) throw stockError;
         }
       }
 

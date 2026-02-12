@@ -123,6 +123,9 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           }
         }
 
+        // Get product code for asset_code
+        const productCode = order.products?.code || order.product_code || 'USDT';
+
         const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_sales_order_edit', {
           p_order_id: order.id,
           p_order_number: data.order_number,
@@ -137,6 +140,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           p_order_date: data.order_date,
           p_is_off_market: isOffMarket,
           p_fee_percentage: feePercentage,
+          p_product_code: productCode,
         });
 
         if (reconcileError) {

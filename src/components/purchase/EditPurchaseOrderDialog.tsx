@@ -201,6 +201,9 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           }
         }
 
+        // Get product code for asset_code
+        const productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
+
         const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_purchase_order_edit', {
           p_order_id: order.id,
           p_order_number: data.order_number,
@@ -218,6 +221,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           p_order_date: data.order_date,
           p_is_off_market: isOffMarket,
           p_fee_percentage: feePercentage,
+          p_product_code: productCode,
         });
 
         if (reconcileError) {

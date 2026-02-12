@@ -7885,27 +7885,49 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_purchase_complete_v2: {
-        Args: {
-          p_bank_account_id: string
-          p_contact_number?: string
-          p_created_by?: string
-          p_credit_wallet_id?: string
-          p_description?: string
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_order_date: string
-          p_order_number: string
-          p_pan_number?: string
-          p_product_id: string
-          p_quantity: number
-          p_supplier_name: string
-          p_tds_option?: string
-          p_total_amount: number
-          p_unit_price: number
-        }
-        Returns: Json
-      }
+      create_manual_purchase_complete_v2:
+        | {
+            Args: {
+              p_bank_account_id: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_bank_account_id: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
       create_manual_purchase_order: {
         Args: {
           p_bank_account_id: string
@@ -8223,53 +8245,108 @@ export type Database = {
         }
         Returns: Json
       }
-      process_sales_order_wallet_deduction: {
-        Args: { sales_order_id: string; usdt_amount: number; wallet_id: string }
-        Returns: boolean
-      }
+      process_sales_order_wallet_deduction:
+        | {
+            Args: {
+              sales_order_id: string
+              usdt_amount: number
+              wallet_id: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_asset_code?: string
+              sales_order_id: string
+              usdt_amount: number
+              wallet_id: string
+            }
+            Returns: boolean
+          }
       recalculate_wallet_balance: {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
-      reconcile_purchase_order_edit: {
-        Args: {
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_new_bank_account_id: string
-          p_new_net_payable: number
-          p_new_quantity: number
-          p_new_total_amount: number
-          p_new_wallet_id: string
-          p_old_bank_account_id: string
-          p_old_net_payable: number
-          p_old_quantity: number
-          p_old_total_amount: number
-          p_old_wallet_id: string
-          p_order_date: string
-          p_order_id: string
-          p_order_number: string
-          p_supplier_name: string
-        }
-        Returns: Json
-      }
-      reconcile_sales_order_edit: {
-        Args: {
-          p_client_name: string
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_new_quantity: number
-          p_new_total_amount: number
-          p_new_wallet_id: string
-          p_old_quantity: number
-          p_old_total_amount: number
-          p_old_wallet_id: string
-          p_order_date: string
-          p_order_id: string
-          p_order_number: string
-          p_payment_method_id: string
-        }
-        Returns: Json
-      }
+      reconcile_purchase_order_edit:
+        | {
+            Args: {
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_new_bank_account_id: string
+              p_new_net_payable: number
+              p_new_quantity: number
+              p_new_total_amount: number
+              p_new_wallet_id: string
+              p_old_bank_account_id: string
+              p_old_net_payable: number
+              p_old_quantity: number
+              p_old_total_amount: number
+              p_old_wallet_id: string
+              p_order_date: string
+              p_order_id: string
+              p_order_number: string
+              p_supplier_name: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_new_bank_account_id: string
+              p_new_net_payable: number
+              p_new_quantity: number
+              p_new_wallet_id: string
+              p_old_bank_account_id: string
+              p_old_net_payable: number
+              p_old_quantity: number
+              p_old_wallet_id: string
+              p_order_date: string
+              p_order_id: string
+              p_order_number: string
+              p_product_code?: string
+              p_supplier_name: string
+            }
+            Returns: Json
+          }
+      reconcile_sales_order_edit:
+        | {
+            Args: {
+              p_client_name: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_new_quantity: number
+              p_new_total_amount: number
+              p_new_wallet_id: string
+              p_old_quantity: number
+              p_old_total_amount: number
+              p_old_wallet_id: string
+              p_order_date: string
+              p_order_id: string
+              p_order_number: string
+              p_payment_method_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_client_name: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_new_quantity: number
+              p_new_total_amount: number
+              p_new_wallet_id: string
+              p_old_quantity: number
+              p_old_total_amount: number
+              p_old_wallet_id: string
+              p_order_date: string
+              p_order_id: string
+              p_order_number: string
+              p_payment_method_id: string
+              p_product_code?: string
+            }
+            Returns: Json
+          }
       register_user_request: {
         Args: {
           p_email: string

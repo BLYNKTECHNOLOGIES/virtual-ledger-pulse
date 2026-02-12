@@ -176,6 +176,63 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         ? paymentSplits[0]?.bank_account_id || null
         : data.bank_account_id || null;
 
+      const isCompleted = order.status === 'COMPLETED' || order.order_status === 'completed';
+
+      // For completed orders, reconcile all dependent records (bank, wallet, fees)
+      if (isCompleted) {
+        const oldNetPayable = order.tds_applied && order.net_payable_amount
+          ? order.net_payable_amount
+          : order.total_amount;
+
+        const oldQuantity = order.purchase_order_items?.[0]?.quantity || order.quantity || 0;
+        const oldWalletId = order.wallet_id || order.wallet?.id || order.purchase_order_items?.[0]?.warehouse_id || null;
+
+        // Get wallet fee percentage
+        let feePercentage = 0;
+        let isOffMarket = order.is_off_market || false;
+        if (data.warehouse_id) {
+          const { data: walletData } = await supabase
+            .from('wallets')
+            .select('fee_percentage, is_fee_enabled')
+            .eq('id', data.warehouse_id)
+            .single();
+          if (walletData?.is_fee_enabled) {
+            feePercentage = walletData.fee_percentage || 0;
+          }
+        }
+
+        const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_purchase_order_edit', {
+          p_order_id: order.id,
+          p_order_number: data.order_number,
+          p_old_total_amount: order.total_amount,
+          p_new_total_amount: totalAmount,
+          p_old_net_payable: oldNetPayable,
+          p_new_net_payable: netPayableAmount,
+          p_old_quantity: oldQuantity,
+          p_new_quantity: data.quantity,
+          p_old_wallet_id: oldWalletId,
+          p_new_wallet_id: data.warehouse_id || null,
+          p_old_bank_account_id: order.bank_account_id || null,
+          p_new_bank_account_id: selectedBankId,
+          p_supplier_name: data.supplier_name,
+          p_order_date: data.order_date,
+          p_is_off_market: isOffMarket,
+          p_fee_percentage: feePercentage,
+        });
+
+        if (reconcileError) {
+          console.error('Reconciliation error:', reconcileError);
+          throw new Error(`Failed to reconcile: ${reconcileError.message}`);
+        }
+
+        const result = reconcileResult as any;
+        if (result && !result.success) {
+          throw new Error(result.error || 'Reconciliation failed');
+        }
+
+        console.log('✅ Purchase order reconciliation completed:', result);
+      }
+
       const { data: result, error } = await supabase
         .from('purchase_orders')
         .update({
@@ -245,6 +302,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

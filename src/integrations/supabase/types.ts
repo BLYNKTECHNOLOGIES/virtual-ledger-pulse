@@ -8231,6 +8231,45 @@ export type Database = {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
+      reconcile_purchase_order_edit: {
+        Args: {
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_new_bank_account_id: string
+          p_new_net_payable: number
+          p_new_quantity: number
+          p_new_total_amount: number
+          p_new_wallet_id: string
+          p_old_bank_account_id: string
+          p_old_net_payable: number
+          p_old_quantity: number
+          p_old_total_amount: number
+          p_old_wallet_id: string
+          p_order_date: string
+          p_order_id: string
+          p_order_number: string
+          p_supplier_name: string
+        }
+        Returns: Json
+      }
+      reconcile_sales_order_edit: {
+        Args: {
+          p_client_name: string
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_new_quantity: number
+          p_new_total_amount: number
+          p_new_wallet_id: string
+          p_old_quantity: number
+          p_old_total_amount: number
+          p_old_wallet_id: string
+          p_order_date: string
+          p_order_id: string
+          p_order_number: string
+          p_payment_method_id: string
+        }
+        Returns: Json
+      }
       register_user_request: {
         Args: {
           p_email: string

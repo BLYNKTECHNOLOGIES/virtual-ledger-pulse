@@ -242,7 +242,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <div className="pt-2 border-t border-border/50">
               <StatRow
                 label="Trades with us (30d)"
-                value={String(stats.numberOfTradesWithCounterpartyCompleted30day)}
+                value={String(Math.max(0, Number(stats.numberOfTradesWithCounterpartyCompleted30day) - 1))}
               />
             </div>
           )}

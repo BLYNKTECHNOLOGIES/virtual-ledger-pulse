@@ -36,9 +36,12 @@ export function TerminalSyncTab() {
   const { data: syncRecords = [], isLoading, refetch } = useQuery({
     queryKey: ['terminal-purchase-sync', statusFilter],
     queryFn: async () => {
+      // Only show records from 12 Feb 2025 00:00 IST onwards
+      const cutoffDate = new Date('2025-02-12T00:00:00+05:30').toISOString();
       let query = supabase
         .from('terminal_purchase_sync')
         .select('*')
+        .gte('synced_at', cutoffDate)
         .order('synced_at', { ascending: false })
         .limit(200);
 

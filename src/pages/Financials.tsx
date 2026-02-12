@@ -39,8 +39,19 @@ import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickabl
 
 export default function Financials() {
   const navigate = useNavigate();
-  const [datePreset, setDatePreset] = useState<DateRangePreset>("thisMonth");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("thisMonth"));
+  const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
+    const saved = localStorage.getItem('financials_date_preset');
+    return (saved as DateRangePreset) || 'today';
+  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const saved = localStorage.getItem('financials_date_preset');
+    return getDateRangeFromPreset((saved as DateRangePreset) || 'today');
+  });
+
+  const handleDatePresetChange = (preset: DateRangePreset) => {
+    setDatePreset(preset);
+    localStorage.setItem('financials_date_preset', preset);
+  };
 
   // Calculate date range based on selected range
   const getDateRangeValues = () => {
@@ -171,7 +182,7 @@ export default function Financials() {
                 dateRange={dateRange}
                 onDateRangeChange={setDateRange}
                 preset={datePreset}
-                onPresetChange={setDatePreset}
+                onPresetChange={handleDatePresetChange}
                 className="w-auto min-w-[200px]"
               />
               

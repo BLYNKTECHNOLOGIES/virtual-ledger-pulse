@@ -43,6 +43,14 @@ serve(async (req) => {
     const findings: any[] = [];
     const scopeAll = scope.includes("all");
 
+    // Calculate today's IST (UTC+5:30) start as epoch milliseconds
+    // This ensures we only scan orders from today's calendar day in IST
+    const now = new Date();
+    const istOffsetMs = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffsetMs);
+    const istMidnight = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate(), 0, 0, 0, 0);
+    const todayStartEpochMs = istMidnight.getTime() - istOffsetMs; // Convert IST midnight back to UTC epoch
+
     // ============================================================
     // MODULE 1: Missing Purchase Entries (BUY orders not in ERP)
     // ============================================================
@@ -52,7 +60,8 @@ serve(async (req) => {
           .from("binance_order_history")
           .select("order_number, asset, total_price, amount, unit_price, commission, counter_part_nick_name, create_time, pay_method_name")
           .eq("trade_type", "BUY")
-          .eq("order_status", "COMPLETED");
+          .eq("order_status", "COMPLETED")
+          .gte("create_time", todayStartEpochMs);
 
         if (buyOrders?.length) {
           const orderNums = buyOrders.map(o => o.order_number);
@@ -93,7 +102,8 @@ serve(async (req) => {
           .from("binance_order_history")
           .select("order_number, asset, total_price, amount, unit_price, commission, counter_part_nick_name, create_time, pay_method_name")
           .eq("trade_type", "SELL")
-          .eq("order_status", "COMPLETED");
+          .eq("order_status", "COMPLETED")
+          .gte("create_time", todayStartEpochMs);
 
         if (sellOrders?.length) {
           const orderNums = sellOrders.map(o => o.order_number);
@@ -604,6 +614,7 @@ serve(async (req) => {
             .select("order_number, asset, total_price, create_time")
             .eq("trade_type", "SELL")
             .eq("order_status", "COMPLETED")
+            .gte("create_time", todayStartEpochMs)
             .gte("total_price", String(min))
             .lte("total_price", String(max));
 
@@ -655,6 +666,7 @@ serve(async (req) => {
           .from("binance_order_history")
           .select("order_number, pay_method_name")
           .eq("order_status", "COMPLETED")
+          .gte("create_time", todayStartEpochMs)
           .not("pay_method_name", "is", null);
 
         if (orders?.length) {

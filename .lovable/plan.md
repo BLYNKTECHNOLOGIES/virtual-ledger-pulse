@@ -1,187 +1,216 @@
 
+# Small Sales Integration: Terminal to ERP
 
-# WAC-Based Asset Conversion Accounting System
+## Overview
 
-## Current State Assessment
+This feature introduces a parallel sales pipeline for low-value orders (default: INR 200-4,000). Unlike normal (big) sales which sync individually with per-client tracking, small sales are clubbed by asset and synced as bulk entries with a fixed "Small Sales" customer -- eliminating client creation overhead while maintaining full accounting integrity.
 
-The existing `erp_product_conversions` system is a basic ledger that records BUY/SELL entries and posts wallet transactions on approval. However, it has **no cost tracking, no inventory position management, and no realized P&L calculation**. The P&L page currently mixes all asset types naively, producing incorrect rates.
+## Architecture
 
-## Recommendation vs. Your Spec
-
-Your specification is well-structured. I have one suggestion:
-
-**Simplification**: Rather than creating 4 new tables (`asset_conversion_entries`, `wallet_asset_positions`, `asset_conversion_journal`, `realized_pnl_events`), I recommend:
-
-1. **Extend** the existing `erp_product_conversions` table with the missing fields (execution_rate_usdt, local_price, fx_rate, market_rate_snapshot, etc.) instead of creating a duplicate `asset_conversion_entries` table -- avoids data migration and preserves existing approved records.
-2. **Create** `wallet_asset_positions` (WAC tracker) -- new table, essential.
-3. **Create** `conversion_journal_entries` (immutable journal) -- new table, essential.
-4. **Create** `realized_pnl_events` -- new table, essential.
-
-This avoids duplicating the conversion workflow that already works (create/approve/reject with idempotency guards).
-
----
-
-## Implementation Plan
-
-### Phase 1: Database Schema
-
-#### 1a. Extend `erp_product_conversions` with WAC-related columns
-
-```
-ADD COLUMNS:
-- execution_rate_usdt NUMERIC(20,9)    -- price per unit in USDT
-- quantity_gross NUMERIC(20,9)          -- before fee deduction
-- quantity_net NUMERIC(20,9)            -- after fee deduction
-- local_price NUMERIC(20,4)            -- optional local currency price
-- local_currency TEXT DEFAULT 'INR'
-- fx_rate_to_usdt NUMERIC(20,9)        -- local/USDT rate used
-- market_rate_snapshot NUMERIC(20,9)    -- market rate at time of entry
-- cost_out_usdt NUMERIC(20,9)          -- for SELL: qty * avg_cost at sale
-- realized_pnl_usdt NUMERIC(20,9)      -- for SELL: net_usdt - cost_out
-- source TEXT DEFAULT 'ERP'
+```text
++---------------------------+       +----------------------------+
+|  Terminal: Automation Tab  |       |  ERP: Sales Page           |
+|                            |       |                            |
+|  [Small Sales Config]      |       |  [Small Sales Sync Button] |
+|  - Enable/Disable Toggle   |       |       |                    |
+|  - Min/Max Amount Fields   |       |       v                    |
+|  - Preview Impact          |       |  Fetch orders from         |
+|  - Manual Reclassify       |       |  binance_order_history     |
+|                            |       |  where total_price in      |
++---------------------------+       |  [min_amount, max_amount]  |
+                                     |       |                    |
+                                     |       v                    |
+                                     |  Club by asset_code        |
+                                     |  Insert into               |
+                                     |  small_sales_sync          |
+                                     |       |                    |
+                                     |       v                    |
+                                     |  Approval Dialog           |
+                                     |  (select payment method)   |
+                                     |       |                    |
+                                     |       v                    |
+                                     |  Create sales_order        |
+                                     |  (SM00001 format)          |
+                                     |  + wallet deduction        |
+                                     |  + fee deduction           |
+                                     +----------------------------+
 ```
 
-Backfill existing approved records: `execution_rate_usdt = price_usd`, `quantity_gross = quantity`, `quantity_net = net_asset_change`.
+## Database Changes (1 migration)
 
-#### 1b. Create `wallet_asset_positions` table
+### Table 1: `small_sales_config`
+Stores the admin-configurable classification thresholds.
 
-```
-wallet_id       UUID NOT NULL
-asset_code      TEXT NOT NULL
-qty_on_hand     NUMERIC(20,9) DEFAULT 0
-cost_pool_usdt  NUMERIC(20,9) DEFAULT 0
-avg_cost_usdt   NUMERIC(20,9) DEFAULT 0
-updated_at      TIMESTAMPTZ DEFAULT now()
-UNIQUE(wallet_id, asset_code)
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| is_enabled | BOOLEAN | Default true |
+| min_amount | NUMERIC(20,4) | Default 200 |
+| max_amount | NUMERIC(20,4) | Default 4000 |
+| currency | TEXT | Default 'INR' |
+| updated_by | TEXT | |
+| updated_at | TIMESTAMPTZ | |
 
-Seed from existing approved conversions to establish initial positions.
+Single-row config table (upsert pattern).
 
-#### 1c. Create `conversion_journal_entries` table (immutable)
+### Table 2: `small_sales_sync`
+The clubbed sync records -- one row per asset per sync execution.
 
-```
-id              UUID PK
-conversion_id   UUID NOT NULL (FK to erp_product_conversions)
-line_type       TEXT NOT NULL  -- 'ASSET_IN', 'USDT_OUT', 'FEE', 'COGS', 'REALIZED_PNL'
-asset_code      TEXT NOT NULL
-qty_delta       NUMERIC(20,9)
-usdt_delta      NUMERIC(20,9)
-notes           TEXT
-created_at      TIMESTAMPTZ DEFAULT now()
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| sync_batch_id | TEXT | Groups records from same sync run |
+| asset_code | TEXT | e.g., 'USDT', 'BTC' |
+| order_count | INT | Number of orders clubbed |
+| total_quantity | NUMERIC(20,9) | Sum of amounts |
+| total_amount | NUMERIC(20,4) | Sum of total_price (INR) |
+| avg_price | NUMERIC(20,4) | total_amount / total_quantity |
+| total_fee | NUMERIC(20,9) | Sum of commissions |
+| wallet_id | UUID | From terminal wallet link |
+| wallet_name | TEXT | |
+| sync_status | TEXT | 'pending_approval', 'approved', 'rejected' |
+| sales_order_id | UUID | FK after approval |
+| order_numbers | TEXT[] | Array of included Binance order numbers |
+| time_window_start | TIMESTAMPTZ | |
+| time_window_end | TIMESTAMPTZ | |
+| synced_by | TEXT | |
+| synced_at | TIMESTAMPTZ | |
+| reviewed_by | TEXT | |
+| reviewed_at | TIMESTAMPTZ | |
+| rejection_reason | TEXT | |
 
-#### 1d. Create `realized_pnl_events` table
+### Table 3: `small_sales_sync_log`
+Tracks each sync execution for audit and last-sync-time tracking.
 
-```
-id              UUID PK
-conversion_id   UUID NOT NULL
-wallet_id       UUID NOT NULL
-asset_code      TEXT NOT NULL
-sell_qty        NUMERIC(20,9)
-proceeds_usdt_gross NUMERIC(20,9)
-proceeds_usdt_net   NUMERIC(20,9)
-cost_out_usdt   NUMERIC(20,9)
-realized_pnl_usdt NUMERIC(20,9)
-avg_cost_at_sale NUMERIC(20,9)
-created_at      TIMESTAMPTZ DEFAULT now()
-```
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| sync_batch_id | TEXT | |
+| sync_started_at | TIMESTAMPTZ | |
+| sync_completed_at | TIMESTAMPTZ | |
+| time_window_start | TIMESTAMPTZ | |
+| time_window_end | TIMESTAMPTZ | |
+| total_orders_processed | INT | |
+| entries_created | INT | |
+| synced_by | TEXT | |
 
-### Phase 2: Rewrite `approve_product_conversion` RPC
+### Table 4: `small_sales_order_map`
+Preserves individual order-level traceability for audit.
 
-The core logic change -- the approve function becomes WAC-aware:
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| small_sales_sync_id | UUID | FK to small_sales_sync |
+| binance_order_number | TEXT | Individual order |
+| order_data | JSONB | Snapshot of order details |
+| created_at | TIMESTAMPTZ | |
 
-**BUY flow:**
-1. Validate USDT balance >= gross_usdt
-2. Post wallet transactions (existing logic, kept)
-3. Update `wallet_asset_positions`:
-   - `qty_on_hand += net_qty`
-   - `cost_pool_usdt += gross_usdt`
-   - `avg_cost_usdt = cost_pool_usdt / qty_on_hand`
-4. Write journal entries: USDT_OUT, ASSET_IN, FEE (if any)
-5. Update conversion record with `quantity_net`, `execution_rate_usdt`
+### Schema Change: `sales_orders`
+- Add column `sale_type TEXT DEFAULT 'regular'` -- values: 'regular', 'small_sale'
 
-**SELL flow:**
-1. Validate asset balance >= sell_qty
-2. Read current `avg_cost_usdt` from positions
-3. Calculate:
-   - `cost_out_usdt = sell_qty * avg_cost_usdt`
-   - `realized_pnl = net_usdt_proceeds - cost_out_usdt`
-4. Post wallet transactions (existing logic, kept)
-5. Update `wallet_asset_positions`:
-   - `qty_on_hand -= sell_qty`
-   - `cost_pool_usdt -= cost_out_usdt`
-   - Recalculate `avg_cost_usdt` (or zero if qty = 0)
-6. Write journal entries: ASSET_OUT, USDT_IN, FEE, COGS, REALIZED_PNL
-7. Insert into `realized_pnl_events`
-8. Update conversion record with `cost_out_usdt`, `realized_pnl_usdt`
+This enables filtering Big vs Small sales in all dashboards and reports.
 
-### Phase 3: Update Create Conversion Form
+### Sequence for SM order numbers
+A database sequence `small_sales_order_seq` to generate SM00001, SM00002, etc.
 
-Enhance the existing `CreateConversionForm.tsx`:
+## Sync Logic (Frontend Hook)
 
-- Add optional fields: local_price, local_currency, fx_rate_to_usdt, market_rate_snapshot
-- Auto-derive `execution_rate_usdt` when local_price and fx_rate provided
-- Show current WAC position for selected wallet+asset (query `wallet_asset_positions`)
-- For SELL: show estimated realized P&L using current avg_cost
-- Keep existing fields working as-is for backward compatibility
+### `src/hooks/useSmallSalesSync.ts`
 
-### Phase 4: Reporting UI
+1. Read `small_sales_config` to get enabled state and amount range
+2. Read `small_sales_sync_log` to find the last sync timestamp
+3. Query `binance_order_history` for SELL + COMPLETED orders where:
+   - `total_price` between min_amount and max_amount
+   - `create_time` > last sync timestamp (epoch ms)
+   - `create_time` <= now
+4. Check against `small_sales_order_map` to prevent duplicate inclusion
+5. Group remaining orders by `asset` code
+6. For each asset group, insert one `small_sales_sync` row with aggregated data
+7. Insert individual order mappings into `small_sales_order_map`
+8. Log the sync execution in `small_sales_sync_log`
 
-#### 4a. Portfolio Snapshot (new component)
+### Interaction with existing Big Sales sync
+The existing `useTerminalSalesSync.ts` must be updated to EXCLUDE orders that fall within the small sales amount range (when small sales is enabled). This prevents the same order from appearing in both pipelines.
 
-Table showing per wallet+asset:
-- Qty on Hand, Avg Cost (USDT), Cost Value (qty * avg_cost)
-- Market Value (qty * current_market_rate -- from user input or snapshot)
-- Unrealized P&L = Market Value - Cost Value
+## Approval Workflow
 
-#### 4b. Realized P&L Report (new component)
+### `src/components/sales/SmallSalesApprovalDialog.tsx`
 
-Query `realized_pnl_events` with filters:
-- Date range, wallet, asset
-- Aggregate by day/week/month
-- Show: total sells, total proceeds, total COGS, total realized P&L
+Read-only display:
+- Asset code with icon
+- Total Quantity (sum)
+- Average Price (calculated)
+- Total Amount (INR)
+- Wallet name
+- Total Fee
+- Order Count
+- Time Window (start - end)
 
-#### 4c. Conversion History Enhancement
+Editable fields:
+- Payment Method dropdown (BAMS Sales Payment Methods)
+- Settlement Date
 
-Add columns to existing `ConversionHistoryTable`:
-- Execution Rate USDT, Cost Out, Realized P&L (for sells)
+On approve:
+1. Generate order number via `nextval('small_sales_order_seq')` formatted as SM{padded}
+2. Insert `sales_orders` with:
+   - `order_number`: SM00001
+   - `client_name`: "Small Sales"
+   - `client_phone`: null
+   - `client_state`: null
+   - `sale_type`: 'small_sale'
+   - `source`: 'terminal_small_sales'
+   - `quantity`, `total_amount`, `price_per_unit`: from aggregated data
+   - `fee_amount`: total fee
+3. Call `process_sales_order_wallet_deduction` for inventory reduction
+4. Update `small_sales_sync` record with `sales_order_id` and status 'approved'
 
-#### 4d. Execution vs Market Variance
+## Terminal Automation Tab Addition
 
-For each conversion: `execution_rate_usdt vs market_rate_snapshot`
-- Variance = execution - market, Variance % = (variance / market) * 100
+### `src/components/terminal/automation/SmallSalesConfig.tsx`
 
-### Phase 5: Fix P&L Dashboard Asset Filtering
+New sub-tab "Small Sales" in the existing Automation page with:
 
-The existing `ProfitLoss.tsx` must filter purchases by `selectedAsset` to avoid mixing BTC/SHIB with USDT rates. This is a separate but related fix using the product code from purchase_order_items.
+- **Enable/Disable Toggle**: Controls whether classification is active
+- **Amount Range Fields**: Min Amount and Max Amount inputs with validation
+- **Preview Impact**: Shows count of today's completed SELL orders that would be classified as small vs big based on current thresholds
+- **Manual Override Table**: List of today's orders near the boundary with a "Reclassify" button to force an order into/out of small sales category
 
----
+## ERP Sales Page Tab
 
-## Technical Details
+### `src/components/sales/SmallSalesSyncTab.tsx`
 
-### Files to Create
-- `src/components/stock/conversion/PortfolioSnapshot.tsx`
-- `src/components/stock/conversion/RealizedPnlReport.tsx`
-- `src/components/stock/conversion/ExecutionVarianceReport.tsx`
-- `src/hooks/useWalletAssetPositions.ts`
-- `src/hooks/useRealizedPnl.ts`
+New tab "Small Sales Sync" added to the Sales page tabs (alongside Pending, Completed, Terminal Sync).
 
-### Files to Modify
-- `src/components/stock/conversion/CreateConversionForm.tsx` -- add WAC fields
-- `src/components/stock/conversion/ConversionHistoryTable.tsx` -- add P&L columns
-- `src/components/stock/InterProductConversionTab.tsx` -- add report tabs
-- `src/hooks/useProductConversions.ts` -- update types for new fields
-- `src/pages/ProfitLoss.tsx` -- asset-specific filtering
+Contents:
+- "Sync Small Sales" button (triggers the sync hook)
+- Last sync timestamp display
+- Table of `small_sales_sync` records showing: Asset, Order Count, Total Qty, Total Amount, Avg Price, Fee, Status, Time Window
+- Approve/Reject actions per row
+- Expandable row detail showing individual order numbers from `small_sales_order_map`
 
-### Database Migrations
-- 1 migration for schema changes (new tables + column additions)
-- 1 migration for updated `approve_product_conversion` RPC
-- 1 migration to seed `wallet_asset_positions` from existing approved data
+## Dashboard and Reporting Impact
 
-### Edge Cases Handled
-- Partial sells: WAC naturally handles this (sell any qty up to on_hand)
-- Zero balance reset: when qty_on_hand reaches 0, cost_pool and avg_cost reset to 0
-- Negative inventory block: validate qty_on_hand >= sell_qty before posting
-- 9-decimal precision: all NUMERIC columns use (20,9)
-- Different fee assets: journal entries track fee_asset explicitly
+### P&L and Financials
+- No code changes needed -- small sales entries go through the same `sales_orders` table and `process_sales_order_wallet_deduction` RPC, so they automatically appear in revenue, volume, and turnover calculations.
 
+### Filtering
+- Add a `sale_type` filter dropdown ("All", "Regular Sales", "Small Sales") to Sales page and relevant report pages using the new `sale_type` column.
+
+## Files to Create
+- `src/hooks/useSmallSalesSync.ts` -- sync logic
+- `src/components/sales/SmallSalesSyncTab.tsx` -- ERP sync tab
+- `src/components/sales/SmallSalesApprovalDialog.tsx` -- approval dialog
+- `src/components/terminal/automation/SmallSalesConfig.tsx` -- config UI
+
+## Files to Modify
+- `src/hooks/useTerminalSalesSync.ts` -- exclude small sale orders from big sales pipeline
+- `src/pages/terminal/TerminalAutomation.tsx` -- add Small Sales tab
+- `src/pages/Sales.tsx` -- add Small Sales Sync tab, add sale_type filter
+- 1 database migration for all new tables, columns, and sequence
+
+## Safeguards
+- Duplicate prevention via `small_sales_order_map` unique constraint on `binance_order_number`
+- Time window tracking ensures no overlap between syncs
+- Small and big sales pipelines are completely separate services with separate tables
+- Manual reclassification stored as overrides without affecting the core threshold logic
+- Sync failures are safe to retry -- duplicate check runs before every insert

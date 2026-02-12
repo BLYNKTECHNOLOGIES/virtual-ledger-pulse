@@ -1640,6 +1640,7 @@ export type Database = {
           rejected_by: string | null
           rejection_reason: string | null
           side: string
+          spot_trade_id: string | null
           status: string
           wallet_id: string
         }
@@ -1664,6 +1665,7 @@ export type Database = {
           rejected_by?: string | null
           rejection_reason?: string | null
           side: string
+          spot_trade_id?: string | null
           status?: string
           wallet_id: string
         }
@@ -1688,6 +1690,7 @@ export type Database = {
           rejected_by?: string | null
           rejection_reason?: string | null
           side?: string
+          spot_trade_id?: string | null
           status?: string
           wallet_id?: string
         }
@@ -1711,6 +1714,13 @@ export type Database = {
             columns: ["rejected_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_product_conversions_spot_trade_id_fkey"
+            columns: ["spot_trade_id"]
+            isOneToOne: true
+            referencedRelation: "spot_trade_history"
             referencedColumns: ["id"]
           },
           {

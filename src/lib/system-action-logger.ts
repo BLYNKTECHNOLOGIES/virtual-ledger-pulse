@@ -26,6 +26,9 @@ export const ActionTypes = {
   STOCK_WALLET_ADJUSTED: 'stock.wallet_adjusted',
   STOCK_WALLET_EDITED: 'stock.wallet_edited',
   STOCK_PRODUCT_CREATED: 'stock.product_created',
+  STOCK_CONVERSION_CREATED: 'stock.conversion_created',
+  STOCK_CONVERSION_APPROVED: 'stock.conversion_approved',
+  STOCK_CONVERSION_REJECTED: 'stock.conversion_rejected',
   
   // Clients Module
   CLIENT_CREATED: 'client.created',
@@ -74,6 +77,7 @@ export const EntityTypes = {
   STOCK_ADJUSTMENT: 'stock_adjustment',
   WALLET: 'wallet',
   PRODUCT: 'product',
+  ERP_CONVERSION: 'erp_conversion',
   CLIENT: 'client',
   CLIENT_ONBOARDING: 'client_onboarding',
   BANK_ACCOUNT: 'bank_account',

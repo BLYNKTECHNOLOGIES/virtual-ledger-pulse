@@ -2,12 +2,13 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid, Shield } from "lucide-react";
+import { Package, TrendingUp, Settings, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight } from "lucide-react";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
 import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
+import { InterProductConversionTab } from "@/components/stock/InterProductConversionTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export default function StockManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-5">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-6">
           <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Grid className="h-4 w-4" />
             <span className="hidden sm:inline">Quick View</span>
@@ -94,6 +95,11 @@ export default function StockManagement() {
           <TabsTrigger value="warehouse" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Building className="h-4 w-4" />
             Wallets
+          </TabsTrigger>
+          <TabsTrigger value="conversions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <ArrowLeftRight className="h-4 w-4" />
+            <span className="hidden sm:inline">Conversions</span>
+            <span className="sm:hidden">Conv.</span>
           </TabsTrigger>
           <TabsTrigger value="valuation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <BarChart className="h-4 w-4" />
@@ -116,6 +122,10 @@ export default function StockManagement() {
 
         <TabsContent value="warehouse">
           <WalletManagementTab />
+        </TabsContent>
+
+        <TabsContent value="conversions">
+          <InterProductConversionTab />
         </TabsContent>
 
         <TabsContent value="valuation">

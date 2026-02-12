@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WalletSelector } from "@/components/stock/WalletSelector";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
+
+interface PaymentSplit {
+  bank_account_id: string;
+  amount: string;
+}
 
 interface EditPurchaseOrderDialogProps {
   open: boolean;
@@ -27,18 +36,17 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     total_amount: 0,
     order_date: '',
     description: '',
-    payment_method_type: '',
-    upi_id: '',
-    bank_account_number: '',
-    bank_account_name: '',
-    ifsc_code: '',
     assigned_to: '',
     tds_option: 'NO_TDS',
     pan_number: '',
     quantity: 0,
     price_per_unit: 0,
     warehouse_id: '',
+    bank_account_id: '',
   });
+
+  const [isMultiplePayments, setIsMultiplePayments] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
 
   // Fetch employees for assignment
   const { data: employees } = useQuery({
@@ -55,16 +63,41 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     enabled: open,
   });
 
+  // Fetch bank accounts
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
+  // Fetch existing payment splits
+  const { data: existingSplits } = useQuery({
+    queryKey: ['payment_splits_edit', order?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_order_payment_splits')
+        .select('id, amount, bank_account_id')
+        .eq('purchase_order_id', order.id);
+      if (error || !data?.length) return [];
+      return data;
+    },
+    enabled: !!order?.id && open,
+  });
+
   useEffect(() => {
     if (order) {
-      // Get quantity and price from order items if available
       const firstItem = order.purchase_order_items?.[0];
       const quantity = firstItem?.quantity || order.quantity || 0;
       const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
-      // Prefer direct wallet_id on order, fallback to purchase_order_items warehouse_id
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || '';
 
-      // Determine TDS option from existing data
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
         const tdsRate = order.tds_amount / order.total_amount;
@@ -82,20 +115,30 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         total_amount: order.total_amount || 0,
         order_date: order.order_date || '',
         description: order.description || '',
-        payment_method_type: order.payment_method_type || '',
-        upi_id: order.upi_id || '',
-        bank_account_number: order.bank_account_number || '',
-        bank_account_name: order.bank_account_name || '',
-        ifsc_code: order.ifsc_code || '',
         assigned_to: order.assigned_to || '',
         tds_option: tdsOption,
         pan_number: order.pan_number || '',
         quantity: quantity,
         price_per_unit: pricePerUnit,
         warehouse_id: warehouseId,
+        bank_account_id: order.bank_account_id || '',
       });
     }
   }, [order]);
+
+  // Initialize splits from existing data
+  useEffect(() => {
+    if (existingSplits && existingSplits.length > 0) {
+      setIsMultiplePayments(existingSplits.length > 1);
+      setPaymentSplits(existingSplits.map((s: any) => ({
+        bank_account_id: s.bank_account_id || '',
+        amount: String(s.amount || ''),
+      })));
+    } else if (order?.bank_account_id) {
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+    }
+  }, [existingSplits, order]);
 
   // Calculate amounts based on TDS option
   const totalAmount = formData.quantity * formData.price_per_unit;
@@ -104,9 +147,35 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   const netPayableAmount = totalAmount - tdsAmount;
   const tdsApplied = formData.tds_option !== "NO_TDS";
 
+  // Split payment allocation
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce((sum, s) =>
+      sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = netPayableAmount - totalAllocated;
+    const isValid = Math.abs(remaining) < 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, netPayableAmount]);
+
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
   const updatePurchaseOrderMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Update the purchase order
+      const selectedBankId = isMultiplePayments
+        ? paymentSplits[0]?.bank_account_id || null
+        : data.bank_account_id || null;
+
       const { data: result, error } = await supabase
         .from('purchase_orders')
         .update({
@@ -116,17 +185,13 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           total_amount: totalAmount,
           order_date: data.order_date,
           description: data.description,
-          payment_method_type: data.payment_method_type,
-          upi_id: data.upi_id,
-          bank_account_number: data.bank_account_number,
-          bank_account_name: data.bank_account_name,
-          ifsc_code: data.ifsc_code,
           assigned_to: data.assigned_to,
           tds_applied: tdsApplied,
           pan_number: data.pan_number,
           tds_amount: tdsAmount,
           net_payable_amount: netPayableAmount,
           wallet_id: data.warehouse_id || null,
+          bank_account_id: selectedBankId,
           updated_at: new Date().toISOString()
         })
         .eq('id', order.id)
@@ -149,6 +214,29 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           .eq('id', firstItemId);
       }
 
+      // Handle payment splits
+      // Delete existing splits
+      await supabase
+        .from('purchase_order_payment_splits')
+        .delete()
+        .eq('purchase_order_id', order.id);
+
+      if (isMultiplePayments && paymentSplits.length > 0) {
+        const splitsToInsert = paymentSplits
+          .filter(s => s.bank_account_id && parseFloat(s.amount) > 0)
+          .map(s => ({
+            purchase_order_id: order.id,
+            bank_account_id: s.bank_account_id,
+            amount: parseFloat(s.amount),
+          }));
+        if (splitsToInsert.length > 0) {
+          const { error: splitError } = await supabase
+            .from('purchase_order_payment_splits')
+            .insert(splitsToInsert);
+          if (splitError) throw splitError;
+        }
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -166,12 +254,12 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.order_number.trim()) {
       toast({ title: "Error", description: "Order number is required", variant: "destructive" });
       return;
     }
-    
+
     if (!formData.supplier_name.trim()) {
       toast({ title: "Error", description: "Supplier name is required", variant: "destructive" });
       return;
@@ -180,6 +268,18 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     if (formData.tds_option === "TDS_1_PERCENT" && !formData.pan_number.trim()) {
       toast({ title: "Error", description: "PAN number is required for 1% TDS", variant: "destructive" });
       return;
+    }
+
+    if (isMultiplePayments) {
+      if (!splitAllocation.isValid) {
+        toast({ title: "Error", description: "Split payment allocation must match net payable amount", variant: "destructive" });
+        return;
+      }
+      const bankIds = paymentSplits.map(s => s.bank_account_id);
+      if (new Set(bankIds).size !== bankIds.length) {
+        toast({ title: "Error", description: "Each bank account can only be used once", variant: "destructive" });
+        return;
+      }
     }
 
     updatePurchaseOrderMutation.mutate(formData);
@@ -193,7 +293,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Edit Purchase Order - {order.order_number}</DialogTitle>
         </DialogHeader>
@@ -238,8 +338,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
             <div>
               <Label>Assigned To</Label>
-              <Select 
-                value={formData.assigned_to} 
+              <Select
+                value={formData.assigned_to}
                 onValueChange={(value) => handleInputChange('assigned_to', value)}
               >
                 <SelectTrigger>
@@ -302,9 +402,9 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           {/* TDS Section */}
           <div className="space-y-4 border rounded-lg p-4">
             <Label className="text-lg font-semibold">TDS Options</Label>
-            
-            <Select 
-              value={formData.tds_option} 
+
+            <Select
+              value={formData.tds_option}
               onValueChange={(value) => handleInputChange('tds_option', value)}
             >
               <SelectTrigger>
@@ -360,65 +460,145 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             />
           </div>
 
-          {/* Payment Method Section */}
+          {/* Bank Account with Split Payment */}
           <div className="space-y-4 border rounded-lg p-4">
-            <Label className="text-lg font-semibold">Payment Method Details (Counterparty)</Label>
-            
-            <div>
-              <Label>Payment Method Type</Label>
-              <Select 
-                value={formData.payment_method_type} 
-                onValueChange={(value) => handleInputChange('payment_method_type', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UPI">UPI</SelectItem>
-                  <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                  <SelectItem value="CASH">Cash</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold">Bank Account (Payment)</Label>
+              <div className="flex items-center gap-1.5">
+                <Checkbox
+                  id="edit_split_payment"
+                  checked={isMultiplePayments}
+                  onCheckedChange={(checked) => {
+                    setIsMultiplePayments(checked === true);
+                    if (checked) {
+                      setPaymentSplits([{
+                        bank_account_id: formData.bank_account_id || '',
+                        amount: netPayableAmount.toFixed(2)
+                      }]);
+                    } else {
+                      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                    }
+                  }}
+                />
+                <Label htmlFor="edit_split_payment" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                  Split Payment
+                </Label>
+              </div>
             </div>
 
-            {formData.payment_method_type === "UPI" && (
-              <div>
-                <Label>UPI ID</Label>
-                <Input
-                  value={formData.upi_id}
-                  onChange={(e) => handleInputChange('upi_id', e.target.value)}
-                  placeholder="Enter counterparty UPI ID"
-                />
-              </div>
-            )}
+            {!isMultiplePayments ? (
+              <Select
+                value={formData.bank_account_id}
+                onValueChange={(value) => handleInputChange('bank_account_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select bank account" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                  {bankAccounts?.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="font-medium">Payment Distribution</Label>
+                      {splitAllocation.isValid ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
 
-            {formData.payment_method_type === "BANK_TRANSFER" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Bank Account Name</Label>
-                  <Input
-                    value={formData.bank_account_name}
-                    onChange={(e) => handleInputChange('bank_account_name', e.target.value)}
-                    placeholder="Account holder name"
-                  />
-                </div>
-                <div>
-                  <Label>Bank Account Number</Label>
-                  <Input
-                    value={formData.bank_account_number}
-                    onChange={(e) => handleInputChange('bank_account_number', e.target.value)}
-                    placeholder="Account number"
-                  />
-                </div>
-                <div>
-                  <Label>IFSC Code</Label>
-                  <Input
-                    value={formData.ifsc_code}
-                    onChange={(e) => handleInputChange('ifsc_code', e.target.value.toUpperCase())}
-                    placeholder="IFSC code"
-                  />
-                </div>
-              </div>
+                  {/* Status Bar */}
+                  <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                    <div className="text-center">
+                      <div className="text-muted-foreground text-xs mb-1">Net Payable</div>
+                      <div className="font-semibold">₹{netPayableAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="text-center border-x">
+                      <div className="text-muted-foreground text-xs mb-1">Allocated</div>
+                      <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-muted-foreground text-xs mb-1">Remaining</div>
+                      <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                        ₹{splitAllocation.remaining.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Rows */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                      <div className="col-span-4">Amount (₹)</div>
+                      <div className="col-span-7">Bank Account</div>
+                      <div className="col-span-1"></div>
+                    </div>
+
+                    {paymentSplits.map((split, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                        <div className="col-span-4">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={split.amount}
+                            onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="col-span-7">
+                          <Select
+                            value={split.bank_account_id}
+                            onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select bank account" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                              {bankAccounts?.map((account) => (
+                                <SelectItem key={account.id} value={account.id}>
+                                  {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-1 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removePaymentSplit(index)}
+                            disabled={paymentSplits.length === 1}
+                            className="h-8 w-8"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addPaymentSplit}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Another Bank
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
 

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
+import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 
 /**
  * Fetch verified buyer name from Binance order detail API.
@@ -67,8 +68,22 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       return { synced: 0, duplicates: 0 };
     }
 
+    // Exclude orders that fall in the small sales range (if enabled)
+    const smallConfig = await getSmallSalesConfig();
+    let filteredSells = completedSells;
+    if (smallConfig?.is_enabled) {
+      filteredSells = completedSells.filter(o => {
+        const tp = parseFloat(o.total_price || '0');
+        return tp < smallConfig.min_amount || tp > smallConfig.max_amount;
+      });
+      if (filteredSells.length === 0) {
+        console.log('[SalesSync] All orders are small sales, skipping big sales sync.');
+        return { synced: 0, duplicates: 0 };
+      }
+    }
+
     // 3. Get existing sync records to check duplicates AND rejected orders (never re-sync rejected)
-    const orderNumbers = completedSells.map(o => o.order_number);
+    const orderNumbers = filteredSells.map(o => o.order_number);
     const { data: existingSyncs } = await supabase
       .from('terminal_sales_sync')
       .select('binance_order_number, sync_status')
@@ -77,7 +92,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
     // 4. Get contact records for counterparties
-    const nicknames = [...new Set(completedSells.map(o => o.counter_part_nick_name).filter(Boolean))];
+    const nicknames = [...new Set(filteredSells.map(o => o.counter_part_nick_name).filter(Boolean))];
     const { data: contactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('counterparty_nickname, contact_number, state')
@@ -86,7 +101,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     const contactMap = new Map((contactRecords || []).map(c => [c.counterparty_nickname, c]));
 
     // 5. Try to match clients
-    const verifiedNames = [...new Set(completedSells.map(o => o.verified_name || o.counter_part_nick_name).filter(Boolean))];
+    const verifiedNames = [...new Set(filteredSells.map(o => o.verified_name || o.counter_part_nick_name).filter(Boolean))];
     const { data: matchedClients } = await supabase
       .from('clients')
       .select('id, name')
@@ -98,7 +113,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     // 6. Process each order
     const toInsert: any[] = [];
-    for (const order of completedSells) {
+    for (const order of filteredSells) {
       if (existingSet.has(order.order_number)) {
         duplicates++;
         continue;

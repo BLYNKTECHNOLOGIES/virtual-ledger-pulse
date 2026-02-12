@@ -184,7 +184,7 @@ export function StockTransactionsTab() {
           *,
           wallets(wallet_name)
         `)
-        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER', 'TRANSFER_FEE'])
+        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT', 'SALES_ORDER', 'PURCHASE_ORDER', 'TRANSFER_FEE', 'ERP_CONVERSION', 'WALLET_TRANSFER', 'SALES_ORDER_FEE'])
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -202,7 +202,11 @@ export function StockTransactionsTab() {
         new Set(tx.filter((t: any) => t.reference_type === 'PURCHASE_ORDER' && t.reference_id).map((t: any) => t.reference_id))
       ) as string[];
 
-      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }] = await Promise.all([
+      const conversionIds = Array.from(
+        new Set(tx.filter((t: any) => t.reference_type === 'ERP_CONVERSION' && t.reference_id).map((t: any) => t.reference_id))
+      ) as string[];
+
+      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }, { data: conversions }] = await Promise.all([
         salesOrderIds.length
           ? supabase
               .from('sales_orders')
@@ -221,6 +225,12 @@ export function StockTransactionsTab() {
               .select('purchase_order_id, quantity, unit_price, total_price')
               .in('purchase_order_id', purchaseOrderIds)
           : Promise.resolve({ data: [] } as any),
+        conversionIds.length
+          ? supabase
+              .from('erp_product_conversions')
+              .select('id, reference_no, asset_code, side, price_usd, created_by')
+              .in('id', conversionIds)
+          : Promise.resolve({ data: [] } as any),
       ]);
 
       const soById = new Map<string, any>();
@@ -229,6 +239,9 @@ export function StockTransactionsTab() {
       const poById = new Map<string, any>();
       (purchaseOrders || []).forEach((po: any) => po?.id && poById.set(po.id, po));
 
+      const convById = new Map<string, any>();
+      (conversions || []).forEach((c: any) => c?.id && convById.set(c.id, c));
+
       const avgPurchasePriceByPo = new Map<string, number>();
       (purchaseItems || []).forEach((pi: any) => {
         const poId = pi?.purchase_order_id;
@@ -236,7 +249,6 @@ export function StockTransactionsTab() {
         const qty = parseFloat(String(pi.quantity)) || 0;
         const total = parseFloat(String(pi.total_price)) || 0;
         const current = avgPurchasePriceByPo.get(poId) || 0;
-        // temporarily store total in map (we'll compute avg using a second map)
         avgPurchasePriceByPo.set(poId, current + (qty > 0 ? total : 0));
       });
 
@@ -253,6 +265,7 @@ export function StockTransactionsTab() {
         new Set([
           ...(salesOrders || []).map((so: any) => so.created_by).filter(Boolean),
           ...(purchaseOrders || []).map((po: any) => po.created_by).filter(Boolean),
+          ...(conversions || []).map((c: any) => c.created_by).filter(Boolean),
         ])
       ) as string[];
 
@@ -297,7 +310,21 @@ export function StockTransactionsTab() {
           };
         }
 
-        // Manual transfer / manual adjustment
+        if (t.reference_type === 'ERP_CONVERSION' && t.reference_id) {
+          const conv = convById.get(t.reference_id);
+          const qty = parseFloat(String(t.amount)) || 0;
+          const unitPrice = conv?.price_usd || 0;
+          return {
+            ...t,
+            _unit_price: unitPrice,
+            _total_amount: qty * unitPrice,
+            _supplier_customer_name: `${conv?.side || ''} ${conv?.asset_code || t.asset_code || ''}`.trim(),
+            _reference_number: conv?.reference_no || null,
+            _created_by_user: conv?.created_by ? userById.get(conv.created_by) : null,
+          };
+        }
+
+        // Manual transfer / manual adjustment / wallet transfer
         const qty = parseFloat(String(t.amount)) || 0;
         const unitPrice = 1;
         return {
@@ -568,7 +595,11 @@ export function StockTransactionsTab() {
     }
   };
 
-  const getTransactionBadge = (type: string) => {
+  const getTransactionBadge = (type: string, refType?: string) => {
+    // Check reference type for conversions
+    if (refType === 'ERP_CONVERSION') {
+      return <Badge className="bg-indigo-100 text-indigo-800">Conversion</Badge>;
+    }
     switch (type) {
       case 'IN':
         return <Badge className="bg-green-100 text-green-800">Stock In</Badge>;
@@ -683,13 +714,11 @@ export function StockTransactionsTab() {
           unit_price: unitPrice,
           total_amount: totalAmount,
           transaction_type: w.transaction_type,
-          products: usdtProduct
-            ? {
-                name: usdtProduct.name,
-                code: usdtProduct.code,
-                unit_of_measurement: usdtProduct.unit_of_measurement,
-              }
-            : { name: 'USDT', code: 'USDT', unit_of_measurement: 'Units' },
+          products: {
+              name: w.asset_code || 'USDT',
+              code: w.asset_code || 'USDT',
+              unit_of_measurement: 'Units',
+            },
           wallet_name: w.wallets?.wallet_name || 'BINANCE BLYNK',
           created_by_user: createdByUser || null,
           closing_balance: w.balance_after ?? null,
@@ -843,7 +872,7 @@ export function StockTransactionsTab() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        {getTransactionBadge(entry.transaction_type)}
+                        {getTransactionBadge(entry.transaction_type, entry.reference_type)}
                       </td>
                       <td className="py-3 px-4">
                         {parseFloat(entry.quantity.toString()).toLocaleString('en-IN', {

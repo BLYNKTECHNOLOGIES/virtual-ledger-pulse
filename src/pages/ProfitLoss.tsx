@@ -137,18 +137,26 @@ export default function ProfitLoss() {
       // Fetch purchase order items for period purchases
       const periodPurchaseOrderIds = purchaseOrders?.map(order => order.id) || [];
       
+      // Exclude specific legacy non-USDT orders that were created before the WAC system
+      const excludedOrderIds = [
+        '1fd66952-bf77-4bf4-a183-4c0fbc34510f', // SHIB order
+        '937f087e-6b2a-4328-a2dd-0166e0682c5b', // BTC order
+        '4f90519e-6d47-43c4-8206-9278927c788f', // BTC order
+      ];
+      const filteredPurchaseOrderIds = periodPurchaseOrderIds.filter(id => !excludedOrderIds.includes(id));
+
       let purchaseItems: any[] = [];
-      if (periodPurchaseOrderIds.length > 0) {
-        // Always filter to USDT purchases for financial calculations when "All Assets" is selected,
-        // since sales are USDT-denominated and mixing non-USDT assets (BTC, SHIB) distorts rates.
-        const assetFilter = selectedAsset === 'all' ? 'USDT' : selectedAsset;
-        
-        const { data: items } = await supabase
+      if (filteredPurchaseOrderIds.length > 0) {
+        let purchaseQuery = supabase
           .from('purchase_order_items')
           .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
-          .in('purchase_order_id', periodPurchaseOrderIds)
-          .eq('products.code', assetFilter);
+          .in('purchase_order_id', filteredPurchaseOrderIds);
         
+        if (selectedAsset !== 'all') {
+          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
+        }
+        
+        const { data: items } = await purchaseQuery;
         purchaseItems = items || [];
       }
 

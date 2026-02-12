@@ -276,7 +276,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
           {order.description && (
             <div>
               <label className="text-sm font-medium text-muted-foreground">Description</label>
-              <p className="text-sm mt-1 p-3 bg-muted rounded-lg">{order.description}</p>
+              <p className="text-sm mt-1 p-3 bg-muted rounded-lg break-all whitespace-pre-wrap">{order.description}</p>
             </div>
           )}
 

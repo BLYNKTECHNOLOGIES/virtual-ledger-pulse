@@ -56,7 +56,7 @@ export function useUnsyncedSpotTrades() {
       }
       const trades = Array.from(orderMap.values());
 
-      // Get already synced trade IDs
+      // Get already synced trade IDs and their binance_order_ids
       const { data: synced, error: syncErr } = await supabase
         .from("erp_product_conversions" as any)
         .select("spot_trade_id")
@@ -64,11 +64,26 @@ export function useUnsyncedSpotTrades() {
 
       if (syncErr) throw syncErr;
 
-      const syncedIds = new Set((synced || []).map((s: any) => s.spot_trade_id));
+      const syncedTradeIds = new Set((synced || []).map((s: any) => s.spot_trade_id));
+
+      // Also look up binance_order_ids for synced trades to catch all fills of the same order
+      const syncedOrderIds = new Set<string>();
+      if (syncedTradeIds.size > 0) {
+        const { data: syncedTrades } = await supabase
+          .from("spot_trade_history")
+          .select("binance_order_id")
+          .in("id", Array.from(syncedTradeIds))
+          .not("binance_order_id", "is", null);
+        
+        for (const st of (syncedTrades || [])) {
+          if (st.binance_order_id) syncedOrderIds.add(st.binance_order_id);
+        }
+      }
 
       return trades.map((t: any) => ({
         ...t,
-        already_synced: syncedIds.has(t.id),
+        already_synced: syncedTradeIds.has(t.id) || 
+          (t.binance_order_id && syncedOrderIds.has(t.binance_order_id)),
       })) as SpotTradeForSync[];
     },
   });

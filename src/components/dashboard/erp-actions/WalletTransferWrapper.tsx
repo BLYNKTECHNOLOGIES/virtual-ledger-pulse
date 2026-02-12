@@ -47,8 +47,6 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
 
   const feeAmount = parseFloat(fee) || 0;
   const transferAmount = Number(item.amount);
-  // Net amount credited = total - fee (fee is deducted from source)
-  const netAmount = transferAmount - feeAmount;
 
   const transferMutation = useMutation({
     mutationFn: async () => {
@@ -73,11 +71,11 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
         {
           wallet_id: toWalletId,
           transaction_type: "CREDIT",
-          amount: feeAmount > 0 ? netAmount : transferAmount,
+          amount: transferAmount,
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Fee: ${feeAmount.toFixed(4)} ${item.asset}` : ''}`,
+          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Fee: ${feeAmount.toFixed(4)} ${item.asset} deducted from source` : ''}`,
         },
       ];
 
@@ -200,13 +198,17 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
                 <span>Transfer Amount:</span>
                 <span>{transferAmount.toFixed(4)} {item.asset}</span>
               </div>
+              <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
+                <span>Net Credited (To Wallet):</span>
+                <span className="text-green-600">{transferAmount.toFixed(4)} {item.asset}</span>
+              </div>
               <div className="flex justify-between">
-                <span>Fee Deducted:</span>
+                <span>Fee Deducted (From Source):</span>
                 <span className="text-destructive">-{feeAmount.toFixed(4)} {item.asset}</span>
               </div>
               <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
-                <span>Net Credited:</span>
-                <span>{netAmount.toFixed(4)} {item.asset}</span>
+                <span>Total Source Debit:</span>
+                <span>{(transferAmount + feeAmount).toFixed(4)} {item.asset}</span>
               </div>
             </div>
           )}

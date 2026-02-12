@@ -1,0 +1,3 @@
+INSERT INTO system_functions (function_key, function_name, module, description) VALUES
+('stock_conversion_create', 'Conversion Creator', 'stock', 'Can create inter-product conversion drafts (e.g., USDT to BTC swaps) for approval.'),
+('stock_conversion_approve', 'Conversion Approver', 'stock', 'Can approve or reject pending inter-product conversions. Cannot approve own conversions (maker-checker).');

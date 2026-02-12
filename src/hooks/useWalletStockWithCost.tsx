@@ -93,27 +93,22 @@ export function useProductStockWithCost() {
         walletBalanceMap.set(w.id, w.current_balance || 0);
       });
 
-      // 3. For non-USDT assets, derive balances from wallet_transactions
-      const { data: txns, error: txErr } = await supabase
-        .from('wallet_transactions')
-        .select('wallet_id, asset_code, transaction_type, amount')
+      // 3. For non-USDT assets, use wallet_asset_balances (source of truth)
+      const { data: assetBalances, error: abErr } = await supabase
+        .from('wallet_asset_balances')
+        .select('wallet_id, asset_code, balance')
         .neq('asset_code', 'USDT');
-      if (txErr) throw txErr;
+      if (abErr) throw abErr;
 
-      const INFLOW_TYPES = ['CREDIT', 'TRANSFER_IN'];
       const nonUsdtBalanceMap = new Map<string, Map<string, number>>(); // asset -> walletId -> balance
 
-      txns?.forEach(txn => {
-        const asset = txn.asset_code || 'USDT';
-        if (asset === 'USDT') return; // Skip USDT, we use wallets.current_balance
-        const walletId = txn.wallet_id;
-        const amount = Number(txn.amount) || 0;
-        const isInflow = INFLOW_TYPES.includes(txn.transaction_type);
-        const signed = isInflow ? amount : -amount;
+      assetBalances?.forEach(ab => {
+        const asset = ab.asset_code;
+        const walletId = ab.wallet_id;
+        const balance = Number(ab.balance) || 0;
 
         if (!nonUsdtBalanceMap.has(asset)) nonUsdtBalanceMap.set(asset, new Map());
-        const walletMap = nonUsdtBalanceMap.get(asset)!;
-        walletMap.set(walletId, (walletMap.get(walletId) || 0) + signed);
+        nonUsdtBalanceMap.get(asset)!.set(walletId, balance);
       });
 
       // 4. Build product summaries

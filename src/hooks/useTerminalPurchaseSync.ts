@@ -31,8 +31,10 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       .eq('id', activeLink.wallet_id)
       .single();
 
-    // 2. Get completed BUY orders from binance_order_history — only recent ones (last 24 hours)
-    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+    // 2. Get completed BUY orders from binance_order_history — only today's orders (from 00:00 IST)
+    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const todayStartIST = new Date(nowIST.getFullYear(), nowIST.getMonth(), nowIST.getDate(), 0, 0, 0, 0);
+    const cutoffTime = todayStartIST.getTime() - (5.5 * 60 * 60 * 1000); // Convert IST midnight back to UTC timestamp
     const { data: completedBuys, error: fetchErr } = await supabase
       .from('binance_order_history')
       .select('*')

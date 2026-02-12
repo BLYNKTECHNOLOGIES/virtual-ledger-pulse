@@ -1,0 +1,1 @@
+DELETE FROM reversal_guards WHERE entity_type = 'ERP_CONVERSION' AND entity_id = '63c7ca0d-e517-4ed6-a4bf-dd9a23fe1634' AND action = 'approve';

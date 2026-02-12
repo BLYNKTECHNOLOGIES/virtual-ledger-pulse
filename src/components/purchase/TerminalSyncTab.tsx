@@ -215,6 +215,8 @@ export function TerminalSyncTab() {
                             size="sm"
                             className="h-7 text-[10px] gap-1"
                             onClick={() => setApprovalRecord(record)}
+                            disabled={isMaskedName || !verifiedName}
+                            title={isMaskedName || !verifiedName ? 'Verified name required before approval' : ''}
                           >
                             <CheckCircle2 className="h-3 w-3" />
                             Approve

@@ -140,14 +140,15 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
-type AuthMethod = 'GOOGLE' | 'FIDO2' | 'EMAIL' | 'MOBILE' | 'YUBIKEY';
+type AuthMethod = 'GOOGLE' | 'EMAIL' | 'MOBILE';
 
+// Note: Binance releaseCoin API only supports GOOGLE auth type.
+// FIDO2/Passkey returns "Unsupported authentication type", YUBIKEY returns error code -1000.
+// EMAIL and MOBILE kept as options (may work if enabled on the Binance account).
 const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string }[] = [
   { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code' },
-  { value: 'FIDO2', label: 'Passkey / FIDO2', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Passkey verification code' },
   { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code' },
   { value: 'MOBILE', label: 'Mobile OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter mobile verification code' },
-  { value: 'YUBIKEY', label: 'YubiKey', icon: <Shield className="h-3.5 w-3.5" />, placeholder: 'Enter YubiKey code' },
 ];
 
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {

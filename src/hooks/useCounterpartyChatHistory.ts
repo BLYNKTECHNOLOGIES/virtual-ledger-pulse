@@ -64,7 +64,6 @@ export function useCounterpartyChatHistory(
           .from('binance_order_history')
           .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
           .eq('verified_name', counterpartyVerifiedName!)
-          .eq('order_status', 'COMPLETED')
           .neq('order_number', currentOrderNumber)
           .order('create_time', { ascending: false });
 

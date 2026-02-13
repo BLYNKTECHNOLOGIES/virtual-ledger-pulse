@@ -302,9 +302,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       tradeMethods,
       payTimeLimit: form.payTimeLimit,
       advStatus: form.advStatus,
+      buyerKycLimit: 1,
       buyerRegDaysLimit: form.buyerRegDaysLimit,
       buyerBtcPositionLimit: form.buyerBtcPositionLimit,
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
+      classify: 'profession',
     };
 
     if (!isEditing) {

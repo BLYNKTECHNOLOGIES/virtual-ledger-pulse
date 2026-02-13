@@ -637,6 +637,26 @@ serve(async (req) => {
         break;
       }
 
+      case "getDigitalCurrencyList": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/digitalCurrency/list`;
+        console.log("getDigitalCurrencyList URL:", url);
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({}) });
+        const text = await response.text();
+        console.log("getDigitalCurrencyList response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
+      case "getAvailableAdsCategory": {
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/getAvailableAdsCategory`;
+        console.log("getAvailableAdsCategory URL:", url);
+        const response = await fetch(url, { method: "GET", headers: proxyHeaders });
+        const text = await response.text();
+        console.log("getAvailableAdsCategory response:", response.status, text.substring(0, 1000));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),

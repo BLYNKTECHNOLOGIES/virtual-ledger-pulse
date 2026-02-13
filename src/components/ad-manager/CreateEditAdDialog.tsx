@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceDigitalCurrencies, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { cn } from '@/lib/utils';
@@ -28,17 +28,8 @@ const PAYMENT_TIME_OPTIONS = [
   { label: '2 hr', value: 120 },
 ];
 
-// Binance allowed terms tags
-const BINANCE_TERMS_TAGS = [
-  { id: 'bankStatement', label: 'Bank statement required', description: 'Bank statement will be required for addition verification' },
-  { id: 'extraKyc', label: 'Extra KYC required', description: 'Need to complete one time extra KYC verification' },
-  { id: 'noAdditionalVerification', label: 'No Additional Verification Needed', description: 'No additional verification requirements from the maker' },
-  { id: 'noPaymentReceipt', label: 'No Payment Receipt Needed', description: 'Receipt not required for this trade' },
-  { id: 'panRequired', label: 'PAN Required', description: 'PAN number is required' },
-  { id: 'paymentReceipt', label: 'Payment Receipt Required', description: 'You must provide transaction receipt to complete the trade' },
-  { id: 'photoId', label: 'Photo ID Required', description: 'Valid government-issued photo ID required' },
-  { id: 'tdsApplied', label: 'TDS applied', description: 'TDS will be deducted / paid' },
-];
+// Priority assets shown first in the dropdown
+const PRIORITY_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC', 'FDUSD'];
 
 export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEditAdDialogProps) {
   const { toast } = useToast();
@@ -46,6 +37,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   const updateAd = useUpdateAd();
   // Fetch ALL SELL ads to extract available payment methods from the merchant's account
   const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
+  const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
   const isEditing = !!editingAd;
 
   const [form, setForm] = useState({
@@ -66,7 +58,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     buyerBtcPositionLimit: -1, // -1 means disabled
     takerAdditionalKycRequired: 0,
     selectedPayMethods: [] as Array<{ payId?: number; payType: string; identifier: string; tradeMethodName?: string }>,
-    selectedTags: [] as string[],
   });
 
   // Counterparty condition toggles (enabled = has limit, disabled = -1)
@@ -75,9 +66,30 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   const [payMethodSearch, setPayMethodSearch] = useState('');
   const [showPayMethodPicker, setShowPayMethodPicker] = useState(false);
-  const [showTagsPicker, setShowTagsPicker] = useState(false);
 
   const isBuyAd = form.tradeType === 'BUY';
+
+  // ─── Dynamic asset list from Binance ─────────────────────────
+  const assetOptions = useMemo(() => {
+    const currencies = digitalCurrenciesData?.data || [];
+    if (!Array.isArray(currencies) || currencies.length === 0) {
+      // Fallback to hardcoded list
+      return PRIORITY_ASSETS.map(a => ({ asset: a, name: a }));
+    }
+    // Filter only crypto assets (exclude fiat-like: ARS, BRL, COP, MXN, RUB, UAH)
+    const fiatLike = new Set(['ARS', 'BRL', 'COP', 'MXN', 'RUB', 'UAH', 'EURI']);
+    const filtered = currencies.filter((c: any) => c.isEnable === 1 && !fiatLike.has(c.asset));
+    // Sort: priority assets first, then alphabetical
+    const prioritySet = new Set(PRIORITY_ASSETS);
+    return filtered.sort((a: any, b: any) => {
+      const aIdx = PRIORITY_ASSETS.indexOf(a.asset);
+      const bIdx = PRIORITY_ASSETS.indexOf(b.asset);
+      if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
+      if (aIdx >= 0) return -1;
+      if (bIdx >= 0) return 1;
+      return a.asset.localeCompare(b.asset);
+    }).map((c: any) => ({ asset: c.asset, name: c.name || c.asset }));
+  }, [digitalCurrenciesData]);
 
   // ─── Dynamic Price Range from Binance ────────────────────────
   const { data: refPriceData, isLoading: isLoadingRefPrice, refetch: refetchRefPrice, dataUpdatedAt: refPriceUpdatedAt } = useBinanceReferencePrice(
@@ -135,7 +147,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
         buyerBtcPositionLimit: isNaN(btcPos) ? -1 : btcPos,
         takerAdditionalKycRequired: editingAd.takerAdditionalKycRequired || 0,
         selectedPayMethods: editingAd.tradeMethods || [],
-        selectedTags: (editingAd as any).tags || [],
       });
     } else {
       setForm({
@@ -156,12 +167,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
         buyerBtcPositionLimit: -1,
         takerAdditionalKycRequired: 0,
         selectedPayMethods: [],
-        selectedTags: [],
       });
     }
     setShowPayMethodPicker(false);
     setPayMethodSearch('');
-    setShowTagsPicker(false);
   }, [editingAd, open]);
 
   // ─── Available balance from surplus across all ads ────────────
@@ -250,15 +259,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     );
   };
 
-  const toggleTag = (tagId: string) => {
-    if (form.selectedTags.includes(tagId)) {
-      setForm({ ...form, selectedTags: form.selectedTags.filter(t => t !== tagId) });
-    } else if (form.selectedTags.length < 3) {
-      setForm({ ...form, selectedTags: [...form.selectedTags, tagId] });
-    } else {
-      toast({ title: 'Limit Reached', description: 'Maximum 3 tags allowed', variant: 'destructive' });
-    }
-  };
 
   const validate = (): string | null => {
     if (!form.initAmount || Number(form.initAmount) <= 0) return 'Total quantity is required';
@@ -333,7 +333,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
     if (form.autoReplyMsg) adData.autoReplyMsg = form.autoReplyMsg;
     if (form.remarks) adData.remarks = form.remarks;
-    if (form.selectedTags.length > 0) adData.tags = form.selectedTags;
+    
 
     if (isEditing) {
       updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
@@ -379,13 +379,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               <Label>Asset</Label>
               <Select value={form.asset} onValueChange={(v) => setForm({ ...form, asset: v })} disabled={isEditing}>
                 <SelectTrigger className={isEditing ? 'opacity-60' : ''}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="USDT">USDT</SelectItem>
-                  <SelectItem value="BTC">BTC</SelectItem>
-                  <SelectItem value="ETH">ETH</SelectItem>
-                  <SelectItem value="BNB">BNB</SelectItem>
-                  <SelectItem value="USDC">USDC</SelectItem>
-                  <SelectItem value="FDUSD">FDUSD</SelectItem>
+                <SelectContent className="max-h-[300px]">
+                  {assetOptions.map((opt: { asset: string; name: string }) => (
+                    <SelectItem key={opt.asset} value={opt.asset}>
+                      {opt.asset}{opt.name !== opt.asset ? ` (${opt.name})` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
@@ -756,77 +755,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             </div>
           </div>
 
-          {/* Terms Tags */}
-          <div className="space-y-3 rounded-lg border p-4">
-            <Label className="text-base font-semibold">Terms Tags (Optional)</Label>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 w-full justify-start text-muted-foreground"
-                onClick={() => setShowTagsPicker(true)}
-              >
-                {form.selectedTags.length > 0
-                  ? `${form.selectedTags.length} tag${form.selectedTags.length > 1 ? 's' : ''} selected`
-                  : 'Add tags'
-                }
-              </Button>
-            </div>
-            {form.selectedTags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {form.selectedTags.map(tagId => {
-                  const tag = BINANCE_TERMS_TAGS.find(t => t.id === tagId);
-                  return tag ? (
-                    <span key={tagId} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {tag.label}
-                      <button onClick={() => toggleTag(tagId)} className="ml-0.5 hover:text-destructive">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ) : null;
-                })}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">Select up to 3 tags</p>
-
-            {/* Tags Picker Dialog */}
-            <Dialog open={showTagsPicker} onOpenChange={setShowTagsPicker}>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Select Tags</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {BINANCE_TERMS_TAGS.map(tag => {
-                    const selected = form.selectedTags.includes(tag.id);
-                    return (
-                      <div
-                        key={tag.id}
-                        className={cn(
-                          'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
-                          selected && 'ring-1 ring-primary bg-primary/5'
-                        )}
-                        onClick={() => toggleTag(tag.id)}
-                      >
-                        <Checkbox checked={selected} className="pointer-events-none mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{tag.label}</p>
-                          <p className="text-xs text-muted-foreground">{tag.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <Button variant="outline" size="sm" onClick={() => setForm({ ...form, selectedTags: [] })}>
-                    Reset
-                  </Button>
-                  <Button size="sm" onClick={() => setShowTagsPicker(false)}>
-                    Confirm
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
 
           {/* Terms & Conditions */}
           <div className="space-y-3 rounded-lg border p-4">

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 // Binance C2C ad status codes
 // Binance API returns advStatus: 1 for both Online and Private ads.
@@ -159,9 +160,13 @@ export function usePostAd() {
 
   return useMutation({
     mutationFn: (adData: Record<string, any>) => callBinanceAds('postAd', { adData }),
-    onSuccess: () => {
+    onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Posted', description: 'Your ad has been posted successfully.' });
+      logAdAction({
+        actionType: AdActionTypes.AD_CREATED,
+        adDetails: { tradeType: adData.tradeType, asset: adData.asset, fiatUnit: adData.fiatUnit, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to Post Ad', description: error.message, variant: 'destructive' });
@@ -175,9 +180,14 @@ export function useUpdateAd() {
 
   return useMutation({
     mutationFn: (adData: Record<string, any>) => callBinanceAds('updateAd', { adData }),
-    onSuccess: () => {
+    onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Updated', description: 'Your ad has been updated successfully.' });
+      logAdAction({
+        actionType: AdActionTypes.AD_UPDATED,
+        advNo: adData.advNo,
+        adDetails: { tradeType: adData.tradeType, asset: adData.asset, price: adData.price, priceType: adData.priceType, priceFloatingRatio: adData.priceFloatingRatio, initAmount: adData.initAmount, minSingleTransAmount: adData.minSingleTransAmount, maxSingleTransAmount: adData.maxSingleTransAmount, autoReplyMsg: adData.autoReplyMsg, remarks: adData.remarks, tradeMethods: adData.tradeMethods },
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to Update Ad', description: error.message, variant: 'destructive' });
@@ -192,9 +202,17 @@ export function useUpdateAdStatus() {
   return useMutation({
     mutationFn: ({ advNos, advStatus, fromPrivate }: { advNos: string[]; advStatus: number; fromPrivate?: boolean }) =>
       callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });
+      const actionType = vars.advNos.length > 1 ? AdActionTypes.AD_BULK_STATUS_CHANGED : AdActionTypes.AD_STATUS_CHANGED;
+      for (const advNo of vars.advNos) {
+        logAdAction({
+          actionType,
+          advNo,
+          metadata: { toStatus: vars.advStatus, fromPrivate: vars.fromPrivate, advNos: vars.advNos, adsCount: vars.advNos.length },
+        });
+      }
     },
     onError: (error: Error) => {
       toast({ title: 'Failed to Update Status', description: error.message, variant: 'destructive' });

@@ -133,8 +133,8 @@ export function useBinanceActiveOrders(filters?: { tradeType?: string; asset?: s
   return useQuery({
     queryKey: ['binance-active-orders', filters],
     queryFn: () => callBinanceAds('listActiveOrders', { ...filters, rows: 50 }),
-    staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000, // Poll every 30s for active orders
+    staleTime: 5 * 1000,
+    refetchInterval: 10 * 1000, // Poll every 10s to catch status changes quickly
   });
 }
 

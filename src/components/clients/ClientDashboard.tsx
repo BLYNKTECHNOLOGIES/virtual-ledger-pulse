@@ -38,6 +38,7 @@ export function ClientDashboard() {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false });
       
       if (error) throw error;

@@ -69,27 +69,21 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   const isBuyAd = form.tradeType === 'BUY';
 
-  // ─── Dynamic asset list from Binance ─────────────────────────
-  const assetOptions = useMemo(() => {
-    const currencies = digitalCurrenciesData?.data || [];
-    if (!Array.isArray(currencies) || currencies.length === 0) {
-      // Fallback to hardcoded list
-      return PRIORITY_ASSETS.map(a => ({ asset: a, name: a }));
-    }
-    // Filter only crypto assets (exclude fiat-like: ARS, BRL, COP, MXN, RUB, UAH)
-    const fiatLike = new Set(['ARS', 'BRL', 'COP', 'MXN', 'RUB', 'UAH', 'EURI']);
-    const filtered = currencies.filter((c: any) => c.isEnable === 1 && !fiatLike.has(c.asset));
-    // Sort: priority assets first, then alphabetical
-    const prioritySet = new Set(PRIORITY_ASSETS);
-    return filtered.sort((a: any, b: any) => {
-      const aIdx = PRIORITY_ASSETS.indexOf(a.asset);
-      const bIdx = PRIORITY_ASSETS.indexOf(b.asset);
-      if (aIdx >= 0 && bIdx >= 0) return aIdx - bIdx;
-      if (aIdx >= 0) return -1;
-      if (bIdx >= 0) return 1;
-      return a.asset.localeCompare(b.asset);
-    }).map((c: any) => ({ asset: c.asset, name: c.name || c.asset }));
-  }, [digitalCurrenciesData]);
+  // ─── P2P Supported Coins only ─────────────────────────────────
+  const P2P_SUPPORTED_COINS: { asset: string; name: string }[] = [
+    { asset: "USDT", name: "TetherUS" },
+    { asset: "BTC", name: "Bitcoin" },
+    { asset: "USDC", name: "USDC" },
+    { asset: "FDUSD", name: "First Digital USD" },
+    { asset: "BNB", name: "Binance Coin" },
+    { asset: "ETH", name: "Ethereum" },
+    { asset: "TRX", name: "TRON" },
+    { asset: "SHIB", name: "SHIBA INU" },
+    { asset: "XRP", name: "XRP" },
+    { asset: "SOL", name: "Solana" },
+    { asset: "TON", name: "Toncoin" },
+  ];
+  const assetOptions = P2P_SUPPORTED_COINS;
 
   // ─── Dynamic Price Range from Binance ────────────────────────
   const { data: refPriceData, isLoading: isLoadingRefPrice, refetch: refetchRefPrice, dataUpdatedAt: refPriceUpdatedAt } = useBinanceReferencePrice(

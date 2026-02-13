@@ -74,6 +74,39 @@ export type Database = {
           },
         ]
       }
+      ad_action_logs: {
+        Row: {
+          action_type: string
+          ad_details: Json | null
+          adv_no: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          action_type: string
+          ad_details?: Json | null
+          adv_no?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          action_type?: string
+          ad_details?: Json | null
+          adv_no?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       ad_payment_methods: {
         Row: {
           binance_ad_id: string

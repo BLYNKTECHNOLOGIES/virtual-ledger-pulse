@@ -22,6 +22,7 @@ import {
   Users,
   Building2,
   Wallet,
+  ScrollText,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_automation_view' },
   { title: 'Assets', url: '/terminal/assets', icon: Wallet, requiredPermission: 'terminal_analytics_view' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, requiredPermission: 'terminal_analytics_view' },
+  { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_ads_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },
 ];

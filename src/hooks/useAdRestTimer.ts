@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { BINANCE_AD_STATUS, BinanceAd } from '@/hooks/useBinanceAds';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { useToast } from '@/hooks/use-toast';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 interface RestTimer {
   id: string;
@@ -73,10 +74,14 @@ export function useAdRestTimer() {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Rest Mode Activated', description: 'All ads deactivated. 1-hour timer started.' });
+      logAdAction({
+        actionType: AdActionTypes.AD_REST_STARTED,
+        metadata: { deactivatedCount: vars.onlineAds.length, advNos: vars.onlineAds.map(a => a.advNo) },
+      });
     },
     onError: (e: Error) => {
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });
@@ -110,6 +115,10 @@ export function useAdRestTimer() {
       queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Rest Ended', description: 'Ads re-activated successfully.' });
+      logAdAction({
+        actionType: AdActionTypes.AD_REST_ENDED,
+        metadata: { reactivatedAdvNos: activeTimer?.deactivated_ad_nos || [] },
+      });
     },
     onError: (e: Error) => {
       toast({ title: 'Failed', description: e.message, variant: 'destructive' });

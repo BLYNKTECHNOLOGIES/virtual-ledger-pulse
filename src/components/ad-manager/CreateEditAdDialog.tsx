@@ -909,7 +909,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             </div>
           </div>
 
-          {/* Status — Radio Group: Online / Offline / Private */}
+           {/* Status — Radio Group: Online / Offline */}
           <div className="space-y-3 rounded-lg border p-4">
             <Label className="text-base font-semibold">Status</Label>
             <RadioGroup
@@ -924,10 +924,6 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               <div className="flex items-center gap-2">
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.OFFLINE)} id="status-offline" />
                 <Label htmlFor="status-offline" className="cursor-pointer">Offline</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value={String(BINANCE_AD_STATUS.PRIVATE)} id="status-private" />
-                <Label htmlFor="status-private" className="cursor-pointer">Private</Label>
               </div>
             </RadioGroup>
           </div>

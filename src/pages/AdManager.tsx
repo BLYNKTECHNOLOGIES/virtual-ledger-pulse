@@ -47,8 +47,11 @@ export default function AdManager() {
   const handleCreate = () => { setEditingAd(null); setDialogOpen(true); };
 
   const handleToggleStatus = (advNo: string, currentStatus: number) => {
-    const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE ? BINANCE_AD_STATUS.OFFLINE : BINANCE_AD_STATUS.ONLINE;
-    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus });
+    const isCurrentlyPrivate = currentStatus === BINANCE_AD_STATUS.PRIVATE;
+    const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE || isCurrentlyPrivate
+      ? BINANCE_AD_STATUS.OFFLINE 
+      : BINANCE_AD_STATUS.ONLINE;
+    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate });
   };
 
   const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };

@@ -45,6 +45,39 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Helper: try multiple paths for visibility toggle
+  async function setAdvVisibility(proxyUrl: string, headers: Record<string, string>, advNos: string[], visible: number): Promise<any> {
+    const body = { advNos, visible };
+    const paths = [
+      `/api/sapi/v1/c2c/ads/setUserAdvVisible`,
+      `/api/sapi/v1/c2c/ads/setVisible`,
+      `/api/sapi/v1/c2c/ads/updateVisible`,
+      `/api/bapi/c2c/v1/private/ads/setUserAdvVisible`,
+      `/api/bapi/c2c/v1/private/ads/setVisible`,
+    ];
+    for (const path of paths) {
+      const url = `${proxyUrl}${path}`;
+      console.log("setAdvVisibility trying:", url, JSON.stringify(body));
+      try {
+        const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+        const text = await resp.text();
+        console.log("setAdvVisibility response:", resp.status, text.substring(0, 500));
+        let parsed: any;
+        try { parsed = JSON.parse(text); } catch { parsed = { raw: text, status: resp.status }; }
+        if (parsed?.code === "000000") {
+          console.log("setAdvVisibility: working path found:", path);
+          return parsed;
+        }
+        if (resp.status === 404 || text.includes('"Not Found"')) continue;
+        // Non-404 response, might be the right endpoint but with an error
+        return parsed;
+      } catch (err) {
+        console.warn("setAdvVisibility error on", path, (err as Error).message);
+      }
+    }
+    return { code: "VISIBILITY_NOT_SUPPORTED", message: "No working visibility endpoint found on proxy" };
+  }
+
   try {
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
@@ -134,9 +167,10 @@ serve(async (req) => {
 
       case "postAd": {
         const adData = { ...payload.adData };
+        const wantPrivate = adData.advStatus === 2;
         // Binance only accepts advStatus 1 (online) or 3 (offline) for ad creation.
         // Our custom status 2 (Private) must be mapped to 1 for the API call.
-        if (adData.advStatus === 2) {
+        if (wantPrivate) {
           adData.advStatus = 1;
         }
         console.log("postAd request body:", JSON.stringify(adData).substring(0, 1000));
@@ -145,6 +179,14 @@ serve(async (req) => {
         const text = await response.text();
         console.log("postAd response:", response.status, text);
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+
+        // If ad was created successfully and user wanted Private, toggle visibility
+        if (wantPrivate && result?.code === "000000" && result?.data?.advNo) {
+          const advNo = result.data.advNo;
+          console.log(`postAd: Setting ad ${advNo} to Private via visibility helper...`);
+          const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, [String(advNo)], 1);
+          console.log("postAd visibility result:", JSON.stringify(visResult).substring(0, 500));
+        }
         break;
       }
 
@@ -159,17 +201,44 @@ serve(async (req) => {
       }
 
       case "updateAdStatus": {
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
-        const body = {
-          advNos: advNosList.map(String),
-          advStatus: Number(payload.advStatus),
-        };
-        console.log("updateAdStatus request body:", JSON.stringify(body));
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
-        const text = await response.text();
-        console.log("updateAdStatus response:", response.status, text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const targetStatus = Number(payload.advStatus);
+
+        if (targetStatus === 2) {
+          // "Private" = Binance online (1) + userSetVisible=1
+          // First ensure the ad is online, then toggle visibility
+          const statusUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
+          const statusBody = { advNos: advNosList.map(String), advStatus: 1 };
+          console.log("updateAdStatus (to Private): first set online:", JSON.stringify(statusBody));
+          const statusResp = await fetch(statusUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify(statusBody) });
+          const statusText = await statusResp.text();
+          console.log("updateAdStatus online response:", statusResp.status, statusText.substring(0, 500));
+
+          // Now toggle visibility to Private
+          const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), 1);
+          result = visResult;
+        } else {
+          // For status 1 (online) or 3 (offline), use normal updateStatus
+          // If coming FROM private, first remove visibility restriction
+          if (payload.fromPrivate) {
+            const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), 0);
+            console.log("Remove private visibility result:", JSON.stringify(visResult).substring(0, 500));
+          }
+
+          const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
+          const body = { advNos: advNosList.map(String), advStatus: targetStatus };
+          console.log("updateAdStatus request body:", JSON.stringify(body));
+          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+          const text = await response.text();
+          console.log("updateAdStatus response:", response.status, text.substring(0, 500));
+          try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        }
+        break;
+      }
+
+      case "setUserAdvVisible": {
+        const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
+        result = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), Number(payload.visible));
         break;
       }
 

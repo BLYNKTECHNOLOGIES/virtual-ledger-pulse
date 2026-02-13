@@ -19,11 +19,12 @@ interface Props {
   counterpartyId: string | null;
   counterpartyNickname: string;
   tradeType?: string;
+  counterpartyVerifiedName?: string;
 }
 
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType }: Props) {
+export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, error: wsError } = useBinanceChatWebSocket(orderNumber);
-  const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber);
+  const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');

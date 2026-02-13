@@ -101,6 +101,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
             counterpartyId={order.counterparty_id}
             counterpartyNickname={order.counterparty_nickname}
             tradeType={order.trade_type}
+            counterpartyVerifiedName={counterpartyVerifiedName}
           />
         </div>
 

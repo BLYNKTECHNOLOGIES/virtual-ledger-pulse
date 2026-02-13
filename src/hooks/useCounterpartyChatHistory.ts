@@ -28,7 +28,8 @@ const PAGE_SIZE = 3; // Load 3 past orders at a time
 
 export function useCounterpartyChatHistory(
   counterpartyNickname: string,
-  currentOrderNumber: string
+  currentOrderNumber: string,
+  counterpartyVerifiedName?: string
 ) {
   const [historicalChats, setHistoricalChats] = useState<HistoricalOrderChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,19 +39,27 @@ export function useCounterpartyChatHistory(
   const offsetRef = useRef(0);
 
   const fetchPastOrders = useCallback(async () => {
-    if (!counterpartyNickname || !hasMore || isLoading) return;
+    if ((!counterpartyNickname && !counterpartyVerifiedName) || !hasMore || isLoading) return;
     setIsLoading(true);
 
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
-        const { data, error } = await supabase
+        let query = supabase
           .from('binance_order_history')
           .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
-          .eq('counter_part_nick_name', counterpartyNickname)
           .eq('order_status', 'COMPLETED')
           .neq('order_number', currentOrderNumber)
           .order('create_time', { ascending: false });
+
+        // Prefer verified_name (real name) over masked nickname
+        if (counterpartyVerifiedName) {
+          query = query.eq('verified_name', counterpartyVerifiedName);
+        } else {
+          query = query.eq('counter_part_nick_name', counterpartyNickname);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         allPastOrdersRef.current = data || [];
@@ -122,7 +131,7 @@ export function useCounterpartyChatHistory(
     } finally {
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, hasMore, isLoading]);
+  }, [counterpartyNickname, counterpartyVerifiedName, currentOrderNumber, hasMore, isLoading]);
 
   return { historicalChats, isLoading, hasMore, loadMore: fetchPastOrders };
 }

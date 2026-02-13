@@ -182,8 +182,8 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, advStatus }: { advNos: string[]; advStatus: number }) =>
-      callBinanceAds('updateAdStatus', { advNos, advStatus }),
+    mutationFn: ({ advNos, advStatus, fromPrivate }: { advNos: string[]; advStatus: number; fromPrivate?: boolean }) =>
+      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });

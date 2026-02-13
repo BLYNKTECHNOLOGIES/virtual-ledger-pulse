@@ -133,10 +133,17 @@ serve(async (req) => {
       }
 
       case "postAd": {
+        const adData = { ...payload.adData };
+        // Binance only accepts advStatus 1 (online) or 3 (offline) for ad creation.
+        // Our custom status 2 (Private) must be mapped to 1 for the API call.
+        if (adData.advStatus === 2) {
+          adData.advStatus = 1;
+        }
+        console.log("postAd request body:", JSON.stringify(adData).substring(0, 1000));
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/post`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(payload.adData) });
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(adData) });
         const text = await response.text();
-        console.log("postAd response:", response.status, text.substring(0, 500));
+        console.log("postAd response:", response.status, text);
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }
@@ -577,10 +584,14 @@ serve(async (req) => {
     const errorMessage = isProxyError 
       ? `Proxy returned HTTP ${result.status || 'error'} (CloudFront/WAF block)` 
       : isBinanceError 
-        ? (result.message || result.msg || `Binance API error (code: ${result.code})`)
+        ? (result.message || result.msg || result.messageDetail || `Binance API error (code: ${result.code})`)
         : isStatusError
           ? `Proxy returned HTTP ${result.status}`
           : undefined;
+    
+    if (isError) {
+      console.error("Binance API error - full result:", JSON.stringify(result));
+    }
 
     return new Response(
       JSON.stringify({ 

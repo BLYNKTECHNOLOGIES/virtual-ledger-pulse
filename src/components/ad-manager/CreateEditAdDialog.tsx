@@ -307,6 +307,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       buyerBtcPositionLimit: form.buyerBtcPositionLimit,
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
       classify: 'profession',
+      onlineNow: true,
+      onlineDelayTime: 0,
     };
 
     if (!isEditing) {

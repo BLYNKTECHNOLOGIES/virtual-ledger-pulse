@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useUpdateAdStatus, useBinanceAdsList, BINANCE_AD_STATUS, BinanceAd } from '@/hooks/useBinanceAds';
+import { BINANCE_AD_STATUS, BinanceAd } from '@/hooks/useBinanceAds';
+import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { useToast } from '@/hooks/use-toast';
 
 interface RestTimer {
@@ -16,7 +17,6 @@ interface RestTimer {
 export function useAdRestTimer() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const updateStatus = useUpdateAdStatus();
 
   // Fetch active rest timer
   const { data: activeTimer, isLoading } = useQuery({
@@ -32,7 +32,7 @@ export function useAdRestTimer() {
       if (error) throw error;
       return data as RestTimer | null;
     },
-    refetchInterval: 30_000, // Sync across users every 30s
+    refetchInterval: 30_000,
   });
 
   // Check if timer has expired
@@ -46,7 +46,6 @@ export function useAdRestTimer() {
   // Auto-expire timer
   useEffect(() => {
     if (activeTimer && !timerState.isResting) {
-      // Timer expired — mark inactive
       supabase
         .from('ad_rest_timer')
         .update({ is_active: false })
@@ -55,19 +54,14 @@ export function useAdRestTimer() {
     }
   }, [activeTimer, timerState.isResting]);
 
-  // Start rest
+  // Start rest — call API directly, no nested mutations
   const startRest = useMutation({
     mutationFn: async ({ onlineAds, userName }: { onlineAds: BinanceAd[]; userName?: string }) => {
       const advNos = onlineAds.map(a => a.advNo);
 
-      // Deactivate all online ads via Binance API
+      // Deactivate all online ads via Binance API directly
       if (advNos.length > 0) {
-        await new Promise<void>((resolve, reject) => {
-          updateStatus.mutate(
-            { advNos, advStatus: BINANCE_AD_STATUS.OFFLINE },
-            { onSuccess: () => resolve(), onError: (e) => reject(e) }
-          );
-        });
+        await callBinanceAds('updateAdStatus', { advNos, advStatus: BINANCE_AD_STATUS.OFFLINE });
       }
 
       // Store timer in DB
@@ -89,31 +83,26 @@ export function useAdRestTimer() {
     },
   });
 
-  // End rest early
+  // End rest — call API directly, no nested mutations
   const endRest = useMutation({
     mutationFn: async () => {
-      if (!activeTimer) return;
+      if (!activeTimer) throw new Error('No active timer found');
 
-      // First, mark timer as inactive in DB (this should always succeed)
+      // First, mark timer as inactive in DB
       const { error: dbError } = await supabase
         .from('ad_rest_timer')
         .update({ is_active: false })
         .eq('id', activeTimer.id);
       if (dbError) throw dbError;
 
-      // Then try to re-activate previously deactivated ads (best-effort)
+      // Re-activate previously deactivated ads via Binance API directly
       const advNos = activeTimer.deactivated_ad_nos || [];
       if (advNos.length > 0) {
         try {
-          await new Promise<void>((resolve, reject) => {
-            updateStatus.mutate(
-              { advNos, advStatus: BINANCE_AD_STATUS.ONLINE },
-              { onSuccess: () => resolve(), onError: (e) => reject(e) }
-            );
-          });
+          await callBinanceAds('updateAdStatus', { advNos, advStatus: BINANCE_AD_STATUS.ONLINE });
         } catch (e) {
-          console.warn('Failed to re-activate ads via Binance, but timer was ended:', e);
-          toast({ title: 'Timer Ended', description: 'Rest ended but some ads may need manual re-activation.', variant: 'destructive' });
+          console.warn('Failed to re-activate ads via Binance, timer was still ended:', e);
+          toast({ title: 'Warning', description: 'Rest ended but some ads may need manual re-activation.', variant: 'destructive' });
         }
       }
     },

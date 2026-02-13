@@ -37,29 +37,36 @@ export function useCounterpartyChatHistory(
   const loadedOrdersRef = useRef<Set<string>>(new Set());
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number }[] | null>(null);
   const offsetRef = useRef(0);
+  // Track which verified name was used for the cached query
+  const cachedVerifiedNameRef = useRef<string | undefined>(undefined);
+
+  // Reset cache if verified name changes (e.g. arrives after initial load)
+  if (counterpartyVerifiedName && cachedVerifiedNameRef.current !== counterpartyVerifiedName && allPastOrdersRef.current !== null) {
+    allPastOrdersRef.current = null;
+    offsetRef.current = 0;
+    loadedOrdersRef.current = new Set();
+    cachedVerifiedNameRef.current = counterpartyVerifiedName;
+    // Re-enable loading
+    setHasMore(true);
+    setHistoricalChats([]);
+  }
 
   const fetchPastOrders = useCallback(async () => {
-    if ((!counterpartyNickname && !counterpartyVerifiedName) || !hasMore || isLoading) return;
+    // Wait for verifiedName to be available before querying (nicknames are masked and won't match)
+    if (!counterpartyVerifiedName || !hasMore || isLoading) return;
     setIsLoading(true);
 
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
-        let query = supabase
+        cachedVerifiedNameRef.current = counterpartyVerifiedName;
+        const { data, error } = await supabase
           .from('binance_order_history')
           .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
+          .eq('verified_name', counterpartyVerifiedName!)
           .eq('order_status', 'COMPLETED')
           .neq('order_number', currentOrderNumber)
           .order('create_time', { ascending: false });
-
-        // Prefer verified_name (real name) over masked nickname
-        if (counterpartyVerifiedName) {
-          query = query.eq('verified_name', counterpartyVerifiedName);
-        } else {
-          query = query.eq('counter_part_nick_name', counterpartyNickname);
-        }
-
-        const { data, error } = await query;
 
         if (error) throw error;
         allPastOrdersRef.current = data || [];

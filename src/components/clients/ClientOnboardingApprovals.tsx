@@ -109,6 +109,7 @@ export function ClientOnboardingApprovals() {
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, name')
+        .eq('is_deleted', false)
         .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
         .maybeSingle();
 

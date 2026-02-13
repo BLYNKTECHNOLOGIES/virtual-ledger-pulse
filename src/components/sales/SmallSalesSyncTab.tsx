@@ -1,22 +1,26 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { RefreshCw, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Package } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
 import { SmallSalesApprovalDialog } from './SmallSalesApprovalDialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { getCurrentUserId } from '@/lib/system-action-logger';
 
 export function SmallSalesSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [rejectRecord, setRejectRecord] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Fetch sync records
@@ -32,7 +36,6 @@ export function SmallSalesSyncTab() {
     },
   });
 
-  // Fetch last sync log
   const { data: lastSync } = useQuery({
     queryKey: ['small_sales_last_sync'],
     queryFn: async () => {
@@ -46,7 +49,6 @@ export function SmallSalesSyncTab() {
     },
   });
 
-  // Fetch order map for expanded rows
   const { data: orderMaps } = useQuery({
     queryKey: ['small_sales_order_map', expandedId],
     enabled: !!expandedId,
@@ -77,6 +79,23 @@ export function SmallSalesSyncTab() {
       setSyncing(false);
     }
   };
+
+  // Reject mutation
+  const rejectMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { error } = await supabase
+        .from('small_sales_sync')
+        .update({ sync_status: 'rejected' })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Small Sales Entry Rejected' });
+      queryClient.invalidateQueries({ queryKey: ['small_sales_sync'] });
+      setRejectRecord(null);
+      setRejectionReason('');
+    },
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -113,7 +132,7 @@ export function SmallSalesSyncTab() {
         </Button>
       </div>
 
-      {/* Records Table */}
+      {/* Records */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -156,9 +175,15 @@ export function SmallSalesSyncTab() {
                   </div>
                   <div className="flex items-center gap-2">
                     {record.sync_status === 'pending_approval' && (
-                      <Button size="sm" onClick={() => setSelectedRecord(record)}>
-                        Approve
-                      </Button>
+                      <>
+                        <Button size="sm" onClick={() => setSelectedRecord(record)}>
+                          Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => setRejectRecord(record)}>
+                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          Reject
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"
@@ -202,6 +227,37 @@ export function SmallSalesSyncTab() {
         onOpenChange={(open) => !open && setSelectedRecord(null)}
         record={selectedRecord}
       />
+
+      {/* Rejection Dialog */}
+      <Dialog open={!!rejectRecord} onOpenChange={(open) => { if (!open) { setRejectRecord(null); setRejectionReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Reject Small Sales Entry</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label className="text-xs">Rejection Reason</Label>
+            <Textarea
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Enter reason for rejection..."
+              className="mt-1 text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setRejectRecord(null); setRejectionReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => rejectMutation.mutate({ id: rejectRecord.id, reason: rejectionReason })}
+              disabled={!rejectionReason.trim() || rejectMutation.isPending}
+            >
+              Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

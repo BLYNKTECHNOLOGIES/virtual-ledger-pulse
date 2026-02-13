@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff, History } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
@@ -246,8 +246,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       )}
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 min-w-0 overflow-hidden">
-        <div ref={scrollContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden px-4 py-3 max-w-full">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
           {/* Load more indicator */}
           {historyLoading && (
             <div className="flex items-center justify-center py-3">
@@ -344,8 +343,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               <div ref={bottomRef} />
             </div>
           )}
-        </div>
-      </ScrollArea>
+      </div>
 
       {/* Quick replies bar */}
       <div className="px-3 py-1 border-t border-border/50 bg-card/30">

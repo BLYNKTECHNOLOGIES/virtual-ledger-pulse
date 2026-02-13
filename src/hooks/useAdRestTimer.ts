@@ -94,21 +94,28 @@ export function useAdRestTimer() {
     mutationFn: async () => {
       if (!activeTimer) return;
 
-      // Re-activate previously deactivated ads
-      const advNos = activeTimer.deactivated_ad_nos || [];
-      if (advNos.length > 0) {
-        await new Promise<void>((resolve, reject) => {
-          updateStatus.mutate(
-            { advNos, advStatus: BINANCE_AD_STATUS.ONLINE },
-            { onSuccess: () => resolve(), onError: (e) => reject(e) }
-          );
-        });
-      }
-
-      await supabase
+      // First, mark timer as inactive in DB (this should always succeed)
+      const { error: dbError } = await supabase
         .from('ad_rest_timer')
         .update({ is_active: false })
         .eq('id', activeTimer.id);
+      if (dbError) throw dbError;
+
+      // Then try to re-activate previously deactivated ads (best-effort)
+      const advNos = activeTimer.deactivated_ad_nos || [];
+      if (advNos.length > 0) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            updateStatus.mutate(
+              { advNos, advStatus: BINANCE_AD_STATUS.ONLINE },
+              { onSuccess: () => resolve(), onError: (e) => reject(e) }
+            );
+          });
+        } catch (e) {
+          console.warn('Failed to re-activate ads via Binance, but timer was ended:', e);
+          toast({ title: 'Timer Ended', description: 'Rest ended but some ads may need manual re-activation.', variant: 'destructive' });
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });

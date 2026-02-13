@@ -176,8 +176,8 @@ export default function TerminalOrders() {
 
       return all;
     },
-    staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000,
+    staleTime: 10 * 1000,
+    refetchInterval: 15 * 1000, // Poll every 15s for recent status transitions
   });
 
   // Only show loading if BOTH sources are still loading

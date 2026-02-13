@@ -244,18 +244,16 @@ serve(async (req) => {
 
       case "releaseCoin": {
         // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
+        // Body: ConfirmOrderPaidReq { orderNumber, authType, code, confirmPaidType }
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
         if (payload.authType) body.authType = payload.authType;
-        if (payload.code) body.code = payload.code;
+        // Map the verification code to the 'code' field (API only accepts 'code', not separate fields)
+        const verifyCode = payload.code || payload.googleVerifyCode || payload.emailVerifyCode || payload.mobileVerifyCode || payload.yubikeyVerifyCode;
+        if (verifyCode) body.code = verifyCode;
         if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
-        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
-        if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
-        if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
-        if (payload.payId) body.payId = payload.payId;
         console.log("releaseCoin body:", JSON.stringify(body));
         const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();

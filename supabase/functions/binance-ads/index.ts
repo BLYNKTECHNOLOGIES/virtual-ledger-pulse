@@ -77,7 +77,11 @@ serve(async (req) => {
         };
         if (payload.asset) body.asset = payload.asset;
         if (payload.tradeType) body.tradeType = payload.tradeType;
-        if (payload.advStatus !== undefined && payload.advStatus !== null) body.advStatus = payload.advStatus;
+        // Binance only recognizes advStatus 1 (online) and 3 (offline).
+        // Status 2 (private) is our custom enrichment; map it back to 1 for the API call.
+        if (payload.advStatus !== undefined && payload.advStatus !== null) {
+          body.advStatus = payload.advStatus === 2 ? 1 : payload.advStatus;
+        }
         if (payload.startDate) body.startDate = payload.startDate;
         if (payload.endDate) body.endDate = payload.endDate;
         if (payload.fiatUnit) body.fiatUnit = payload.fiatUnit;

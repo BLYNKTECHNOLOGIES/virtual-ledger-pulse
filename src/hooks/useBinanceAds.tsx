@@ -3,10 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 // Binance C2C ad status codes
+// Binance API returns advStatus: 1 for both Online and Private ads.
+// Our edge function enriches Private ads (advVisibleRet.userSetVisible=1) by setting advStatus=2.
+// Native API status 3 = offline/inactive.
 export const BINANCE_AD_STATUS = {
   ONLINE: 1,
-  PRIVATE: 2,   // Visible only via direct link
-  OFFLINE: 3,   // Binance uses 3 for offline/inactive, NOT 2
+  PRIVATE: 2,   // Set by our edge function when userSetVisible=1 (visible only via direct link)
+  OFFLINE: 3,   // Binance uses 3 for offline/inactive
 } as const;
 
 export function getAdStatusLabel(status: number): string {
@@ -79,22 +82,30 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
 
 export function useBinanceAdsList(filters: AdFilters) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
+  const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;
 
   return useQuery({
     queryKey: ['binance-ads', filters],
     queryFn: async () => {
+      if (isPrivateFilter) {
+        // Private ads are returned by the API under advStatus=1, then enriched to 2 by edge fn.
+        // So we fetch advStatus=1 and filter for only the private ones.
+        const result = await callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.ONLINE });
+        const list = result?.data || result?.list || [];
+        const privateAds = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.PRIVATE || ad._isPrivate);
+        return { data: privateAds, total: privateAds.length };
+      }
       if (!isAllStatuses) {
         return callBinanceAds('listAds', filters);
       }
-      // Fetch all 3 statuses in parallel and merge
-      const [online, priv, offline] = await Promise.all([
+      // Fetch online/private (advStatus=1, enriched by edge fn) and offline (3) in parallel
+      const [onlineAndPrivate, offline] = await Promise.all([
         callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
-        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.PRIVATE }),
         callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
       ]);
       const mergeList = (r: any) => r?.data || r?.list || [];
-      const allAds = [...mergeList(online), ...mergeList(priv), ...mergeList(offline)];
-      const totalCount = (online?.total || 0) + (priv?.total || 0) + (offline?.total || 0);
+      const allAds = [...mergeList(onlineAndPrivate), ...mergeList(offline)];
+      const totalCount = (onlineAndPrivate?.total || 0) + (offline?.total || 0);
       return { data: allAds, total: totalCount || allAds.length };
     },
     staleTime: 30 * 1000,

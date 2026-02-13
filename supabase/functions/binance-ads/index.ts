@@ -88,6 +88,34 @@ serve(async (req) => {
         const text = await response.text();
         console.log("listAds response status:", response.status, "body:", text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+
+        // Enrich ads that have advStatus=1 with visibility info from getDetailByNo
+        // Binance marks "Private" ads as advStatus=1 + advVisibleRet.userSetVisible=1
+        // The listWithPagination API does NOT include advVisibleRet, so we fetch detail for each
+        if (result?.data && Array.isArray(result.data)) {
+          const onlineAds = result.data.filter((ad: any) => ad.advStatus === 1);
+          if (onlineAds.length > 0) {
+            console.log(`Enriching ${onlineAds.length} online ads with visibility data...`);
+            const detailPromises = onlineAds.map((ad: any) =>
+              fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${ad.advNo}`, {
+                method: "POST", headers: proxyHeaders,
+              })
+                .then(r => r.json())
+                .then(detail => {
+                  const vis = detail?.data?.advVisibleRet;
+                  if (vis && vis.userSetVisible === 1) {
+                    ad.advStatus = 2; // Mark as Private
+                    ad._isPrivate = true;
+                  }
+                  ad.advVisibleRet = vis || null;
+                })
+                .catch(err => {
+                  console.warn(`Failed to get detail for ${ad.advNo}:`, err.message);
+                })
+            );
+            await Promise.all(detailPromises);
+          }
+        }
         break;
       }
 

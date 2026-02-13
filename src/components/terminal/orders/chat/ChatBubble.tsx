@@ -62,7 +62,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
     <>
       <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
         <div
-          className={`max-w-[80%] rounded-lg px-3 py-2 ${
+          className={`max-w-[80%] min-w-0 rounded-lg px-3 py-2 overflow-hidden ${
             isOperator
               ? 'bg-primary/15 border border-primary/20 text-foreground'
               : 'bg-secondary border border-border text-foreground'
@@ -82,7 +82,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
               <img
                 src={message.imageUrl}
                 alt="Chat image"
-                className="max-w-full rounded max-h-48 object-contain transition-all group-hover:brightness-75"
+                className="max-w-full w-auto rounded max-h-48 object-contain transition-all group-hover:brightness-75"
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
@@ -108,7 +108,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
           )}
 
           {message.text && (
-            <p className="text-xs whitespace-pre-wrap leading-relaxed">{message.text}</p>
+            <p className="text-xs whitespace-pre-wrap leading-relaxed break-words overflow-hidden">{message.text}</p>
           )}
 
           <div className="flex items-center gap-1.5 mt-1">

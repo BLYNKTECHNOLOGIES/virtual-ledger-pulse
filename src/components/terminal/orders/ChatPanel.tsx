@@ -246,8 +246,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       )}
 
       {/* Messages area */}
-      <ScrollArea className="flex-1 px-4 py-3">
-        <div ref={scrollContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto">
+      <ScrollArea className="flex-1 min-w-0 overflow-hidden">
+        <div ref={scrollContainerRef} onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden px-4 py-3 max-w-full">
           {/* Load more indicator */}
           {historyLoading && (
             <div className="flex items-center justify-center py-3">

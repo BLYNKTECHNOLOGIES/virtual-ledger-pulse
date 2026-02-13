@@ -96,7 +96,14 @@ export function useBinanceAdsList(filters: AdFilters) {
         return { data: privateAds, total: privateAds.length };
       }
       if (!isAllStatuses) {
-        return callBinanceAds('listAds', filters);
+        // For Active tab (status 1), fetch and filter out private ads
+        const result = await callBinanceAds('listAds', filters);
+        if (filters.advStatus === BINANCE_AD_STATUS.ONLINE) {
+          const list = result?.data || result?.list || [];
+          const onlineOnly = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.ONLINE && !ad._isPrivate);
+          return { data: onlineOnly, total: onlineOnly.length };
+        }
+        return result;
       }
       // Fetch online/private (advStatus=1, enriched by edge fn) and offline (3) in parallel
       const [onlineAndPrivate, offline] = await Promise.all([

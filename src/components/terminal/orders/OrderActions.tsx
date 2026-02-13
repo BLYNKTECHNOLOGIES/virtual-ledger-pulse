@@ -159,38 +159,12 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
 
   const handleRelease = () => {
-    const params: {
-      orderNumber: string;
-      authType: string;
-      code?: string;
-      emailVerifyCode?: string;
-      googleVerifyCode?: string;
-      mobileVerifyCode?: string;
-      yubikeyVerifyCode?: string;
-    } = {
+    // API doc #29: releaseCoin expects { orderNumber, authType, code }
+    releaseCoin.mutate({
       orderNumber,
       authType: authMethod,
-    };
-
-    switch (authMethod) {
-      case 'GOOGLE':
-        params.googleVerifyCode = code;
-        break;
-      case 'FIDO2':
-        params.code = code;
-        break;
-      case 'EMAIL':
-        params.emailVerifyCode = code;
-        break;
-      case 'MOBILE':
-        params.mobileVerifyCode = code;
-        break;
-      case 'YUBIKEY':
-        params.yubikeyVerifyCode = code;
-        break;
-    }
-
-    releaseCoin.mutate(params, {
+      code,
+    }, {
       onSuccess: () => {
         setOpen(false);
         setCode('');

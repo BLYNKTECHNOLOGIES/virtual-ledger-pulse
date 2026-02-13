@@ -774,6 +774,36 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_message_senders: {
+        Row: {
+          created_at: string
+          id: string
+          message_content: string
+          order_number: string
+          sent_at_ms: number
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_content: string
+          order_number: string
+          sent_at_ms: number
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_content?: string
+          order_number?: string
+          sent_at_ms?: number
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       client_onboarding_approvals: {
         Row: {
           aadhar_back_url: string | null

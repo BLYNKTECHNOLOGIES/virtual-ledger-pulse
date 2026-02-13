@@ -137,6 +137,14 @@ export function useBinanceReferencePrice(asset: string, tradeType: string) {
   });
 }
 
+export function useBinanceDigitalCurrencies() {
+  return useQuery({
+    queryKey: ['binance-digital-currencies'],
+    queryFn: () => callBinanceAds('getDigitalCurrencyList'),
+    staleTime: 10 * 60 * 1000, // 10 min cache
+  });
+}
+
 export function useBinancePaymentMethods() {
   return useQuery({
     queryKey: ['binance-payment-methods'],

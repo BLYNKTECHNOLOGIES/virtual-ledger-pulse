@@ -84,7 +84,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
                 alt="Chat image"
                 className="max-w-full w-auto rounded max-h-48 object-contain transition-all group-hover:brightness-75"
                 loading="lazy"
-                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
                 onError={() => setImgError(true)}
               />
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

@@ -43,25 +43,34 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);
 
+  // Helper: detect if text content is actually an image URL
+  const isImageUrl = useCallback((text: string | undefined | null): boolean => {
+    if (!text) return false;
+    const trimmed = text.trim();
+    return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(trimmed) ||
+           /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
+  }, []);
+
   // Build unified messages from WebSocket data (current order)
   const currentOrderMessages: UnifiedMessage[] = useMemo(() => {
     const messages: UnifiedMessage[] = [];
     for (const msg of wsMessages) {
       const msgType = msg.type || msg.chatMessageType || 'text';
       const isSelf = msg.self === true;
-      const isImage = msgType === 'image';
+      const content = msg.content || msg.message || '';
+      const isImage = msgType === 'image' || isImageUrl(content);
       const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
         senderType: msgType === 'system' ? 'system' : (isSelf ? 'operator' : 'counterparty'),
-        text: isImage ? null : (msg.content || msg.message || null),
-        imageUrl: isImage ? (imgUrl || msg.content || msg.message || undefined) : imgUrl,
+        text: isImage ? null : (content || null),
+        imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
         timestamp: msg.createTime || 0,
       });
     }
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [wsMessages]);
+  }, [wsMessages, isImageUrl]);
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {

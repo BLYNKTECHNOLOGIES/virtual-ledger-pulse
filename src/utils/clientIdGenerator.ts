@@ -73,6 +73,11 @@ export const createSellerClient = async (
   try {
     const existingClient = await findClientByName(supplierName);
     if (existingClient) {
+      const updates: Record<string, string> = {};
+      if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('clients').update(updates).eq('id', existingClient.id);
+      }
       return { id: existingClient.id, client_id: existingClient.client_id };
     }
     const clientId = await generateUniqueClientId();
@@ -94,6 +99,11 @@ export const createSellerClient = async (
       .select('id, client_id')
       .single();
     if (error) {
+      if (error.code === '23505') {
+        console.log('Client already exists (race condition), fetching existing...');
+        const existing = await findClientByName(supplierName);
+        if (existing) return { id: existing.id, client_id: existing.client_id };
+      }
       console.error('Error creating seller client:', error);
       return null;
     }
@@ -113,8 +123,16 @@ export const createBuyerClient = async (
   state?: string
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
+    // Always check for existing client first
     const existingClient = await findClientByName(buyerName);
     if (existingClient) {
+      // Update missing fields on existing client
+      const updates: Record<string, string> = {};
+      if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
+      if (state && !existingClient.state) updates.state = state;
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('clients').update(updates).eq('id', existingClient.id);
+      }
       return { id: existingClient.id, client_id: existingClient.client_id };
     }
     const clientId = await generateUniqueClientId();
@@ -137,6 +155,12 @@ export const createBuyerClient = async (
       .select('id, client_id')
       .single();
     if (error) {
+      // Handle race condition: unique constraint violation means another request created it
+      if (error.code === '23505') {
+        console.log('Client already exists (race condition), fetching existing...');
+        const existing = await findClientByName(buyerName);
+        if (existing) return { id: existing.id, client_id: existing.client_id };
+      }
       console.error('Error creating buyer client:', error);
       return null;
     }

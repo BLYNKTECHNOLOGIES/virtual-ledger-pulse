@@ -274,13 +274,12 @@ export function useBinanceChatWebSocket(
               thumbnailUrl: data.thumbnailUrl,
             };
 
-            setMessages((prev) => {
-              const exists = prev.some((m) => m.id === newMsg.id);
-              if (exists) return prev;
-              return [...prev, newMsg];
-            });
-
-            pollIntervalRef.current = 3000;
+            // Don't add WS messages to state directly — triggers duplicate flash.
+            // Instead, immediately poll REST for the authoritative list (single source of truth).
+            pollIntervalRef.current = 500;
+            if (activeOrderRef.current) {
+              fetchChatHistory(activeOrderRef.current);
+            }
           }
 
           // Capture sessionId from confirmation frames

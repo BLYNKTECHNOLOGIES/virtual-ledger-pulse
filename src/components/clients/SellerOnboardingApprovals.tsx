@@ -44,6 +44,7 @@ export function SellerOnboardingApprovals() {
       const { data, error } = await supabase
         .from('clients')
         .select('*')
+        .eq('is_deleted', false)
         .is('pan_card_url', null)
         .is('aadhar_front_url', null)
         .in('kyc_status', ['PENDING', 'PENDING_APPROVAL'])

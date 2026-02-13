@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw } from 'lucide-react';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdTable } from '@/components/ad-manager/AdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
@@ -79,6 +79,16 @@ export default function AdManager() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Sync ads from Binance"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+          </Button>
           <Button size="sm" onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-1.5" />
             Create Ad

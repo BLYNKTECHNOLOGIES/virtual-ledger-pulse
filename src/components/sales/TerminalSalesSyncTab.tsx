@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { TerminalSalesApprovalDialog } from "./TerminalSalesApprovalDialog";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
+import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -60,10 +61,21 @@ export function TerminalSalesSyncTab() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Filter: only orders created today (IST) or later, using order_data.create_time (epoch ms)
+      // Fetch small sales config to exclude small-range orders from terminal sync view
+      const smallConfig = await getSmallSalesConfig();
+
+      // Filter: only orders created today (IST) or later, and exclude small sales range
       const filtered = (data || []).filter(r => {
-        const createTime = Number((r.order_data as any)?.create_time || 0);
-        return createTime >= todayStartEpochMs;
+        const od = r.order_data as any;
+        const createTime = Number(od?.create_time || 0);
+        if (createTime < todayStartEpochMs) return false;
+
+        // Exclude orders in small sales range — they belong in Small Sales tab
+        if (smallConfig?.is_enabled) {
+          const tp = parseFloat(od?.total_price || '0');
+          if (tp >= smallConfig.min_amount && tp <= smallConfig.max_amount) return false;
+        }
+        return true;
       });
 
       // Sort by order creation time (latest first)

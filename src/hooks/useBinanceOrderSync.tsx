@@ -237,7 +237,9 @@ export function useSyncOrderHistory() {
   });
 }
 
-// ---- Auto-sync hook: triggers incremental sync if stale ----
+// ---- Auto-sync hook: triggers incremental sync if stale + every 5 minutes ----
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 export function useAutoSyncOrders() {
   const { data: metadata, isLoading: metaLoading } = useSyncMetadata();
   const syncMutation = useSyncOrderHistory();
@@ -248,13 +250,24 @@ export function useAutoSyncOrders() {
 
   const hasNoData = !metaLoading && (!metadata?.last_sync_order_count || metadata.last_sync_order_count === 0);
 
+  // Initial sync on mount if stale
   useEffect(() => {
     if (isStale && !syncMutation.isPending && !hasTriggered.current) {
       hasTriggered.current = true;
-      // Full sync only if DB is empty, otherwise incremental
       syncMutation.mutate({ fullSync: hasNoData });
     }
   }, [isStale, syncMutation.isPending, hasNoData]);
+
+  // Recurring auto-sync every 5 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!syncMutation.isPending) {
+        syncMutation.mutate({ fullSync: false });
+      }
+    }, AUTO_SYNC_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [syncMutation]);
 
   return { isSyncing: syncMutation.isPending, syncMutation, isStale, metadata };
 }

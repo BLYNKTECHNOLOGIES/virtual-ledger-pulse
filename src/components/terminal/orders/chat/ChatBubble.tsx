@@ -11,6 +11,8 @@ export interface UnifiedMessage {
   imageUrl?: string;
   timestamp: number;
   isQuickReply?: boolean;
+  /** Terminal operator username who sent this message (only for operator messages) */
+  senderName?: string | null;
 }
 
 // Parse system message JSON content into readable text
@@ -71,7 +73,7 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
           <p className={`text-[9px] font-semibold mb-0.5 ${
             isOperator ? 'text-primary' : 'text-trade-pending'
           }`}>
-            {isOperator ? 'You' : 'Counterparty'}
+            {isOperator ? (message.senderName || 'Operator') : 'Counterparty'}
           </p>
 
           {message.imageUrl && !imgError && (
@@ -120,6 +122,9 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
             )}
             {message.source === 'local' && (
               <span className="text-[8px] text-muted-foreground bg-muted/30 px-1 rounded">Local</span>
+            )}
+            {isOperator && message.senderName && (
+              <span className="text-[8px] text-accent-foreground bg-accent/50 px-1 rounded">{message.senderName}</span>
             )}
             {message.isQuickReply && (
               <span className="text-[8px] text-trade-pending">⚡</span>

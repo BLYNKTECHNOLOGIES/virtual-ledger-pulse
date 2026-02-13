@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff, History } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';
+import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -25,6 +27,8 @@ interface Props {
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, error: wsError } = useBinanceChatWebSocket(orderNumber);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
+  const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
+  const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('terminal-chat-sound');
@@ -51,6 +55,12 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
            /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
   }, []);
 
+  // Prefetch sender records for current order + historical orders
+  useEffect(() => {
+    const orderNos = [orderNumber, ...historicalChats.map(h => h.orderNumber)];
+    prefetchSenders(orderNos);
+  }, [orderNumber, historicalChats, prefetchSenders]);
+
   // Build unified messages from WebSocket data (current order)
   const currentOrderMessages: UnifiedMessage[] = useMemo(() => {
     const messages: UnifiedMessage[] = [];
@@ -67,10 +77,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         text: isImage ? null : (content || null),
         imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
         timestamp: msg.createTime || 0,
+        senderName: isSelf ? getSenderName(orderNumber, content) : null,
       });
     }
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [wsMessages, isImageUrl]);
+  }, [wsMessages, isImageUrl, orderNumber, getSenderName]);
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {
@@ -80,10 +91,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const isSelf = msg.self === true;
         const isImage = msgType === 'image';
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
+        const content = msg.content || msg.message || '';
 
         // Check if image might be expired (order older than 7 days)
         const isOldOrder = Date.now() - order.orderDate > 7 * 24 * 60 * 60 * 1000;
-        const effectiveImgUrl = isImage && isOldOrder ? undefined : (isImage ? (imgUrl || msg.content || msg.message || undefined) : imgUrl);
+        const effectiveImgUrl = isImage && isOldOrder ? undefined : (isImage ? (imgUrl || content || undefined) : imgUrl);
 
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
@@ -91,14 +103,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
           senderType: msgType === 'system' ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
           text: isImage
             ? (isOldOrder ? '🖼️ Image expired (older than 7 days)' : null)
-            : (msg.content || msg.message || null),
+            : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: msg.createTime || 0,
+          senderName: isSelf ? getSenderName(order.orderNumber, content) : null,
         };
       });
       return { order, messages: messages.sort((a, b) => a.timestamp - b.timestamp) };
     });
-  }, [historicalChats]);
+  }, [historicalChats, getSenderName]);
 
   // All messages for counting
   const allMessages = useMemo(() => {
@@ -184,6 +197,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
     try {
       wsSendMessage(orderNumber, msg);
+      // Log which operator sent this message
+      if (userId && username) {
+        logSender(orderNumber, msg, userId, username);
+      }
     } catch (err) {
       // Error handled by WS hook
     } finally {
@@ -367,7 +384,12 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <div className="flex items-center gap-2">
           <ChatImageUpload
             orderNo={orderNumber}
-            onImageSent={(imageUrl) => wsSendImage(orderNumber, imageUrl)}
+            onImageSent={(imageUrl) => {
+              wsSendImage(orderNumber, imageUrl);
+              if (userId && username) {
+                logSender(orderNumber, imageUrl, userId, username);
+              }
+            }}
           />
           <Input
             value={text}

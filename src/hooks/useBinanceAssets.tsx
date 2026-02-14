@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
 export interface AssetBalance {
   asset: string;
@@ -184,13 +185,23 @@ export function useExecuteTrade() {
 
       return data.data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["binance_asset_balances"] });
       queryClient.invalidateQueries({ queryKey: ["spot_trade_history"] });
       toast.success("Trade executed successfully");
+      logAdAction({
+        actionType: AdActionTypes.SPOT_TRADE_EXECUTED,
+        adDetails: { symbol: variables.symbol, side: variables.side, quantity: variables.quantity || variables.quoteOrderQty, transferAsset: variables.transferAsset },
+        metadata: { orderId: data?.order?.orderId, executedQty: data?.order?.executedQty, price: data?.order?.price },
+      });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, variables) => {
       toast.error(`Trade failed: ${error.message}`);
+      logAdAction({
+        actionType: AdActionTypes.SPOT_TRADE_FAILED,
+        adDetails: { symbol: variables.symbol, side: variables.side, quantity: variables.quantity || variables.quoteOrderQty },
+        metadata: { error: error.message },
+      });
     },
   });
 }

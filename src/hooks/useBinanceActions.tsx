@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 // ---- Generic Binance API caller ----
 export async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
@@ -21,9 +22,9 @@ export function useMarkOrderAsPaid() {
     mutationFn: async ({ orderNumber, payId }: { orderNumber: string; payId?: number }) => {
       return callBinanceAds('markOrderAsPaid', { orderNumber, payId });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success('Order marked as paid');
-      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      logAdAction({ actionType: AdActionTypes.ORDER_MARKED_PAID, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber } });
       queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
@@ -49,9 +50,9 @@ export function useReleaseCoin() {
     }) => {
       return callBinanceAds('releaseCoin', params);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success('Crypto released successfully');
-      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      logAdAction({ actionType: AdActionTypes.ORDER_RELEASED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { authType: variables.authType } });
       queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
@@ -91,9 +92,9 @@ export function useCancelOrder() {
     }) => {
       return callBinanceAds('cancelOrder', params);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success('Order cancelled');
-      // IMPORTANT: match the actual queryKey used by useBinanceOrderHistory()
+      logAdAction({ actionType: AdActionTypes.ORDER_CANCELLED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { reason: variables.orderCancelAdditionalInfo } });
       queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
@@ -118,8 +119,9 @@ export function useConfirmOrderVerified() {
     mutationFn: async ({ orderNumber }: { orderNumber: string }) => {
       return callBinanceAds('confirmOrderVerified', { orderNumber });
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success('Order verified — payment details shared with buyer');
+      logAdAction({ actionType: AdActionTypes.ORDER_VERIFIED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber } });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
     },

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 export interface AutoReplyRule {
   id: string;
@@ -84,9 +85,10 @@ export function useCreateAutoReplyRule() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['auto-reply-rules'] });
       toast({ title: 'Rule Created', description: 'Auto-reply rule saved successfully.' });
+      logAdAction({ actionType: AdActionTypes.AUTO_REPLY_RULE_CREATED, adDetails: { name: variables.name, trigger_event: variables.trigger_event, trade_type: variables.trade_type } });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -103,8 +105,14 @@ export function useUpdateAutoReplyRule() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['auto-reply-rules'] });
+      const isToggle = Object.keys(variables).length === 2 && 'is_active' in variables;
+      if (isToggle) {
+        logAdAction({ actionType: AdActionTypes.AUTO_REPLY_RULE_TOGGLED, adDetails: { ruleId: variables.id, is_active: variables.is_active } });
+      } else {
+        logAdAction({ actionType: AdActionTypes.AUTO_REPLY_RULE_UPDATED, adDetails: { ruleId: variables.id, ...variables } });
+      }
       toast({ title: 'Rule Updated' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -119,9 +127,10 @@ export function useDeleteAutoReplyRule() {
       const { error } = await supabase.from('p2p_auto_reply_rules').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, ruleId) => {
       qc.invalidateQueries({ queryKey: ['auto-reply-rules'] });
       toast({ title: 'Rule Deleted' });
+      logAdAction({ actionType: AdActionTypes.AUTO_REPLY_RULE_DELETED, adDetails: { ruleId } });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -175,9 +184,10 @@ export function useCreateMerchantSchedule() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['merchant-schedules'] });
       toast({ title: 'Schedule Created' });
+      logAdAction({ actionType: AdActionTypes.SCHEDULE_CREATED, adDetails: { name: variables.name, day_of_week: variables.day_of_week, action: variables.action } });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -194,8 +204,14 @@ export function useUpdateMerchantSchedule() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ['merchant-schedules'] });
+      const isToggle = Object.keys(variables).length === 2 && 'is_active' in variables;
+      if (isToggle) {
+        logAdAction({ actionType: AdActionTypes.SCHEDULE_TOGGLED, adDetails: { scheduleId: variables.id, is_active: variables.is_active } });
+      } else {
+        logAdAction({ actionType: AdActionTypes.SCHEDULE_UPDATED, adDetails: { scheduleId: variables.id, ...variables } });
+      }
       toast({ title: 'Schedule Updated' });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
@@ -210,9 +226,10 @@ export function useDeleteMerchantSchedule() {
       const { error } = await supabase.from('p2p_merchant_schedules').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, scheduleId) => {
       qc.invalidateQueries({ queryKey: ['merchant-schedules'] });
       toast({ title: 'Schedule Deleted' });
+      logAdAction({ actionType: AdActionTypes.SCHEDULE_DELETED, adDetails: { scheduleId } });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });

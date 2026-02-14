@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
-import { useUSDTRate } from "@/hooks/useUSDTRate";
+import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -85,9 +85,18 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
   const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
   const isNonUsdt = productCode !== 'USDT';
 
-  // Use stored market_rate_usdt (snapshot at approval time), fall back to live rate
-  const { data: usdtRateData } = useUSDTRate();
+  // Use stored market_rate_usdt (snapshot at approval time), fall back to live CoinUSDT rate
   const storedMarketRate = order?.market_rate_usdt ? Number(order.market_rate_usdt) : null;
+  const [liveCoinRate, setLiveCoinRate] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (open && isNonUsdt && !storedMarketRate) {
+      fetchCoinMarketRate(productCode).then(rate => setLiveCoinRate(rate));
+    }
+  }, [open, isNonUsdt, storedMarketRate, productCode]);
+
+  const effectiveRate = storedMarketRate || liveCoinRate;
+  const isLiveRate = !storedMarketRate && !!liveCoinRate;
 
   if (!order) return null;
 
@@ -219,45 +228,33 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
           </div>
 
           {/* USDT Equivalent Section for non-USDT coins */}
-          {isNonUsdt && (() => {
+          {isNonUsdt && effectiveRate && effectiveRate > 0 && (() => {
             const qty = Number(order.quantity || 1);
             const totalAmt = Number(order.total_amount || 0);
-            if (storedMarketRate && storedMarketRate > 0) {
-              const usdtEquivQty = qty * storedMarketRate;
-              const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
-              return (
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-2">
-                    <Coins className="h-4 w-4" />
-                    USDT Equivalent (Snapshot)
-                  </h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">{productCode}/USDT Rate</label>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(storedMarketRate, 6)}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Qty</label>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Rate</label>
-                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
-                    </div>
+            const usdtEquivQty = qty * effectiveRate;
+            const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
+            return (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-2">
+                  <Coins className="h-4 w-4" />
+                  USDT Equivalent {isLiveRate ? <span className="text-xs font-normal text-amber-500">(live)</span> : <span className="text-xs font-normal">(snapshot)</span>}
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">{productCode}/USDT Rate</label>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(effectiveRate, 6)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Qty</label>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Rate</label>
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
                   </div>
                 </div>
-              );
-            } else if (usdtRateData?.rate && usdtRateData.rate > 0) {
-              const pricePerUnit = Number(order.price_per_unit || totalAmt);
-              return (
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                  <p className="text-xs text-amber-700 dark:text-amber-400">
-                    ≈ {formatSmartDecimal(pricePerUnit / usdtRateData.rate, 6)} USDT/unit (₹{formatSmartDecimal(usdtRateData.rate, 2)}/USDT) <span className="font-medium">(live estimate)</span>
-                  </p>
-                </div>
-              );
-            }
-            return null;
+              </div>
+            );
           })()}
 
           {/* Platform Fee Information */}

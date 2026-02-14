@@ -105,11 +105,12 @@ export function TerminalHierarchyView() {
   const fetchHierarchy = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [assignmentsRes, usersRes, rolesRes, profilesRes] = await Promise.all([
+      const [assignmentsRes, usersRes, rolesRes, profilesRes, supervisorMapsRes] = await Promise.all([
         supabase.from("p2p_terminal_user_roles").select("user_id, role_id"),
         supabase.from("users").select("id, username, first_name, last_name"),
         supabase.from("p2p_terminal_roles").select("id, name, hierarchy_level"),
-        supabase.from("terminal_user_profiles").select("user_id, reports_to, specialization, shift, is_active"),
+        supabase.from("terminal_user_profiles").select("user_id, specialization, shift, is_active"),
+        supabase.from("terminal_user_supervisor_mappings").select("user_id, supervisor_id"),
       ]);
 
       const usersMap = new Map<string, any>();
@@ -151,14 +152,27 @@ export function TerminalHierarchyView() {
         });
       }
 
-      // Build tree based on reports_to
+      // Build tree based on supervisor mappings (a user appears under each supervisor)
       const roots: HierarchyNode[] = [];
+      const supervisorMap = new Map<string, string[]>();
+      (supervisorMapsRes.data || []).forEach(m => {
+        const list = supervisorMap.get(m.user_id) || [];
+        list.push(m.supervisor_id);
+        supervisorMap.set(m.user_id, list);
+      });
+
+      const addedToParent = new Set<string>();
       for (const [userId, node] of nodesMap) {
-        const profile = profilesMap.get(userId);
-        const parentId = profile?.reports_to;
-        if (parentId && nodesMap.has(parentId)) {
-          nodesMap.get(parentId)!.children.push(node);
-        } else {
+        const supervisors = supervisorMap.get(userId) || [];
+        for (const parentId of supervisors) {
+          if (nodesMap.has(parentId)) {
+            // Clone node for multiple parents to avoid shared children array issues
+            const childNode = addedToParent.has(userId) ? { ...node, children: [...node.children] } : node;
+            nodesMap.get(parentId)!.children.push(childNode);
+            addedToParent.add(userId);
+          }
+        }
+        if (!addedToParent.has(userId)) {
           roots.push(node);
         }
       }

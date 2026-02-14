@@ -16,7 +16,6 @@ import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler 
 
 interface UserProfile {
   user_id: string;
-  reports_to: string | null;
   specialization: string;
   shift: string | null;
   is_active: boolean;
@@ -47,12 +46,12 @@ interface Props {
 export function UserConfigDialog({ open, onOpenChange, userId, username, displayName, onSaved }: Props) {
   const [profile, setProfile] = useState<UserProfile>({
     user_id: userId,
-    reports_to: null,
     specialization: "both",
     shift: null,
     is_active: true,
     automation_included: true,
   });
+  const [selectedSupervisors, setSelectedSupervisors] = useState<Set<string>>(new Set());
   const [allUsers, setAllUsers] = useState<{ id: string; username: string; first_name: string | null; last_name: string | null }[]>([]);
   const [exchangeAccounts, setExchangeAccounts] = useState<ExchangeAccount[]>([]);
   const [sizeRanges, setSizeRanges] = useState<SizeRange[]>([]);
@@ -64,19 +63,19 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes] = await Promise.all([
+      const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes, supervisorMapRes] = await Promise.all([
         supabase.from("terminal_user_profiles").select("*").eq("user_id", userId).maybeSingle(),
         supabase.from("users").select("id, username, first_name, last_name").eq("status", "ACTIVE"),
         supabase.from("terminal_exchange_accounts").select("id, account_name").eq("is_active", true),
         supabase.from("terminal_order_size_ranges").select("id, name, min_amount, max_amount").eq("is_active", true),
         supabase.from("terminal_user_exchange_mappings").select("exchange_account_id").eq("user_id", userId),
         supabase.from("terminal_user_size_range_mappings").select("size_range_id").eq("user_id", userId),
+        supabase.from("terminal_user_supervisor_mappings").select("supervisor_id").eq("user_id", userId),
       ]);
 
       if (profileRes.data) {
         setProfile({
           user_id: userId,
-          reports_to: profileRes.data.reports_to,
           specialization: profileRes.data.specialization,
           shift: profileRes.data.shift,
           is_active: profileRes.data.is_active,
@@ -89,6 +88,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
       setSizeRanges(sizeRes.data || []);
       setSelectedExchanges(new Set((exchMapRes.data || []).map(m => m.exchange_account_id)));
       setSelectedSizeRanges(new Set((sizeMapRes.data || []).map(m => m.size_range_id)));
+      setSelectedSupervisors(new Set((supervisorMapRes.data || []).map(m => m.supervisor_id)));
     } catch (err) {
       console.error("Error fetching user config:", err);
     } finally {
@@ -108,7 +108,6 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         .from("terminal_user_profiles")
         .upsert({
           user_id: userId,
-          reports_to: profile.reports_to || null,
           specialization: profile.specialization,
           shift: profile.shift || null,
           is_active: profile.is_active,
@@ -116,6 +115,17 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         }, { onConflict: "user_id" });
 
       if (profileErr) throw profileErr;
+
+      // Sync supervisor mappings
+      await supabase.from("terminal_user_supervisor_mappings").delete().eq("user_id", userId);
+      if (selectedSupervisors.size > 0) {
+        const rows = Array.from(selectedSupervisors).map(sid => ({
+          user_id: userId,
+          supervisor_id: sid,
+        }));
+        const { error: supErr } = await supabase.from("terminal_user_supervisor_mappings").insert(rows);
+        if (supErr) throw supErr;
+      }
 
       // Sync exchange mappings
       await supabase.from("terminal_user_exchange_mappings").delete().eq("user_id", userId);
@@ -186,25 +196,33 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           </div>
         ) : (
           <div className="space-y-5 py-2">
-            {/* Supervisor */}
-            <div className="space-y-1.5">
+            {/* Supervisors (multi-select) */}
+            <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <ArrowUpRight className="h-3.5 w-3.5" /> Reports To (Supervisor)
+                <ArrowUpRight className="h-3.5 w-3.5" /> Reports To (Supervisors)
               </label>
-              <Select
-                value={profile.reports_to || "__none__"}
-                onValueChange={(v) => setProfile(p => ({ ...p, reports_to: v === "__none__" ? null : v }))}
-              >
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="No supervisor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">No supervisor</SelectItem>
+              {allUsers.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No other users available.</p>
+              ) : (
+                <div className="space-y-1.5 border border-border rounded-lg p-2 max-h-40 overflow-y-auto">
                   {allUsers.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{getUserLabel(u)}</SelectItem>
+                    <label key={u.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-1">
+                      <Checkbox
+                        checked={selectedSupervisors.has(u.id)}
+                        onCheckedChange={() => {
+                          setSelectedSupervisors(prev => {
+                            const next = new Set(prev);
+                            next.has(u.id) ? next.delete(u.id) : next.add(u.id);
+                            return next;
+                          });
+                        }}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span>{getUserLabel(u)}</span>
+                    </label>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
 
             {/* Specialization */}

@@ -60,8 +60,8 @@ function TreeNode({ node, depth = 0 }: { node: HierarchyNode; depth?: number }) 
         </div>
 
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className="text-sm font-medium truncate">{node.displayName}</span>
-          <span className="text-xs text-muted-foreground">@{node.username}</span>
+          <span className="text-sm font-medium truncate text-foreground">{node.displayName}</span>
+          <span className="text-xs text-muted-foreground/80">@{node.username}</span>
         </div>
 
         <Badge variant="outline" className={`text-[10px] shrink-0 ${colorClass}`}>

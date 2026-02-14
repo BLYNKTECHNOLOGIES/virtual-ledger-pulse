@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -17,8 +17,13 @@ import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadg
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
+import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
+import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+
+
 
 /** Convert numeric orderStatus to string */
 function mapOrderStatusCode(code: number | string): string {
@@ -80,11 +85,20 @@ function toSyncItem(o: any): C2COrderHistoryItem {
 export default function TerminalOrders() {
   const [tradeFilter, setTradeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
   const [visibleCount, setVisibleCount] = useState(50);
+  const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
+
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canManageOrders = hasPermission('terminal_orders_manage') || isTerminalAdmin;
+  const {
+    canViewOrder, getOrderVisibility, getOrderAssignment, orderAssignments,
+    refetch: refetchJurisdiction,
+  } = useTerminalJurisdiction();
 
   const {
     data: activeOrdersData,
@@ -325,8 +339,21 @@ export default function TerminalOrders() {
       record.order_status = o._resolvedStatus;
       return record;
     });
-    return allRecords;
-  }, [rawOrders, tradeFilter, statusFilter, search, historyStatusMap, recentStatusMap]);
+
+    // Apply jurisdiction + assignment filter
+    let filtered = allRecords;
+    if (assignmentFilter !== 'all') {
+      filtered = filtered.filter(r => {
+        const vis = getOrderVisibility(r.binance_order_number);
+        if (assignmentFilter === 'mine') return vis === 'assigned_to_me';
+        if (assignmentFilter === 'team') return vis === 'assigned_to_team';
+        if (assignmentFilter === 'unassigned') return vis === 'unassigned';
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);
@@ -456,6 +483,19 @@ export default function TerminalOrders() {
           </TabsList>
         </Tabs>
 
+        <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
+          <TabsList className="h-8 bg-secondary">
+            <TabsTrigger value="all" className="text-[11px] h-6 px-3">All</TabsTrigger>
+            <TabsTrigger value="mine" className="text-[11px] h-6 px-3 gap-1">
+              <User className="h-3 w-3" /> My Orders
+            </TabsTrigger>
+            <TabsTrigger value="team" className="text-[11px] h-6 px-3 gap-1">
+              <Users className="h-3 w-3" /> Team
+            </TabsTrigger>
+            <TabsTrigger value="unassigned" className="text-[11px] h-6 px-3">Unassigned</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
@@ -492,6 +532,7 @@ export default function TerminalOrders() {
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Price</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Fiat / Crypto Amount</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
+                    <TableHead className="text-[10px] text-muted-foreground font-medium">Assigned</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
                     <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Chat</TableHead>
                   </TableRow>
@@ -587,6 +628,31 @@ export default function TerminalOrders() {
                           </div>
                         </TableCell>
 
+                        {/* Assignment */}
+                        <TableCell className="py-3">
+                          {(() => {
+                            const vis = getOrderVisibility(order.binance_order_number);
+                            const assignment = getOrderAssignment(order.binance_order_number);
+                            if (vis === 'assigned_to_me') {
+                              return <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">You</Badge>;
+                            }
+                            if (vis === 'assigned_to_team' && assignment) {
+                              return <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30">Team</Badge>;
+                            }
+                            if (canManageOrders) {
+                              return (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setAssignDialogOrder(order); }}
+                                  className="text-[10px] text-muted-foreground hover:text-primary border border-dashed border-border rounded px-1.5 py-0.5 flex items-center gap-0.5 transition-colors"
+                                >
+                                  <UserPlus className="h-2.5 w-2.5" /> Assign
+                                </button>
+                              );
+                            }
+                            return <span className="text-[10px] text-muted-foreground/50">—</span>;
+                          })()}
+                        </TableCell>
+
                         {/* Status */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-1">
@@ -633,6 +699,20 @@ export default function TerminalOrders() {
           )}
         </CardContent>
       </Card>
+
+      {/* Order Assignment Dialog */}
+      {assignDialogOrder && (
+        <OrderAssignmentDialog
+          open={!!assignDialogOrder}
+          onOpenChange={(open) => { if (!open) setAssignDialogOrder(null); }}
+          orderNumber={assignDialogOrder.binance_order_number}
+          tradeType={assignDialogOrder.trade_type}
+          totalPrice={assignDialogOrder.total_price}
+          asset={assignDialogOrder.asset}
+          currentAssignee={getOrderAssignment(assignDialogOrder.binance_order_number)?.assigned_to || null}
+          onAssigned={() => refetchJurisdiction()}
+        />
+      )}
     </div>
   );
 }

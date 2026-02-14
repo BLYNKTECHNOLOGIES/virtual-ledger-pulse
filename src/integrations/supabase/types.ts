@@ -7739,6 +7739,83 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_order_assignments: {
+        Row: {
+          asset: string | null
+          assigned_by: string | null
+          assigned_to: string
+          assignment_type: string
+          created_at: string
+          exchange_account_id: string | null
+          id: string
+          is_active: boolean
+          order_number: string
+          size_range_id: string | null
+          total_price: number | null
+          trade_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset?: string | null
+          assigned_by?: string | null
+          assigned_to: string
+          assignment_type?: string
+          created_at?: string
+          exchange_account_id?: string | null
+          id?: string
+          is_active?: boolean
+          order_number: string
+          size_range_id?: string | null
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset?: string | null
+          assigned_by?: string | null
+          assigned_to?: string
+          assignment_type?: string
+          created_at?: string
+          exchange_account_id?: string | null
+          id?: string
+          is_active?: boolean
+          order_number?: string
+          size_range_id?: string | null
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_order_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_order_assignments_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_order_assignments_exchange_account_id_fkey"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_order_assignments_size_range_id_fkey"
+            columns: ["size_range_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_order_size_ranges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_order_size_ranges: {
         Row: {
           created_at: string
@@ -8584,6 +8661,18 @@ export type Database = {
         }
         Returns: string
       }
+      assign_terminal_order: {
+        Args: {
+          p_asset?: string
+          p_assigned_by: string
+          p_assigned_to: string
+          p_assignment_type?: string
+          p_order_number: string
+          p_total_price?: number
+          p_trade_type?: string
+        }
+        Returns: string
+      }
       assign_terminal_role: {
         Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
         Returns: undefined
@@ -8864,6 +8953,13 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_terminal_operator_workloads: {
+        Args: never
+        Returns: {
+          active_order_count: number
+          user_id: string
+        }[]
+      }
       get_terminal_permissions: {
         Args: { p_user_id: string }
         Returns: {
@@ -8883,6 +8979,12 @@ export type Database = {
           role_description: string
           role_id: string
           role_name: string
+        }[]
+      }
+      get_terminal_visible_user_ids: {
+        Args: { p_user_id: string }
+        Returns: {
+          visible_user_id: string
         }[]
       }
       get_transactions_with_closing_balance: {
@@ -9166,6 +9268,10 @@ export type Database = {
         Returns: Json
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
+      unassign_terminal_order: {
+        Args: { p_order_number: string; p_performed_by: string }
+        Returns: undefined
+      }
       update_risk_flag_status: {
         Args: {
           admin_id?: string

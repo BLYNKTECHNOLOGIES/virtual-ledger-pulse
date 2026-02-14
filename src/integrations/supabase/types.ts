@@ -6041,6 +6041,7 @@ export type Database = {
           ifsc_code: string | null
           is_off_market: boolean | null
           is_safe_fund: boolean | null
+          market_rate_usdt: number | null
           net_amount: number | null
           net_payable_amount: number | null
           notes: string | null
@@ -6090,6 +6091,7 @@ export type Database = {
           ifsc_code?: string | null
           is_off_market?: boolean | null
           is_safe_fund?: boolean | null
+          market_rate_usdt?: number | null
           net_amount?: number | null
           net_payable_amount?: number | null
           notes?: string | null
@@ -6139,6 +6141,7 @@ export type Database = {
           ifsc_code?: string | null
           is_off_market?: boolean | null
           is_safe_fund?: boolean | null
+          market_rate_usdt?: number | null
           net_amount?: number | null
           net_payable_amount?: number | null
           notes?: string | null
@@ -6828,6 +6831,7 @@ export type Database = {
           fee_percentage: number | null
           id: string
           is_off_market: boolean | null
+          market_rate_usdt: number | null
           net_amount: number | null
           order_date: string
           order_number: string
@@ -6863,6 +6867,7 @@ export type Database = {
           fee_percentage?: number | null
           id?: string
           is_off_market?: boolean | null
+          market_rate_usdt?: number | null
           net_amount?: number | null
           order_date: string
           order_number: string
@@ -6898,6 +6903,7 @@ export type Database = {
           fee_percentage?: number | null
           id?: string
           is_off_market?: boolean | null
+          market_rate_usdt?: number | null
           net_amount?: number | null
           order_date?: string
           order_number?: string

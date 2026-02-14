@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -448,6 +449,16 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       }
 
       const orderId = (result as Record<string, unknown>).purchase_order_id as string;
+
+      // Store market_rate_usdt (CoinUSDT rate at purchase time)
+      const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
+      const marketRateUsdt = await fetchCoinMarketRate(selectedProductCode);
+      if (marketRateUsdt > 0) {
+        await supabase
+          .from('purchase_orders')
+          .update({ market_rate_usdt: marketRateUsdt })
+          .eq('id', orderId);
+      }
 
       // Verify the purchase order is readable (RLS check)
       const { data: verifiedOrder, error: verifyError } = await supabase

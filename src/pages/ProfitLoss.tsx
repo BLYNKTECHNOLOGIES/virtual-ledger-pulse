@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -58,6 +59,10 @@ interface PeriodMetrics {
    totalUsdtFees: number;
    effectivePurchaseRate: number | null;
    netPurchaseQty: number;
+
+   // Conversion P&L
+   conversionPnlUsdt: number;
+   conversionPnlInr: number;
 }
 
 interface TradeEntry {
@@ -139,7 +144,8 @@ export default function ProfitLoss() {
         .select(`
           id,
           order_date,
-          total_amount
+          total_amount,
+          market_rate_usdt
         `)
         .eq('status', 'COMPLETED')
         .gte('order_date', startStr)
@@ -212,10 +218,24 @@ export default function ProfitLoss() {
          .gte('created_at', startStr)
          .lte('created_at', endStr + 'T23:59:59');
 
+       // Fetch realized P&L events (conversion coin price gains/losses) within period
+       const { data: realizedPnlData } = await supabase
+         .from('realized_pnl_events')
+         .select('realized_pnl_usdt')
+         .gte('created_at', startStr)
+         .lte('created_at', endStr + 'T23:59:59');
+
+       // Fetch USDT/INR rate for converting USDT P&L to INR
+       let usdtInrRate = 84.5; // fallback
+       try {
+         const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
+         if (rateData?.rate) usdtInrRate = rateData.rate;
+       } catch {}
+
       // Calculate period-based metrics
       // For "All Assets" mode, convert non-USDT purchases to USDT-equivalent:
-      // USDT-equivalent qty = asset_qty × asset_usdt_rate
-      // USDT-equivalent rate = INR_unit_price / asset_usdt_rate (i.e., INR per USDT-equivalent)
+      // If market_rate_usdt is stored on the purchase order, use it for conversion
+      // Otherwise fall back to WAC from wallet_asset_positions
       let totalPurchaseValue = 0;
       let totalPurchaseQtyUsdtEquiv = 0;
 
@@ -224,15 +244,23 @@ export default function ProfitLoss() {
         const qty = item.quantity;
         const unitPriceInr = item.unit_price;
 
+        // Find the parent purchase order for this item to get market_rate_usdt
+        const parentOrder = purchaseOrders?.find((po: any) => po.id === item.purchase_order_id);
+        const storedMarketRate = parentOrder?.market_rate_usdt ? Number(parentOrder.market_rate_usdt) : null;
+
         if (assetCode === 'USDT' || selectedAsset !== 'all') {
           // USDT or specific asset filter: use raw values
           totalPurchaseValue += qty * unitPriceInr;
           totalPurchaseQtyUsdtEquiv += qty;
         } else {
           // Non-USDT in "All Assets" mode: convert to USDT-equivalent
-          const usdtRate = assetUsdtRates[assetCode];
-          if (usdtRate && usdtRate > 0) {
-            const usdtEquivQty = qty * usdtRate;
+          // Prefer stored market_rate_usdt (snapshot at purchase time), fall back to WAC
+          const conversionRate = storedMarketRate && storedMarketRate > 0
+            ? storedMarketRate
+            : assetUsdtRates[assetCode];
+
+          if (conversionRate && conversionRate > 0) {
+            const usdtEquivQty = qty * conversionRate;
             totalPurchaseValue += qty * unitPriceInr; // INR spent is the same
             totalPurchaseQtyUsdtEquiv += usdtEquivQty;
           }
@@ -275,8 +303,12 @@ export default function ProfitLoss() {
       
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+
+      // Conversion P&L from realized_pnl_events (coin price gains/losses)
+      const conversionPnlUsdt = realizedPnlData?.reduce((sum, item) => sum + Number(item.realized_pnl_usdt || 0), 0) || 0;
+      const conversionPnlInr = conversionPnlUsdt * usdtInrRate;
       
-      const netProfit = grossProfit - totalExpenses + totalIncome;
+      const netProfit = grossProfit - totalExpenses + totalIncome + conversionPnlInr;
       const profitMargin = totalSalesValue > 0 
         ? (netProfit / totalSalesValue) * 100 : 0;
 
@@ -295,7 +327,9 @@ export default function ProfitLoss() {
          totalIncome,
          totalUsdtFees,
          effectivePurchaseRate,
-         netPurchaseQty
+         netPurchaseQty,
+         conversionPnlUsdt,
+         conversionPnlInr,
       };
 
       // Create trade entries for table
@@ -555,8 +589,8 @@ export default function ProfitLoss() {
 
           <Separator />
 
-          {/* Row 3: Gross Profit, Net Profit, Profit Margin */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Row 3: Gross Profit, Conversion P&L, Net Profit, Profit Margin */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="p-4 bg-emerald-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-emerald-500" />
@@ -569,6 +603,32 @@ export default function ProfitLoss() {
                 NPM × Total Sales Qty
               </p>
             </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="p-4 bg-violet-500/10 rounded-lg cursor-help">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ArrowRightLeft className="h-4 w-4 text-violet-500" />
+                      <span className="text-sm font-medium text-muted-foreground">Conversion P&L</span>
+                      <Info className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                    <p className={`text-2xl font-bold ${(periodMetrics?.conversionPnlInr || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(periodMetrics?.conversionPnlInr || 0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatSmartDecimal(periodMetrics?.conversionPnlUsdt || 0, 4)} USDT
+                    </p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs p-3">
+                  <p className="font-medium mb-1">Conversion P&L</p>
+                  <p className="text-xs text-muted-foreground">
+                    Realized gains/losses from coin price movements during asset conversions (e.g., TRX→USDT). 
+                    Tracked via WAC system in wallet_asset_positions.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <div className="p-4 bg-indigo-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Calculator className="h-4 w-4 text-indigo-500" />
@@ -578,7 +638,7 @@ export default function ProfitLoss() {
                 {formatCurrency(periodMetrics?.netProfit || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Gross Profit - Expenses + Income
+                Gross + Conv. P&L - Expenses + Income
               </p>
             </div>
             <div className="p-4 bg-pink-500/10 rounded-lg">

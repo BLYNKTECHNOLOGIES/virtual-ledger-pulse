@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -244,13 +245,18 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         .eq('id', syncRecord.id);
       if (updateErr) throw updateErr;
 
-      // Update purchase_orders source
+      // Update purchase_orders source and market_rate_usdt
       if (result?.purchase_order_id) {
+        // Fetch CoinUSDT market rate at approval time
+        const asset = (od.asset || 'USDT').toUpperCase();
+        const marketRateUsdt = await fetchCoinMarketRate(asset);
+
         await supabase
           .from('purchase_orders')
           .update({
             source: 'terminal',
             terminal_sync_id: syncRecord.id,
+            market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
           })
           .eq('id', result.purchase_order_id);
       }

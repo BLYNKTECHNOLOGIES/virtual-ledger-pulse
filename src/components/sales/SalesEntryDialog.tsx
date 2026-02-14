@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
+import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,6 +174,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     mutationFn: async (data: any) => {
       // Get current user ID for tracking creator
       const createdBy = getCurrentUserId();
+
+      // Fetch CoinUSDT market rate at order creation time
+      const selectedProd = products?.find((p: any) => p.id === data.product_id);
+      const assetCode = selectedProd?.code?.toUpperCase() || 'USDT';
+      const marketRateUsdt = await fetchCoinMarketRate(assetCode);
       
       const { data: result, error } = await supabase
         .from('sales_orders')
@@ -192,7 +198,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           order_date: data.order_datetime ? `${data.order_datetime}:00.000Z` : new Date().toISOString(),
           description: data.description,
           is_off_market: data.is_off_market || false,
-          created_by: createdBy
+          created_by: createdBy,
+          market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
         }])
         .select()
         .single();

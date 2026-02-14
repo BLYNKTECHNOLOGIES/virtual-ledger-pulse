@@ -163,15 +163,26 @@ export default function ProfitLoss() {
           .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
           .in('purchase_order_id', filteredPurchaseOrderIds);
         
-        // When "All Assets" is selected, default to USDT for purchase rate calculations
-        // to maintain like-for-like comparison (since all sales are USDT-denominated).
-        // Non-USDT purchases (TRX, BTC, ETH etc.) have vastly different unit prices
-        // and mixing them produces meaningless average rates.
-        const purchaseAssetFilter = selectedAsset === 'all' ? 'USDT' : selectedAsset;
-        purchaseQuery = purchaseQuery.eq('products.code', purchaseAssetFilter);
+        if (selectedAsset !== 'all') {
+          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
+        }
         
         const { data: items } = await purchaseQuery;
         purchaseItems = items || [];
+      }
+
+      // For "All Assets" mode, fetch USDT conversion rates for non-USDT assets
+      // so we can convert all purchases to USDT-equivalent for like-for-like comparison
+      let assetUsdtRates: Record<string, number> = {};
+      if (selectedAsset === 'all') {
+        const { data: positions } = await supabase
+          .from('wallet_asset_positions')
+          .select('asset_code, avg_cost_usdt');
+        positions?.forEach((p: any) => {
+          if (p.avg_cost_usdt > 0) {
+            assetUsdtRates[p.asset_code] = Number(p.avg_cost_usdt);
+          }
+        });
       }
 
       // Fetch operating expenses (excluding core trading operations like Purchase/Sales)
@@ -193,7 +204,6 @@ export default function ProfitLoss() {
         .lte('transaction_date', endStr);
 
        // Fetch ALL USDT fees from wallet_transactions within the period
-       // This includes: PLATFORM_FEE, TRANSFER_FEE, SALES_ORDER_FEE, PURCHASE_ORDER_FEE, and any other operational fees
        const { data: usdtFeesData } = await supabase
          .from('wallet_transactions')
          .select('id, amount, reference_type, created_at')
@@ -203,14 +213,35 @@ export default function ProfitLoss() {
          .lte('created_at', endStr + 'T23:59:59');
 
       // Calculate period-based metrics
-      const totalPurchaseValue = purchaseItems.reduce(
-        (sum, item) => sum + (item.quantity * item.unit_price), 0
-      );
-      const totalPurchaseQty = purchaseItems.reduce(
-        (sum, item) => sum + item.quantity, 0
-      );
-      const avgPurchaseRate = totalPurchaseQty > 0 
-        ? totalPurchaseValue / totalPurchaseQty : 0;
+      // For "All Assets" mode, convert non-USDT purchases to USDT-equivalent:
+      // USDT-equivalent qty = asset_qty × asset_usdt_rate
+      // USDT-equivalent rate = INR_unit_price / asset_usdt_rate (i.e., INR per USDT-equivalent)
+      let totalPurchaseValue = 0;
+      let totalPurchaseQtyUsdtEquiv = 0;
+
+      purchaseItems.forEach((item: any) => {
+        const assetCode = item.products?.code || 'USDT';
+        const qty = item.quantity;
+        const unitPriceInr = item.unit_price;
+
+        if (assetCode === 'USDT' || selectedAsset !== 'all') {
+          // USDT or specific asset filter: use raw values
+          totalPurchaseValue += qty * unitPriceInr;
+          totalPurchaseQtyUsdtEquiv += qty;
+        } else {
+          // Non-USDT in "All Assets" mode: convert to USDT-equivalent
+          const usdtRate = assetUsdtRates[assetCode];
+          if (usdtRate && usdtRate > 0) {
+            const usdtEquivQty = qty * usdtRate;
+            totalPurchaseValue += qty * unitPriceInr; // INR spent is the same
+            totalPurchaseQtyUsdtEquiv += usdtEquivQty;
+          }
+          // Skip assets with no known USDT rate to avoid distortion
+        }
+      });
+
+      const avgPurchaseRate = totalPurchaseQtyUsdtEquiv > 0 
+        ? totalPurchaseValue / totalPurchaseQtyUsdtEquiv : 0;
       
       const totalSalesValue = salesItems.reduce(
         (sum, item) => sum + (item.quantity * item.unit_price), 0
@@ -226,12 +257,12 @@ export default function ProfitLoss() {
        
        // Calculate Effective Purchase Rate
        // Formula: Total Purchase Amount (INR) / (Total Quantity Purchased - Total USDT Fees)
-       const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
+       const netPurchaseQty = totalPurchaseQtyUsdtEquiv - totalUsdtFees;
        let effectivePurchaseRate: number | null = null;
        
-       if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
-         effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
-       } else if (netPurchaseQty <= 0 && totalPurchaseQty > 0) {
+       if (totalPurchaseQtyUsdtEquiv > 0 && netPurchaseQty > 0) {
+          effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
+        } else if (netPurchaseQty <= 0 && totalPurchaseQtyUsdtEquiv > 0) {
          // Fees exceed or equal purchased quantity - edge case
          effectivePurchaseRate = null;
        }
@@ -251,7 +282,7 @@ export default function ProfitLoss() {
 
       const periodMetrics: PeriodMetrics = {
         totalPurchaseValue,
-        totalPurchaseQty,
+        totalPurchaseQty: totalPurchaseQtyUsdtEquiv,
         avgPurchaseRate,
         totalSalesValue,
         totalSalesQty,

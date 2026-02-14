@@ -7709,6 +7709,81 @@ export type Database = {
           },
         ]
       }
+      terminal_auto_assignment_config: {
+        Row: {
+          assignment_strategy: string
+          consider_exchange_mapping: boolean
+          consider_shift: boolean
+          consider_size_range: boolean
+          consider_specialization: boolean
+          cooldown_minutes: number
+          created_at: string
+          id: string
+          is_enabled: boolean
+          max_orders_per_operator: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          assignment_strategy?: string
+          consider_exchange_mapping?: boolean
+          consider_shift?: boolean
+          consider_size_range?: boolean
+          consider_specialization?: boolean
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_orders_per_operator?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          assignment_strategy?: string
+          consider_exchange_mapping?: boolean
+          consider_shift?: boolean
+          consider_size_range?: boolean
+          consider_specialization?: boolean
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          max_orders_per_operator?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      terminal_auto_assignment_log: {
+        Row: {
+          assigned_to: string
+          created_at: string
+          eligible_count: number
+          id: string
+          order_number: string
+          reason: string | null
+          strategy_used: string
+        }
+        Insert: {
+          assigned_to: string
+          created_at?: string
+          eligible_count?: number
+          id?: string
+          order_number: string
+          reason?: string | null
+          strategy_used: string
+        }
+        Update: {
+          assigned_to?: string
+          created_at?: string
+          eligible_count?: number
+          id?: string
+          order_number?: string
+          reason?: string | null
+          strategy_used?: string
+        }
+        Relationships: []
+      }
       terminal_exchange_accounts: {
         Row: {
           account_identifier: string
@@ -7736,6 +7811,51 @@ export type Database = {
           id?: string
           is_active?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      terminal_mpi_snapshots: {
+        Row: {
+          avg_completion_time_minutes: number | null
+          buy_count: number
+          created_at: string
+          id: string
+          idle_time_minutes: number | null
+          orders_cancelled: number
+          orders_completed: number
+          orders_handled: number
+          sell_count: number
+          snapshot_date: string
+          total_volume: number
+          user_id: string
+        }
+        Insert: {
+          avg_completion_time_minutes?: number | null
+          buy_count?: number
+          created_at?: string
+          id?: string
+          idle_time_minutes?: number | null
+          orders_cancelled?: number
+          orders_completed?: number
+          orders_handled?: number
+          sell_count?: number
+          snapshot_date?: string
+          total_volume?: number
+          user_id: string
+        }
+        Update: {
+          avg_completion_time_minutes?: number | null
+          buy_count?: number
+          created_at?: string
+          id?: string
+          idle_time_minutes?: number | null
+          orders_cancelled?: number
+          orders_completed?: number
+          orders_handled?: number
+          sell_count?: number
+          snapshot_date?: string
+          total_volume?: number
+          user_id?: string
         }
         Relationships: []
       }

@@ -2,6 +2,8 @@
 import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
+import TerminalMPI from './pages/terminal/TerminalMPI';
+import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
@@ -740,11 +742,21 @@ const router = createBrowserRouter([
           <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
-                <TerminalComingSoon
-                  title="Management Performance Interface"
-                  description="Visualization-first performance dashboards for supervisory roles with drill-down capability."
-                  features={["Operator productivity metrics", "Team throughput visualization", "Performance heatmaps", "Bottleneck detection & SLA tracking"]}
-                />
+                <TerminalMPI />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/audit-logs",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAuditLogs />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

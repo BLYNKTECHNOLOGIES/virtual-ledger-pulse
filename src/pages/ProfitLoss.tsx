@@ -163,9 +163,12 @@ export default function ProfitLoss() {
           .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
           .in('purchase_order_id', filteredPurchaseOrderIds);
         
-        if (selectedAsset !== 'all') {
-          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
-        }
+        // When "All Assets" is selected, default to USDT for purchase rate calculations
+        // to maintain like-for-like comparison (since all sales are USDT-denominated).
+        // Non-USDT purchases (TRX, BTC, ETH etc.) have vastly different unit prices
+        // and mixing them produces meaningless average rates.
+        const purchaseAssetFilter = selectedAsset === 'all' ? 'USDT' : selectedAsset;
+        purchaseQuery = purchaseQuery.eq('products.code', purchaseAssetFilter);
         
         const { data: items } = await purchaseQuery;
         purchaseItems = items || [];

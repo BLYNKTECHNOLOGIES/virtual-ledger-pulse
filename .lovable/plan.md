@@ -1,85 +1,134 @@
 
 
-# Evaluation: ChatGPT Crypto Accounting Suggestions vs Your Current ERP
+# Terminal Logs Overhaul: Category-Based Filtering + Order/Automation/Asset Logging
 
-## What You Already Have (and ChatGPT Didn't Know)
+## Overview
 
-Your ERP already implements a significant portion of what was suggested. Here's the mapping:
+The current Terminal Logs page only shows ad-related actions from the `ad_action_logs` table. This plan expands it into a unified action log that covers **four categories**: Ads, Orders, Automations, and Assets -- each with its own action types and two-tier filtering.
 
-| ChatGPT Suggestion | Your ERP Status |
-|---|---|
-| 1A) Operational Deal Price | Already done -- purchase_orders/sales_orders store fiat amounts, qty, unit prices |
-| 1B) Inventory Valuation Layer | Already done -- `wallet_asset_positions` tracks WAC per asset per wallet |
-| 2) Ledger with CoinUSDT rate | Partially done -- `erp_product_conversions` stores `price_usd`, `execution_rate_usdt`, `market_rate_snapshot` |
-| 3) Realized P&L on SELL | Already done -- `approve_product_conversion` computes `cost_out_usdt`, `realized_pnl_usdt`, records in `realized_pnl_events` |
-| 4) Fiat P2P sale handling | Already done -- sales_orders record fiat amounts; USDT deducted from wallet |
-| 5) Multi-leg conversions | Already done -- each conversion is a separate approval with its own journal entries |
-| 6) Unrealized P&L | NOT implemented |
-| 7) 3-bucket GL separation | Partially done -- Trading margin in ProfitLoss.tsx, Conversion P&L in RealizedPnlReport; NOT surfaced together |
-| 8) Inventory method choice | Already done -- Weighted Average Cost (WAC) is implemented globally |
-| 9) Fixes current gap | Mostly fixed already by WAC system |
-| 10) Store CoinUSDT per movement | Partially -- conversions store it; purchase/sales orders do NOT |
-| 11) Reporting | Partially -- RealizedPnlReport exists; no unrealized P&L, no exposure heatmap |
+## Current State
 
-## What Actually Needs to Be Built (3 items only)
+- `ad_action_logs` table stores ad actions (created, updated, status changed, rest mode, bulk ops)
+- Order actions (mark paid, release, cancel, verify) in `useBinanceActions.tsx` do NOT log anywhere
+- Automation settings changes (auto-pay toggle, small sales config, auto-reply rules, schedules) do NOT log anywhere
+- Spot trades are logged in `spot_trade_history` table but NOT surfaced in the Logs tab
+- The Logs UI has a single flat filter dropdown for ad action types only
 
-### 1. Store `market_rate_usdt` on Purchase and Sales Orders
+## What Changes
 
-**Why**: When you buy 991 TRX at Rs 26,663, you need to permanently record that TRXUSDT was 0.2824 at that moment. Currently this rate is lost -- it's neither stored on the purchase order nor derivable later.
+### 1. Expand the `ad_action_logs` table to be a unified terminal action log
 
-**Changes**:
-- Add `market_rate_usdt` column to `purchase_orders` (NUMERIC, nullable, default NULL)
-- Add `market_rate_usdt` column to `sales_orders` (NUMERIC, nullable, default NULL)
-- For USDT orders: always store 1.0
-- For non-USDT orders: capture live CoinUSDT rate at approval time
-- Update purchase approval flows (both manual and terminal sync) to fetch and store the rate
-- Update sales approval flows (both manual and terminal sync) to fetch and store the rate
-- Update `PurchaseOrderDetailsDialog` to show stored rate instead of live rate
-- Update P&L dashboard to use per-order `market_rate_usdt` instead of global WAC for USDT-equivalent calculations
+Add new action types for Orders, Automations, and Assets. The table structure already supports this -- `action_type` is a text field, `ad_details` and `metadata` are JSONB, and `adv_no` can hold order numbers or be null.
 
-### 2. Surface Conversion P&L in the Main P&L Dashboard
+New action types to add:
 
-**Why**: Your `realized_pnl_events` table already tracks coin price gains/losses from conversions, but this data is only visible in the separate "Realized P&L Report" tab. The main P&L dashboard ignores it.
+**Orders:**
+- `order.marked_paid` -- When operator clicks "Mark as Paid"
+- `order.released` -- When operator releases crypto
+- `order.cancelled` -- When operator cancels an order
+- `order.verified` -- When operator verifies buyer identity
 
-**Changes**:
-- Query `realized_pnl_events` within the selected date range in ProfitLoss.tsx
-- Fetch the USDT/INR rate to convert USDT-denominated P&L to INR
-- Add a "Conversion P&L" metric card showing total realized gain/loss from coin price movements
-- Add a "Net Profit (incl. Conversion)" line that combines trading margin + conversion P&L
+**Automations:**
+- `automation.auto_pay_toggled` -- Auto-pay enabled/disabled
+- `automation.auto_pay_minutes_changed` -- Minutes before expiry changed
+- `automation.small_sales_toggled` -- Small sales classification enabled/disabled
+- `automation.small_sales_range_changed` -- Min/max amount range updated
+- `automation.auto_reply_rule_created` -- New auto-reply rule created
+- `automation.auto_reply_rule_updated` -- Auto-reply rule modified
+- `automation.auto_reply_rule_toggled` -- Auto-reply rule enabled/disabled
+- `automation.auto_reply_rule_deleted` -- Auto-reply rule deleted
+- `automation.schedule_created` -- Merchant schedule created
+- `automation.schedule_updated` -- Merchant schedule modified
+- `automation.schedule_toggled` -- Merchant schedule enabled/disabled
+- `automation.schedule_deleted` -- Merchant schedule deleted
 
-### 3. Unrealized P&L (Mark-to-Market) View
+**Assets:**
+- `asset.spot_trade_executed` -- Spot trade BUY/SELL executed
+- `asset.spot_trade_failed` -- Spot trade failed
 
-**Why**: You hold coin inventory (TRX, BTC, etc.) that changes value. Currently you only see profit when coins are converted. There's no view of "what is my current exposure worth?"
+### 2. Add logging calls to action hooks
 
-**Changes**:
-- Create a new component `UnrealizedPnlCard` or add to the existing Inventory Valuation tab
-- For each asset in `wallet_asset_positions`: fetch live CoinUSDT price, compute `current_value = qty * live_price`, compare against `cost_pool_usdt`
-- Display: Asset | Qty | Avg Cost | Current Price | Unrealized P&L
-- This is display-only -- no journal entries, no balance changes (per accounting standards, unrealized P&L is not booked)
+**File: `src/hooks/useBinanceActions.tsx`**
+- Import `logAdAction` from `useAdActionLog`
+- Add `logAdAction()` calls in `onSuccess` callbacks of:
+  - `useMarkOrderAsPaid` -- log `order.marked_paid` with order number
+  - `useReleaseCoin` -- log `order.released` with order number and auth method
+  - `useCancelOrder` -- log `order.cancelled` with order number
+  - `useConfirmOrderVerified` -- log `order.verified` with order number
 
-## What NOT to Build
+**File: `src/hooks/useBinanceAssets.tsx`**
+- Import `logAdAction` from `useAdActionLog`
+- Add `logAdAction()` call in `useExecuteTrade` `onSuccess` with trade details (symbol, side, qty, price)
+- Add logging for failed trades too
 
-The following ChatGPT suggestions are either redundant or would add complexity without value:
+**File: `src/components/terminal/automation/AutoPaySettings.tsx`**
+- Log when auto-pay is toggled on/off
+- Log when minutes_before_expiry is changed
 
-- **FIFO tracking**: Your WAC system is already implemented and working. Switching to FIFO would require rebuilding the entire conversion approval function. WAC is standard for high-volume desks.
-- **Separate GL buckets as database tables**: Your current structure (trade data in orders, conversion P&L in realized_pnl_events, expenses in bank_transactions) already provides this separation. Adding formal GL accounts would over-engineer the system.
-- **Multi-leg conversion splitting**: Your system already handles this correctly -- each conversion (TRX->USDT, USDT->BTC) is a separate `erp_product_conversions` record with its own journal entries and P&L.
+**File: `src/components/terminal/automation/SmallSalesConfig.tsx`**
+- Log when small sales is toggled on/off
+- Log when min/max range is saved
 
-## Technical Implementation Sequence
+**File: `src/hooks/useAutomation.ts`**
+- Log when auto-reply rules are created, updated, toggled, deleted
+- Log when merchant schedules are created, updated, toggled, deleted
 
-1. **Migration**: Add `market_rate_usdt` to `purchase_orders` and `sales_orders`
-2. **Purchase flows**: Update terminal sync approval and manual purchase approval to capture CoinUSDT rate at completion
-3. **Sales flows**: Update terminal sync approval and manual sales approval similarly
-4. **P&L Dashboard**: Use stored rates for USDT-equivalent; add Conversion P&L row
-5. **View Details**: Show stored historical rate instead of live rate
-6. **Unrealized P&L**: Add mark-to-market display to inventory section
+### 3. Update `useAdActionLog.ts` with new action types and category mapping
+
+Add all new action types to `AdActionTypes` constant and add a category mapping:
+
+```text
+Categories:
+  "ads"         -> ad.created, ad.updated, ad.status_changed, ad.bulk_*, ad.rest_*
+  "orders"      -> order.marked_paid, order.released, order.cancelled, order.verified
+  "automations" -> automation.*
+  "assets"      -> asset.spot_trade_executed, asset.spot_trade_failed
+```
+
+Add `getActionCategory(actionType)` helper and update `getAdActionLabel()` with labels for all new types.
+
+### 4. Redesign `TerminalLogs.tsx` with two-tier filtering
+
+Replace the single action filter with two dropdowns:
+
+**Filter 1 - Category**: All | Ads | Orders | Automations | Assets
+**Filter 2 - Action**: Dynamically shows only actions belonging to the selected category
+
+When "All" is selected in Filter 1, Filter 2 shows all action types.
+When a specific category is selected, Filter 2 only shows that category's actions.
+
+The timeline display remains the same but with updated badge colors per category:
+- Ads: existing colors
+- Orders: blue/green/red based on action
+- Automations: purple/indigo
+- Assets: amber/orange
+
+### 5. Format details for new action types
+
+Extend the `formatDetails()` function to handle:
+- Order actions: show order number, trade type, asset, amount
+- Automation actions: show what changed (old value -> new value), setting name
+- Asset actions: show symbol, side, quantity, price, status
 
 ## Files to Modify
 
-- New migration SQL (add columns)
-- `src/components/purchase/` -- approval dialogs to capture rate
-- `src/components/sales/` -- approval dialogs to capture rate  
-- `src/pages/ProfitLoss.tsx` -- use per-order rates + add conversion P&L
-- `src/components/purchase/PurchaseOrderDetailsDialog.tsx` -- show stored rate
-- `src/components/stock/InventoryValuationTab.tsx` -- add unrealized P&L section
+1. **`src/hooks/useAdActionLog.ts`** -- Add new action types, category mapping, labels
+2. **`src/hooks/useBinanceActions.tsx`** -- Add logAdAction calls for order actions
+3. **`src/hooks/useBinanceAssets.tsx`** -- Add logAdAction call for spot trades
+4. **`src/components/terminal/automation/AutoPaySettings.tsx`** -- Add logging for settings changes
+5. **`src/components/terminal/automation/SmallSalesConfig.tsx`** -- Add logging for config changes
+6. **`src/hooks/useAutomation.ts`** -- Add logging for rule/schedule CRUD
+7. **`src/pages/terminal/TerminalLogs.tsx`** -- Redesign with two-tier category + action filters
+
+## No Database Changes Needed
+
+The existing `ad_action_logs` table already has flexible text-based `action_type` and JSONB `ad_details`/`metadata` columns. No migration required -- just insert new action type strings.
+
+## Future-Proofing
+
+The category-based architecture means when new automation features are added:
+1. Define a new `automation.xxx` action type in `AdActionTypes`
+2. Add the label in `getAdActionLabel()`
+3. Add `logAdAction()` call in the feature code
+4. The Logs UI automatically picks it up via the `automations` category filter
 

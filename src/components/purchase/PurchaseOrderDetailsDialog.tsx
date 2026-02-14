@@ -179,32 +179,6 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             <div>
               <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
               <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
-              {isNonUsdt && (storedMarketRate || usdtRateData?.rate) && (
-                (() => {
-                  const pricePerUnit = Number(order.price_per_unit || order.total_amount);
-                  if (storedMarketRate && storedMarketRate > 0) {
-                    // Use stored CoinUSDT rate (snapshot at purchase time)
-                    const usdtEquivPerUnit = storedMarketRate;
-                    const usdtEquivQty = (order.quantity || 1) * storedMarketRate;
-                    const equivUsdtRate = (order.total_amount || pricePerUnit) / usdtEquivQty;
-                    return (
-                      <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                        <p>CoinUSDT at purchase: {formatSmartDecimal(storedMarketRate, 6)}</p>
-                        <p>USDT equiv qty: {formatSmartDecimal(usdtEquivQty, 4)}</p>
-                        <p>Equiv USDT rate: ₹{formatSmartDecimal(equivUsdtRate, 4)}</p>
-                      </div>
-                    );
-                  } else if (usdtRateData?.rate && usdtRateData.rate > 0) {
-                    // Fallback: live USDT/INR rate
-                    return (
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        ≈ {formatSmartDecimal(pricePerUnit / usdtRateData.rate, 6)} USDT/unit (₹{formatSmartDecimal(usdtRateData.rate, 2)}/USDT) <span className="text-amber-500">(live)</span>
-                      </p>
-                    );
-                  }
-                  return null;
-                })()
-              )}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Product</label>
@@ -243,6 +217,48 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
               </div>
             )}
           </div>
+
+          {/* USDT Equivalent Section for non-USDT coins */}
+          {isNonUsdt && (() => {
+            const qty = Number(order.quantity || 1);
+            const totalAmt = Number(order.total_amount || 0);
+            if (storedMarketRate && storedMarketRate > 0) {
+              const usdtEquivQty = qty * storedMarketRate;
+              const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
+              return (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-2">
+                    <Coins className="h-4 w-4" />
+                    USDT Equivalent (Snapshot)
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">{productCode}/USDT Rate</label>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(storedMarketRate, 6)}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Qty</label>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-blue-700 dark:text-blue-500">Equiv. USDT Rate</label>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            } else if (usdtRateData?.rate && usdtRateData.rate > 0) {
+              const pricePerUnit = Number(order.price_per_unit || totalAmt);
+              return (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    ≈ {formatSmartDecimal(pricePerUnit / usdtRateData.rate, 6)} USDT/unit (₹{formatSmartDecimal(usdtRateData.rate, 2)}/USDT) <span className="font-medium">(live estimate)</span>
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* Platform Fee Information */}
           {!order.off_market && (order.fee_amount > 0 || order.fee_percentage > 0) && (

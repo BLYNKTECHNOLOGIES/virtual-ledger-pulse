@@ -3,6 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TerminalPermissionGate } from "@/components/terminal/TerminalPermissionGate";
 import { TerminalUsersList } from "@/components/terminal/users/TerminalUsersList";
 import { TerminalRolesList } from "@/components/terminal/users/TerminalRolesList";
+import { TerminalHierarchyView } from "@/components/terminal/users/TerminalHierarchyView";
+import { TerminalExchangeAccounts } from "@/components/terminal/users/TerminalExchangeAccounts";
+import { TerminalSizeRanges } from "@/components/terminal/users/TerminalSizeRanges";
 
 export default function TerminalUsers() {
   const [activeTab, setActiveTab] = useState("users");
@@ -12,13 +15,16 @@ export default function TerminalUsers() {
       <div className="space-y-4 p-1">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Users & Roles</h1>
-          <p className="text-sm text-muted-foreground">Manage terminal access and role permissions</p>
+          <p className="text-sm text-muted-foreground">Manage terminal access, hierarchy, and jurisdiction mappings</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-muted/30 border border-border">
             <TabsTrigger value="users" className="text-xs">Users</TabsTrigger>
-            <TabsTrigger value="roles" className="text-xs">Roles & Permissions</TabsTrigger>
+            <TabsTrigger value="roles" className="text-xs">Roles</TabsTrigger>
+            <TabsTrigger value="hierarchy" className="text-xs">Hierarchy</TabsTrigger>
+            <TabsTrigger value="exchanges" className="text-xs">Exchange Accounts</TabsTrigger>
+            <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="mt-4">
@@ -27,6 +33,18 @@ export default function TerminalUsers() {
 
           <TabsContent value="roles" className="mt-4">
             <TerminalRolesList />
+          </TabsContent>
+
+          <TabsContent value="hierarchy" className="mt-4">
+            <TerminalHierarchyView />
+          </TabsContent>
+
+          <TabsContent value="exchanges" className="mt-4">
+            <TerminalExchangeAccounts />
+          </TabsContent>
+
+          <TabsContent value="ranges" className="mt-4">
+            <TerminalSizeRanges />
           </TabsContent>
         </Tabs>
       </div>

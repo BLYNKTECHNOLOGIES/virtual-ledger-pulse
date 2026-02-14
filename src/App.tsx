@@ -1,6 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
@@ -690,6 +691,60 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalLogs />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/kyc",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalComingSoon
+                  title="KYC Team Module"
+                  description="Client verification workflow, document review, risk flagging, and approval routing — all in one place."
+                  features={["Client verification workflow", "Document review & approval", "Risk flagging & assessment", "Approval routing pipeline"]}
+                />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/payer",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalComingSoon
+                  title="Payer Module"
+                  description="Fiat payout handling, bank allocation, settlement confirmation, and payment queue routing."
+                  features={["Fiat payout handling", "Bank allocation & routing", "Settlement confirmation", "Payment queue management"]}
+                />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/mpi",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalComingSoon
+                  title="Management Performance Interface"
+                  description="Visualization-first performance dashboards for supervisory roles with drill-down capability."
+                  features={["Operator productivity metrics", "Team throughput visualization", "Performance heatmaps", "Bottleneck detection & SLA tracking"]}
+                />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

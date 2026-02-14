@@ -85,8 +85,9 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
   const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
   const isNonUsdt = productCode !== 'USDT';
 
-  // Get live USDT/INR rate for equivalent cost calculation
+  // Use stored market_rate_usdt (snapshot at approval time), fall back to live rate
   const { data: usdtRateData } = useUSDTRate();
+  const storedMarketRate = order?.market_rate_usdt ? Number(order.market_rate_usdt) : null;
 
   if (!order) return null;
 
@@ -178,10 +179,31 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             <div>
               <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
               <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
-              {isNonUsdt && usdtRateData?.rate && usdtRateData.rate > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  ≈ {formatSmartDecimal(Number(order.price_per_unit || order.total_amount) / usdtRateData.rate, 6)} USDT/unit (₹{formatSmartDecimal(usdtRateData.rate, 2)}/USDT)
-                </p>
+              {isNonUsdt && (storedMarketRate || usdtRateData?.rate) && (
+                (() => {
+                  const pricePerUnit = Number(order.price_per_unit || order.total_amount);
+                  if (storedMarketRate && storedMarketRate > 0) {
+                    // Use stored CoinUSDT rate (snapshot at purchase time)
+                    const usdtEquivPerUnit = storedMarketRate;
+                    const usdtEquivQty = (order.quantity || 1) * storedMarketRate;
+                    const equivUsdtRate = (order.total_amount || pricePerUnit) / usdtEquivQty;
+                    return (
+                      <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                        <p>CoinUSDT at purchase: {formatSmartDecimal(storedMarketRate, 6)}</p>
+                        <p>USDT equiv qty: {formatSmartDecimal(usdtEquivQty, 4)}</p>
+                        <p>Equiv USDT rate: ₹{formatSmartDecimal(equivUsdtRate, 4)}</p>
+                      </div>
+                    );
+                  } else if (usdtRateData?.rate && usdtRateData.rate > 0) {
+                    // Fallback: live USDT/INR rate
+                    return (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        ≈ {formatSmartDecimal(pricePerUnit / usdtRateData.rate, 6)} USDT/unit (₹{formatSmartDecimal(usdtRateData.rate, 2)}/USDT) <span className="text-amber-500">(live)</span>
+                      </p>
+                    );
+                  }
+                  return null;
+                })()
               )}
             </div>
             <div>

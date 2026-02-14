@@ -11,6 +11,7 @@ import { TransactionActorsCard } from "@/components/purchase/TransactionActorsCa
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
@@ -77,6 +78,25 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
       }));
     },
     enabled: !!order?.id,
+  });
+
+  // Get product code for this order
+  const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
+  const isNonUsdt = productCode !== 'USDT';
+
+  // Fetch WAC (avg_cost_usdt) for non-USDT assets to show equivalent USDT rate
+  const { data: assetPosition } = useQuery({
+    queryKey: ['asset_wac_for_po', productCode],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_asset_positions' as any)
+        .select('avg_cost_usdt')
+        .eq('asset_code', productCode)
+        .limit(1);
+      if (error || !data?.length) return null;
+      return data[0] as unknown as { avg_cost_usdt: number };
+    },
+    enabled: isNonUsdt && !!productCode,
   });
 
   if (!order) return null;
@@ -169,6 +189,11 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             <div>
               <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
               <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
+              {isNonUsdt && assetPosition?.avg_cost_usdt && assetPosition.avg_cost_usdt > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  ≈ ₹{formatSmartDecimal(Number(order.price_per_unit || order.total_amount) / assetPosition.avg_cost_usdt, 2)} / USDT equiv.
+                </p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Product</label>

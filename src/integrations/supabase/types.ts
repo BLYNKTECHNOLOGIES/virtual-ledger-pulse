@@ -4916,6 +4916,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          hierarchy_level: number | null
           id: string
           is_default: boolean
           name: string
@@ -4924,6 +4925,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          hierarchy_level?: number | null
           id?: string
           is_default?: boolean
           name: string
@@ -4932,6 +4934,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          hierarchy_level?: number | null
           id?: string
           is_default?: boolean
           name?: string
@@ -7652,6 +7655,123 @@ export type Database = {
           },
         ]
       }
+      terminal_assignment_audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          jurisdiction_layer: string | null
+          new_value: Json | null
+          notes: string | null
+          order_reference: string | null
+          performed_by: string
+          previous_value: Json | null
+          target_user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          jurisdiction_layer?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_reference?: string | null
+          performed_by: string
+          previous_value?: Json | null
+          target_user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          jurisdiction_layer?: string | null
+          new_value?: Json | null
+          notes?: string | null
+          order_reference?: string | null
+          performed_by?: string
+          previous_value?: Json | null
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_assignment_audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_assignment_audit_logs_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_exchange_accounts: {
+        Row: {
+          account_identifier: string
+          account_name: string
+          created_at: string
+          exchange_platform: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_identifier: string
+          account_name: string
+          created_at?: string
+          exchange_platform?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_identifier?: string
+          account_name?: string
+          created_at?: string
+          exchange_platform?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      terminal_order_size_ranges: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          min_amount: number
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          min_amount?: number
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_purchase_sync: {
         Row: {
           binance_order_number: string
@@ -7780,6 +7900,129 @@ export type Database = {
             columns: ["sales_order_id"]
             isOneToOne: false
             referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_user_exchange_mappings: {
+        Row: {
+          created_at: string
+          exchange_account_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exchange_account_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exchange_account_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_user_exchange_mappings_exchange_account_id_fkey"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_user_exchange_mappings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_user_profiles: {
+        Row: {
+          automation_included: boolean
+          created_at: string
+          id: string
+          is_active: boolean
+          reports_to: string | null
+          shift: string | null
+          specialization: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          automation_included?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          reports_to?: string | null
+          shift?: string | null
+          specialization?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          automation_included?: boolean
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          reports_to?: string | null
+          shift?: string | null
+          specialization?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_user_profiles_reports_to_fkey"
+            columns: ["reports_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_user_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_user_size_range_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          size_range_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          size_range_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          size_range_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_user_size_range_mappings_size_range_id_fkey"
+            columns: ["size_range_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_order_size_ranges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_user_size_range_mappings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -8625,6 +8868,13 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: {
           permission: string
+        }[]
+      }
+      get_terminal_subordinates: {
+        Args: { p_user_id: string }
+        Returns: {
+          depth: number
+          user_id: string
         }[]
       }
       get_terminal_user_roles: {

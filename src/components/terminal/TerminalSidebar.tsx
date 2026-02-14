@@ -23,6 +23,10 @@ import {
   Building2,
   Wallet,
   ScrollText,
+  BarChart3,
+  UserCheck,
+  CreditCard,
+  Clock,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
@@ -34,6 +38,7 @@ interface NavItem {
   showActiveCount?: boolean;
   badge?: string;
   requiredPermission?: TerminalPermission;
+  comingSoon?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -43,6 +48,9 @@ const navItems: NavItem[] = [
   { title: 'Automation', url: '/terminal/automation', icon: Bot, requiredPermission: 'terminal_automation_view' },
   { title: 'Assets', url: '/terminal/assets', icon: Wallet, requiredPermission: 'terminal_analytics_view' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, requiredPermission: 'terminal_analytics_view' },
+  { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, comingSoon: true },
+  { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, comingSoon: true },
+  { title: 'Payer', url: '/terminal/payer', icon: CreditCard, comingSoon: true },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_ads_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },
@@ -113,7 +121,12 @@ export function TerminalSidebar() {
                           {activeCount}
                         </span>
                       )}
-                      {item.badge && (
+                      {item.comingSoon && (
+                        <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.5 rounded font-medium uppercase tracking-wider flex items-center gap-0.5">
+                          <Clock className="h-2.5 w-2.5" /> Soon
+                        </span>
+                      )}
+                      {item.badge && !item.comingSoon && (
                         <span className="text-[8px] bg-sidebar-accent text-sidebar-foreground px-1.5 py-0.5 rounded font-medium uppercase tracking-wider">
                           {item.badge}
                         </span>

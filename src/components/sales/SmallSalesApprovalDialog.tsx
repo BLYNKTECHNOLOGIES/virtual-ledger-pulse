@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Package, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Package, Clock, Coins } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { getCurrentUserId } from '@/lib/system-action-logger';
+import { fetchCoinMarketRate } from '@/hooks/useCoinMarketRate';
+import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 
 interface Props {
   open: boolean;
@@ -24,8 +26,17 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showReject, setShowReject] = useState(false);
+  const [coinUsdtRate, setCoinUsdtRate] = useState<number | null>(null);
 
-  // Fetch BAMS sales payment methods
+  const assetCode = record?.asset_code || 'USDT';
+  const isNonUsdt = assetCode !== 'USDT';
+
+  // Fetch live CoinUSDT rate for non-USDT assets
+  useEffect(() => {
+    if (open && isNonUsdt) {
+      fetchCoinMarketRate(assetCode).then(rate => setCoinUsdtRate(rate));
+    }
+  }, [open, assetCode, isNonUsdt]);
   const { data: paymentMethods } = useQuery({
     queryKey: ['sales_payment_methods_bams'],
     queryFn: async () => {
@@ -43,6 +54,14 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
   const approveMutation = useMutation({
     mutationFn: async () => {
       if (!record || !paymentMethodId) throw new Error('Select a payment method');
+
+      // Fetch live CoinUSDT rate for non-USDT assets
+      let marketRate: number | null = null;
+      if (isNonUsdt) {
+        marketRate = await fetchCoinMarketRate(assetCode);
+      } else {
+        marketRate = 1.0;
+      }
 
       const userId = getCurrentUserId();
 
@@ -81,7 +100,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           source: 'terminal_small_sales',
           sale_type: 'small_sale',
           description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
-        })
+          market_rate_usdt: marketRate,
+        } as any)
         .select('id')
         .single();
 
@@ -193,6 +213,36 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
               </div>
             </div>
           </div>
+
+          {/* USDT Equivalent for non-USDT assets */}
+          {isNonUsdt && coinUsdtRate && coinUsdtRate > 0 && (() => {
+            const qty = Number(record.total_quantity || 0);
+            const totalAmt = Number(record.total_amount || 0);
+            const usdtEquivQty = qty * coinUsdtRate;
+            const equivUsdtRate = usdtEquivQty > 0 ? totalAmt / usdtEquivQty : 0;
+            return (
+              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-xs font-semibold text-blue-900 dark:text-blue-400 mb-1.5 flex items-center gap-1">
+                  <Coins className="h-3.5 w-3.5" />
+                  USDT Equivalent (Live)
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span className="text-blue-700 dark:text-blue-500">{assetCode}/USDT</span>
+                    <p className="font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(coinUsdtRate, 6)}</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700 dark:text-blue-500">USDT Qty</span>
+                    <p className="font-medium text-blue-900 dark:text-blue-300">{formatSmartDecimal(usdtEquivQty, 4)}</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700 dark:text-blue-500">USDT Rate</span>
+                    <p className="font-medium text-blue-900 dark:text-blue-300">₹{formatSmartDecimal(equivUsdtRate, 2)}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           <Separator />
 

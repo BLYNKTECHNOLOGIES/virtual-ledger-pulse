@@ -31,7 +31,7 @@ interface UserAssignment {
   lastName: string | null;
   email: string;
   roles: TerminalRole[];
-  supervisorName: string | null;
+  supervisorNames: string[];
   specialization: string | null;
   shift: string | null;
   isActive: boolean;
@@ -58,10 +58,11 @@ export function TerminalUsersList() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [rolesRes, usersRes, profilesRes] = await Promise.all([
+      const [rolesRes, usersRes, profilesRes, supervisorMapsRes] = await Promise.all([
         supabase.rpc("list_terminal_roles"),
         supabase.from("users").select("id, username, first_name, last_name, email").eq("status", "ACTIVE"),
-        supabase.from("terminal_user_profiles").select("user_id, reports_to, specialization, shift, is_active"),
+        supabase.from("terminal_user_profiles").select("user_id, specialization, shift, is_active"),
+        supabase.from("terminal_user_supervisor_mappings").select("user_id, supervisor_id"),
       ]);
 
       const roles: TerminalRole[] = (rolesRes.data || []).map((r: any) => ({
@@ -88,12 +89,25 @@ export function TerminalUsersList() {
         userRoleMap.set(a.user_id, existing);
       });
 
+      // Build supervisor lookup
+      const userSupervisorsMap = new Map<string, string[]>();
+      (supervisorMapsRes.data || []).forEach(m => {
+        const list = userSupervisorsMap.get(m.user_id) || [];
+        list.push(m.supervisor_id);
+        userSupervisorsMap.set(m.user_id, list);
+      });
+
       const result: UserAssignment[] = [];
       for (const [userId, roleIds] of userRoleMap) {
         const user = usersMap.get(userId);
         if (!user) continue;
         const profile = profilesMap.get(userId);
-        const supervisorUser = profile?.reports_to ? usersMap.get(profile.reports_to) : null;
+        const supervisorIds = userSupervisorsMap.get(userId) || [];
+        const supervisorNames = supervisorIds.map(sid => {
+          const su = usersMap.get(sid);
+          if (!su) return null;
+          return su.first_name && su.last_name ? `${su.first_name} ${su.last_name}` : su.username;
+        }).filter(Boolean) as string[];
         result.push({
           userId: user.id,
           username: user.username,
@@ -101,11 +115,7 @@ export function TerminalUsersList() {
           lastName: user.last_name,
           email: user.email,
           roles: roleIds.map((rid) => roles.find((r) => r.id === rid)).filter(Boolean) as TerminalRole[],
-          supervisorName: supervisorUser
-            ? (supervisorUser.first_name && supervisorUser.last_name
-              ? `${supervisorUser.first_name} ${supervisorUser.last_name}`
-              : supervisorUser.username)
-            : null,
+          supervisorNames,
           specialization: profile?.specialization || null,
           shift: profile?.shift || null,
           isActive: profile?.is_active !== false,
@@ -306,8 +316,12 @@ export function TerminalUsersList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {a.supervisorName ? (
-                      <span className="text-xs text-muted-foreground">{a.supervisorName}</span>
+                    {a.supervisorNames.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {a.supervisorNames.map((name, i) => (
+                          <Badge key={i} variant="outline" className="text-[10px]">{name}</Badge>
+                        ))}
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground/50 italic">—</span>
                     )}

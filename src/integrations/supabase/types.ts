@@ -8224,6 +8224,27 @@ export type Database = {
           },
         ]
       }
+      terminal_user_supervisor_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          supervisor_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          supervisor_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          supervisor_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       terminal_wallet_links: {
         Row: {
           api_identifier: string

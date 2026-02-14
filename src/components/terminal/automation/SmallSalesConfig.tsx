@@ -9,6 +9,7 @@ import { Settings, Save, BarChart3 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 export function SmallSalesConfig() {
   const { toast } = useToast();
@@ -73,10 +74,16 @@ export function SmallSalesConfig() {
         .eq('id', config.id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['small_sales_config'] });
       queryClient.invalidateQueries({ queryKey: ['small_sales_preview'] });
       toast({ title: 'Config updated' });
+      if ('is_enabled' in variables) {
+        logAdAction({ actionType: AdActionTypes.SMALL_SALES_TOGGLED, adDetails: { is_enabled: variables.is_enabled } });
+      }
+      if ('min_amount' in variables || 'max_amount' in variables) {
+        logAdAction({ actionType: AdActionTypes.SMALL_SALES_RANGE_CHANGED, adDetails: { min_amount: variables.min_amount, max_amount: variables.max_amount } });
+      }
     },
     onError: () => toast({ title: 'Error', description: 'Failed to update config', variant: 'destructive' }),
   });

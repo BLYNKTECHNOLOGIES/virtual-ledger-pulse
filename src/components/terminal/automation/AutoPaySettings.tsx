@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Timer, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
 export function AutoPaySettings() {
   const queryClient = useQueryClient();
@@ -58,9 +59,15 @@ export function AutoPaySettings() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["auto-pay-settings"] });
       toast.success("Auto-pay settings updated");
+      if ('is_active' in variables) {
+        logAdAction({ actionType: AdActionTypes.AUTO_PAY_TOGGLED, adDetails: { is_active: variables.is_active } });
+      }
+      if ('minutes_before_expiry' in variables) {
+        logAdAction({ actionType: AdActionTypes.AUTO_PAY_MINUTES_CHANGED, adDetails: { minutes_before_expiry: variables.minutes_before_expiry } });
+      }
     },
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });

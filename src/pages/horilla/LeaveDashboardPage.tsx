@@ -10,7 +10,7 @@ export default function LeaveDashboardPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("hr_leave_requests")
-        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(name, department), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
+        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
         .order("created_at", { ascending: false })
         .limit(100);
       return data || [];
@@ -44,7 +44,7 @@ export default function LeaveDashboardPage() {
         <p className="text-sm text-gray-500">Overview of leave requests and allocations</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Requests", value: stats.total, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Approved", value: stats.approved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
@@ -60,7 +60,7 @@ export default function LeaveDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-sm">Requests by Leave Type</CardTitle></CardHeader>
           <CardContent>
@@ -87,7 +87,7 @@ export default function LeaveDashboardPage() {
               {requests.slice(0, 10).map((r: any) => (
                 <div key={r.id} className="px-4 py-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{r.hr_employees?.name}</p>
+                    <p className="text-sm font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
                     <p className="text-xs text-gray-500">{r.hr_leave_types?.name} • {r.start_date} to {r.end_date}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${

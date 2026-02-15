@@ -1,119 +1,118 @@
-import { 
-  Users, UserPlus, Clock, CalendarDays, TrendingUp, TrendingDown,
-  AlertCircle, CheckCircle, ArrowUpRight
+import {
+  Users, UserPlus, CheckCircle, CalendarDays, DollarSign,
+  Laptop, TrendingUp, AlertCircle
 } from "lucide-react";
 
 const statCards = [
-  { label: "Total Employees", value: "0", change: "+0%", icon: Users, color: "#3b82f6", bgColor: "#eff6ff" },
-  { label: "New Hires", value: "0", change: "+0%", icon: UserPlus, color: "#10b981", bgColor: "#ecfdf5" },
-  { label: "On Leave", value: "0", change: "0%", icon: CalendarDays, color: "#f59e0b", bgColor: "#fffbeb" },
-  { label: "Late Today", value: "0", change: "0%", icon: Clock, color: "#ef4444", bgColor: "#fef2f2" },
+  { label: "Total Employees", value: "129", sub: "+4 this month", subColor: "text-emerald-500", icon: Users, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
+  { label: "Open Positions", value: "8", sub: "3 urgent", subColor: "text-amber-500", icon: UserPlus, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+  { label: "Present Today", value: "112", sub: "86.8% attendance", subColor: "text-emerald-500", icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { label: "On Leave", value: "17", sub: "13.2% of workforce", subColor: "text-gray-500", icon: CalendarDays, iconBg: "bg-rose-100", iconColor: "text-rose-600" },
+  { label: "Payroll This Month", value: "$284K", sub: "+2.1% vs last month", subColor: "text-emerald-500", icon: DollarSign, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+  { label: "Assets Assigned", value: "87", sub: "3 pending", subColor: "text-gray-500", icon: Laptop, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+  { label: "Avg Performance", value: "4.2", sub: "Above target", subColor: "text-emerald-500", icon: TrendingUp, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  { label: "Pending Requests", value: "12", sub: "5 urgent", subColor: "text-rose-500", icon: AlertCircle, iconBg: "bg-rose-100", iconColor: "text-rose-600" },
+];
+
+const departments = [
+  { name: "Engineering", count: 45, pct: 35, color: "bg-[#6C63FF]" },
+  { name: "Marketing", count: 22, pct: 17, color: "bg-[#6C63FF]" },
+  { name: "Sales", count: 28, pct: 22, color: "bg-[#6C63FF]" },
+  { name: "HR", count: 12, pct: 9, color: "bg-[#6C63FF]" },
+  { name: "Finance", count: 18, pct: 14, color: "bg-[#6C63FF]" },
+  { name: "Operations", count: 4, pct: 3, color: "bg-[#6C63FF]" },
+];
+
+const recentActivity = [
+  { text: "John Doe requested leave", time: "2 min ago" },
+  { text: "Jane Smith checked in", time: "15 min ago" },
+  { text: "New candidate applied for Developer", time: "1 hr ago" },
+  { text: "Payroll processed for January", time: "3 hrs ago" },
+  { text: "Asset laptop assigned to Mike", time: "5 hrs ago" },
+];
+
+const upcomingLeaves = [
+  { name: "Alice Johnson", dept: "Engineering", date: "Feb 18-20", type: "Vacation", typeColor: "bg-gray-100 text-gray-700" },
+  { name: "Bob Williams", dept: "Marketing", date: "Feb 19", type: "Sick", typeColor: "bg-rose-100 text-rose-700" },
+  { name: "Carol Davis", dept: "HR", date: "Feb 21-22", type: "Personal", typeColor: "bg-gray-100 text-gray-700" },
 ];
 
 export default function HorillaDashboard() {
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Welcome back! Here's your HR overview.</p>
+        <p className="text-sm text-gray-500 mt-1">Welcome back! Here's what's happening today.</p>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">{card.label}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">{card.value}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  <TrendingUp className="h-3 w-3 text-green-500" />
-                  <span className="text-xs text-green-600 font-medium">{card.change}</span>
-                  <span className="text-xs text-gray-400 ml-1">vs last month</span>
-                </div>
-              </div>
-              <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: card.bgColor }}
-              >
-                <card.icon className="h-5 w-5" style={{ color: card.color }} />
-              </div>
+      {/* 8 stat cards — 4 per row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {statCards.map((c) => (
+          <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-500">{c.label}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p>
+              <p className={`text-xs mt-1 ${c.subColor}`}>{c.sub}</p>
+            </div>
+            <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shrink-0`}>
+              <c.icon className={`h-5 w-5 ${c.iconColor}`} />
             </div>
           </div>
         ))}
       </div>
 
-      {/* Quick actions + Recent activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
+      {/* Bottom row: 3 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Department Distribution */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-2">
-            {[
-              { label: "Add New Employee", icon: UserPlus, path: "/hrms/employee" },
-              { label: "Mark Attendance", icon: Clock, path: "/hrms/attendance" },
-              { label: "Create Recruitment", icon: Users, path: "/hrms/recruitment" },
-              { label: "Process Payroll", icon: CalendarDays, path: "/hrms/payroll" },
-            ].map((action) => (
-              <button
-                key={action.label}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[#E8604C]/10 flex items-center justify-center group-hover:bg-[#E8604C]/20 transition-colors">
-                  <action.icon className="h-4 w-4 text-[#E8604C]" />
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Department Distribution</h3>
+          <div className="space-y-3">
+            {departments.map((d) => (
+              <div key={d.name}>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-gray-700">{d.name}</span>
+                  <span className="text-gray-500">{d.count} ({d.pct}%)</span>
                 </div>
-                <span className="font-medium">{action.label}</span>
-                <ArrowUpRight className="h-3.5 w-3.5 text-gray-400 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${d.color}`} style={{ width: `${d.pct}%` }} />
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
-        {/* Pending Approvals */}
+        {/* Recent Activity */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Pending Approvals</h3>
-          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-            <CheckCircle className="h-10 w-10 mb-2 text-gray-300" />
-            <p className="text-sm">No pending approvals</p>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <div className="space-y-4">
+            {recentActivity.map((a, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full bg-[#6C63FF] mt-1.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-gray-800">{a.text}</p>
+                  <p className="text-xs text-gray-400">{a.time}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Announcements */}
+        {/* Upcoming Leaves */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Announcements</h3>
-          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-            <AlertCircle className="h-10 w-10 mb-2 text-gray-300" />
-            <p className="text-sm">No announcements</p>
+          <h3 className="text-base font-semibold text-gray-900 mb-4">Upcoming Leaves</h3>
+          <div className="space-y-3">
+            {upcomingLeaves.map((l, i) => (
+              <div key={i} className="flex items-center justify-between py-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{l.name}</p>
+                  <p className="text-xs text-gray-400">{l.dept} · {l.date}</p>
+                </div>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${l.typeColor}`}>
+                  {l.type}
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Department Overview */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-base font-semibold text-gray-900 mb-4">Department Overview</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Department</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Employees</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Active</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">On Leave</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Open Positions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={5} className="py-8 text-center text-gray-400">
-                  Connect employee data to see department overview
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

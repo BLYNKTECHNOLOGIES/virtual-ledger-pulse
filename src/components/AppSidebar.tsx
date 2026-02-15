@@ -122,47 +122,38 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-blue-600",
     bgColor: "bg-blue-100",
     permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
+  },
+  {
+    id: "hrms",
+    title: "HRMS",
+    url: "/hrms",
+    icon: UserCheck,
+    color: "text-pink-600",
+    bgColor: "bg-pink-100",
+    permissions: ["hrms_view", "hrms_manage"]
+  },
+  {
+    id: "payroll",
+    title: "Payroll",
+    url: "/payroll",
+    icon: Calculator,
+    color: "text-blue-700",
+    bgColor: "bg-blue-100",
+    permissions: ["payroll_view", "payroll_manage"]
+  },
+  {
+    id: "ems",
+    title: "EMS",
+    url: "/ems",
+    icon: UserCheck,
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+    permissions: ["hrms_view", "hrms_manage"]
   }
 ];
 
 // Grouped items (PIN protection removed - now using role-based access)
 const sidebarGroups: SidebarGroupConfig[] = [
-  {
-    id: "hr-management",
-    title: "HR Management",
-    icon: Users,
-    color: "text-pink-600",
-    bgColor: "bg-pink-100",
-    children: [
-      {
-        id: "hrms",
-        title: "HRMS",
-        url: "/hrms",
-        icon: UserCheck,
-        color: "text-pink-600",
-        bgColor: "bg-pink-100",
-        permissions: ["hrms_view", "hrms_manage"]
-      },
-      {
-        id: "payroll",
-        title: "Payroll",
-        url: "/payroll",
-        icon: Calculator,
-        color: "text-blue-700",
-        bgColor: "bg-blue-100",
-        permissions: ["payroll_view", "payroll_manage"]
-      },
-      {
-        id: "ems",
-        title: "EMS",
-        url: "/ems",
-        icon: UserCheck,
-        color: "text-indigo-600",
-        bgColor: "bg-indigo-100",
-        permissions: ["hrms_view", "hrms_manage"]
-      }
-    ]
-  },
   {
     id: "finance-analytics",
     title: "Finance & Analytics",

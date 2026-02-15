@@ -171,17 +171,29 @@ export default function EmployeeProfilePage() {
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#E8604C]";
 
-  const InfoRow = ({ label, value, icon: Icon, editKey }: { label: string; value: string | null; icon?: any; editKey?: string }) => (
+  const InfoRow = ({ label, value, icon: Icon, editKey, inputType, selectOptions }: { label: string; value: string | null; icon?: any; editKey?: string; inputType?: string; selectOptions?: { value: string; label: string }[] }) => (
     <div className="flex items-start gap-3 py-2.5">
       {Icon && <Icon className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />}
       <div className="flex-1">
         <p className="text-xs text-gray-400">{label}</p>
         {editing && editKey ? (
-          <input
-            value={editForm[editKey] || ""}
-            onChange={e => setEditForm({ ...editForm, [editKey]: e.target.value })}
-            className={inputCls}
-          />
+          selectOptions ? (
+            <select
+              value={editForm[editKey] || ""}
+              onChange={e => setEditForm({ ...editForm, [editKey]: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">Select</option>
+              {selectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ) : (
+            <input
+              type={inputType || "text"}
+              value={editForm[editKey] || ""}
+              onChange={e => setEditForm({ ...editForm, [editKey]: e.target.value })}
+              className={inputCls}
+            />
+          )
         ) : (
           <p className="text-sm text-gray-800">{value || "—"}</p>
         )}
@@ -279,9 +291,9 @@ export default function EmployeeProfilePage() {
           {activeTab === "About" && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1">
               <h3 className="text-sm font-semibold text-gray-800 col-span-full mb-2">Personal Information</h3>
-              <InfoRow label="Date of Birth" value={emp.dob} icon={Calendar} editKey="dob" />
-              <InfoRow label="Gender" value={emp.gender} icon={User} editKey="gender" />
-              <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" />
+              <InfoRow label="Date of Birth" value={emp.dob} icon={Calendar} editKey="dob" inputType="date" />
+              <InfoRow label="Gender" value={emp.gender} icon={User} editKey="gender" selectOptions={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }, { value: "Other", label: "Other" }]} />
+              <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }, { value: "Widowed", label: "Widowed" }]} />
               <InfoRow label="Phone" value={emp.phone} icon={Phone} editKey="phone" />
               <InfoRow label="Email" value={emp.email} icon={Mail} />
               <InfoRow label="Address" value={emp.address} icon={MapPin} editKey="address" />

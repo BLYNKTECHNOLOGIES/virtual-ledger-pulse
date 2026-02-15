@@ -1,16 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  DragEndEvent, DragStartEvent, DragOverlay
+  DndContext, closestCorners, PointerSensor, useSensor, useSensors,
+  DragEndEvent, DragStartEvent, DragOverEvent, DragOverlay,
+  useDroppable
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Plus, GripVertical, User, Star, X, ArrowLeft, Trash2,
-  Calendar, FileText, MessageSquare
+  Plus, GripVertical, Star, X, ArrowLeft, Trash2,
+  Calendar, FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
@@ -51,6 +52,7 @@ const STAGE_COLORS: Record<string, string> = {
   other: "border-t-gray-400",
 };
 
+/* ─── Draggable Candidate Card ─── */
 function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCancel, onInterview, onOffer }: {
   candidate: Candidate;
   stages: Stage[];
@@ -69,23 +71,19 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.3 : 1,
   };
 
   const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
   const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
   const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
-
   const stageIdx = stages.findIndex(s => s.id === currentStageId);
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-grab active:cursor-grabbing group"
-    >
+    <div ref={setNodeRef} style={style}
+      className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-all group">
       <div className="flex items-start gap-2.5">
-        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-gray-500 cursor-grab">
+        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
         {candidate.profile_image_url ? (
@@ -101,7 +99,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         </div>
       </div>
 
-      {/* Actions row */}
+      {/* Actions */}
       <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
         {stageIdx < stages.length - 1 && (
           <button onClick={() => onMove(candidate.id, stages[stageIdx + 1].id)}
@@ -125,8 +123,8 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         )}
       </div>
 
-      {/* Rating + source + offer status */}
-      <div className="flex items-center gap-2 mt-2">
+      {/* Badges */}
+      <div className="flex items-center gap-2 mt-2 flex-wrap">
         {candidate.rating !== null && candidate.rating > 0 && (
           <div className="flex items-center gap-0.5">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -152,6 +150,32 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
   );
 }
 
+/* ─── Droppable Stage Column ─── */
+function StageColumn({ stage, children, candidateIds }: {
+  stage: Stage;
+  children: React.ReactNode;
+  candidateIds: string[];
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `stage-${stage.id}`,
+    data: { type: "stage", stageId: stage.id },
+  });
+
+  return (
+    <SortableContext items={candidateIds} strategy={verticalListSortingStrategy}>
+      <div
+        ref={setNodeRef}
+        className={`flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-[100px] rounded-b-xl transition-colors ${
+          isOver ? "bg-blue-50/50 ring-2 ring-blue-200 ring-inset" : ""
+        }`}
+      >
+        {children}
+      </div>
+    </SortableContext>
+  );
+}
+
+/* ─── Main Pipeline Page ─── */
 export default function RecruitmentPipelinePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -163,8 +187,6 @@ export default function RecruitmentPipelinePage() {
   const [candidateForm, setCandidateForm] = useState({ name: "", email: "", mobile: "", source: "" });
   const [stageForm, setStageForm] = useState({ stage_name: "", stage_type: "other" });
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-
-  // Interview & Offer dialogs
   const [interviewCandidate, setInterviewCandidate] = useState<Candidate | null>(null);
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null);
 
@@ -251,7 +273,10 @@ export default function RecruitmentPipelinePage() {
       const { error } = await supabase.from("hr_candidates").update({ stage_id: newStageId }).eq("id", candidateId);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_candidates"] }),
+    onSuccess: () => {
+      toast.success("Candidate moved");
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+    },
   });
 
   const hireCandidateMutation = useMutation({
@@ -281,8 +306,26 @@ export default function RecruitmentPipelinePage() {
 
   const stageColor = (type: string) => STAGE_COLORS[type] || STAGE_COLORS.other;
 
+  /* ─── DnD Handlers ─── */
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
+  };
+
+  const resolveStageId = (overId: string | number, overData: any): string | null => {
+    // If dropped on a droppable stage column
+    if (overData?.type === "stage") return overData.stageId;
+    // If dropped on another candidate
+    if (overData?.type === "candidate") return overData.stageId;
+    // If overId starts with "stage-" it's a stage droppable
+    const overStr = String(overId);
+    if (overStr.startsWith("stage-")) return overStr.replace("stage-", "");
+    // Check if overId matches a stage id directly
+    if (stages?.find(s => s.id === overStr)) return overStr;
+    return null;
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    // Optional: Could add optimistic UI here
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -291,18 +334,7 @@ export default function RecruitmentPipelinePage() {
     if (!over || !stages) return;
 
     const candidateId = active.id as string;
-    // Determine target stage - over could be a stage column or another candidate
-    let targetStageId: string | null = null;
-
-    // Check if dropped over a stage droppable
-    const overData = over.data?.current;
-    if (overData?.type === "candidate") {
-      targetStageId = overData.stageId;
-    } else {
-      // Dropped directly on a stage
-      targetStageId = over.id as string;
-    }
-
+    const targetStageId = resolveStageId(over.id, over.data?.current);
     if (!targetStageId) return;
 
     const currentCandidate = candidates?.find(c => c.id === candidateId);
@@ -324,17 +356,15 @@ export default function RecruitmentPipelinePage() {
           <div>
             <h1 className="text-xl font-bold text-gray-900">{activeRec?.title || "Pipeline"}</h1>
             <p className="text-xs text-gray-500">
-              {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates` : "Select a recruitment"}
+              {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {recruitments && recruitments.length > 1 && (
-            <select
-              value={activeRec?.id || ""}
+            <select value={activeRec?.id || ""}
               onChange={e => navigate(`/hrms/recruitment/pipeline?id=${e.target.value}`)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
-            >
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white">
               {recruitments.map(r => (
                 <option key={r.id} value={r.id}>{r.title}</option>
               ))}
@@ -347,7 +377,7 @@ export default function RecruitmentPipelinePage() {
         </div>
       </div>
 
-      {/* Kanban Board with DnD */}
+      {/* Kanban Board */}
       {!activeRec ? (
         <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
           No active recruitment found. Create one first.
@@ -362,16 +392,20 @@ export default function RecruitmentPipelinePage() {
           </div>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
           <div className="flex-1 overflow-x-auto">
             <div className="flex gap-4 h-full min-h-[500px] pb-4">
               {stages.map(stage => {
                 const stageCandidates = getCandidatesForStage(stage.id);
                 return (
-                  <div
-                    key={stage.id}
-                    className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}
-                  >
+                  <div key={stage.id}
+                    className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}>
                     {/* Stage header */}
                     <div className="px-3 py-3 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2">
@@ -384,8 +418,7 @@ export default function RecruitmentPipelinePage() {
                         <button
                           onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
                           className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
-                          title="Add candidate"
-                        >
+                          title="Add candidate">
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                         <button
@@ -399,42 +432,38 @@ export default function RecruitmentPipelinePage() {
                             }
                           }}
                           className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Delete stage"
-                        >
+                          title="Delete stage">
                           <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
 
-                    {/* Candidates with sortable context */}
-                    <SortableContext items={stageCandidates.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2" data-stage-id={stage.id}>
-                        {stageCandidates.map(c => (
-                          <CandidateCard
-                            key={c.id}
-                            candidate={c}
-                            stages={stages}
-                            currentStageId={stage.id}
-                            onMove={(cId, sId) => moveCandidateMutation.mutate({ candidateId: cId, newStageId: sId })}
-                            onHire={(id) => hireCandidateMutation.mutate(id)}
-                            onCancel={(id) => cancelCandidateMutation.mutate(id)}
-                            onInterview={(c) => setInterviewCandidate(c)}
-                            onOffer={(c) => setOfferCandidate(c)}
-                          />
-                        ))}
-                        {stageCandidates.length === 0 && (
-                          <div className="text-center py-6">
-                            <p className="text-xs text-gray-400">No candidates</p>
-                            <button
-                              onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                              className="text-xs text-[#E8604C] mt-1 hover:underline"
-                            >
-                              + Add candidate
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </SortableContext>
+                    {/* Droppable stage body */}
+                    <StageColumn stage={stage} candidateIds={stageCandidates.map(c => c.id)}>
+                      {stageCandidates.map(c => (
+                        <CandidateCard
+                          key={c.id}
+                          candidate={c}
+                          stages={stages}
+                          currentStageId={stage.id}
+                          onMove={(cId, sId) => moveCandidateMutation.mutate({ candidateId: cId, newStageId: sId })}
+                          onHire={(id) => hireCandidateMutation.mutate(id)}
+                          onCancel={(id) => cancelCandidateMutation.mutate(id)}
+                          onInterview={(c) => setInterviewCandidate(c)}
+                          onOffer={(c) => setOfferCandidate(c)}
+                        />
+                      ))}
+                      {stageCandidates.length === 0 && (
+                        <div className="text-center py-6">
+                          <p className="text-xs text-gray-400">No candidates</p>
+                          <button
+                            onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
+                            className="text-xs text-[#E8604C] mt-1 hover:underline">
+                            + Add candidate
+                          </button>
+                        </div>
+                      )}
+                    </StageColumn>
                   </div>
                 );
               })}
@@ -442,11 +471,18 @@ export default function RecruitmentPipelinePage() {
           </div>
 
           {/* Drag Overlay */}
-          <DragOverlay>
+          <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
             {draggedCandidate && (
-              <div className="bg-white rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-72 opacity-90">
-                <p className="text-sm font-medium text-gray-900">{draggedCandidate.name}</p>
-                {draggedCandidate.email && <p className="text-[11px] text-gray-400">{draggedCandidate.email}</p>}
+              <div className="bg-white rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-64 opacity-95 rotate-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium text-xs">
+                    {draggedCandidate.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{draggedCandidate.name}</p>
+                    {draggedCandidate.email && <p className="text-[11px] text-gray-400">{draggedCandidate.email}</p>}
+                  </div>
+                </div>
               </div>
             )}
           </DragOverlay>
@@ -466,12 +502,10 @@ export default function RecruitmentPipelinePage() {
             <div className="px-5 py-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
-                <input
-                  value={candidateForm.name}
+                <input value={candidateForm.name}
                   onChange={e => setCandidateForm({ ...candidateForm, name: e.target.value })}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  placeholder="Full name"
-                />
+                  placeholder="Full name" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

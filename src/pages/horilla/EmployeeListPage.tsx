@@ -281,7 +281,21 @@ export default function EmployeeListPage() {
                 <button className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
                   <Edit className="h-3.5 w-3.5" /> Bulk Update
                 </button>
-                <button className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
+                    if (!confirm(`Delete ${selectedIds.size} selected employee(s)? This cannot be undone.`)) return;
+                    Promise.all(Array.from(selectedIds).map(id => supabase.from("hr_employees").delete().eq("id", id)))
+                      .then(() => {
+                        toast.success(`${selectedIds.size} employee(s) deleted`);
+                        queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+                        setSelectedIds(new Set());
+                        setActionsOpen(false);
+                      })
+                      .catch(() => toast.error("Failed to delete"));
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
                   <Trash2 className="h-3.5 w-3.5" /> Bulk Delete
                 </button>
               </div>
@@ -484,6 +498,13 @@ export default function EmployeeListPage() {
                         title="Edit"
                       >
                         <Edit className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(emp); }}
+                        className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>

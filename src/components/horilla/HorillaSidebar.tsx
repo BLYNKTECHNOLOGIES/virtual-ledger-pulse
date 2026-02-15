@@ -104,7 +104,14 @@ const navGroups: NavGroup[] = [
   {
     title: "MANAGEMENT",
     items: [
-      { label: "Assets", icon: Laptop, path: "/hrms/asset" },
+      {
+        label: "Assets", icon: Laptop, path: "/hrms/asset",
+        children: [
+          { label: "Dashboard", path: "/hrms/asset" },
+          { label: "All Assets", path: "/hrms/asset/list" },
+          { label: "Assignments", path: "/hrms/asset/assignments" },
+        ],
+      },
       {
         label: "Performance", icon: BarChart3, path: "/hrms/pms",
         children: [

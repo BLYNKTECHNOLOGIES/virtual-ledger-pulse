@@ -1905,6 +1905,60 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_asset_assignments: {
+        Row: {
+          asset_id: string
+          assigned_by: string | null
+          assigned_date: string
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          return_date: string | null
+          return_reason: string | null
+          status: string
+        }
+        Insert: {
+          asset_id: string
+          assigned_by?: string | null
+          assigned_date?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          return_date?: string | null
+          return_reason?: string | null
+          status?: string
+        }
+        Update: {
+          asset_id?: string
+          assigned_by?: string | null
+          assigned_date?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          return_date?: string | null
+          return_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_asset_assignments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "hr_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_asset_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_assets: {
         Row: {
           asset_type: string

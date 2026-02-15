@@ -9,6 +9,7 @@ export default function DepartmentsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", code: "", description: "", icon: "📁" });
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: departments, isLoading } = useQuery({
     queryKey: ["hr_departments"],
@@ -88,12 +89,17 @@ export default function DepartmentsPage() {
     setAddOpen(true);
   };
 
+  const filteredDepts = (departments || []).filter(d => {
+    const term = searchTerm.toLowerCase();
+    return d.name.toLowerCase().includes(term) || d.code.toLowerCase().includes(term);
+  });
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Departments</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{departments?.length || 0} departments</p>
+          <p className="text-xs text-gray-500 mt-0.5">{filteredDepts.length} department{filteredDepts.length !== 1 ? "s" : ""}</p>
         </div>
         <button
           onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
@@ -104,11 +110,23 @@ export default function DepartmentsPage() {
         </button>
       </div>
 
+      {/* Search bar */}
+      <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-2 w-full max-w-sm">
+        <Building2 className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+        <input
+          type="text"
+          placeholder="Search departments..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full"
+        />
+      </div>
+
       {isLoading ? (
         <div className="text-center py-16 text-gray-400 text-sm">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {(departments || []).map((d) => (
+          {filteredDepts.map((d) => (
             <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -144,8 +162,10 @@ export default function DepartmentsPage() {
               </div>
             </div>
           ))}
-          {(departments || []).length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-400 text-sm">No departments yet</div>
+          {filteredDepts.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-400 text-sm">
+              {searchTerm ? "No departments matching your search" : "No departments yet"}
+            </div>
           )}
         </div>
       )}

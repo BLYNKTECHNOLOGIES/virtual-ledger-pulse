@@ -2867,6 +2867,97 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_interviews: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          duration_minutes: number | null
+          feedback: string | null
+          id: string
+          interview_date: string
+          interview_time: string | null
+          interview_type: string | null
+          interviewer_name: string
+          location: string | null
+          meeting_link: string | null
+          notes: string | null
+          rating: number | null
+          recommendation: string | null
+          recruitment_id: string
+          stage_id: string | null
+          status: string | null
+          strengths: string | null
+          updated_at: string
+          weaknesses: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          feedback?: string | null
+          id?: string
+          interview_date: string
+          interview_time?: string | null
+          interview_type?: string | null
+          interviewer_name: string
+          location?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          rating?: number | null
+          recommendation?: string | null
+          recruitment_id: string
+          stage_id?: string | null
+          status?: string | null
+          strengths?: string | null
+          updated_at?: string
+          weaknesses?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          feedback?: string | null
+          id?: string
+          interview_date?: string
+          interview_time?: string | null
+          interview_type?: string | null
+          interviewer_name?: string
+          location?: string | null
+          meeting_link?: string | null
+          notes?: string | null
+          rating?: number | null
+          recommendation?: string | null
+          recruitment_id?: string
+          stage_id?: string | null
+          status?: string | null
+          strengths?: string | null
+          updated_at?: string
+          weaknesses?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_interviews_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_interviews_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "hr_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_leave_allocation_requests: {
         Row: {
           approved_at: string | null
@@ -3208,6 +3299,81 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_offer_letters: {
+        Row: {
+          accepted_at: string | null
+          candidate_id: string
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          id: string
+          joining_date: string | null
+          negotiation_notes: string | null
+          offer_date: string
+          offered_department: string | null
+          offered_position: string | null
+          offered_salary: number
+          recruitment_id: string
+          rejected_at: string | null
+          rejection_reason: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          candidate_id: string
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          joining_date?: string | null
+          negotiation_notes?: string | null
+          offer_date?: string
+          offered_department?: string | null
+          offered_position?: string | null
+          offered_salary: number
+          recruitment_id: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          candidate_id?: string
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          joining_date?: string | null
+          negotiation_notes?: string | null
+          offer_date?: string
+          offered_department?: string | null
+          offered_position?: string | null
+          offered_salary?: number
+          recruitment_id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_offer_letters_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_offer_letters_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
             referencedColumns: ["id"]
           },
         ]
@@ -3558,11 +3724,19 @@ export type Database = {
         Row: {
           closed: boolean | null
           created_at: string
+          department_id: string | null
           description: string | null
           end_date: string | null
+          experience_level: string | null
           id: string
           is_event_based: boolean | null
           is_published: boolean | null
+          job_type: string | null
+          location: string | null
+          position_id: string | null
+          requirements: string | null
+          salary_max: number | null
+          salary_min: number | null
           skill_ids: string[] | null
           start_date: string | null
           title: string
@@ -3572,11 +3746,19 @@ export type Database = {
         Insert: {
           closed?: boolean | null
           created_at?: string
+          department_id?: string | null
           description?: string | null
           end_date?: string | null
+          experience_level?: string | null
           id?: string
           is_event_based?: boolean | null
           is_published?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          position_id?: string | null
+          requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
           skill_ids?: string[] | null
           start_date?: string | null
           title: string
@@ -3586,18 +3768,41 @@ export type Database = {
         Update: {
           closed?: boolean | null
           created_at?: string
+          department_id?: string | null
           description?: string | null
           end_date?: string | null
+          experience_level?: string | null
           id?: string
           is_event_based?: boolean | null
           is_published?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          position_id?: string | null
+          requirements?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
           skill_ids?: string[] | null
           start_date?: string | null
           title?: string
           updated_at?: string
           vacancy?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hr_recruitments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_recruitments_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_rejected_candidates: {
         Row: {

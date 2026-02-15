@@ -3,10 +3,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Plus, GripVertical, User, Mail, Phone, Star, MoreVertical,
-  ChevronDown, X, ArrowLeft, Eye, UserCheck, UserX, Trash2
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DragEndEvent, DragStartEvent, DragOverlay
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  Plus, GripVertical, User, Star, X, ArrowLeft, Trash2,
+  Calendar, FileText, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
+import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
+import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
 
 interface Stage {
   id: string;
@@ -29,6 +37,7 @@ interface Candidate {
   source: string | null;
   profile_image_url: string | null;
   schedule_date: string | null;
+  offer_letter_status: string | null;
   created_at: string;
 }
 
@@ -42,6 +51,107 @@ const STAGE_COLORS: Record<string, string> = {
   other: "border-t-gray-400",
 };
 
+function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCancel, onInterview, onOffer }: {
+  candidate: Candidate;
+  stages: Stage[];
+  currentStageId: string;
+  onMove: (candidateId: string, newStageId: string) => void;
+  onHire: (id: string) => void;
+  onCancel: (id: string) => void;
+  onInterview: (c: Candidate) => void;
+  onOffer: (c: Candidate) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: candidate.id,
+    data: { type: "candidate", stageId: currentStageId },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
+  const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
+
+  const stageIdx = stages.findIndex(s => s.id === currentStageId);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-grab active:cursor-grabbing group"
+    >
+      <div className="flex items-start gap-2.5">
+        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-gray-500 cursor-grab">
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+        {candidate.profile_image_url ? (
+          <img src={candidate.profile_image_url} className="w-8 h-8 rounded-full object-cover" alt="" />
+        ) : (
+          <div className={`w-8 h-8 rounded-full ${getColor(candidate.id)} flex items-center justify-center text-white font-medium text-xs shrink-0`}>
+            {initials(candidate.name)}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{candidate.name}</p>
+          {candidate.email && <p className="text-[11px] text-gray-400 truncate">{candidate.email}</p>}
+        </div>
+      </div>
+
+      {/* Actions row */}
+      <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
+        {stageIdx < stages.length - 1 && (
+          <button onClick={() => onMove(candidate.id, stages[stageIdx + 1].id)}
+            className="text-[10px] text-[#E8604C] hover:underline px-1">Next →</button>
+        )}
+        <button onClick={() => onInterview(candidate)}
+          className="text-[10px] text-blue-600 hover:underline px-1 flex items-center gap-0.5">
+          <Calendar className="h-2.5 w-2.5" />Interview
+        </button>
+        <button onClick={() => onOffer(candidate)}
+          className="text-[10px] text-violet-600 hover:underline px-1 flex items-center gap-0.5">
+          <FileText className="h-2.5 w-2.5" />Offer
+        </button>
+        {!candidate.hired && !candidate.canceled && (
+          <button onClick={() => onHire(candidate.id)}
+            className="text-[10px] text-emerald-600 hover:underline px-1">Hire ✓</button>
+        )}
+        {!candidate.canceled && !candidate.hired && (
+          <button onClick={() => onCancel(candidate.id)}
+            className="text-[10px] text-red-500 hover:underline px-1">Cancel ✗</button>
+        )}
+      </div>
+
+      {/* Rating + source + offer status */}
+      <div className="flex items-center gap-2 mt-2">
+        {candidate.rating !== null && candidate.rating > 0 && (
+          <div className="flex items-center gap-0.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star key={i} className={`h-3 w-3 ${i < (candidate.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+            ))}
+          </div>
+        )}
+        {candidate.source && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{candidate.source}</span>
+        )}
+        {candidate.offer_letter_status && candidate.offer_letter_status !== "none" && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+            candidate.offer_letter_status === "accepted" ? "bg-emerald-100 text-emerald-700" :
+            candidate.offer_letter_status === "rejected" ? "bg-red-100 text-red-700" :
+            candidate.offer_letter_status === "sent" ? "bg-blue-100 text-blue-700" :
+            "bg-gray-100 text-gray-600"
+          }`}>
+            Offer: {candidate.offer_letter_status}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function RecruitmentPipelinePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -52,6 +162,15 @@ export default function RecruitmentPipelinePage() {
   const [addStageOpen, setAddStageOpen] = useState(false);
   const [candidateForm, setCandidateForm] = useState({ name: "", email: "", mobile: "", source: "" });
   const [stageForm, setStageForm] = useState({ stage_name: "", stage_type: "other" });
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  // Interview & Offer dialogs
+  const [interviewCandidate, setInterviewCandidate] = useState<Candidate | null>(null);
+  const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
 
   const { data: recruitments } = useQuery({
     queryKey: ["hr_recruitments"],
@@ -70,11 +189,7 @@ export default function RecruitmentPipelinePage() {
     queryKey: ["hr_stages", activeRec?.id],
     queryFn: async () => {
       if (!activeRec) return [];
-      const { data, error } = await supabase
-        .from("hr_stages")
-        .select("*")
-        .eq("recruitment_id", activeRec.id)
-        .order("sequence");
+      const { data, error } = await supabase.from("hr_stages").select("*").eq("recruitment_id", activeRec.id).order("sequence");
       if (error) throw error;
       return (data || []) as Stage[];
     },
@@ -85,11 +200,7 @@ export default function RecruitmentPipelinePage() {
     queryKey: ["hr_candidates", activeRec?.id],
     queryFn: async () => {
       if (!activeRec) return [];
-      const { data, error } = await supabase
-        .from("hr_candidates")
-        .select("*")
-        .eq("recruitment_id", activeRec.id)
-        .order("sequence");
+      const { data, error } = await supabase.from("hr_candidates").select("*").eq("recruitment_id", activeRec.id).order("sequence");
       if (error) throw error;
       return (data || []) as Candidate[];
     },
@@ -151,7 +262,6 @@ export default function RecruitmentPipelinePage() {
     onSuccess: () => {
       toast.success("Candidate marked as hired");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
-      queryClient.invalidateQueries({ queryKey: ["hr_candidates_hired_not_onboarding"] });
     },
   });
 
@@ -171,9 +281,37 @@ export default function RecruitmentPipelinePage() {
 
   const stageColor = (type: string) => STAGE_COLORS[type] || STAGE_COLORS.other;
 
-  const initials = (name: string) => name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
-  const getColor = (id: string) => avatarColors[id.charCodeAt(0) % avatarColors.length];
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over || !stages) return;
+
+    const candidateId = active.id as string;
+    // Determine target stage - over could be a stage column or another candidate
+    let targetStageId: string | null = null;
+
+    // Check if dropped over a stage droppable
+    const overData = over.data?.current;
+    if (overData?.type === "candidate") {
+      targetStageId = overData.stageId;
+    } else {
+      // Dropped directly on a stage
+      targetStageId = over.id as string;
+    }
+
+    if (!targetStageId) return;
+
+    const currentCandidate = candidates?.find(c => c.id === candidateId);
+    if (currentCandidate && currentCandidate.stage_id !== targetStageId) {
+      moveCandidateMutation.mutate({ candidateId, newStageId: targetStageId });
+    }
+  };
+
+  const draggedCandidate = activeDragId ? candidates?.find(c => c.id === activeDragId) : null;
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -184,17 +322,13 @@ export default function RecruitmentPipelinePage() {
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              {activeRec?.title || "Pipeline"}
-            </h1>
+            <h1 className="text-xl font-bold text-gray-900">{activeRec?.title || "Pipeline"}</h1>
             <p className="text-xs text-gray-500">
               {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates` : "Select a recruitment"}
             </p>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
-          {/* Recruitment selector */}
           {recruitments && recruitments.length > 1 && (
             <select
               value={activeRec?.id || ""}
@@ -206,16 +340,14 @@ export default function RecruitmentPipelinePage() {
               ))}
             </select>
           )}
-          <button
-            onClick={() => setAddStageOpen(true)}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white hover:bg-gray-50"
-          >
+          <button onClick={() => setAddStageOpen(true)}
+            className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white hover:bg-gray-50">
             <Plus className="h-3.5 w-3.5" /> Add Stage
           </button>
         </div>
       </div>
 
-      {/* Kanban Board */}
+      {/* Kanban Board with DnD */}
       {!activeRec ? (
         <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
           No active recruitment found. Create one first.
@@ -230,147 +362,95 @@ export default function RecruitmentPipelinePage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 h-full min-h-[500px] pb-4">
-            {stages.map(stage => {
-              const stageCandidates = getCandidatesForStage(stage.id);
-              return (
-                <div
-                  key={stage.id}
-                  className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}
-                >
-                   {/* Stage header */}
-                  <div className="px-3 py-3 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-gray-900">{stage.stage_name}</h3>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
-                        {stageCandidates.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      <button
-                        onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                        className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
-                        title="Add candidate"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (stageCandidates.length > 0) { toast.error("Remove all candidates from this stage first"); return; }
-                          if (confirm(`Delete stage "${stage.stage_name}"?`)) {
-                            supabase.from("hr_stages").delete().eq("id", stage.id).then(({ error }) => {
-                              if (error) toast.error("Failed to delete stage");
-                              else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
-                            });
-                          }
-                        }}
-                        className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Delete stage"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Candidates */}
-                  <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2">
-                    {stageCandidates.map(c => (
-                      <div
-                        key={c.id}
-                        className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer group"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          {c.profile_image_url ? (
-                            <img src={c.profile_image_url} className="w-8 h-8 rounded-full object-cover" alt="" />
-                          ) : (
-                            <div className={`w-8 h-8 rounded-full ${getColor(c.id)} flex items-center justify-center text-white font-medium text-xs shrink-0`}>
-                              {initials(c.name)}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
-                            {c.email && <p className="text-[11px] text-gray-400 truncate">{c.email}</p>}
-                          </div>
-                          {/* Actions */}
-                          <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {stages.findIndex(s => s.id === stage.id) < stages.length - 1 && (
-                              <button
-                                onClick={() => {
-                                  const idx = stages.findIndex(s => s.id === stage.id);
-                                  if (idx < stages.length - 1) {
-                                    moveCandidateMutation.mutate({ candidateId: c.id, newStageId: stages[idx + 1].id });
-                                  }
-                                }}
-                                className="text-[10px] text-[#E8604C] hover:underline"
-                                title="Move to next stage"
-                              >
-                                Next →
-                              </button>
-                            )}
-                            {!c.hired && !c.canceled && (
-                              <button
-                                onClick={() => hireCandidateMutation.mutate(c.id)}
-                                className="text-[10px] text-emerald-600 hover:underline"
-                                title="Mark as Hired"
-                              >
-                                Hire ✓
-                              </button>
-                            )}
-                            {!c.canceled && !c.hired && (
-                              <button
-                                onClick={() => cancelCandidateMutation.mutate(c.id)}
-                                className="text-[10px] text-red-500 hover:underline"
-                                title="Cancel"
-                              >
-                                Cancel ✗
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Rating + source */}
-                        <div className="flex items-center gap-2 mt-2">
-                          {c.rating !== null && c.rating > 0 && (
-                            <div className="flex items-center gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < (c.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`}
-                                />
-                              ))}
-                            </div>
-                          )}
-                          {c.source && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{c.source}</span>
-                          )}
-                        </div>
-
-                        {c.schedule_date && (
-                          <p className="text-[10px] text-gray-400 mt-1.5">
-                            📅 {new Date(c.schedule_date).toLocaleDateString()}
-                          </p>
-                        )}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="flex-1 overflow-x-auto">
+            <div className="flex gap-4 h-full min-h-[500px] pb-4">
+              {stages.map(stage => {
+                const stageCandidates = getCandidatesForStage(stage.id);
+                return (
+                  <div
+                    key={stage.id}
+                    className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}
+                  >
+                    {/* Stage header */}
+                    <div className="px-3 py-3 flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900">{stage.stage_name}</h3>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                          {stageCandidates.length}
+                        </span>
                       </div>
-                    ))}
-
-                    {stageCandidates.length === 0 && (
-                      <div className="text-center py-6">
-                        <p className="text-xs text-gray-400">No candidates</p>
+                      <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                          className="text-xs text-[#E8604C] mt-1 hover:underline"
+                          className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
+                          title="Add candidate"
                         >
-                          + Add candidate
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (stageCandidates.length > 0) { toast.error("Remove all candidates first"); return; }
+                            if (confirm(`Delete stage "${stage.stage_name}"?`)) {
+                              supabase.from("hr_stages").delete().eq("id", stage.id).then(({ error }) => {
+                                if (error) toast.error("Failed to delete");
+                                else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
+                              });
+                            }
+                          }}
+                          className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Delete stage"
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Candidates with sortable context */}
+                    <SortableContext items={stageCandidates.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                      <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2" data-stage-id={stage.id}>
+                        {stageCandidates.map(c => (
+                          <CandidateCard
+                            key={c.id}
+                            candidate={c}
+                            stages={stages}
+                            currentStageId={stage.id}
+                            onMove={(cId, sId) => moveCandidateMutation.mutate({ candidateId: cId, newStageId: sId })}
+                            onHire={(id) => hireCandidateMutation.mutate(id)}
+                            onCancel={(id) => cancelCandidateMutation.mutate(id)}
+                            onInterview={(c) => setInterviewCandidate(c)}
+                            onOffer={(c) => setOfferCandidate(c)}
+                          />
+                        ))}
+                        {stageCandidates.length === 0 && (
+                          <div className="text-center py-6">
+                            <p className="text-xs text-gray-400">No candidates</p>
+                            <button
+                              onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
+                              className="text-xs text-[#E8604C] mt-1 hover:underline"
+                            >
+                              + Add candidate
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </SortableContext>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+
+          {/* Drag Overlay */}
+          <DragOverlay>
+            {draggedCandidate && (
+              <div className="bg-white rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-72 opacity-90">
+                <p className="text-sm font-medium text-gray-900">{draggedCandidate.name}</p>
+                {draggedCandidate.email && <p className="text-[11px] text-gray-400">{draggedCandidate.email}</p>}
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Add Candidate Dialog */}
@@ -396,29 +476,22 @@ export default function RecruitmentPipelinePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
-                  <input
-                    type="email"
-                    value={candidateForm.email}
+                  <input type="email" value={candidateForm.email}
                     onChange={e => setCandidateForm({ ...candidateForm, email: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Mobile</label>
-                  <input
-                    value={candidateForm.mobile}
+                  <input value={candidateForm.mobile}
                     onChange={e => setCandidateForm({ ...candidateForm, mobile: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  />
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Source</label>
-                <select
-                  value={candidateForm.source}
+                <select value={candidateForm.source}
                   onChange={e => setCandidateForm({ ...candidateForm, source: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                >
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
                   <option value="">Select</option>
                   <option value="LinkedIn">LinkedIn</option>
                   <option value="Indeed">Indeed</option>
@@ -431,11 +504,9 @@ export default function RecruitmentPipelinePage() {
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
               <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
-              <button
-                onClick={() => addCandidateMutation.mutate()}
+              <button onClick={() => addCandidateMutation.mutate()}
                 disabled={!candidateForm.name || addCandidateMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
-              >
+                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {addCandidateMutation.isPending ? "Adding..." : "Add"}
               </button>
             </div>
@@ -456,20 +527,16 @@ export default function RecruitmentPipelinePage() {
             <div className="px-5 py-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Stage Name *</label>
-                <input
-                  value={stageForm.stage_name}
+                <input value={stageForm.stage_name}
                   onChange={e => setStageForm({ ...stageForm, stage_name: e.target.value })}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  placeholder="e.g. Technical Interview"
-                />
+                  placeholder="e.g. Technical Interview" />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Type</label>
-                <select
-                  value={stageForm.stage_type}
+                <select value={stageForm.stage_type}
                   onChange={e => setStageForm({ ...stageForm, stage_type: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                >
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
                   <option value="initial">Initial Screening</option>
                   <option value="test">Test / Assessment</option>
                   <option value="interview">Interview</option>
@@ -481,16 +548,37 @@ export default function RecruitmentPipelinePage() {
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
               <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
-              <button
-                onClick={() => addStageMutation.mutate()}
+              <button onClick={() => addStageMutation.mutate()}
                 disabled={!stageForm.stage_name || addStageMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
-              >
+                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {addStageMutation.isPending ? "Adding..." : "Add Stage"}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interview Dialog */}
+      {interviewCandidate && activeRec && (
+        <InterviewDialog
+          open={!!interviewCandidate}
+          onClose={() => setInterviewCandidate(null)}
+          candidateId={interviewCandidate.id}
+          candidateName={interviewCandidate.name}
+          recruitmentId={activeRec.id}
+          stageId={interviewCandidate.stage_id}
+        />
+      )}
+
+      {/* Offer Dialog */}
+      {offerCandidate && activeRec && (
+        <OfferDialog
+          open={!!offerCandidate}
+          onClose={() => setOfferCandidate(null)}
+          candidateId={offerCandidate.id}
+          candidateName={offerCandidate.name}
+          recruitmentId={activeRec.id}
+        />
       )}
     </div>
   );

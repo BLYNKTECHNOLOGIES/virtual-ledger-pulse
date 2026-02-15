@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, Users, Briefcase, CheckCircle, XCircle,
-  ChevronRight, Eye, Edit, Trash2, X, Globe, Lock
+  ChevronRight, Eye, Edit, Trash2, X, Globe, Lock,
+  MapPin, DollarSign
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,7 +14,12 @@ export default function RecruitmentDashboardPage() {
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
   const [editRec, setEditRec] = useState<any>(null);
-  const [form, setForm] = useState({ title: "", vacancy: 1, description: "", start_date: "", end_date: "" });
+  const [form, setForm] = useState({
+    title: "", vacancy: 1, description: "", start_date: "", end_date: "",
+    department_id: "", position_id: "", job_type: "full_time",
+    experience_level: "mid", salary_min: "", salary_max: "",
+    location: "", requirements: ""
+  });
 
   const { data: recruitments, isLoading } = useQuery({
     queryKey: ["hr_recruitments"],
@@ -23,6 +29,22 @@ export default function RecruitmentDashboardPage() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: departments } = useQuery({
+    queryKey: ["departments_list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("departments").select("id, name").eq("is_active", true).order("name");
+      return data || [];
+    },
+  });
+
+  const { data: positions } = useQuery({
+    queryKey: ["positions_list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("positions").select("id, title").eq("is_active", true).order("title");
       return data || [];
     },
   });
@@ -38,12 +60,20 @@ export default function RecruitmentDashboardPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const payload: any = {
         title: form.title,
         vacancy: form.vacancy,
         description: form.description || null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
+        department_id: form.department_id || null,
+        position_id: form.position_id || null,
+        job_type: form.job_type,
+        experience_level: form.experience_level,
+        salary_min: form.salary_min ? parseFloat(form.salary_min) : null,
+        salary_max: form.salary_max ? parseFloat(form.salary_max) : null,
+        location: form.location || null,
+        requirements: form.requirements || null,
       };
       if (editRec) {
         const { error } = await supabase.from("hr_recruitments").update(payload).eq("id", editRec.id);
@@ -67,7 +97,6 @@ export default function RecruitmentDashboardPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // Delete related candidates first
       await supabase.from("hr_candidates").delete().eq("recruitment_id", id);
       await supabase.from("hr_stages").delete().eq("recruitment_id", id);
       const { error } = await supabase.from("hr_recruitments").delete().eq("id", id);
@@ -106,7 +135,12 @@ export default function RecruitmentDashboardPage() {
   const closeDialog = () => {
     setCreateOpen(false);
     setEditRec(null);
-    setForm({ title: "", vacancy: 1, description: "", start_date: "", end_date: "" });
+    setForm({
+      title: "", vacancy: 1, description: "", start_date: "", end_date: "",
+      department_id: "", position_id: "", job_type: "full_time",
+      experience_level: "mid", salary_min: "", salary_max: "",
+      location: "", requirements: ""
+    });
   };
 
   const openEdit = (rec: any) => {
@@ -116,6 +150,14 @@ export default function RecruitmentDashboardPage() {
       description: rec.description || "",
       start_date: rec.start_date || "",
       end_date: rec.end_date || "",
+      department_id: rec.department_id || "",
+      position_id: rec.position_id || "",
+      job_type: rec.job_type || "full_time",
+      experience_level: rec.experience_level || "mid",
+      salary_min: rec.salary_min?.toString() || "",
+      salary_max: rec.salary_max?.toString() || "",
+      location: rec.location || "",
+      requirements: rec.requirements || "",
     });
     setEditRec(rec);
     setCreateOpen(true);
@@ -136,7 +178,16 @@ export default function RecruitmentDashboardPage() {
     { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-gray-100 text-gray-600" },
   ];
 
+  const JOB_TYPES: Record<string, string> = {
+    full_time: "Full Time", part_time: "Part Time", contract: "Contract", internship: "Internship", freelance: "Freelance"
+  };
+  const EXP_LEVELS: Record<string, string> = {
+    fresher: "Fresher", junior: "Junior", mid: "Mid Level", senior: "Senior", lead: "Lead", manager: "Manager"
+  };
+
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+
+  const getDeptName = (id: string) => departments?.find(d => d.id === id)?.name || "";
 
   return (
     <div className="space-y-5">
@@ -195,11 +246,12 @@ export default function RecruitmentDashboardPage() {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Title</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Department</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Type</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Vacancy</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Candidates</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Hired</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Dates</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -216,9 +268,23 @@ export default function RecruitmentDashboardPage() {
                       >
                         {rec.title}
                       </button>
-                      {rec.description && (
-                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{rec.description}</p>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {rec.location && (
+                          <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{rec.location}</span>
+                        )}
+                        {rec.salary_min && (
+                          <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                            <DollarSign className="h-2.5 w-2.5" />
+                            {rec.salary_min?.toLocaleString()}{rec.salary_max ? ` - ${rec.salary_max.toLocaleString()}` : ""}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-gray-600 text-xs">{getDeptName(rec.department_id) || "—"}</td>
+                    <td className="py-3 px-4">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                        {JOB_TYPES[rec.job_type] || rec.job_type || "—"}
+                      </span>
                     </td>
                     <td className="py-3 px-4 text-gray-600">{rec.vacancy || "—"}</td>
                     <td className="py-3 px-4 text-gray-600">{recCandidates.length}</td>
@@ -244,12 +310,6 @@ export default function RecruitmentDashboardPage() {
                           <Lock className="h-3 w-3" /> Draft
                         </button>
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
-                      {rec.start_date && <span>{new Date(rec.start_date).toLocaleDateString()}</span>}
-                      {rec.start_date && rec.end_date && <span> - </span>}
-                      {rec.end_date && <span>{new Date(rec.end_date).toLocaleDateString()}</span>}
-                      {!rec.start_date && !rec.end_date && "—"}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
@@ -288,39 +348,101 @@ export default function RecruitmentDashboardPage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{editRec ? "Edit" : "Create"} Recruitment</h2>
               <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
+              {/* Title */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Title *</label>
-                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="e.g. Senior Developer Hiring" />
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Job Title *</label>
+                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="e.g. Senior Developer" />
               </div>
+
+              {/* Department + Position */}
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Department</label>
+                  <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })} className={inputCls}>
+                    <option value="">Select Department</option>
+                    {departments?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Position</label>
+                  <select value={form.position_id} onChange={e => setForm({ ...form, position_id: e.target.value })} className={inputCls}>
+                    <option value="">Select Position</option>
+                    {positions?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Job Type + Experience + Vacancies */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Job Type</label>
+                  <select value={form.job_type} onChange={e => setForm({ ...form, job_type: e.target.value })} className={inputCls}>
+                    {Object.entries(JOB_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Experience Level</label>
+                  <select value={form.experience_level} onChange={e => setForm({ ...form, experience_level: e.target.value })} className={inputCls}>
+                    {Object.entries(EXP_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Vacancies</label>
                   <input type="number" min={1} value={form.vacancy} onChange={e => setForm({ ...form, vacancy: parseInt(e.target.value) || 1 })} className={inputCls} />
                 </div>
+              </div>
+
+              {/* Salary Range + Location */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Min Salary</label>
+                  <input type="number" value={form.salary_min} onChange={e => setForm({ ...form, salary_min: e.target.value })} className={inputCls} placeholder="e.g. 50000" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Max Salary</label>
+                  <input type="number" value={form.salary_max} onChange={e => setForm({ ...form, salary_max: e.target.value })} className={inputCls} placeholder="e.g. 80000" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">Location</label>
+                  <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className={inputCls} placeholder="e.g. Remote, Mumbai" />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className={inputCls} />
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
+                  <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className={inputCls} />
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
-                <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className={inputCls} />
-              </div>
+
+              {/* Description */}
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
                   className={`${inputCls} resize-none`} placeholder="Job description..." />
               </div>
+
+              {/* Requirements */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Requirements</label>
+                <textarea value={form.requirements} onChange={e => setForm({ ...form, requirements: e.target.value })} rows={3}
+                  className={`${inputCls} resize-none`} placeholder="Required skills, qualifications..." />
+              </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
               <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
               <button
                 onClick={() => saveMutation.mutate()}

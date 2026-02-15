@@ -138,9 +138,9 @@ export function EditEmployeeDialog({ open, onOpenChange, employee, workInfo, dep
               <label className="text-sm font-medium text-gray-700 mb-1 block">Gender</label>
               <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value })} className={inputCls}>
                 <option value="">Select</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>

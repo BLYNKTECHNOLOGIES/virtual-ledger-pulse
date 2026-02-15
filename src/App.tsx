@@ -93,6 +93,9 @@ import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
 import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
 import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
 import HolidaysPage from './pages/horilla/HolidaysPage';
+import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
+import PayslipsPage from './pages/horilla/PayslipsPage';
+import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -802,10 +805,10 @@ const router = createBrowserRouter([
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
-        { path: "payroll", element: <HorillaModulePage /> },
-        { path: "payroll/payslips", element: <HorillaModulePage /> },
-        { path: "payroll/allowances", element: <HorillaModulePage /> },
-        { path: "payroll/deductions", element: <HorillaModulePage /> },
+        { path: "payroll", element: <PayrollDashboardPage /> },
+        { path: "payroll/payslips", element: <PayslipsPage /> },
+        { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
+        { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
         { path: "asset", element: <HorillaModulePage /> },
         { path: "asset/assignments", element: <HorillaModulePage /> },
         { path: "pms", element: <HorillaModulePage /> },

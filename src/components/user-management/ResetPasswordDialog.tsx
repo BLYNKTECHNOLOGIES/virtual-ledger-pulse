@@ -77,27 +77,34 @@ export function ResetPasswordDialog({
         p_new_password: newPassword,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Password reset RPC error:", error);
+        throw error;
+      }
 
-      if (data) {
+      if (data === true) {
+        setIsLoading(false);
         toast({
-          title: "Password Reset",
-          description: `Password has been reset for ${userName}`,
+          title: "✅ Password Reset Successful",
+          description: `Password has been successfully reset for ${userName}`,
         });
         resetForm();
-        onOpenChange(false);
+        // Small delay so user sees the success toast before dialog closes
+        setTimeout(() => {
+          onOpenChange(false);
+        }, 1500);
+        return;
       } else {
-        throw new Error("Failed to reset password");
+        throw new Error("User not found or password could not be updated");
       }
     } catch (error: any) {
       console.error("Password reset error:", error);
+      setIsLoading(false);
       toast({
-        title: "Reset Failed",
-        description: error.message || "Failed to reset password",
+        title: "❌ Reset Failed",
+        description: error.message || "Failed to reset password. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

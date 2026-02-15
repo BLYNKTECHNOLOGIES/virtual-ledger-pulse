@@ -182,6 +182,18 @@ export default function EmployeeListPage() {
   const activeCount = (employees || []).filter(e => e.is_active).length;
   const inactiveCount = (employees || []).filter(e => !e.is_active).length;
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = viewTab === "profile" ? 12 : 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Reset page when filters change
+  const resetPage = () => setCurrentPage(1);
+  const handleSearchChange = (val: string) => { setSearchTerm(val); resetPage(); };
+  const handleDeptChange = (val: string) => { setDeptFilter(val); resetPage(); };
+  const handleStatusChange = (val: "all" | "active" | "inactive") => { setStatusFilter(val === statusFilter ? "all" : val); resetPage(); };
+
   return (
     <div className="space-y-0">
       {/* Page header */}
@@ -238,7 +250,7 @@ export default function EmployeeListPage() {
             type="text"
             placeholder="Search..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full"
           />
         </div>
@@ -246,7 +258,7 @@ export default function EmployeeListPage() {
         {/* Filter dropdown */}
         <select
           value={deptFilter}
-          onChange={(e) => setDeptFilter(e.target.value)}
+          onChange={(e) => handleDeptChange(e.target.value)}
           className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white hover:bg-gray-50 transition-colors"
         >
           <option value="all">All Departments</option>
@@ -306,7 +318,7 @@ export default function EmployeeListPage() {
         {/* Quick Filters */}
         <div className="flex items-center gap-1.5 ml-auto">
           <button
-            onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
+            onClick={() => handleStatusChange("active")}
             className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
               statusFilter === "active"
                 ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300"
@@ -317,7 +329,7 @@ export default function EmployeeListPage() {
             Active ({activeCount})
           </button>
           <button
-            onClick={() => setStatusFilter(statusFilter === "inactive" ? "all" : "inactive")}
+            onClick={() => handleStatusChange("inactive")}
             className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-colors ${
               statusFilter === "inactive"
                 ? "bg-red-100 text-red-700 ring-1 ring-red-300"
@@ -400,8 +412,8 @@ export default function EmployeeListPage() {
           </div>
         ) : viewTab === "profile" ? (
           /* ─── PROFILE / CARD VIEW ─── */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((emp) => {
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {paginated.map((emp) => {
               const wi = getWorkInfo(emp.id);
               const selected = selectedIds.has(emp.id);
               return (
@@ -547,7 +559,7 @@ export default function EmployeeListPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((emp) => {
+                {paginated.map((emp) => {
                   const wi = getWorkInfo(emp.id);
                   const selected = selectedIds.has(emp.id);
                   return (
@@ -661,6 +673,51 @@ export default function EmployeeListPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {filtered.length > pageSize && (
+          <div className="flex items-center justify-between mt-4 px-1">
+            <p className="text-xs text-gray-500">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filtered.length)} of {filtered.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let page: number;
+                if (totalPages <= 7) page = i + 1;
+                else if (currentPage <= 4) page = i + 1;
+                else if (currentPage >= totalPages - 3) page = totalPages - 6 + i;
+                else page = currentPage - 3 + i;
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
+                      currentPage === page
+                        ? "bg-[#E8604C] text-white"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

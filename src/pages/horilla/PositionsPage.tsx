@@ -9,6 +9,7 @@ export default function PositionsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", department_id: "", description: "" });
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: positions, isLoading } = useQuery({
     queryKey: ["hr_positions"],
@@ -79,12 +80,17 @@ export default function PositionsPage() {
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
+  const filteredPositions = (positions || []).filter(p => {
+    const term = searchTerm.toLowerCase();
+    return p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
+  });
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Positions</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{positions?.length || 0} positions</p>
+          <p className="text-xs text-gray-500 mt-0.5">{filteredPositions.length} position{filteredPositions.length !== 1 ? "s" : ""}</p>
         </div>
         <button
           onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
@@ -93,6 +99,18 @@ export default function PositionsPage() {
           <Plus className="h-4 w-4" />
           Add Position
         </button>
+      </div>
+
+      {/* Search bar */}
+      <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-2 w-full max-w-sm">
+        <Briefcase className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+        <input
+          type="text"
+          placeholder="Search positions..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full"
+        />
       </div>
 
       {isLoading ? (
@@ -110,7 +128,7 @@ export default function PositionsPage() {
               </tr>
             </thead>
             <tbody>
-              {(positions || []).map((p) => (
+              {filteredPositions.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
@@ -138,8 +156,10 @@ export default function PositionsPage() {
                   </td>
                 </tr>
               ))}
-              {(positions || []).length === 0 && (
-                <tr><td colSpan={5} className="py-12 text-center text-gray-400 text-sm">No positions yet</td></tr>
+              {filteredPositions.length === 0 && (
+                <tr><td colSpan={5} className="py-12 text-center text-gray-400 text-sm">
+                  {searchTerm ? "No positions matching your search" : "No positions yet"}
+                </td></tr>
               )}
             </tbody>
           </table>

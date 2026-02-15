@@ -221,37 +221,56 @@ export default function EmployeeProfilePage() {
         Back to Employees
       </button>
 
-      {/* Profile header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start gap-5">
-          <div className={`w-16 h-16 rounded-xl ${color} flex items-center justify-center text-white font-bold text-xl`}>
+      {/* Profile header — Horilla style with left card + right content */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+        {/* Left sidebar card */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 text-center lg:col-span-1">
+          <div className={`w-20 h-20 rounded-full ${color} flex items-center justify-center text-white font-bold text-2xl mx-auto`}>
             {emp.first_name.charAt(0)}{emp.last_name.charAt(0)}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-gray-900">{emp.first_name} {emp.last_name}</h1>
-              <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${emp.is_active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                {emp.is_active ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <p className="text-sm text-gray-500 mt-0.5">{emp.badge_id}</p>
-            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-              {workInfo?.job_role && (
-                <span className="flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" />{workInfo.job_role}</span>
-              )}
-              {dept?.name && (
-                <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{dept.name}</span>
-              )}
-              {emp.email && (
-                <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{emp.email}</span>
-              )}
-            </div>
+          <h2 className="text-lg font-bold text-gray-900 mt-3">{emp.first_name} {emp.last_name}</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{emp.badge_id}</p>
+          <span className={`inline-block mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full ${emp.is_active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+            {emp.is_active ? "Active" : "Inactive"}
+          </span>
+
+          <div className="mt-4 space-y-2 text-left">
+            {position?.title && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Briefcase className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span className="truncate">{position.title}</span>
+              </div>
+            )}
+            {dept?.name && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Building2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span className="truncate">{dept.name}</span>
+              </div>
+            )}
+            {emp.email && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Mail className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span className="truncate">{emp.email}</span>
+              </div>
+            )}
+            {emp.phone && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Phone className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span>{emp.phone}</span>
+              </div>
+            )}
+            {workInfo?.joining_date && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <span>Joined {workInfo.joining_date}</span>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white rounded-xl border border-gray-200">
+        {/* Right content area */}
+        <div className="lg:col-span-3">
+        <div className="bg-white rounded-xl border border-gray-200">
         <div className="flex items-center justify-between border-b border-gray-100 px-2">
           <div className="flex">
             {tabs.map((t) => (
@@ -402,12 +421,8 @@ export default function EmployeeProfilePage() {
             </div>
           )}
 
-          {activeTab === "Documents" && (
-            <div className="text-center py-12 text-gray-400">
-              <FileText className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">No documents uploaded yet</p>
-            </div>
-          )}
+        </div>
+      </div>
         </div>
       </div>
     </div>

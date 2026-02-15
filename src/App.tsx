@@ -78,6 +78,10 @@ import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
 import HorillaDashboard from './pages/horilla/HorillaDashboard';
 import HorillaModulePage from './pages/horilla/HorillaModulePage';
+import EmployeeListPage from './pages/horilla/EmployeeListPage';
+import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
+import DepartmentsPage from './pages/horilla/DepartmentsPage';
+import PositionsPage from './pages/horilla/PositionsPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -770,9 +774,10 @@ const router = createBrowserRouter([
       ),
       children: [
         { index: true, element: <HorillaDashboard /> },
-        { path: "employee", element: <HorillaModulePage /> },
-        { path: "employee/departments", element: <HorillaModulePage /> },
-        { path: "employee/positions", element: <HorillaModulePage /> },
+        { path: "employee", element: <EmployeeListPage /> },
+        { path: "employee/:id", element: <EmployeeProfilePage /> },
+        { path: "employee/departments", element: <DepartmentsPage /> },
+        { path: "employee/positions", element: <PositionsPage /> },
         { path: "recruitment", element: <HorillaModulePage /> },
         { path: "recruitment/pipeline", element: <HorillaModulePage /> },
         { path: "recruitment/candidates", element: <HorillaModulePage /> },

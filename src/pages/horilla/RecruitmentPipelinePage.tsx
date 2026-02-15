@@ -11,7 +11,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-
 import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, GripVertical, Star, X, ArrowLeft, Trash2,
-  Calendar, FileText
+  Calendar, FileText, Search, Filter, Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
@@ -184,11 +184,13 @@ export default function RecruitmentPipelinePage() {
   const [addCandidateOpen, setAddCandidateOpen] = useState(false);
   const [addCandidateStageId, setAddCandidateStageId] = useState<string | null>(null);
   const [addStageOpen, setAddStageOpen] = useState(false);
-  const [candidateForm, setCandidateForm] = useState({ name: "", email: "", mobile: "", source: "" });
+  const [candidateForm, setCandidateForm] = useState({ name: "", email: "", mobile: "", source: "", resume_url: "", skills: "" });
   const [stageForm, setStageForm] = useState({ stage_name: "", stage_type: "other" });
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [interviewCandidate, setInterviewCandidate] = useState<Candidate | null>(null);
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -237,6 +239,7 @@ export default function RecruitmentPipelinePage() {
         email: candidateForm.email || null,
         mobile: candidateForm.mobile || null,
         source: candidateForm.source || null,
+        resume_url: candidateForm.resume_url || null,
         recruitment_id: activeRec.id,
         stage_id: addCandidateStageId,
       });
@@ -247,7 +250,7 @@ export default function RecruitmentPipelinePage() {
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
       queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
       setAddCandidateOpen(false);
-      setCandidateForm({ name: "", email: "", mobile: "", source: "" });
+      setCandidateForm({ name: "", email: "", mobile: "", source: "", resume_url: "", skills: "" });
     },
     onError: (err: any) => toast.error(err?.message || "Failed to add candidate"),
   });
@@ -311,8 +314,17 @@ export default function RecruitmentPipelinePage() {
     onError: (err: any) => toast.error(err?.message || "Failed to cancel candidate"),
   });
 
+  const filteredCandidates = (candidates || []).filter(c => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term || c.name.toLowerCase().includes(term) || (c.email || "").toLowerCase().includes(term);
+    const matchesSource = sourceFilter === "all" || c.source === sourceFilter;
+    return matchesSearch && matchesSource;
+  });
+
   const getCandidatesForStage = (stageId: string) =>
-    (candidates || []).filter(c => c.stage_id === stageId);
+    filteredCandidates.filter(c => c.stage_id === stageId);
+
+  const uniqueSources = [...new Set((candidates || []).map(c => c.source).filter(Boolean))] as string[];
 
   const stageColor = (type: string) => STAGE_COLORS[type] || STAGE_COLORS.other;
 
@@ -386,6 +398,27 @@ export default function RecruitmentPipelinePage() {
           </button>
         </div>
       </div>
+
+      {/* Search & Filter Bar */}
+      {activeRec && (
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-1.5 w-64">
+            <Search className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+            <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full" />
+          </div>
+          {uniqueSources.length > 0 && (
+            <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white">
+              <option value="all">All Sources</option>
+              {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          <span className="text-xs text-gray-400 ml-auto">
+            {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
 
       {/* Kanban Board */}
       {!activeRec ? (
@@ -544,6 +577,20 @@ export default function RecruitmentPipelinePage() {
                   <option value="Agency">Agency</option>
                   <option value="Other">Other</option>
                 </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Resume URL</label>
+                <input value={candidateForm.resume_url}
+                  onChange={e => setCandidateForm({ ...candidateForm, resume_url: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  placeholder="https://drive.google.com/..." />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Skills</label>
+                <input value={candidateForm.skills}
+                  onChange={e => setCandidateForm({ ...candidateForm, skills: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  placeholder="React, Node.js, Python (comma separated)" />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">

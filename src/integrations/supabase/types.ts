@@ -3955,6 +3955,69 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_skill_zone_candidates: {
+        Row: {
+          added_at: string
+          candidate_id: string
+          id: string
+          reason: string | null
+          skill_zone_id: string
+        }
+        Insert: {
+          added_at?: string
+          candidate_id: string
+          id?: string
+          reason?: string | null
+          skill_zone_id: string
+        }
+        Update: {
+          added_at?: string
+          candidate_id?: string
+          id?: string
+          reason?: string | null
+          skill_zone_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_skill_zone_candidates_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_skill_zone_candidates_skill_zone_id_fkey"
+            columns: ["skill_zone_id"]
+            isOneToOne: false
+            referencedRelation: "hr_skill_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_skill_zones: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          updated_at: string
+          zone_name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          zone_name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          updated_at?: string
+          zone_name?: string
+        }
+        Relationships: []
+      }
       hr_skills: {
         Row: {
           created_at: string
@@ -4099,6 +4162,92 @@ export type Database = {
             columns: ["recruitment_id"]
             isOneToOne: false
             referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_survey_questions: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean | null
+          options: Json | null
+          question: string
+          question_type: string
+          sequence: number | null
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          question: string
+          question_type?: string
+          sequence?: number | null
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean | null
+          options?: Json | null
+          question?: string
+          question_type?: string
+          sequence?: number | null
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_survey_questions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_survey_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_survey_responses: {
+        Row: {
+          answers: Json
+          candidate_id: string | null
+          id: string
+          respondent_email: string | null
+          respondent_name: string | null
+          submitted_at: string
+          template_id: string
+        }
+        Insert: {
+          answers?: Json
+          candidate_id?: string | null
+          id?: string
+          respondent_email?: string | null
+          respondent_name?: string | null
+          submitted_at?: string
+          template_id: string
+        }
+        Update: {
+          answers?: Json
+          candidate_id?: string | null
+          id?: string
+          respondent_email?: string | null
+          respondent_name?: string | null
+          submitted_at?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_survey_responses_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_survey_responses_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_survey_templates"
             referencedColumns: ["id"]
           },
         ]

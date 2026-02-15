@@ -86,6 +86,10 @@ import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
 import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
 import CandidatesListPage from './pages/horilla/CandidatesListPage';
 import CandidateProfilePage from './pages/horilla/CandidateProfilePage';
+import InterviewListPage from './pages/horilla/InterviewListPage';
+import StagesPage from './pages/horilla/StagesPage';
+import SkillZonePage from './pages/horilla/SkillZonePage';
+import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
 import OnboardingPage from './pages/horilla/OnboardingPage';
 import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
 import ShiftsPage from './pages/horilla/ShiftsPage';
@@ -808,6 +812,10 @@ const router = createBrowserRouter([
         { path: "recruitment/candidates", element: <CandidatesListPage /> },
         { path: "recruitment/candidates/:id", element: <CandidateProfilePage /> },
         { path: "recruitment/positions", element: <PositionsPage /> },
+        { path: "recruitment/interview", element: <InterviewListPage /> },
+        { path: "recruitment/stages", element: <StagesPage /> },
+        { path: "recruitment/skill-zone", element: <SkillZonePage /> },
+        { path: "recruitment/survey", element: <RecruitmentSurveyPage /> },
         { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <HorillaModulePage /> },
         { path: "attendance", element: <AttendanceOverviewPage /> },

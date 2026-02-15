@@ -2,8 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Users, UserPlus, CheckCircle, CalendarDays, Briefcase,
-  Rocket, Building2, TrendingUp
+  Rocket, Building2, TrendingUp, Clock, Wallet, XCircle,
+  AlertTriangle
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { format } from "date-fns";
+
+const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 
 export default function HorillaDashboard() {
   const { data: employees } = useQuery({
@@ -46,53 +51,68 @@ export default function HorillaDashboard() {
     },
   });
 
-  const { data: onboardingStages } = useQuery({
-    queryKey: ["hr_dashboard_onboarding_stages"],
+  const today = format(new Date(), "yyyy-MM-dd");
+
+  const { data: todayAttendance } = useQuery({
+    queryKey: ["hr_dashboard_attendance", today],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_onboarding_stages").select("id");
+      const { data } = await supabase.from("hr_attendance").select("id, attendance_status").eq("attendance_date", today);
       return data || [];
     },
   });
 
+  const { data: leaveRequests } = useQuery({
+    queryKey: ["hr_dashboard_leave"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_leave_requests").select("id, status").order("created_at", { ascending: false }).limit(200);
+      return data || [];
+    },
+  });
+
+  const { data: payrollRuns } = useQuery({
+    queryKey: ["hr_dashboard_payroll"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_payroll_runs").select("id, status, total_net, total_gross, employee_count, title").order("run_date", { ascending: false }).limit(10);
+      return data || [];
+    },
+  });
+
+  // Employee stats
   const totalEmployees = (employees || []).length;
   const activeEmployees = (employees || []).filter(e => e.is_active).length;
-  const inactiveEmployees = totalEmployees - activeEmployees;
   const thisMonth = new Date().toISOString().slice(0, 7);
   const newThisMonth = (employees || []).filter(e => e.created_at?.startsWith(thisMonth)).length;
 
+  // Candidate stats
   const totalCandidates = (candidates || []).length;
   const hiredCandidates = (candidates || []).filter(c => c.hired).length;
   const onboardingCount = (candidates || []).filter(c => c.start_onboard).length;
-  const inProgressCandidates = (candidates || []).filter(c => !c.hired && !c.canceled).length;
 
+  // Recruitment
   const activeRecruitments = (recruitments || []).filter(r => !r.closed).length;
   const totalVacancies = (recruitments || []).reduce((sum, r) => sum + (r.vacancy || 0), 0);
 
-  const activeDepts = (departments || []).filter(d => d.is_active).length;
+  // Attendance
+  const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present").length;
+  const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
+  const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
 
-  const stats = [
-    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, subColor: "text-emerald-500", icon: Users, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
-    { label: "Active Employees", value: activeEmployees, sub: `${inactiveEmployees} inactive`, subColor: "text-gray-500", icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-    { label: "Open Recruitments", value: activeRecruitments, sub: `${totalVacancies} vacancies`, subColor: "text-amber-500", icon: Briefcase, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
-    { label: "Total Candidates", value: totalCandidates, sub: `${inProgressCandidates} in progress`, subColor: "text-blue-500", icon: UserPlus, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
-    { label: "Hired", value: hiredCandidates, sub: "candidates hired", subColor: "text-emerald-500", icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
-    { label: "Onboarding", value: onboardingCount, sub: `${(onboardingStages || []).length} stages defined`, subColor: "text-[#E8604C]", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
-    { label: "Departments", value: activeDepts, sub: `${(departments || []).length} total`, subColor: "text-gray-500", icon: Building2, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
-    { label: "Workforce Trend", value: `${activeEmployees > 0 ? "+" : ""}${newThisMonth}`, sub: "new employees this month", subColor: "text-emerald-500", icon: TrendingUp, iconBg: "bg-indigo-100", iconColor: "text-indigo-600" },
-  ];
+  // Leave
+  const pendingLeaves = (leaveRequests || []).filter(l => l.status === "pending").length;
+  const approvedLeaves = (leaveRequests || []).filter(l => l.status === "approved").length;
 
-  // Department distribution from work infos
+  // Payroll
+  const lastPayroll = (payrollRuns || [])[0];
+  const totalPayrollNet = (payrollRuns || []).reduce((s, r) => s + (r.total_net || 0), 0);
+
+  // Department distribution
   const deptCounts: Record<string, number> = {};
   (workInfos || []).forEach(w => {
     if (w.department_id) deptCounts[w.department_id] = (deptCounts[w.department_id] || 0) + 1;
   });
   const deptDistribution = (departments || [])
     .filter(d => d.is_active)
-    .map(d => ({
-      name: d.name,
-      count: deptCounts[d.id] || 0,
-      pct: totalEmployees > 0 ? Math.round(((deptCounts[d.id] || 0) / totalEmployees) * 100) : 0,
-    }))
+    .map(d => ({ name: d.name, count: deptCounts[d.id] || 0 }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 
@@ -102,13 +122,25 @@ export default function HorillaDashboard() {
     const t = w.employee_type || "Unknown";
     typeCounts[t] = (typeCounts[t] || 0) + 1;
   });
-  const typeColors: Record<string, string> = {
-    "Full-time": "bg-emerald-100 text-emerald-700",
-    "Part-time": "bg-blue-100 text-blue-700",
-    "Contract": "bg-amber-100 text-amber-700",
-    "Intern": "bg-violet-100 text-violet-700",
-    "Unknown": "bg-gray-100 text-gray-600",
-  };
+  const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+
+  // Attendance pie
+  const attendancePie = [
+    { name: "Present", value: presentToday, color: "#10B981" },
+    { name: "Absent", value: absentToday, color: "#EF4444" },
+    { name: "Late", value: lateToday, color: "#F59E0B" },
+  ].filter(d => d.value > 0);
+
+  const stats = [
+    { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-violet-100", iconColor: "text-violet-600" },
+    { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-emerald-100", iconColor: "text-emerald-600" },
+    { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+    { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+    { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-teal-100", iconColor: "text-teal-600" },
+    { label: "Pending Leaves", value: pendingLeaves, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+    { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
+    { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  ];
 
   return (
     <div className="space-y-6">
@@ -124,7 +156,7 @@ export default function HorillaDashboard() {
             <div>
               <p className="text-xs text-gray-500">{c.label}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p>
-              <p className={`text-[11px] mt-1 ${c.subColor}`}>{c.sub}</p>
+              <p className="text-[11px] mt-1 text-gray-500">{c.sub}</p>
             </div>
             <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shrink-0`}>
               <c.icon className={`h-5 w-5 ${c.iconColor}`} />
@@ -133,26 +165,49 @@ export default function HorillaDashboard() {
         ))}
       </div>
 
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Department Distribution */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Department Distribution</h3>
           {deptDistribution.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No department data yet</p>
+            <p className="text-sm text-gray-400 py-4 text-center">No data</p>
           ) : (
-            <div className="space-y-3">
-              {deptDistribution.map((d) => (
-                <div key={d.name}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-700">{d.name}</span>
-                    <span className="text-gray-500 text-xs">{d.count} ({d.pct}%)</span>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={deptDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" fontSize={11} tick={{ fill: "#6b7280" }} />
+                <YAxis fontSize={11} tick={{ fill: "#6b7280" }} />
+                <Tooltip />
+                <Bar dataKey="count" fill="#E8604C" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Today's Attendance */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Today's Attendance</h3>
+          {attendancePie.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No attendance data</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="50%" height={180}>
+                <PieChart>
+                  <Pie data={attendancePie} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                    {attendancePie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2">
+                {attendancePie.map(d => (
+                  <div key={d.name} className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
+                    <span className="text-gray-600">{d.name}</span>
+                    <span className="font-semibold text-gray-900">{d.value}</span>
                   </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-[#E8604C]" style={{ width: `${Math.max(d.pct, 2)}%` }} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -160,18 +215,72 @@ export default function HorillaDashboard() {
         {/* Employee Types */}
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Employee Types</h3>
-          {Object.keys(typeCounts).length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No employee type data yet</p>
+          {typeData.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No data</p>
+          ) : (
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width="50%" height={180}>
+                <PieChart>
+                  <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
+                    {typeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2">
+                {typeData.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-gray-600">{d.name}</span>
+                    <span className="font-semibold text-gray-900">{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Recent Leave Requests */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Leave Summary</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Pending", value: pendingLeaves, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
+              { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+              { label: "Rejected", value: (leaveRequests || []).filter(l => l.status === "rejected").length, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
+            ].map(s => (
+              <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
+                <s.icon className={`h-5 w-5 ${s.color} mx-auto mb-1`} />
+                <p className="text-lg font-bold text-gray-900">{s.value}</p>
+                <p className="text-[10px] text-gray-500">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Payroll Summary */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Payroll Overview</h3>
+          {(payrollRuns || []).length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No payroll runs yet</p>
           ) : (
             <div className="space-y-3">
-              {Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
-                <div key={type} className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${typeColors[type] || typeColors.Unknown}`}>
-                      {type}
-                    </span>
+              {(payrollRuns || []).slice(0, 4).map((r: any) => (
+                <div key={r.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{r.title}</p>
+                    <p className="text-xs text-gray-500">{r.employee_count || 0} employees</p>
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{count}</span>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-900">₹{(r.total_net || 0).toLocaleString()}</p>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      r.status === "completed" ? "bg-green-100 text-green-700" :
+                      r.status === "processing" ? "bg-blue-100 text-blue-700" :
+                      "bg-gray-100 text-gray-600"
+                    }`}>{r.status}</span>
+                  </div>
                 </div>
               ))}
             </div>

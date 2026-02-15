@@ -251,13 +251,23 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                         ))}
                       </div>
                     )}
-                  </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </nav>
-    </aside>
+        </div>
+      ))}
+    </nav>
+
+    {/* Collapse Toggle */}
+    <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
+      </button>
+    </div>
+  </aside>
   );
 }

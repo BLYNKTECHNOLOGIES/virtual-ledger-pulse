@@ -1923,6 +1923,13 @@ export type Database = {
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "hr_attendance_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       hr_bonus_points: {
@@ -2606,6 +2613,36 @@ export type Database = {
           state?: string | null
           updated_at?: string
           zip?: string | null
+        }
+        Relationships: []
+      }
+      hr_holidays: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          is_active: boolean | null
+          name: string
+          recurring: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          recurring?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          recurring?: boolean | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3342,6 +3379,45 @@ export type Database = {
           is_taxable?: boolean | null
           name?: string
           percentage_of?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_shifts: {
+        Row: {
+          break_duration_minutes: number | null
+          created_at: string
+          end_time: string
+          grace_period_minutes: number | null
+          id: string
+          is_active: boolean | null
+          is_night_shift: boolean | null
+          name: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          break_duration_minutes?: number | null
+          created_at?: string
+          end_time?: string
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_night_shift?: boolean | null
+          name: string
+          start_time?: string
+          updated_at?: string
+        }
+        Update: {
+          break_duration_minutes?: number | null
+          created_at?: string
+          end_time?: string
+          grace_period_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_night_shift?: boolean | null
+          name?: string
+          start_time?: string
           updated_at?: string
         }
         Relationships: []

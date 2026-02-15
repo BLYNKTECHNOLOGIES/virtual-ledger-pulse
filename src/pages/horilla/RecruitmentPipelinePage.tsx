@@ -422,8 +422,20 @@ export default function RecruitmentPipelinePage() {
 
       {/* Kanban Board */}
       {!activeRec ? (
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-          No active recruitment found. Create one first.
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+              <Plus className="h-8 w-8 text-gray-400" />
+            </div>
+            <p className="text-gray-500 text-sm font-medium">No active recruitment found</p>
+            <p className="text-gray-400 text-xs mt-1">Create a recruitment to start building your pipeline</p>
+            <button
+              onClick={() => navigate("/hrms/recruitment")}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#E8604C] text-white text-sm font-medium rounded-lg hover:bg-[#d04e3c] transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> Create Recruitment
+            </button>
+          </div>
         </div>
       ) : !stages?.length ? (
         <div className="flex-1 flex items-center justify-center">

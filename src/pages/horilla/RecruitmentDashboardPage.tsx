@@ -87,9 +87,35 @@ export default function RecruitmentDashboardPage() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      toast.success(editRec ? "Recruitment updated" : "Recruitment created");
+    onSuccess: async (_, __, context) => {
+      // Auto-create default stages for new recruitments
+      if (!editRec) {
+        // Get the newly created recruitment
+        const { data: newRecs } = await supabase
+          .from("hr_recruitments")
+          .select("id")
+          .eq("title", form.title)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        
+        if (newRecs && newRecs.length > 0) {
+          const recId = newRecs[0].id;
+          const defaultStages = [
+            { stage_name: "Initial Screening", stage_type: "initial", sequence: 1 },
+            { stage_name: "Written Test", stage_type: "test", sequence: 2 },
+            { stage_name: "Technical Interview", stage_type: "interview", sequence: 3 },
+            { stage_name: "HR Interview", stage_type: "interview", sequence: 4 },
+            { stage_name: "Offer", stage_type: "offer", sequence: 5 },
+            { stage_name: "Hired", stage_type: "hired", sequence: 6 },
+          ];
+          await supabase.from("hr_stages").insert(
+            defaultStages.map(s => ({ ...s, recruitment_id: recId }))
+          );
+        }
+      }
+      toast.success(editRec ? "Recruitment updated" : "Recruitment created with default stages");
       queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_stages"] });
       closeDialog();
     },
     onError: () => toast.error("Failed to save"),

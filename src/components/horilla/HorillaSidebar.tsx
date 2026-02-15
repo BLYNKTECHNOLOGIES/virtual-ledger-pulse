@@ -67,7 +67,9 @@ const navGroups: NavGroup[] = [
         label: "Attendance", icon: Clock, path: "/hrms/attendance",
         children: [
           { label: "Overview", path: "/hrms/attendance" },
+          { label: "Clock In/Out", path: "/hrms/attendance/activity" },
           { label: "Calendar View", path: "/hrms/attendance/calendar" },
+          { label: "Summary Report", path: "/hrms/attendance/summary" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },
           { label: "Overtime", path: "/hrms/attendance/overtime" },
         ],

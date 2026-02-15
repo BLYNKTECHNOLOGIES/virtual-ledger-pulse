@@ -137,16 +137,16 @@ export default function AttendanceOverviewPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Work Type", "Notes"].map((h) => (
+                {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
               ) : (
                 filtered.map((a: any) => (
                   <tr key={a.id} className="border-b hover:bg-gray-50">
@@ -162,6 +162,8 @@ export default function AttendanceOverviewPage() {
                         "bg-gray-100 text-gray-700"
                       }`}>{a.attendance_status}</span>
                     </td>
+                    <td className="px-4 py-3">{a.late_minutes ? <span className="text-yellow-600 font-medium">{a.late_minutes}m</span> : "—"}</td>
+                    <td className="px-4 py-3">{a.early_leave_minutes ? <span className="text-orange-600 font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
                     <td className="px-4 py-3 text-gray-500 capitalize">{a.work_type || "—"}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
                   </tr>

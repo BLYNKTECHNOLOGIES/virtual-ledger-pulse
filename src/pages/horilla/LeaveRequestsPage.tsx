@@ -21,29 +21,28 @@ export default function LeaveRequestsPage() {
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],
     queryFn: async () => {
-      const query: any = supabase.from("hr_leave_requests")
-        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(employee_id, name, department), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
+      let query = (supabase as any).from("hr_leave_requests")
+        .select("*, hr_employees!hr_leave_requests_employee_id_fkey(badge_id, first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
         .order("created_at", { ascending: false });
-      const { data, error } = statusFilter !== "all"
-        ? await query.eq("status", statusFilter)
-        : await query;
+      if (statusFilter !== "all") query = query.eq("status", statusFilter);
+      const { data, error } = await query;
       if (error) throw error;
       return (data as any[]) || [];
     },
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ["hr_employees_list"],
+    queryKey: ["hr_employees_active"],
     queryFn: async () => {
-      const result = await (supabase as any).from("hr_employees").select("id, employee_id, name").eq("status", "active");
-      return result.data || [];
+      const { data } = await (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true);
+      return data || [];
     },
   });
 
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ["hr_leave_types"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_leave_types").select("id, name").eq("is_active", true);
+      const { data } = await (supabase as any).from("hr_leave_types").select("id, name").eq("is_active", true);
       return data || [];
     },
   });
@@ -53,7 +52,7 @@ export default function LeaveRequestsPage() {
       const start = new Date(form.start_date);
       const end = new Date(form.end_date);
       const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      const { error } = await supabase.from("hr_leave_requests").insert({
+      const { error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
         start_date: form.start_date,
@@ -74,7 +73,7 @@ export default function LeaveRequestsPage() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("hr_leave_requests").update({
+      const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
         ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
         ...(status === "rejected" ? { rejection_reason: "Rejected by admin" } : {}),
@@ -89,7 +88,8 @@ export default function LeaveRequestsPage() {
 
   const filtered = requests.filter((r: any) => {
     const q = search.toLowerCase();
-    return r.hr_employees?.name?.toLowerCase().includes(q) || r.hr_employees?.employee_id?.toLowerCase().includes(q);
+    const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
+    return name.includes(q) || r.hr_employees?.badge_id?.toLowerCase().includes(q);
   });
 
   return (
@@ -104,8 +104,8 @@ export default function LeaveRequestsPage() {
         </Button>
       </div>
 
-      <div className="flex gap-3">
-        <div className="relative flex-1">
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -121,12 +121,12 @@ export default function LeaveRequestsPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 {["Employee", "Leave Type", "Start", "End", "Days", "Status", "Reason", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -138,7 +138,7 @@ export default function LeaveRequestsPage() {
               ) : (
                 filtered.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{r.hr_employees?.name}</td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#E8604C]/10 text-[#E8604C]">
                         {r.hr_leave_types?.name}
@@ -183,7 +183,7 @@ export default function LeaveRequestsPage() {
               <Label>Employee</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.employee_id})</SelectItem>)}</SelectContent>
+                <SelectContent>{employees.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>

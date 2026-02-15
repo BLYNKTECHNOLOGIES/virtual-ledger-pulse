@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,30 +30,29 @@ export default function AttendanceOverviewPage() {
   const { data: attendance = [], isLoading } = useQuery({
     queryKey: ["hr_attendance", dateFilter, statusFilter],
     queryFn: async () => {
-      const query: any = supabase
+      let query = (supabase as any)
         .from("hr_attendance")
-        .select("*, hr_employees!hr_attendance_employee_id_fkey(employee_id, name, department)")
+        .select("*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)")
         .eq("attendance_date", dateFilter)
         .order("created_at", { ascending: false });
-      const { data, error } = statusFilter !== "all"
-        ? await query.eq("attendance_status", statusFilter)
-        : await query;
+      if (statusFilter !== "all") query = query.eq("attendance_status", statusFilter);
+      const { data, error } = await query;
       if (error) throw error;
       return (data as any[]) || [];
     },
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ["hr_employees_list"],
+    queryKey: ["hr_employees_active"],
     queryFn: async () => {
-      const result = await (supabase as any).from("hr_employees").select("id, employee_id, name, department").eq("status", "active");
-      return result.data || [];
+      const { data } = await (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true);
+      return data || [];
     },
   });
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("hr_attendance").insert({
+      const { error } = await (supabase as any).from("hr_attendance").insert({
         employee_id: form.employee_id,
         attendance_date: form.attendance_date,
         check_in: form.check_in || null,
@@ -76,7 +75,8 @@ export default function AttendanceOverviewPage() {
     const emp = a.hr_employees;
     if (!emp) return false;
     const q = search.toLowerCase();
-    return emp.name?.toLowerCase().includes(q) || emp.employee_id?.toLowerCase().includes(q);
+    const fullName = `${emp.first_name} ${emp.last_name}`.toLowerCase();
+    return fullName.includes(q) || emp.badge_id?.toLowerCase().includes(q);
   });
 
   const stats = {
@@ -98,8 +98,7 @@ export default function AttendanceOverviewPage() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total", value: stats.total, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Present", value: stats.present, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
@@ -108,22 +107,16 @@ export default function AttendanceOverviewPage() {
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${s.bg}`}>
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{s.value}</p>
-                <p className="text-xs text-gray-500">{s.label}</p>
-              </div>
+              <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
+              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
@@ -139,28 +132,26 @@ export default function AttendanceOverviewPage() {
         </Select>
       </div>
 
-      {/* Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {["Employee", "ID", "Department", "Check In", "Check Out", "Status", "Work Type", "Notes"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Work Type", "Notes"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
               ) : (
                 filtered.map((a: any) => (
                   <tr key={a.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{a.hr_employees?.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.hr_employees?.employee_id}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.hr_employees?.department}</td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
+                    <td className="px-4 py-3 text-gray-500">{a.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3">{a.check_in || "—"}</td>
                     <td className="px-4 py-3">{a.check_out || "—"}</td>
                     <td className="px-4 py-3">
@@ -169,9 +160,7 @@ export default function AttendanceOverviewPage() {
                         a.attendance_status === "absent" ? "bg-red-100 text-red-700" :
                         a.attendance_status === "late" ? "bg-yellow-100 text-yellow-700" :
                         "bg-gray-100 text-gray-700"
-                      }`}>
-                        {a.attendance_status}
-                      </span>
+                      }`}>{a.attendance_status}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 capitalize">{a.work_type || "—"}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
@@ -183,7 +172,6 @@ export default function AttendanceOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Add Dialog */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>
           <DialogHeader><DialogTitle>Mark Attendance</DialogTitle></DialogHeader>
@@ -194,7 +182,7 @@ export default function AttendanceOverviewPage() {
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   {employees.map((e: any) => (
-                    <SelectItem key={e.id} value={e.id}>{e.name} ({e.employee_id})</SelectItem>
+                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

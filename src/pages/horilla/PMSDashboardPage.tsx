@@ -3,22 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Target, TrendingUp, Users, Star, Plus, BarChart3 } from "lucide-react";
+import { Target, TrendingUp, Users, Star, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-
-interface Objective {
-  id: string;
-  title: string;
-  status: string;
-  priority: string;
-  progress: number;
-  objective_type: string;
-  employee_id: string | null;
-  due_date: string | null;
-  review_cycle: string | null;
-}
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -30,14 +18,12 @@ const STATUS_COLORS: Record<string, string> = {
 const PIE_COLORS = ["#6366f1", "#3b82f6", "#22c55e", "#ef4444"];
 
 export default function PMSDashboardPage() {
-  const [objectives, setObjectives] = useState<Objective[]>([]);
+  const [objectives, setObjectives] = useState<any[]>([]);
   const [feedbackStats, setFeedbackStats] = useState({ total: 0, pending: 0, submitted: 0, avgRating: 0 });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
     setLoading(true);
@@ -45,9 +31,7 @@ export default function PMSDashboardPage() {
       (supabase as any).from("hr_objectives").select("*").order("created_at", { ascending: false }),
       (supabase as any).from("hr_feedback_360").select("*"),
     ]);
-
     if (objRes.data) setObjectives(objRes.data);
-
     if (fbRes.data) {
       const fb = fbRes.data as any[];
       const rated = fb.filter((f: any) => f.rating);
@@ -61,18 +45,10 @@ export default function PMSDashboardPage() {
     setLoading(false);
   }
 
-  const statusCounts = objectives.reduce((acc, o) => {
-    acc[o.status] = (acc[o.status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-
+  const statusCounts = objectives.reduce((acc: any, o: any) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {} as Record<string, number>);
   const pieData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  const avgProgress = objectives.length ? Math.round(objectives.reduce((s, o) => s + o.progress, 0) / objectives.length) : 0;
-
-  const typeCounts = objectives.reduce((acc, o) => {
-    acc[o.objective_type] = (acc[o.objective_type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const avgProgress = objectives.length ? Math.round(objectives.reduce((s: number, o: any) => s + o.progress, 0) / objectives.length) : 0;
+  const typeCounts = objectives.reduce((acc: any, o: any) => { acc[o.objective_type] = (acc[o.objective_type] || 0) + 1; return acc; }, {} as Record<string, number>);
   const barData = Object.entries(typeCounts).map(([name, count]) => ({ name, count }));
 
   const stats = [
@@ -82,9 +58,7 @@ export default function PMSDashboardPage() {
     { label: "Avg Rating", value: feedbackStats.avgRating || "–", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
-  if (loading) {
-    return <div className="flex items-center justify-center py-24 text-gray-500">Loading PMS data...</div>;
-  }
+  if (loading) return <div className="flex items-center justify-center py-24 text-gray-500">Loading PMS data...</div>;
 
   return (
     <div className="space-y-6">
@@ -101,24 +75,17 @@ export default function PMSDashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {stats.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${s.bg}`}>
-                <s.icon className={`h-5 w-5 ${s.color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-                <p className="text-xs text-gray-500">{s.label}</p>
-              </div>
+              <div className={`p-2.5 rounded-xl ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
+              <div><p className="text-2xl font-bold text-gray-900">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-sm">Objectives by Status</CardTitle></CardHeader>
@@ -126,8 +93,8 @@ export default function PMSDashboardPage() {
             {pieData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name} (${value})`}>
-                    {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }: any) => `${name} (${value})`}>
+                    {pieData.map((_: any, i: number) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
                   <Tooltip />
                 </PieChart>
@@ -137,7 +104,6 @@ export default function PMSDashboardPage() {
             )}
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader><CardTitle className="text-sm">Objectives by Type</CardTitle></CardHeader>
           <CardContent>
@@ -158,7 +124,6 @@ export default function PMSDashboardPage() {
         </Card>
       </div>
 
-      {/* Recent Objectives */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Recent Objectives</CardTitle>
@@ -169,7 +134,7 @@ export default function PMSDashboardPage() {
             <p className="text-gray-400 text-center py-8">No objectives created yet</p>
           ) : (
             <div className="space-y-3">
-              {objectives.slice(0, 5).map((obj) => (
+              {objectives.slice(0, 5).map((obj: any) => (
                 <div key={obj.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm text-gray-900 truncate">{obj.title}</p>

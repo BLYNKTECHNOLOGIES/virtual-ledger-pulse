@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Star, MessageSquare, Trash2 } from "lucide-react";
+import { Plus, Search, Star, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -28,8 +28,9 @@ interface Feedback {
 
 interface Employee {
   id: string;
-  name: string;
-  employee_id: string;
+  badge_id: string;
+  first_name: string;
+  last_name: string;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -40,14 +41,8 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const emptyForm = {
-  employee_id: "",
-  reviewer_id: "",
-  review_cycle: "",
-  feedback_type: "peer",
-  rating: "",
-  strengths: "",
-  improvements: "",
-  comments: "",
+  employee_id: "", reviewer_id: "", review_cycle: "", feedback_type: "peer",
+  rating: "", strengths: "", improvements: "", comments: "",
 };
 
 export default function Feedback360Page() {
@@ -65,7 +60,7 @@ export default function Feedback360Page() {
     setLoading(true);
     const [fbRes, empRes] = await Promise.all([
       (supabase as any).from("hr_feedback_360").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("hr_employees").select("id, name, employee_id").eq("status", "active"),
+      (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true),
     ]);
     if (fbRes.data) setFeedbacks(fbRes.data);
     if (empRes.data) setEmployees(empRes.data);
@@ -74,39 +69,31 @@ export default function Feedback360Page() {
 
   async function handleCreate() {
     if (!form.employee_id || !form.review_cycle.trim()) {
-      toast.error("Employee and review cycle are required");
-      return;
+      toast.error("Employee and review cycle are required"); return;
     }
     const payload: any = {
-      employee_id: form.employee_id,
-      reviewer_id: form.reviewer_id || null,
-      review_cycle: form.review_cycle.trim(),
-      feedback_type: form.feedback_type,
+      employee_id: form.employee_id, reviewer_id: form.reviewer_id || null,
+      review_cycle: form.review_cycle.trim(), feedback_type: form.feedback_type,
       rating: form.rating ? Number(form.rating) : null,
-      strengths: form.strengths || null,
-      improvements: form.improvements || null,
+      strengths: form.strengths || null, improvements: form.improvements || null,
       comments: form.comments || null,
       status: form.rating ? "submitted" : "pending",
       submitted_at: form.rating ? new Date().toISOString() : null,
     };
-
     const { error } = await (supabase as any).from("hr_feedback_360").insert(payload);
     if (error) { toast.error(error.message); return; }
     toast.success("Feedback created");
-    setDialogOpen(false);
-    setForm(emptyForm);
-    fetchAll();
+    setDialogOpen(false); setForm(emptyForm); fetchAll();
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this feedback?")) return;
     const { error } = await (supabase as any).from("hr_feedback_360").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Deleted");
-    fetchAll();
+    toast.success("Deleted"); fetchAll();
   }
 
-  const empMap = Object.fromEntries(employees.map((e) => [e.id, e.name]));
+  const empMap = Object.fromEntries(employees.map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
 
   const filtered = feedbacks.filter((f) => {
     if (typeFilter !== "all" && f.feedback_type !== typeFilter) return false;
@@ -191,7 +178,6 @@ export default function Feedback360Page() {
         </div>
       )}
 
-      {/* Create Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>New 360° Feedback</DialogTitle></DialogHeader>
@@ -200,57 +186,25 @@ export default function Feedback360Page() {
               <Label>Employee *</Label>
               <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.employee_id})</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label>Reviewer</Label>
               <Select value={form.reviewer_id} onValueChange={(v) => setForm({ ...form, reviewer_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
-                <SelectContent>
-                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.employee_id})</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Review Cycle *</Label>
-                <Input placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} />
-              </div>
-              <div>
-                <Label>Feedback Type</Label>
-                <Select value={form.feedback_type} onValueChange={(v) => setForm({ ...form, feedback_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="self">Self</SelectItem>
-                    <SelectItem value="peer">Peer</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="subordinate">Subordinate</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div><Label>Review Cycle *</Label><Input placeholder="e.g. Q1-2026" value={form.review_cycle} onChange={(e) => setForm({ ...form, review_cycle: e.target.value })} /></div>
+              <div><Label>Feedback Type</Label><Select value={form.feedback_type} onValueChange={(v) => setForm({ ...form, feedback_type: v })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="self">Self</SelectItem><SelectItem value="peer">Peer</SelectItem><SelectItem value="manager">Manager</SelectItem><SelectItem value="subordinate">Subordinate</SelectItem></SelectContent></Select></div>
             </div>
-            <div>
-              <Label>Rating (1–5)</Label>
-              <Input type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} />
-            </div>
-            <div>
-              <Label>Strengths</Label>
-              <Textarea value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} rows={2} />
-            </div>
-            <div>
-              <Label>Areas for Improvement</Label>
-              <Textarea value={form.improvements} onChange={(e) => setForm({ ...form, improvements: e.target.value })} rows={2} />
-            </div>
-            <div>
-              <Label>Comments</Label>
-              <Textarea value={form.comments} onChange={(e) => setForm({ ...form, comments: e.target.value })} rows={2} />
-            </div>
-            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={handleCreate}>
-              Submit Feedback
-            </Button>
+            <div><Label>Rating (1–5)</Label><Input type="number" min={1} max={5} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} /></div>
+            <div><Label>Strengths</Label><Textarea value={form.strengths} onChange={(e) => setForm({ ...form, strengths: e.target.value })} rows={2} /></div>
+            <div><Label>Areas for Improvement</Label><Textarea value={form.improvements} onChange={(e) => setForm({ ...form, improvements: e.target.value })} rows={2} /></div>
+            <div><Label>Comments</Label><Textarea value={form.comments} onChange={(e) => setForm({ ...form, comments: e.target.value })} rows={2} /></div>
+            <Button className="w-full bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={handleCreate}>Submit Feedback</Button>
           </div>
         </DialogContent>
       </Dialog>

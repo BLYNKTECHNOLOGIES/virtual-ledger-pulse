@@ -8,7 +8,111 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Search, Eye, CheckCircle, Wallet } from "lucide-react";
+import { Search, Eye, CheckCircle, Wallet, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+function generatePayslipPDF(detail: any) {
+  const doc = new jsPDF();
+  const empName = `${detail.hr_employees?.first_name || ""} ${detail.hr_employees?.last_name || ""}`.trim();
+  const badgeId = detail.hr_employees?.badge_id || "";
+  const runTitle = detail.hr_payroll_runs?.title || "";
+  const period = `${detail.hr_payroll_runs?.pay_period_start || ""} to ${detail.hr_payroll_runs?.pay_period_end || ""}`;
+
+  // Header
+  doc.setFillColor(232, 96, 76); // #E8604C
+  doc.rect(0, 0, 210, 36, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("PAYSLIP", 14, 18);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(runTitle, 14, 28);
+  doc.text(period, 210 - 14, 28, { align: "right" });
+
+  // Employee info
+  doc.setTextColor(60, 60, 60);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(empName, 14, 48);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Badge: ${badgeId}`, 14, 54);
+  doc.text(`Working Days: ${detail.present_days || 0} / ${detail.working_days || 0}`, 14, 60);
+  if (detail.overtime_hours > 0) doc.text(`Overtime: ${detail.overtime_hours}h`, 100, 60);
+
+  let y = 70;
+
+  // Earnings table
+  const earningsRows = Object.entries(detail.earnings_breakdown || {}).map(([name, amt]) => [name, `₹${Number(amt).toLocaleString("en-IN")}`]);
+  if (earningsRows.length > 0) {
+    earningsRows.push(["Total Earnings", `₹${(detail.total_earnings || 0).toLocaleString("en-IN")}`]);
+    autoTable(doc, {
+      startY: y,
+      head: [["Earnings", "Amount"]],
+      body: earningsRows,
+      theme: "grid",
+      headStyles: { fillColor: [34, 139, 34], textColor: 255, fontStyle: "bold", fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 1: { halign: "right" } },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.row.index === earningsRows.length - 1) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [240, 255, 240];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // Deductions table
+  const deductionRows = Object.entries(detail.deductions_breakdown || {}).map(([name, amt]) => [name, `₹${Number(amt).toLocaleString("en-IN")}`]);
+  if (deductionRows.length > 0) {
+    deductionRows.push(["Total Deductions", `₹${(detail.total_deductions || 0).toLocaleString("en-IN")}`]);
+    autoTable(doc, {
+      startY: y,
+      head: [["Deductions", "Amount"]],
+      body: deductionRows,
+      theme: "grid",
+      headStyles: { fillColor: [220, 53, 69], textColor: 255, fontStyle: "bold", fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: { 1: { halign: "right" } },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.row.index === deductionRows.length - 1) {
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [255, 240, 240];
+        }
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Net salary box
+  doc.setFillColor(232, 96, 76);
+  doc.roundedRect(14, y, 182, 18, 3, 3, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Net Salary", 20, y + 12);
+  doc.text(`₹${(detail.net_salary || 0).toLocaleString("en-IN")}`, 190, y + 12, { align: "right" });
+
+  // Payment status
+  if (detail.status === "paid") {
+    y += 26;
+    doc.setTextColor(34, 139, 34);
+    doc.setFontSize(9);
+    doc.text(`✓ Paid${detail.payment_date ? ` on ${detail.payment_date}` : ""}${detail.payment_reference ? ` | Ref: ${detail.payment_reference}` : ""}`, 14, y);
+  }
+
+  // Footer
+  doc.setTextColor(180, 180, 180);
+  doc.setFontSize(7);
+  doc.text("This is a computer-generated payslip and does not require a signature.", 105, 285, { align: "center" });
+
+  doc.save(`Payslip_${empName.replace(/\s+/g, "_")}_${detail.hr_payroll_runs?.pay_period_end || "unknown"}.pdf`);
+}
 
 export default function PayslipsPage() {
   const qc = useQueryClient();
@@ -212,6 +316,14 @@ export default function PayslipsPage() {
                   </Button>
                 </div>
               )}
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => generatePayslipPDF(detail)}
+              >
+                <Download className="h-4 w-4 mr-2" /> Download PDF
+              </Button>
             </div>
           )}
         </DialogContent>

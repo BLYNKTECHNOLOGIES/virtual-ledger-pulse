@@ -74,6 +74,7 @@ export default function CandidatesListPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
       queryClient.invalidateQueries({ queryKey: ["hr_candidates_hired_not_onboarding"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to hire candidate"),
   });
 
   const cancelMutation = useMutation({
@@ -85,6 +86,7 @@ export default function CandidatesListPage() {
       toast.success("Candidate canceled");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to cancel candidate"),
   });
 
   const updateMutation = useMutation({

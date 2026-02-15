@@ -134,7 +134,7 @@ export default function OnboardingPage() {
       setStageForm({ stage_title: "", is_final_stage: false });
       toast.success("Stage added");
     },
-    onError: () => toast.error("Failed to add stage"),
+    onError: (err: any) => toast.error(err?.message || "Failed to add stage"),
   });
 
   const updateStageMutation = useMutation({
@@ -151,6 +151,7 @@ export default function OnboardingPage() {
       setEditStageId(null);
       toast.success("Stage updated");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update stage"),
   });
 
   const deleteStageMutation = useMutation({
@@ -164,6 +165,7 @@ export default function OnboardingPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_onboarding_tasks"] });
       toast.success("Stage deleted");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to delete stage"),
   });
 
   const addTaskMutation = useMutation({
@@ -182,6 +184,7 @@ export default function OnboardingPage() {
       setTaskForm({ title: "", description: "" });
       toast.success("Task added");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to add task"),
   });
 
   const deleteTaskMutation = useMutation({
@@ -193,6 +196,7 @@ export default function OnboardingPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_onboarding_tasks"] });
       toast.success("Task deleted");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to delete task"),
   });
 
   const startOnboardMutation = useMutation({
@@ -237,6 +241,7 @@ export default function OnboardingPage() {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_candidate_tasks"] }),
+    onError: (err: any) => toast.error(err?.message || "Failed to update task"),
   });
 
   const convertToEmployeeMutation = useMutation({
@@ -299,6 +304,21 @@ export default function OnboardingPage() {
 
   const [expandedCandidate, setExpandedCandidate] = useState<string | null>(null);
 
+  const totalOnboarding = (onboardingCandidates || []).length;
+  const totalStages = (stages || []).length;
+  const totalTasks = (tasks || []).length;
+  const fullyCompleted = (onboardingCandidates || []).filter(c => {
+    const p = getCandidateProgress(c.id);
+    return p.total > 0 && p.completed === p.total;
+  }).length;
+
+  const onboardingStats = [
+    { label: "Onboarding", value: totalOnboarding, color: "bg-violet-100 text-violet-600", icon: Rocket },
+    { label: "Stages", value: totalStages, color: "bg-blue-100 text-blue-600", icon: ClipboardList },
+    { label: "Tasks", value: totalTasks, color: "bg-amber-100 text-amber-600", icon: CheckCircle },
+    { label: "Ready to Convert", value: fullyCompleted, color: "bg-emerald-100 text-emerald-600", icon: UserCheck },
+  ];
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -324,6 +344,21 @@ export default function OnboardingPage() {
             Add Stage
           </button>
         </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {onboardingStats.map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>
+              <s.icon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
+              <p className="text-xs text-gray-500">{s.label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Candidates currently onboarding */}

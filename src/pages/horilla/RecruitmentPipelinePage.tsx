@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Plus, GripVertical, User, Mail, Phone, Star, MoreVertical,
-  ChevronDown, X, ArrowLeft, Eye, UserCheck, UserX
+  ChevronDown, X, ArrowLeft, Eye, UserCheck, UserX, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -239,7 +239,7 @@ export default function RecruitmentPipelinePage() {
                   key={stage.id}
                   className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}
                 >
-                  {/* Stage header */}
+                   {/* Stage header */}
                   <div className="px-3 py-3 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-2">
                       <h3 className="text-sm font-semibold text-gray-900">{stage.stage_name}</h3>
@@ -247,13 +247,30 @@ export default function RecruitmentPipelinePage() {
                         {stageCandidates.length}
                       </span>
                     </div>
-                    <button
-                      onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                      className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
-                      title="Add candidate"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
+                        className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
+                        title="Add candidate"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (stageCandidates.length > 0) { toast.error("Remove all candidates from this stage first"); return; }
+                          if (confirm(`Delete stage "${stage.stage_name}"?`)) {
+                            supabase.from("hr_stages").delete().eq("id", stage.id).then(({ error }) => {
+                              if (error) toast.error("Failed to delete stage");
+                              else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
+                            });
+                          }
+                        }}
+                        className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Delete stage"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Candidates */}

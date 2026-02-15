@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Search, Star, Eye, Edit, Trash2, UserCheck, UserX, Building2, X, Save
+  Search, Star, Eye, Edit, Trash2, UserCheck, UserX, Building2, X, Save, Plus
 } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface Candidate {
   id: string;
@@ -28,6 +29,7 @@ interface Candidate {
 }
 
 export default function CandidatesListPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "hired" | "canceled" | "active">("all");
@@ -138,9 +140,18 @@ export default function CandidatesListPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Candidates</h1>
-        <p className="text-xs text-gray-500 mt-0.5">All candidates across recruitments</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Candidates</h1>
+          <p className="text-xs text-gray-500 mt-0.5">All candidates across recruitments</p>
+        </div>
+        <button
+          onClick={() => { navigate("/hrms/recruitment/pipeline"); }}
+          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Add Candidate
+        </button>
       </div>
 
       {/* Toolbar */}

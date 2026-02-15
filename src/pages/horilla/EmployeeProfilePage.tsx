@@ -56,6 +56,16 @@ export default function EmployeeProfilePage() {
     enabled: !!workInfo?.department_id,
   });
 
+  const { data: position } = useQuery({
+    queryKey: ["pos_for_emp", workInfo?.job_position_id],
+    queryFn: async () => {
+      if (!workInfo?.job_position_id) return null;
+      const { data } = await supabase.from("positions").select("title").eq("id", workInfo.job_position_id).single();
+      return data;
+    },
+    enabled: !!workInfo?.job_position_id,
+  });
+
   const { data: departments } = useQuery({
     queryKey: ["departments_list"],
     queryFn: async () => {
@@ -335,6 +345,7 @@ export default function EmployeeProfilePage() {
               ) : (
                 <>
                   <InfoRow label="Department" value={dept?.name || null} icon={Building2} />
+                  <InfoRow label="Job Position" value={position?.title || null} icon={Briefcase} />
                   <InfoRow label="Job Role" value={workInfo?.job_role || null} icon={Briefcase} />
                   <InfoRow label="Employee Type" value={workInfo?.employee_type || null} />
                   <InfoRow label="Work Type" value={workInfo?.work_type || null} />
@@ -348,6 +359,36 @@ export default function EmployeeProfilePage() {
                   <InfoRow label="Experience (years)" value={workInfo?.experience_years?.toString() || null} />
                 </>
               )}
+            </div>
+          )}
+
+          {activeTab === "Documents" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-800">Employee Documents</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { label: "Resume / CV", icon: FileText, value: null as string | null },
+                  { label: "Offer Letter", icon: FileText, value: null as string | null },
+                  { label: "ID Proof", icon: FileText, value: null as string | null },
+                  { label: "Address Proof", icon: FileText, value: null as string | null },
+                ].map((doc, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50">
+                    <div className="w-9 h-9 rounded-lg bg-[#E8604C]/10 flex items-center justify-center shrink-0">
+                      <doc.icon className="h-4 w-4 text-[#E8604C]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800">{doc.label}</p>
+                      <p className="text-xs text-gray-400">{doc.value ? "Uploaded" : "Not uploaded"}</p>
+                    </div>
+                    {doc.value && (
+                      <a href={doc.value} target="_blank" rel="noopener noreferrer" className="text-xs text-[#E8604C] hover:underline">View</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-2">Document uploads will be available in a future update.</p>
             </div>
           )}
 

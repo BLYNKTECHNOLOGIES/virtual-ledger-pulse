@@ -8,8 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, Eye } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle } from "lucide-react";
 
 export default function PayrollDashboardPage() {
   const qc = useQueryClient();
@@ -19,7 +18,7 @@ export default function PayrollDashboardPage() {
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["hr_payroll_runs"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("hr_payroll_runs").select("*").order("run_date", { ascending: false });
+      const { data, error } = await (supabase as any).from("hr_payroll_runs").select("*").order("run_date", { ascending: false });
       if (error) throw error;
       return data || [];
     },
@@ -27,7 +26,7 @@ export default function PayrollDashboardPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("hr_payroll_runs").insert({
+      const { error } = await (supabase as any).from("hr_payroll_runs").insert({
         title: form.title,
         pay_period_start: form.pay_period_start,
         pay_period_end: form.pay_period_end,
@@ -46,7 +45,7 @@ export default function PayrollDashboardPage() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("hr_payroll_runs").update({ status }).eq("id", id);
+      const { error } = await (supabase as any).from("hr_payroll_runs").update({ status }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -81,7 +80,7 @@ export default function PayrollDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Total Gross", value: `₹${totalGross.toLocaleString()}`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50" },
@@ -99,12 +98,12 @@ export default function PayrollDashboardPage() {
 
       <Card>
         <CardHeader><CardTitle className="text-sm">Payroll Runs</CardTitle></CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
                 {["Title", "Period", "Run Date", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -117,15 +116,13 @@ export default function PayrollDashboardPage() {
                 runs.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium">{r.title}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{r.pay_period_start} — {r.pay_period_end}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
                     <td className="px-4 py-3">{r.run_date}</td>
                     <td className="px-4 py-3">{r.employee_count || 0}</td>
                     <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{r.status}</span>
-                    </td>
+                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{r.status}</span></td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
                         {r.status === "draft" && (

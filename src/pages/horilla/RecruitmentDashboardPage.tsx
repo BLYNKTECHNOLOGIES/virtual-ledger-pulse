@@ -119,6 +119,7 @@ export default function RecruitmentDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
       toast.success("Status updated");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update status"),
   });
 
   const toggleCloseMutation = useMutation({
@@ -130,6 +131,7 @@ export default function RecruitmentDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
       toast.success("Status updated");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update status"),
   });
 
   const closeDialog = () => {

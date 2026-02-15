@@ -243,10 +243,13 @@ export default function RecruitmentPipelinePage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      toast.success("Candidate added");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
       setAddCandidateOpen(false);
       setCandidateForm({ name: "", email: "", mobile: "", source: "" });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to add candidate"),
   });
 
   const addStageMutation = useMutation({
@@ -262,10 +265,12 @@ export default function RecruitmentPipelinePage() {
       if (error) throw error;
     },
     onSuccess: () => {
+      toast.success("Stage added");
       queryClient.invalidateQueries({ queryKey: ["hr_stages"] });
       setAddStageOpen(false);
       setStageForm({ stage_name: "", stage_type: "other" });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to add stage"),
   });
 
   const moveCandidateMutation = useMutation({
@@ -277,6 +282,7 @@ export default function RecruitmentPipelinePage() {
       toast.success("Candidate moved");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to move candidate"),
   });
 
   const hireCandidateMutation = useMutation({
@@ -287,7 +293,9 @@ export default function RecruitmentPipelinePage() {
     onSuccess: () => {
       toast.success("Candidate marked as hired");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to hire candidate"),
   });
 
   const cancelCandidateMutation = useMutation({
@@ -298,7 +306,9 @@ export default function RecruitmentPipelinePage() {
     onSuccess: () => {
       toast.success("Candidate canceled");
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to cancel candidate"),
   });
 
   const getCandidatesForStage = (stageId: string) =>

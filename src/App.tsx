@@ -77,7 +77,8 @@ import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
 import HorillaDashboard from './pages/horilla/HorillaDashboard';
-import HorillaModulePage from './pages/horilla/HorillaModulePage';
+import OnboardingStagesPage from './pages/horilla/OnboardingStagesPage';
+import HelpdeskFaqPage from './pages/horilla/HelpdeskFaqPage';
 import EmployeeListPage from './pages/horilla/EmployeeListPage';
 import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
 import DepartmentsPage from './pages/horilla/DepartmentsPage';
@@ -819,7 +820,7 @@ const router = createBrowserRouter([
         { path: "recruitment/skill-zone", element: <SkillZonePage /> },
         { path: "recruitment/survey", element: <RecruitmentSurveyPage /> },
         { path: "onboarding", element: <OnboardingPage /> },
-        { path: "onboarding/stages", element: <HorillaModulePage /> },
+        { path: "onboarding/stages", element: <OnboardingStagesPage /> },
         { path: "attendance", element: <AttendanceOverviewPage /> },
         { path: "attendance/calendar", element: <AttendanceCalendarPage /> },
         { path: "attendance/shifts", element: <ShiftsPage /> },
@@ -840,7 +841,7 @@ const router = createBrowserRouter([
         { path: "pms/feedback", element: <Feedback360Page /> },
         { path: "offboarding", element: <OffboardingPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
-        { path: "helpdesk/faq", element: <HorillaModulePage /> },
+        { path: "helpdesk/faq", element: <HelpdeskFaqPage /> },
         { path: "organization", element: <OrganizationPage /> },
         { path: "documents", element: <DocumentsPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },

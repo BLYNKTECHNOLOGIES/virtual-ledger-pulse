@@ -20,7 +20,7 @@ export default function OvertimePage() {
       const endDate = `${month}-31`;
       const { data, error } = await supabase
         .from("hr_attendance")
-        .select("*, hr_employees!hr_attendance_employee_id_fkey(employee_id, name, department)")
+        .select("*, hr_employees!hr_attendance_employee_id_fkey(badge_id, first_name, last_name)")
         .gte("attendance_date", startDate)
         .lte("attendance_date", endDate)
         .gt("overtime_hours", 0)
@@ -32,7 +32,8 @@ export default function OvertimePage() {
 
   const filtered = records.filter((r: any) => {
     const q = search.toLowerCase();
-    return r.hr_employees?.name?.toLowerCase().includes(q) || r.hr_employees?.employee_id?.toLowerCase().includes(q);
+    const fullName = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
+    return fullName.includes(q) || r.hr_employees?.badge_id?.toLowerCase().includes(q);
   });
 
   const totalOT = filtered.reduce((sum: number, r: any) => sum + (r.overtime_hours || 0), 0);
@@ -85,9 +86,9 @@ export default function OvertimePage() {
               ) : (
                 filtered.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{r.hr_employees?.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.hr_employees?.employee_id}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.hr_employees?.department}</td>
+                    <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
+                    <td className="px-4 py-3 text-gray-500">{r.hr_employees?.badge_id}</td>
+                    <td className="px-4 py-3 text-gray-500">—</td>
                     <td className="px-4 py-3">{r.attendance_date}</td>
                     <td className="px-4 py-3"><span className="font-semibold text-orange-600">{r.overtime_hours}h</span></td>
                     <td className="px-4 py-3">{r.check_in || "—"}</td>

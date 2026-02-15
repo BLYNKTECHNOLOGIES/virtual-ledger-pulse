@@ -3,14 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Users, Briefcase, CheckCircle, Clock, XCircle,
-  ChevronRight, MoreVertical, Eye, Edit, Trash2, X, Calendar
+  Plus, Users, Briefcase, CheckCircle, XCircle,
+  ChevronRight, Eye, Edit, Trash2, X, Globe, Lock
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function RecruitmentDashboardPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editRec, setEditRec] = useState<any>(null);
   const [form, setForm] = useState({ title: "", vacancy: 1, description: "", start_date: "", end_date: "" });
 
   const { data: recruitments, isLoading } = useQuery({
@@ -34,34 +36,90 @@ export default function RecruitmentDashboardPage() {
     },
   });
 
-  const { data: stages } = useQuery({
-    queryKey: ["hr_stages_all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("hr_stages").select("*");
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const createMutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("hr_recruitments").insert({
+      const payload = {
         title: form.title,
         vacancy: form.vacancy,
         description: form.description || null,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
-        is_published: false,
-        closed: false,
-      });
+      };
+      if (editRec) {
+        const { error } = await supabase.from("hr_recruitments").update(payload).eq("id", editRec.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hr_recruitments").insert({
+          ...payload,
+          is_published: false,
+          closed: false,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success(editRec ? "Recruitment updated" : "Recruitment created");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
+      closeDialog();
+    },
+    onError: () => toast.error("Failed to save"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      // Delete related candidates first
+      await supabase.from("hr_candidates").delete().eq("recruitment_id", id);
+      await supabase.from("hr_stages").delete().eq("recruitment_id", id);
+      const { error } = await supabase.from("hr_recruitments").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Recruitment deleted");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
+    },
+    onError: () => toast.error("Failed to delete"),
+  });
+
+  const togglePublishMutation = useMutation({
+    mutationFn: async ({ id, isPublished }: { id: string; isPublished: boolean }) => {
+      const { error } = await supabase.from("hr_recruitments").update({ is_published: !isPublished }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
-      setCreateOpen(false);
-      setForm({ title: "", vacancy: 1, description: "", start_date: "", end_date: "" });
+      toast.success("Status updated");
     },
   });
+
+  const toggleCloseMutation = useMutation({
+    mutationFn: async ({ id, isClosed }: { id: string; isClosed: boolean }) => {
+      const { error } = await supabase.from("hr_recruitments").update({ closed: !isClosed }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitments"] });
+      toast.success("Status updated");
+    },
+  });
+
+  const closeDialog = () => {
+    setCreateOpen(false);
+    setEditRec(null);
+    setForm({ title: "", vacancy: 1, description: "", start_date: "", end_date: "" });
+  };
+
+  const openEdit = (rec: any) => {
+    setForm({
+      title: rec.title,
+      vacancy: rec.vacancy || 1,
+      description: rec.description || "",
+      start_date: rec.start_date || "",
+      end_date: rec.end_date || "",
+    });
+    setEditRec(rec);
+    setCreateOpen(true);
+  };
 
   const getCandidatesForRecruitment = (recId: string) =>
     (candidates || []).filter(c => c.recruitment_id === recId);
@@ -78,6 +136,8 @@ export default function RecruitmentDashboardPage() {
     { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-gray-100 text-gray-600" },
   ];
 
+  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -86,7 +146,7 @@ export default function RecruitmentDashboardPage() {
           <p className="text-xs text-gray-500 mt-0.5">Manage job openings and candidate pipeline</p>
         </div>
         <button
-          onClick={() => setCreateOpen(true)}
+          onClick={() => { closeDialog(); setCreateOpen(true); }}
           className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" />
@@ -169,11 +229,20 @@ export default function RecruitmentDashboardPage() {
                     </td>
                     <td className="py-3 px-4">
                       {rec.closed ? (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Closed</span>
+                        <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: true })}
+                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer">
+                          Closed
+                        </button>
                       ) : rec.is_published ? (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Published</span>
+                        <button onClick={() => togglePublishMutation.mutate({ id: rec.id, isPublished: true })}
+                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 cursor-pointer flex items-center gap-1">
+                          <Globe className="h-3 w-3" /> Published
+                        </button>
                       ) : (
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Draft</span>
+                        <button onClick={() => togglePublishMutation.mutate({ id: rec.id, isPublished: false })}
+                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer flex items-center gap-1">
+                          <Lock className="h-3 w-3" /> Draft
+                        </button>
                       )}
                     </td>
                     <td className="py-3 px-4 text-xs text-gray-500">
@@ -191,9 +260,21 @@ export default function RecruitmentDashboardPage() {
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
-                        <button className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Edit">
+                        <button onClick={() => openEdit(rec)}
+                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Edit">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
+                        {!rec.closed ? (
+                          <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: false })}
+                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500" title="Close">
+                            <XCircle className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <button onClick={() => { if (confirm(`Delete "${rec.title}" and all its data?`)) deleteMutation.mutate(rec.id); }}
+                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -204,77 +285,49 @@ export default function RecruitmentDashboardPage() {
         )}
       </div>
 
-      {/* Create Dialog */}
+      {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Create Recruitment</h2>
-              <button onClick={() => setCreateOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+              <h2 className="text-lg font-semibold text-gray-900">{editRec ? "Edit" : "Create"} Recruitment</h2>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Title *</label>
-                <input
-                  value={form.title}
-                  onChange={e => setForm({ ...form, title: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
-                  placeholder="e.g. Senior Developer Hiring"
-                />
+                <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="e.g. Senior Developer Hiring" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Vacancies</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.vacancy}
-                    onChange={e => setForm({ ...form, vacancy: parseInt(e.target.value) || 1 })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  />
+                  <input type="number" min={1} value={form.vacancy} onChange={e => setForm({ ...form, vacancy: parseInt(e.target.value) || 1 })} className={inputCls} />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
-                  <input
-                    type="date"
-                    value={form.start_date}
-                    onChange={e => setForm({ ...form, start_date: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                  />
+                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
-                <input
-                  type="date"
-                  value={form.end_date}
-                  onChange={e => setForm({ ...form, end_date: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
-                />
+                <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className={inputCls} />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  rows={3}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none"
-                  placeholder="Job description..."
-                />
+                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
+                  className={`${inputCls} resize-none`} placeholder="Job description..." />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => setCreateOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
-                Cancel
-              </button>
+              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
               <button
-                onClick={() => createMutation.mutate()}
-                disabled={!form.title || createMutation.isPending}
+                onClick={() => saveMutation.mutate()}
+                disabled={!form.title || saveMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
-                {createMutation.isPending ? "Creating..." : "Create"}
+                {saveMutation.isPending ? "Saving..." : editRec ? "Update" : "Create"}
               </button>
             </div>
           </div>

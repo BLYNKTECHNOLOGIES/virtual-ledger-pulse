@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.snapshot-asset-value]
 verify_jwt = false
+
+[functions.biometric-webhook]
+verify_jwt = false

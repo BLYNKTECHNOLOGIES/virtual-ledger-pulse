@@ -114,6 +114,7 @@ export default function StagesPage() {
     offer: { label: "Offer", color: "bg-emerald-100 text-emerald-700" },
     hired: { label: "Hired", color: "bg-green-100 text-green-700" },
     cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    other: { label: "Other", color: "bg-gray-100 text-gray-700" },
   };
 
   const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";

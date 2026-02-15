@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -94,7 +94,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">{candidate.name}</p>
+          <p className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-[#E8604C]" onClick={() => window.location.href = `/hrms/recruitment/candidates/${candidate.id}`}>{candidate.name}</p>
           {candidate.email && <p className="text-[11px] text-gray-400 truncate">{candidate.email}</p>}
         </div>
       </div>

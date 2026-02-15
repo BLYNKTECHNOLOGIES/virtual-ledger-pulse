@@ -2062,6 +2062,38 @@ export type Database = {
           },
         ]
       }
+      hr_candidate_notes: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          id: string
+          note: string
+          note_by: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          id?: string
+          note: string
+          note_by?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          note_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_candidate_ratings: {
         Row: {
           candidate_id: string
@@ -2213,6 +2245,7 @@ export type Database = {
           rating: number | null
           recruitment_id: string | null
           referral_id: string | null
+          reject_reason: string | null
           resume_url: string | null
           schedule_date: string | null
           sequence: number | null
@@ -2246,6 +2279,7 @@ export type Database = {
           rating?: number | null
           recruitment_id?: string | null
           referral_id?: string | null
+          reject_reason?: string | null
           resume_url?: string | null
           schedule_date?: string | null
           sequence?: number | null
@@ -2279,6 +2313,7 @@ export type Database = {
           rating?: number | null
           recruitment_id?: string | null
           referral_id?: string | null
+          reject_reason?: string | null
           resume_url?: string | null
           schedule_date?: string | null
           sequence?: number | null
@@ -4027,6 +4062,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          manager_id: string | null
           recruitment_id: string
           sequence: number
           stage_name: string
@@ -4035,6 +4071,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          manager_id?: string | null
           recruitment_id: string
           sequence?: number
           stage_name: string
@@ -4043,12 +4080,20 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          manager_id?: string | null
           recruitment_id?: string
           sequence?: number
           stage_name?: string
           stage_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "hr_stages_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hr_stages_recruitment_id_fkey"
             columns: ["recruitment_id"]

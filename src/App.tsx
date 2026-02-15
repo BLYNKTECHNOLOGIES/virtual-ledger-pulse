@@ -85,6 +85,7 @@ import PositionsPage from './pages/horilla/PositionsPage';
 import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
 import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
 import CandidatesListPage from './pages/horilla/CandidatesListPage';
+import CandidateProfilePage from './pages/horilla/CandidateProfilePage';
 import OnboardingPage from './pages/horilla/OnboardingPage';
 import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
 import ShiftsPage from './pages/horilla/ShiftsPage';
@@ -805,6 +806,7 @@ const router = createBrowserRouter([
         { path: "recruitment", element: <RecruitmentDashboardPage /> },
         { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
         { path: "recruitment/candidates", element: <CandidatesListPage /> },
+        { path: "recruitment/candidates/:id", element: <CandidateProfilePage /> },
         { path: "recruitment/positions", element: <PositionsPage /> },
         { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <HorillaModulePage /> },

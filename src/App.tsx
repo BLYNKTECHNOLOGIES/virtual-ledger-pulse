@@ -86,6 +86,13 @@ import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
 import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
 import CandidatesListPage from './pages/horilla/CandidatesListPage';
 import OnboardingPage from './pages/horilla/OnboardingPage';
+import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
+import ShiftsPage from './pages/horilla/ShiftsPage';
+import OvertimePage from './pages/horilla/OvertimePage';
+import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
+import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
+import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
+import HolidaysPage from './pages/horilla/HolidaysPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -788,13 +795,13 @@ const router = createBrowserRouter([
         { path: "recruitment/positions", element: <PositionsPage /> },
         { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <HorillaModulePage /> },
-        { path: "attendance", element: <HorillaModulePage /> },
-        { path: "attendance/shifts", element: <HorillaModulePage /> },
-        { path: "attendance/overtime", element: <HorillaModulePage /> },
-        { path: "leave", element: <HorillaModulePage /> },
-        { path: "leave/requests", element: <HorillaModulePage /> },
-        { path: "leave/types", element: <HorillaModulePage /> },
-        { path: "leave/holidays", element: <HorillaModulePage /> },
+        { path: "attendance", element: <AttendanceOverviewPage /> },
+        { path: "attendance/shifts", element: <ShiftsPage /> },
+        { path: "attendance/overtime", element: <OvertimePage /> },
+        { path: "leave", element: <LeaveDashboardPage /> },
+        { path: "leave/requests", element: <LeaveRequestsPage /> },
+        { path: "leave/types", element: <LeaveTypesPage /> },
+        { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "payroll", element: <HorillaModulePage /> },
         { path: "payroll/payslips", element: <HorillaModulePage /> },
         { path: "payroll/allowances", element: <HorillaModulePage /> },

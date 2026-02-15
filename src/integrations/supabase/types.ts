@@ -2714,6 +2714,69 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_feedback_360: {
+        Row: {
+          comments: string | null
+          created_at: string
+          employee_id: string
+          feedback_type: string
+          id: string
+          improvements: string | null
+          rating: number | null
+          review_cycle: string
+          reviewer_id: string | null
+          status: string
+          strengths: string | null
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          employee_id: string
+          feedback_type?: string
+          id?: string
+          improvements?: string | null
+          rating?: number | null
+          review_cycle: string
+          reviewer_id?: string | null
+          status?: string
+          strengths?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          employee_id?: string
+          feedback_type?: string
+          id?: string
+          improvements?: string | null
+          rating?: number | null
+          review_cycle?: string
+          reviewer_id?: string | null
+          status?: string
+          strengths?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_feedback_360_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_feedback_360_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_helpdesk_tickets: {
         Row: {
           assigned_to: string | null
@@ -3070,6 +3133,78 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hr_notifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_objectives: {
+        Row: {
+          assigned_by: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          employee_id: string | null
+          id: string
+          key_results: Json | null
+          objective_type: string
+          priority: string
+          progress: number
+          review_cycle: string | null
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          employee_id?: string | null
+          id?: string
+          key_results?: Json | null
+          objective_type?: string
+          priority?: string
+          progress?: number
+          review_cycle?: string | null
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          employee_id?: string | null
+          id?: string
+          key_results?: Json | null
+          objective_type?: string
+          priority?: string
+          progress?: number
+          review_cycle?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_objectives_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_objectives_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"

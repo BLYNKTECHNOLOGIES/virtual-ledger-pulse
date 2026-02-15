@@ -61,6 +61,7 @@ const navGroups: NavGroup[] = [
         label: "Attendance", icon: Clock, path: "/hrms/attendance",
         children: [
           { label: "Overview", path: "/hrms/attendance" },
+          { label: "Calendar View", path: "/hrms/attendance/calendar" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },
           { label: "Overtime", path: "/hrms/attendance/overtime" },
         ],
@@ -70,6 +71,7 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "Dashboard", path: "/hrms/leave" },
           { label: "Requests", path: "/hrms/leave/requests" },
+          { label: "Allocations", path: "/hrms/leave/allocations" },
           { label: "Leave Types", path: "/hrms/leave/types" },
           { label: "Holidays", path: "/hrms/leave/holidays" },
         ],

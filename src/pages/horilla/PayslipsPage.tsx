@@ -22,7 +22,7 @@ export default function PayslipsPage() {
     queryKey: ["hr_payslips", runFilter],
     queryFn: async () => {
       const query: any = supabase.from("hr_payslips")
-        .select("*, hr_employees!hr_payslips_employee_id_fkey(employee_id, name, department), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title)")
+        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title)")
         .order("created_at", { ascending: false });
       const { data, error } = runFilter !== "all" ? await query.eq("payroll_run_id", runFilter) : await query;
       if (error) throw error;
@@ -32,7 +32,8 @@ export default function PayslipsPage() {
 
   const filtered = payslips.filter((p: any) => {
     const q = search.toLowerCase();
-    return p.hr_employees?.name?.toLowerCase().includes(q) || p.hr_employees?.employee_id?.toLowerCase().includes(q);
+    const fullName = `${p.hr_employees?.first_name || ""} ${p.hr_employees?.last_name || ""}`.toLowerCase();
+    return fullName.includes(q) || p.hr_employees?.badge_id?.toLowerCase().includes(q);
   });
 
   const statusColor = (s: string) => {
@@ -67,22 +68,21 @@ export default function PayslipsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {["Employee", "ID", "Department", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status"].map((h) => (
+                {["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No payslips found</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No payslips found</td></tr>
               ) : (
                 filtered.map((p: any) => (
                   <tr key={p.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium">{p.hr_employees?.name}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.hr_employees?.employee_id}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.hr_employees?.department}</td>
+                    <td className="px-4 py-3 font-medium">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
+                    <td className="px-4 py-3 text-gray-500">{p.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
                     <td className="px-4 py-3 text-green-700">₹{p.gross_salary?.toLocaleString()}</td>
                     <td className="px-4 py-3 text-red-600">₹{p.total_deductions?.toLocaleString()}</td>

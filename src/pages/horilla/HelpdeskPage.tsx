@@ -59,7 +59,7 @@ export default function HelpdeskPage() {
         <div><h1 className="text-2xl font-bold text-gray-900">Helpdesk</h1><p className="text-sm text-gray-500">Manage support tickets</p></div>
         <Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> New Ticket</Button>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[{ label: "Open", value: stats.open, icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" }, { label: "In Progress", value: stats.in_progress, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" }, { label: "Resolved", value: stats.resolved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" }].map(s => (
           <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div><div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div></CardContent></Card>
         ))}

@@ -108,6 +108,8 @@ import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
 import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
 import AssetPage from './pages/horilla/AssetPage';
+import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
+import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
 import HelpdeskPage from './pages/horilla/HelpdeskPage';
 import OffboardingPage from './pages/horilla/OffboardingPage';
 import OrganizationPage from './pages/horilla/OrganizationPage';
@@ -840,8 +842,9 @@ const router = createBrowserRouter([
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
         { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
-        { path: "asset", element: <AssetPage /> },
-        { path: "asset/assignments", element: <AssetPage /> },
+        { path: "asset", element: <AssetDashboardPage /> },
+        { path: "asset/list", element: <AssetPage /> },
+        { path: "asset/assignments", element: <AssetAssignmentsPage /> },
         { path: "pms", element: <PMSDashboardPage /> },
         { path: "pms/objectives", element: <ObjectivesPage /> },
         { path: "pms/feedback", element: <Feedback360Page /> },

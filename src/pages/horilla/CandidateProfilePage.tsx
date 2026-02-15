@@ -92,8 +92,11 @@ export default function CandidateProfilePage() {
     onSuccess: () => {
       toast.success("Candidate updated");
       queryClient.invalidateQueries({ queryKey: ["hr_candidate", id] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
       setEditing(false);
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update candidate"),
   });
 
   const addNoteMutation = useMutation({
@@ -110,6 +113,7 @@ export default function CandidateProfilePage() {
       setNewNote("");
       queryClient.invalidateQueries({ queryKey: ["hr_candidate_notes", id] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to add note"),
   });
 
   const hireMutation = useMutation({
@@ -120,7 +124,10 @@ export default function CandidateProfilePage() {
     onSuccess: () => {
       toast.success("Candidate hired");
       queryClient.invalidateQueries({ queryKey: ["hr_candidate", id] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to hire candidate"),
   });
 
   const cancelMutation = useMutation({
@@ -131,7 +138,10 @@ export default function CandidateProfilePage() {
     onSuccess: () => {
       toast.success("Candidate rejected");
       queryClient.invalidateQueries({ queryKey: ["hr_candidate", id] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to reject candidate"),
   });
 
   if (isLoading || !candidate) {

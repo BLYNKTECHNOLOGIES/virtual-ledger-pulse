@@ -78,8 +78,10 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_offer_letters", candidateId] });
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidate", candidateId] });
       toast.success("Offer status updated");
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update offer status"),
   });
 
   if (!open) return null;

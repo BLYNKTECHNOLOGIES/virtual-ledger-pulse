@@ -87,6 +87,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
       queryClient.invalidateQueries({ queryKey: ["hr_interviews", candidateId] });
       setFeedbackForm(null);
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to save feedback"),
   });
 
   const statusMutation = useMutation({
@@ -94,7 +95,11 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
       const { error } = await supabase.from("hr_interviews").update({ status }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_interviews", candidateId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_interviews", candidateId] });
+      toast.success("Interview status updated");
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to update status"),
   });
 
   if (!open) return null;

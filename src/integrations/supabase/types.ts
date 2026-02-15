@@ -2125,6 +2125,60 @@ export type Database = {
           },
         ]
       }
+      hr_biometric_devices: {
+        Row: {
+          company: string | null
+          created_at: string
+          device_direction: string
+          device_type: string
+          employees_count: number | null
+          id: string
+          is_connected: boolean
+          is_live_capture: boolean
+          is_scheduled: boolean
+          last_sync_at: string | null
+          machine_ip: string | null
+          name: string
+          password: string | null
+          port_no: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          device_direction?: string
+          device_type?: string
+          employees_count?: number | null
+          id?: string
+          is_connected?: boolean
+          is_live_capture?: boolean
+          is_scheduled?: boolean
+          last_sync_at?: string | null
+          machine_ip?: string | null
+          name: string
+          password?: string | null
+          port_no?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          device_direction?: string
+          device_type?: string
+          employees_count?: number | null
+          id?: string
+          is_connected?: boolean
+          is_live_capture?: boolean
+          is_scheduled?: boolean
+          last_sync_at?: string | null
+          machine_ip?: string | null
+          name?: string
+          password?: string | null
+          port_no?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_bonus_points: {
         Row: {
           created_at: string

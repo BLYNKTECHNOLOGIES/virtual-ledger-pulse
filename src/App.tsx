@@ -103,6 +103,7 @@ import LeaveAllocationsPage from './pages/horilla/LeaveAllocationsPage';
 import AttendanceCalendarPage from './pages/horilla/AttendanceCalendarPage';
 import AttendanceActivityPage from './pages/horilla/AttendanceActivityPage';
 import AttendanceSummaryPage from './pages/horilla/AttendanceSummaryPage';
+import BiometricDevicesPage from './pages/horilla/BiometricDevicesPage';
 import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
 import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
@@ -827,6 +828,7 @@ const router = createBrowserRouter([
         { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <OnboardingStagesPage /> },
         { path: "attendance", element: <AttendanceOverviewPage /> },
+        { path: "attendance/biometric-devices", element: <BiometricDevicesPage /> },
         { path: "attendance/calendar", element: <AttendanceCalendarPage /> },
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },

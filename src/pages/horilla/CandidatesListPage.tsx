@@ -236,7 +236,7 @@ export default function CandidatesListPage() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => setViewCandidate(c)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="View">
+                      <button onClick={() => navigate(`/hrms/recruitment/candidates/${c.id}`)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="View Profile">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
                       <button onClick={() => { setEditCandidate(c); setEditForm({ name: c.name, email: c.email || "", mobile: c.mobile || "", source: c.source || "" }); }} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Edit">

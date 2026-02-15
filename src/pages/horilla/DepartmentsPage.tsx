@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, X, Building2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DepartmentsPage() {
   const queryClient = useQueryClient();
@@ -45,9 +46,11 @@ export default function DepartmentsPage() {
       }
     },
     onSuccess: () => {
+      toast.success(editId ? "Department updated" : "Department created");
       queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
       closeDialog();
     },
+    onError: () => toast.error("Failed to save department"),
   });
 
   const deleteMutation = useMutation({
@@ -55,7 +58,22 @@ export default function DepartmentsPage() {
       const { error } = await supabase.from("departments").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_departments"] }),
+    onSuccess: () => {
+      toast.success("Department deleted");
+      queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
+    },
+    onError: () => toast.error("Failed to delete department"),
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+      const { error } = await supabase.from("departments").update({ is_active: !isActive }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
+      toast.success("Status updated");
+    },
   });
 
   const closeDialog = () => {
@@ -74,12 +92,12 @@ export default function DepartmentsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{departments?.length || 0} departments</p>
+          <h1 className="text-xl font-bold text-gray-900">Departments</h1>
+          <p className="text-xs text-gray-500 mt-0.5">{departments?.length || 0} departments</p>
         </div>
         <button
           onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
-          className="flex items-center gap-2 bg-[#6C63FF] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#5a52e0] transition-colors"
+          className="flex items-center gap-2 bg-[#E8604C] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#d04e3c] transition-colors shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Add Department
@@ -87,14 +105,14 @@ export default function DepartmentsPage() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-gray-400">Loading...</div>
+        <div className="text-center py-16 text-gray-400 text-sm">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {(departments || []).map((d) => (
             <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#6C63FF]/10 flex items-center justify-center text-lg">
+                  <div className="w-10 h-10 rounded-lg bg-[#E8604C]/10 flex items-center justify-center text-lg">
                     {d.icon || "📁"}
                   </div>
                   <div>
@@ -103,10 +121,18 @@ export default function DepartmentsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => toggleActiveMutation.mutate({ id: d.id, isActive: d.is_active })}
+                    className={`text-[10px] font-medium px-2 py-0.5 rounded-full cursor-pointer ${
+                      d.is_active ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {d.is_active ? "Active" : "Inactive"}
+                  </button>
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => deleteMutation.mutate(d.id)} className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500">
+                  <button onClick={() => { if (confirm(`Delete "${d.name}"?`)) deleteMutation.mutate(d.id); }} className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -118,6 +144,9 @@ export default function DepartmentsPage() {
               </div>
             </div>
           ))}
+          {(departments || []).length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-400 text-sm">No departments yet</div>
+          )}
         </div>
       )}
 
@@ -133,23 +162,23 @@ export default function DepartmentsPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#6C63FF]" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Code *</label>
                 <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#6C63FF]" placeholder="e.g. ENG" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" placeholder="e.g. ENG" />
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#6C63FF] resize-none" rows={2} />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
               <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#6C63FF] rounded-lg hover:bg-[#5a52e0] disabled:opacity-50">
+                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}
               </button>
             </div>

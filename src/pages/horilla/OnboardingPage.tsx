@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, CheckCircle, Circle, X, Rocket, ClipboardList,
-  Edit, Trash2, ChevronDown, UserPlus
+  Edit, Trash2, ChevronDown, UserPlus, UserCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -239,6 +239,45 @@ export default function OnboardingPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_candidate_tasks"] }),
   });
 
+  const convertToEmployeeMutation = useMutation({
+    mutationFn: async (candidate: Candidate) => {
+      const nameParts = candidate.name.split(" ");
+      const firstName = nameParts[0] || candidate.name;
+      const lastName = nameParts.slice(1).join(" ") || "-";
+      const badgeId = `EMP${Date.now().toString().slice(-6)}`;
+
+      const { data: emp, error: empErr } = await supabase.from("hr_employees").insert({
+        badge_id: badgeId,
+        first_name: firstName,
+        last_name: lastName,
+        email: candidate.email || null,
+        is_active: true,
+      }).select().single();
+      if (empErr) throw empErr;
+
+      // Create work info with joining date as today
+      await supabase.from("hr_employee_work_info").insert({
+        employee_id: emp.id,
+        joining_date: new Date().toISOString().split("T")[0],
+      });
+
+      // Mark candidate as converted
+      await supabase.from("hr_candidates").update({
+        converted: true,
+        start_onboard: false,
+      }).eq("id", candidate.id);
+
+      return emp;
+    },
+    onSuccess: () => {
+      toast.success("Candidate converted to employee successfully!");
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_onboarding"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_dashboard_employees"] });
+    },
+    onError: () => toast.error("Failed to convert candidate"),
+  });
+
   const getTasksForStage = (stageId: string) => (tasks || []).filter(t => t.stage_id === stageId);
 
   const getCandidateProgress = (candidateId: string) => {
@@ -317,7 +356,16 @@ export default function OnboardingPage() {
                         <span className="text-[10px] text-gray-400">{progress.completed}/{progress.total} tasks ({pct}%)</span>
                       </div>
                     </div>
-                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                    {pct === 100 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); convertToEmployeeMutation.mutate(c); }}
+                        disabled={convertToEmployeeMutation.isPending}
+                        className="flex items-center gap-1 text-xs font-medium text-white bg-emerald-500 px-3 py-1.5 rounded-lg hover:bg-emerald-600 shrink-0 disabled:opacity-50"
+                      >
+                        <UserCheck className="h-3.5 w-3.5" />
+                        Convert to Employee
+                      </button>
+                    )}
                   </div>
 
                   {/* Expanded: show tasks per stage */}

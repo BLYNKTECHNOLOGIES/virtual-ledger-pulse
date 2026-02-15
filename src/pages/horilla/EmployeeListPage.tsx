@@ -8,6 +8,9 @@ import {
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3
 } from "lucide-react";
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
+import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface HrEmployee {
   id: string;
@@ -60,6 +63,35 @@ export default function EmployeeListPage() {
   const [visibleCols, setVisibleCols] = useState<string[]>(
     ALL_TABLE_COLS.map(c => c.key)
   );
+  const [editOpen, setEditOpen] = useState(false);
+  const [editEmployee, setEditEmployee] = useState<any>(null);
+  const [editWorkInfo, setEditWorkInfo] = useState<any>(null);
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hr_employees").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Employee deleted");
+      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+    },
+    onError: () => toast.error("Failed to delete employee"),
+  });
+
+  const handleEdit = (emp: HrEmployee) => {
+    const wi = getWorkInfo(emp.id);
+    setEditEmployee(emp);
+    setEditWorkInfo(wi || null);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (emp: HrEmployee) => {
+    if (confirm(`Delete ${emp.first_name} ${emp.last_name}? This cannot be undone.`)) {
+      deleteMutation.mutate(emp.id);
+    }
+  };
 
   const { data: employees, isLoading } = useQuery({
     queryKey: ["hr_employees_list"],
@@ -447,6 +479,7 @@ export default function EmployeeListPage() {
                         <Eye className="h-3.5 w-3.5" />
                       </button>
                       <button
+                        onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}
                         className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Edit"
                       >
@@ -586,12 +619,14 @@ export default function EmployeeListPage() {
                               <Eye className="h-3.5 w-3.5" />
                             </button>
                             <button
+                              onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}
                               className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
                               title="Edit"
                             >
                               <Edit className="h-3.5 w-3.5" />
                             </button>
                             <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(emp); }}
                               className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500"
                               title="Delete"
                             >
@@ -610,6 +645,14 @@ export default function EmployeeListPage() {
       </div>
 
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} departments={departments || []} positions={positions || []} />
+      <EditEmployeeDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        employee={editEmployee}
+        workInfo={editWorkInfo}
+        departments={departments || []}
+        positions={positions || []}
+      />
     </div>
   );
 }

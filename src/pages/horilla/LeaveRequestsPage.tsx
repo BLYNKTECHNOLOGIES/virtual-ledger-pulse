@@ -16,7 +16,7 @@ export default function LeaveRequestsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "" });
+  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],
@@ -51,21 +51,24 @@ export default function LeaveRequestsPage() {
     mutationFn: async () => {
       const start = new Date(form.start_date);
       const end = new Date(form.end_date);
-      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      let days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (form.is_half_day) days = 0.5;
       const { error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
         start_date: form.start_date,
-        end_date: form.end_date,
+        end_date: form.is_half_day ? form.start_date : form.end_date,
         reason: form.reason || null,
         total_days: days,
+        is_half_day: form.is_half_day,
+        half_day_period: form.is_half_day ? form.half_day_period : null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       setShowAdd(false);
-      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "" });
+      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
       toast.success("Leave request created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -146,7 +149,10 @@ export default function LeaveRequestsPage() {
                     </td>
                     <td className="px-4 py-3">{r.start_date}</td>
                     <td className="px-4 py-3">{r.end_date}</td>
-                    <td className="px-4 py-3 font-medium">{r.total_days}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {r.total_days}
+                      {r.is_half_day && <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         r.status === "approved" ? "bg-green-100 text-green-700" :
@@ -193,9 +199,25 @@ export default function LeaveRequestsPage() {
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={form.is_half_day} onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })} className="rounded border-gray-300" />
+              <Label>Half Day Leave</Label>
+            </div>
+            {form.is_half_day && (
+              <div>
+                <Label>Period</Label>
+                <Select value={form.half_day_period} onValueChange={(v) => setForm({ ...form, half_day_period: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="morning">Morning</SelectItem>
+                    <SelectItem value="afternoon">Afternoon</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Start Date</Label><Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></div>
-              <div><Label>End Date</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>
+              {!form.is_half_day && <div><Label>End Date</Label><Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></div>}
             </div>
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave..." /></div>
           </div>

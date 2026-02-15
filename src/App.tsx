@@ -96,6 +96,13 @@ import HolidaysPage from './pages/horilla/HolidaysPage';
 import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
 import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
+import AssetPage from './pages/horilla/AssetPage';
+import HelpdeskPage from './pages/horilla/HelpdeskPage';
+import OffboardingPage from './pages/horilla/OffboardingPage';
+import OrganizationPage from './pages/horilla/OrganizationPage';
+import DocumentsPage from './pages/horilla/DocumentsPage';
+import AnnouncementsPage from './pages/horilla/AnnouncementsPage';
+import ReportsPage from './pages/horilla/ReportsPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -809,18 +816,18 @@ const router = createBrowserRouter([
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
-        { path: "asset", element: <HorillaModulePage /> },
-        { path: "asset/assignments", element: <HorillaModulePage /> },
+        { path: "asset", element: <AssetPage /> },
+        { path: "asset/assignments", element: <AssetPage /> },
         { path: "pms", element: <HorillaModulePage /> },
         { path: "pms/objectives", element: <HorillaModulePage /> },
         { path: "pms/feedback", element: <HorillaModulePage /> },
-        { path: "offboarding", element: <HorillaModulePage /> },
-        { path: "helpdesk", element: <HorillaModulePage /> },
+        { path: "offboarding", element: <OffboardingPage /> },
+        { path: "helpdesk", element: <HelpdeskPage /> },
         { path: "helpdesk/faq", element: <HorillaModulePage /> },
-        { path: "organization", element: <HorillaModulePage /> },
-        { path: "documents", element: <HorillaModulePage /> },
-        { path: "announcements", element: <HorillaModulePage /> },
-        { path: "reports", element: <HorillaModulePage /> },
+        { path: "organization", element: <OrganizationPage /> },
+        { path: "documents", element: <DocumentsPage /> },
+        { path: "announcements", element: <AnnouncementsPage /> },
+        { path: "reports", element: <ReportsPage /> },
       ],
     },
    // Catch-all route for 404 errors

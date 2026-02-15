@@ -1866,6 +1866,104 @@ export type Database = {
           },
         ]
       }
+      hr_announcements: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_pinned: boolean | null
+          published: boolean | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          published?: boolean | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean | null
+          published?: boolean | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_assets: {
+        Row: {
+          asset_type: string
+          assigned_date: string | null
+          assigned_to: string | null
+          condition: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          purchase_cost: number | null
+          purchase_date: string | null
+          return_date: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asset_type?: string
+          assigned_date?: string | null
+          assigned_to?: string | null
+          condition?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          return_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asset_type?: string
+          assigned_date?: string | null
+          assigned_to?: string | null
+          condition?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          return_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_assets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_attendance: {
         Row: {
           attendance_date: string
@@ -2615,6 +2713,66 @@ export type Database = {
           zip?: string | null
         }
         Relationships: []
+      }
+      hr_helpdesk_tickets: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          priority: string | null
+          raised_by: string | null
+          resolution: string | null
+          resolved_at: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string | null
+          raised_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string | null
+          raised_by?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_helpdesk_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_helpdesk_tickets_raised_by_fkey"
+            columns: ["raised_by"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_holidays: {
         Row: {

@@ -103,6 +103,9 @@ import OrganizationPage from './pages/horilla/OrganizationPage';
 import DocumentsPage from './pages/horilla/DocumentsPage';
 import AnnouncementsPage from './pages/horilla/AnnouncementsPage';
 import ReportsPage from './pages/horilla/ReportsPage';
+import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
+import ObjectivesPage from './pages/horilla/ObjectivesPage';
+import Feedback360Page from './pages/horilla/Feedback360Page';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -818,9 +821,9 @@ const router = createBrowserRouter([
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
         { path: "asset", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetPage /> },
-        { path: "pms", element: <HorillaModulePage /> },
-        { path: "pms/objectives", element: <HorillaModulePage /> },
-        { path: "pms/feedback", element: <HorillaModulePage /> },
+        { path: "pms", element: <PMSDashboardPage /> },
+        { path: "pms/objectives", element: <ObjectivesPage /> },
+        { path: "pms/feedback", element: <Feedback360Page /> },
         { path: "offboarding", element: <OffboardingPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         { path: "helpdesk/faq", element: <HorillaModulePage /> },

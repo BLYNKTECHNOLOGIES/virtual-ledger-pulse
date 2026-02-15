@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Plus, GripVertical, User, Mail, Phone, Star, MoreVertical,
-  ChevronDown, X, ArrowLeft, Eye
+  ChevronDown, X, ArrowLeft, Eye, UserCheck, UserX
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Stage {
   id: string;
@@ -142,6 +143,29 @@ export default function RecruitmentPipelinePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["hr_candidates"] }),
   });
 
+  const hireCandidateMutation = useMutation({
+    mutationFn: async (candidateId: string) => {
+      const { error } = await supabase.from("hr_candidates").update({ hired: true, canceled: false, hired_date: new Date().toISOString().split("T")[0] }).eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Candidate marked as hired");
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates_hired_not_onboarding"] });
+    },
+  });
+
+  const cancelCandidateMutation = useMutation({
+    mutationFn: async (candidateId: string) => {
+      const { error } = await supabase.from("hr_candidates").update({ canceled: true, hired: false }).eq("id", candidateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Candidate canceled");
+      queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
+    },
+  });
+
   const getCandidatesForStage = (stageId: string) =>
     (candidates || []).filter(c => c.stage_id === stageId);
 
@@ -251,7 +275,7 @@ export default function RecruitmentPipelinePage() {
                             <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
                             {c.email && <p className="text-[11px] text-gray-400 truncate">{c.email}</p>}
                           </div>
-                          {/* Move to next/prev stage */}
+                          {/* Actions */}
                           <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {stages.findIndex(s => s.id === stage.id) < stages.length - 1 && (
                               <button
@@ -265,6 +289,24 @@ export default function RecruitmentPipelinePage() {
                                 title="Move to next stage"
                               >
                                 Next →
+                              </button>
+                            )}
+                            {!c.hired && !c.canceled && (
+                              <button
+                                onClick={() => hireCandidateMutation.mutate(c.id)}
+                                className="text-[10px] text-emerald-600 hover:underline"
+                                title="Mark as Hired"
+                              >
+                                Hire ✓
+                              </button>
+                            )}
+                            {!c.canceled && !c.hired && (
+                              <button
+                                onClick={() => cancelCandidateMutation.mutate(c.id)}
+                                className="text-[10px] text-red-500 hover:underline"
+                                title="Cancel"
+                              >
+                                Cancel ✗
                               </button>
                             )}
                           </div>

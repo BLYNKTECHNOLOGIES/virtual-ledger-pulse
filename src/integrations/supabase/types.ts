@@ -2030,6 +2030,47 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_activity: {
+        Row: {
+          activity_date: string
+          clock_in: string | null
+          clock_in_note: string | null
+          clock_out: string | null
+          clock_out_note: string | null
+          created_at: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          activity_date?: string
+          clock_in?: string | null
+          clock_in_note?: string | null
+          clock_out?: string | null
+          clock_out_note?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          activity_date?: string
+          clock_in?: string | null
+          clock_in_note?: string | null
+          clock_out?: string | null
+          clock_out_note?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_activity_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_bonus_points: {
         Row: {
           created_at: string
@@ -3112,7 +3153,9 @@ export type Database = {
           created_at: string
           employee_id: string
           end_date: string
+          half_day_period: string | null
           id: string
+          is_half_day: boolean | null
           leave_type_id: string
           reason: string | null
           rejection_reason: string | null
@@ -3128,7 +3171,9 @@ export type Database = {
           created_at?: string
           employee_id: string
           end_date: string
+          half_day_period?: string | null
           id?: string
+          is_half_day?: boolean | null
           leave_type_id: string
           reason?: string | null
           rejection_reason?: string | null
@@ -3144,7 +3189,9 @@ export type Database = {
           created_at?: string
           employee_id?: string
           end_date?: string
+          half_day_period?: string | null
           id?: string
+          is_half_day?: boolean | null
           leave_type_id?: string
           reason?: string | null
           rejection_reason?: string | null

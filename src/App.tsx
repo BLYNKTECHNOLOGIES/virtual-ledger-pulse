@@ -98,6 +98,8 @@ import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
 import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
 import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
 import HolidaysPage from './pages/horilla/HolidaysPage';
+import LeaveAllocationsPage from './pages/horilla/LeaveAllocationsPage';
+import AttendanceCalendarPage from './pages/horilla/AttendanceCalendarPage';
 import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
 import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
@@ -819,10 +821,12 @@ const router = createBrowserRouter([
         { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <HorillaModulePage /> },
         { path: "attendance", element: <AttendanceOverviewPage /> },
+        { path: "attendance/calendar", element: <AttendanceCalendarPage /> },
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
+        { path: "leave/allocations", element: <LeaveAllocationsPage /> },
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },

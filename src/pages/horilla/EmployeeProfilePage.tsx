@@ -321,7 +321,7 @@ export default function EmployeeProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-1">
               <h3 className="text-sm font-semibold text-gray-800 col-span-full mb-2">Personal Information</h3>
               <InfoRow label="Date of Birth" value={emp.dob} icon={Calendar} editKey="dob" inputType="date" />
-              <InfoRow label="Gender" value={emp.gender} icon={User} editKey="gender" selectOptions={[{ value: "Male", label: "Male" }, { value: "Female", label: "Female" }, { value: "Other", label: "Other" }]} />
+              <InfoRow label="Gender" value={emp.gender} icon={User} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
               <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }, { value: "Widowed", label: "Widowed" }]} />
               <InfoRow label="Phone" value={emp.phone} icon={Phone} editKey="phone" />
               <InfoRow label="Email" value={emp.email} icon={Mail} />

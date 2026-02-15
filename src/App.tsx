@@ -75,6 +75,9 @@ import TerminalAssets from './pages/terminal/TerminalAssets';
 import TerminalLogs from './pages/terminal/TerminalLogs';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
+import { HorillaLayout } from './components/horilla/HorillaLayout';
+import HorillaDashboard from './pages/horilla/HorillaDashboard';
+import HorillaModulePage from './pages/horilla/HorillaModulePage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -356,20 +359,6 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <UserManagement />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/hrms",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <HRMS />
             </Layout>
           </AuthCheck>
         </AuthProvider>
@@ -766,6 +755,50 @@ const router = createBrowserRouter([
     {
       path: "/reset-password",
       element: <ResetPassword />,
+    },
+    // Horilla HRMS — Isolated layout, no ERP shell
+    {
+      path: "/hrms",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <HorillaLayout />
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+      children: [
+        { index: true, element: <HorillaDashboard /> },
+        { path: "employee", element: <HorillaModulePage /> },
+        { path: "employee/departments", element: <HorillaModulePage /> },
+        { path: "employee/positions", element: <HorillaModulePage /> },
+        { path: "recruitment", element: <HorillaModulePage /> },
+        { path: "recruitment/pipeline", element: <HorillaModulePage /> },
+        { path: "recruitment/candidates", element: <HorillaModulePage /> },
+        { path: "recruitment/positions", element: <HorillaModulePage /> },
+        { path: "onboarding", element: <HorillaModulePage /> },
+        { path: "onboarding/stages", element: <HorillaModulePage /> },
+        { path: "attendance", element: <HorillaModulePage /> },
+        { path: "attendance/shifts", element: <HorillaModulePage /> },
+        { path: "attendance/overtime", element: <HorillaModulePage /> },
+        { path: "leave", element: <HorillaModulePage /> },
+        { path: "leave/requests", element: <HorillaModulePage /> },
+        { path: "leave/types", element: <HorillaModulePage /> },
+        { path: "leave/holidays", element: <HorillaModulePage /> },
+        { path: "payroll", element: <HorillaModulePage /> },
+        { path: "payroll/payslips", element: <HorillaModulePage /> },
+        { path: "payroll/allowances", element: <HorillaModulePage /> },
+        { path: "payroll/deductions", element: <HorillaModulePage /> },
+        { path: "asset", element: <HorillaModulePage /> },
+        { path: "asset/assignments", element: <HorillaModulePage /> },
+        { path: "pms", element: <HorillaModulePage /> },
+        { path: "pms/objectives", element: <HorillaModulePage /> },
+        { path: "pms/feedback", element: <HorillaModulePage /> },
+        { path: "offboarding", element: <HorillaModulePage /> },
+        { path: "helpdesk", element: <HorillaModulePage /> },
+        { path: "helpdesk/faq", element: <HorillaModulePage /> },
+      ],
     },
    // Catch-all route for 404 errors
     {

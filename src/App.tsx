@@ -82,6 +82,10 @@ import EmployeeListPage from './pages/horilla/EmployeeListPage';
 import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
 import DepartmentsPage from './pages/horilla/DepartmentsPage';
 import PositionsPage from './pages/horilla/PositionsPage';
+import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
+import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
+import CandidatesListPage from './pages/horilla/CandidatesListPage';
+import OnboardingPage from './pages/horilla/OnboardingPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -778,11 +782,11 @@ const router = createBrowserRouter([
         { path: "employee/:id", element: <EmployeeProfilePage /> },
         { path: "employee/departments", element: <DepartmentsPage /> },
         { path: "employee/positions", element: <PositionsPage /> },
-        { path: "recruitment", element: <HorillaModulePage /> },
-        { path: "recruitment/pipeline", element: <HorillaModulePage /> },
-        { path: "recruitment/candidates", element: <HorillaModulePage /> },
+        { path: "recruitment", element: <RecruitmentDashboardPage /> },
+        { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
+        { path: "recruitment/candidates", element: <CandidatesListPage /> },
         { path: "recruitment/positions", element: <HorillaModulePage /> },
-        { path: "onboarding", element: <HorillaModulePage /> },
+        { path: "onboarding", element: <OnboardingPage /> },
         { path: "onboarding/stages", element: <HorillaModulePage /> },
         { path: "attendance", element: <HorillaModulePage /> },
         { path: "attendance/shifts", element: <HorillaModulePage /> },

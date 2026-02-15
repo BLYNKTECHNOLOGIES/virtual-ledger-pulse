@@ -798,6 +798,10 @@ const router = createBrowserRouter([
         { path: "offboarding", element: <HorillaModulePage /> },
         { path: "helpdesk", element: <HorillaModulePage /> },
         { path: "helpdesk/faq", element: <HorillaModulePage /> },
+        { path: "organization", element: <HorillaModulePage /> },
+        { path: "documents", element: <HorillaModulePage /> },
+        { path: "announcements", element: <HorillaModulePage /> },
+        { path: "reports", element: <HorillaModulePage /> },
       ],
     },
    // Catch-all route for 404 errors

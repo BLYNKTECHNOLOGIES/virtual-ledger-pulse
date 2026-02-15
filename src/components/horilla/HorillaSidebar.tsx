@@ -94,6 +94,7 @@ const navGroups: NavGroup[] = [
         children: [
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
+          { label: "Salary Structure", path: "/hrms/payroll/salary-structure" },
           { label: "Allowances", path: "/hrms/payroll/allowances" },
           { label: "Deductions", path: "/hrms/payroll/deductions" },
         ],

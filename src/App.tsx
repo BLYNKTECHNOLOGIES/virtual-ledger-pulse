@@ -106,6 +106,7 @@ import AttendanceSummaryPage from './pages/horilla/AttendanceSummaryPage';
 import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
 import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
+import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
 import AssetPage from './pages/horilla/AssetPage';
 import HelpdeskPage from './pages/horilla/HelpdeskPage';
 import OffboardingPage from './pages/horilla/OffboardingPage';
@@ -838,6 +839,7 @@ const router = createBrowserRouter([
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
+        { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
         { path: "asset", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetPage /> },
         { path: "pms", element: <PMSDashboardPage /> },

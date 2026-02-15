@@ -51,7 +51,13 @@ const navGroups: NavGroup[] = [
           { label: "Skill Zone", path: "/hrms/recruitment/skill-zone" },
         ],
       },
-      { label: "Onboarding", icon: Rocket, path: "/hrms/onboarding" },
+      {
+        label: "Onboarding", icon: Rocket, path: "/hrms/onboarding",
+        children: [
+          { label: "Overview", path: "/hrms/onboarding" },
+          { label: "Stages", path: "/hrms/onboarding/stages" },
+        ],
+      },
     ],
   },
   {
@@ -104,7 +110,13 @@ const navGroups: NavGroup[] = [
           { label: "360° Feedback", path: "/hrms/pms/feedback" },
         ],
       },
-      { label: "Helpdesk", icon: HelpCircle, path: "/hrms/helpdesk" },
+      {
+        label: "Helpdesk", icon: HelpCircle, path: "/hrms/helpdesk",
+        children: [
+          { label: "Tickets", path: "/hrms/helpdesk" },
+          { label: "FAQ", path: "/hrms/helpdesk/faq" },
+        ],
+      },
       { label: "Organization", icon: Building2, path: "/hrms/organization" },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },

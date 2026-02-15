@@ -54,7 +54,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold text-gray-900">Reports & Analytics</h1><p className="text-sm text-gray-500">HR insights and reports</p></div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { label: "Total Employees", value: employees.length, icon: Users, bg: "bg-violet-50", color: "text-violet-600" },
           { label: "Active", value: employees.filter((e: any) => e.is_active).length, icon: Users, bg: "bg-emerald-50", color: "text-emerald-600" },
@@ -64,7 +64,7 @@ export default function ReportsPage() {
           <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div><div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div></CardContent></Card>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card><CardHeader><CardTitle className="text-sm">Employee Growth</CardTitle></CardHeader><CardContent>
           {growthData.length > 0 ? <ResponsiveContainer width="100%" height={220}><BarChart data={growthData}><CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} /><Tooltip /><Bar dataKey="count" fill="#E8604C" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer> : <p className="text-center text-gray-400 py-8">No data</p>}
         </CardContent></Card>

@@ -44,7 +44,7 @@ export default function OrganizationPage() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold text-gray-900">Organization</h1><p className="text-sm text-gray-500">Company structure and overview</p></div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           { label: "Departments", value: departments.length, icon: Building2, bg: "bg-violet-50", color: "text-violet-600" },
           { label: "Positions", value: positions.length, icon: Briefcase, bg: "bg-blue-50", color: "text-blue-600" },

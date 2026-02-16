@@ -57,14 +57,46 @@ export function useSpotTradeSync() {
           trade_time: t.time,
           status: "FILLED" as const,
           execution_method: "SPOT" as const,
-          source: "binance_app" as const, // default; terminal trades already have source='terminal'
+          source: "binance_app" as const,
         }));
 
-        // Use upsert with conflict on binance_trade_id + symbol
-        // We insert in chunks to avoid payload limits
+        // Check for existing terminal trades by binance_order_id so we don't overwrite their source
+        const orderIds = [...new Set(rows.map((r) => r.binance_order_id))];
+        const { data: terminalTrades } = await supabase
+          .from("spot_trade_history")
+          .select("binance_order_id, binance_trade_id")
+          .eq("source", "terminal")
+          .in("binance_order_id", orderIds);
+
+        const terminalOrderIds = new Set(
+          (terminalTrades || []).map((t) => t.binance_order_id)
+        );
+
+        // For terminal trades: update their binance_trade_id so future syncs skip them via dedup
+        for (const tt of terminalTrades || []) {
+          const matchingRow = rows.find((r) => r.binance_order_id === tt.binance_order_id);
+          if (matchingRow && tt.binance_trade_id !== matchingRow.binance_trade_id) {
+            await supabase
+              .from("spot_trade_history")
+              .update({
+                binance_trade_id: matchingRow.binance_trade_id,
+                commission: matchingRow.commission,
+                commission_asset: matchingRow.commission_asset,
+                is_buyer: matchingRow.is_buyer,
+                is_maker: matchingRow.is_maker,
+              })
+              .eq("binance_order_id", tt.binance_order_id)
+              .eq("source", "terminal");
+          }
+        }
+
+        // Filter out trades that belong to terminal-sourced orders
+        const newRows = rows.filter((r) => !terminalOrderIds.has(r.binance_order_id));
+
+        // Upsert only non-terminal trades
         const CHUNK_SIZE = 50;
-        for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-          const chunk = rows.slice(i, i + CHUNK_SIZE);
+        for (let i = 0; i < newRows.length; i += CHUNK_SIZE) {
+          const chunk = newRows.slice(i, i + CHUNK_SIZE);
           const { error: upsertError } = await supabase
             .from("spot_trade_history")
             .upsert(chunk, { 

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,10 @@ interface PaymentSplit {
 export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord, onSuccess }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [coinUsdtRate, setCoinUsdtRate] = useState<number | null>(null);
   const od = syncRecord?.order_data || {};
+  const assetCode = (od.asset || 'USDT').toUpperCase();
+  const isNonUsdt = assetCode !== 'USDT';
 
   const [tdsOption, setTdsOption] = useState<'none' | '1%' | '20%'>('none');
   const [panNumber, setPanNumber] = useState(syncRecord?.pan_number || '');
@@ -43,6 +47,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [creatingClient, setCreatingClient] = useState(false);
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+
+  // Fetch live CoinUSDT rate for non-USDT assets
+  useEffect(() => {
+    if (open && isNonUsdt) {
+      fetchCoinMarketRate(assetCode).then(rate => setCoinUsdtRate(rate));
+    } else if (!isNonUsdt) {
+      setCoinUsdtRate(1.0);
+    }
+  }, [open, assetCode, isNonUsdt]);
 
   // Auto-suggest TDS based on PAN availability
   useEffect(() => {
@@ -245,11 +258,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         .eq('id', syncRecord.id);
       if (updateErr) throw updateErr;
 
-      // Update purchase_orders source and market_rate_usdt
+      // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
-        // Fetch CoinUSDT market rate at approval time
         const asset = (od.asset || 'USDT').toUpperCase();
         const marketRateUsdt = await fetchCoinMarketRate(asset);
+
+        // Calculate fee in USDT equivalent
+        const rawCommission = Number(od.commission || 0);
+        const feeUsdt = asset === 'USDT' ? rawCommission : rawCommission * (marketRateUsdt > 0 ? marketRateUsdt : 0);
 
         await supabase
           .from('purchase_orders')
@@ -257,6 +273,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             source: 'terminal',
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+            fee_amount: feeUsdt > 0 ? feeUsdt : null,
           })
           .eq('id', result.purchase_order_id);
       }
@@ -297,10 +314,17 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 <LockedField label="Order Number" value={od.order_number} />
                 <LockedField label="Order Date" value={orderDate} />
                 <LockedField label="Asset" value={od.asset || 'USDT'} />
-                <LockedField label="Quantity" value={`${Number(od.amount || 0).toLocaleString()} ${(od.asset || 'USDT').toUpperCase()}`} />
+                <LockedField label="Quantity" value={`${Number(od.amount || 0).toLocaleString()} ${assetCode}`} />
                 <LockedField label="Price Per Unit" value={`₹${Number(od.unit_price || 0).toLocaleString('en-IN')}`} />
                 <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
-                <LockedField label="Commission/Fee" value={`${Number(od.commission || 0).toLocaleString()} ${(od.asset || 'USDT').toUpperCase()}`} />
+                <LockedField
+                  label="Commission/Fee"
+                  value={
+                    isNonUsdt && coinUsdtRate && coinUsdtRate > 0
+                      ? `${Number(od.commission || 0).toLocaleString()} ${assetCode} ≈ ${formatSmartDecimal(Number(od.commission || 0) * coinUsdtRate, 4)} USDT`
+                      : `${Number(od.commission || 0).toLocaleString()} USDT`
+                  }
+                />
                 <LockedField label="Wallet" value={od.wallet_name || '—'} />
                 <LockedField label="Seller Name" value={syncRecord?.counterparty_name || '—'} />
                 <LockedField label="Payment Method" value={od.pay_method || '—'} />

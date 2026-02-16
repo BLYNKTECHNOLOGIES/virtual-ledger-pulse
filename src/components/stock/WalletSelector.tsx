@@ -99,7 +99,7 @@ export function WalletSelector({
                   )}
                   {showBalanceInfo && balance !== null && (
                     <span className="text-sm text-muted-foreground ml-auto">
-                      ({balance.toFixed(2)} USDT)
+                      ({balance.toFixed(4)} USDT)
                     </span>
                   )}
                 </div>

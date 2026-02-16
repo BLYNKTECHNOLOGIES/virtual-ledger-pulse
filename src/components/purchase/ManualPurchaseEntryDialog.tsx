@@ -237,14 +237,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           // If total already exists, calculate quantity from total/price (preserve total, update qty)
           // Else if quantity exists, calculate total from qty*price
           if (existingTotal > 0 && newValue > 0) {
-            updated.quantity = (existingTotal / newValue).toFixed(4);
+            updated.quantity = (existingTotal / newValue).toFixed(8);
           } else if (existingQty > 0 && newValue > 0) {
             updated.total_amount = (existingQty * newValue).toFixed(2);
           }
         } else if (field === 'total_amount') {
           // User changed total: if price exists, calculate quantity
           if (existingPrice > 0 && newValue > 0) {
-            updated.quantity = (newValue / existingPrice).toFixed(4);
+            updated.quantity = (newValue / existingPrice).toFixed(8);
           }
         }
       }

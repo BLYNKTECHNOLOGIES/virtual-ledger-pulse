@@ -179,10 +179,10 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
         if (field === 'quantity') {
           if (existingPrice > 0 && newValue > 0) updated.total_amount = (newValue * existingPrice).toFixed(2);
         } else if (field === 'price_per_unit') {
-          if (existingTotal > 0 && newValue > 0) updated.quantity = (existingTotal / newValue).toFixed(4);
+          if (existingTotal > 0 && newValue > 0) updated.quantity = (existingTotal / newValue).toFixed(8);
           else if (existingQty > 0 && newValue > 0) updated.total_amount = (existingQty * newValue).toFixed(2);
         } else if (field === 'total_amount') {
-          if (existingPrice > 0 && newValue > 0) updated.quantity = (newValue / existingPrice).toFixed(4);
+          if (existingPrice > 0 && newValue > 0) updated.quantity = (newValue / existingPrice).toFixed(8);
         }
       }
       if (field === 'credit_wallet_id' && value) {

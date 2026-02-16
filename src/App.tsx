@@ -861,20 +861,20 @@ const router = createBrowserRouter([
         { path: "reports", element: <ReportsPage /> },
       ],
     },
-   {
-      path: "/utility",
-      element: (
-        <QueryProvider>
-          <AuthProvider>
-            <AuthCheck>
-              <Layout>
-                <UtilityHub />
-              </Layout>
-            </AuthCheck>
-          </AuthProvider>
-        </QueryProvider>
-      ),
-    },
+  {
+    path: "/utility",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <UtilityHub />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
    // Catch-all route for 404 errors
     {
       path: "*",

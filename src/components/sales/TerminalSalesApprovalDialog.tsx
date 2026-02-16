@@ -331,6 +331,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           sales_order_id: salesOrder.id,
           usdt_amount: quantity,
           wallet_id: od.wallet_id,
+          p_asset_code: (od.asset || 'USDT').toUpperCase(),
         });
         if (walletErr) {
           await supabase.from('sales_orders').delete().eq('id', salesOrder.id);
@@ -350,7 +351,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               description: `Platform fee for sales order #${orderNumber} (Binance commission)`,
               balance_before: 0,
               balance_after: 0,
-              asset_code: 'USDT',
+              asset_code: (od.asset || 'USDT').toUpperCase(),
             });
 
           const { data: usdtProd } = await supabase

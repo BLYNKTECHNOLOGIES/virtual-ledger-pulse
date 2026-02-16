@@ -8,7 +8,7 @@ import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
 import { ContactPage } from './components/website/pages/ContactPage';
-import InvoiceCreator from './pages/InvoiceCreator';
+import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
 import { WebDevelopmentPage } from './components/website/pages/WebDevelopmentPage';
 import { SEOServicesPage } from './components/website/pages/SEOServicesPage';
@@ -869,6 +869,20 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <UtilityHub />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/utility/invoice-creator",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <InvoiceCreatorPage />
             </Layout>
           </AuthCheck>
         </AuthProvider>

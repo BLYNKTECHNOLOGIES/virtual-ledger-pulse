@@ -10,7 +10,7 @@ const InvoiceCreatorPage = () => {
         </span>
       </div>
       <iframe
-        src="https://preview--order-to-invoice-hero.lovable.app/"
+        src="https://order-to-invoice-hero.lovable.app/"
         className="w-full flex-1 border-0 mt-2"
         title="Invoice Creator"
         allow="clipboard-read; clipboard-write"

@@ -9,6 +9,7 @@ import { HomePage } from './components/website/pages/HomePage';
 import { AboutPage } from './components/website/pages/AboutPage';
 import { ContactPage } from './components/website/pages/ContactPage';
 import InvoiceCreator from './pages/InvoiceCreator';
+import UtilityHub from './pages/UtilityHub';
 import { WebDevelopmentPage } from './components/website/pages/WebDevelopmentPage';
 import { SEOServicesPage } from './components/website/pages/SEOServicesPage';
 import { AppDevelopmentPage } from './components/website/pages/AppDevelopmentPage';
@@ -861,13 +862,13 @@ const router = createBrowserRouter([
       ],
     },
    {
-      path: "/invoice-creator",
+      path: "/utility",
       element: (
         <QueryProvider>
           <AuthProvider>
             <AuthCheck>
               <Layout>
-                <InvoiceCreator />
+                <UtilityHub />
               </Layout>
             </AuthCheck>
           </AuthProvider>

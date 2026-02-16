@@ -207,12 +207,12 @@ const sidebarGroups: SidebarGroupConfig[] = [
     bgColor: "bg-gray-100",
     children: [
       {
-        id: "invoice-creator",
-        title: "Invoice Creator",
-        url: "/invoice-creator",
-        icon: FileText,
-        color: "text-orange-600",
-        bgColor: "bg-orange-100",
+        id: "utility-hub",
+        title: "All Tools",
+        url: "/utility",
+        icon: Wrench,
+        color: "text-gray-600",
+        bgColor: "bg-gray-100",
         permissions: ["dashboard_view"]
       }
     ]

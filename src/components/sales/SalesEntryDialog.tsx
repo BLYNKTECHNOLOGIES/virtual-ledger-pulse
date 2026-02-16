@@ -507,21 +507,21 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         const total = field === 'total_amount' ? parseFloat(value) || 0 : parseFloat(String(updated.total_amount)) || 0;
         
         if (field === 'quantity' && price > 0) {
-          // User changed quantity - calculate total
+          // User changed quantity - calculate total (INR - 2 decimals)
           updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
           // User changed price - prioritize calculating quantity from total if total exists
           if (total > 0 && price > 0) {
-            // Total amount exists, calculate quantity from it
-            updated.quantity = (total / price).toFixed(4);
+            // Total amount exists, calculate quantity from it (crypto - 8 decimals)
+            updated.quantity = (total / price).toFixed(8);
           } else if (qty > 0 && price > 0) {
-            // No total but quantity exists, calculate total
+            // No total but quantity exists, calculate total (INR - 2 decimals)
             updated.total_amount = (qty * price).toFixed(2);
           }
         } else if (field === 'total_amount') {
-          // User changed total - calculate quantity if price exists
+          // User changed total - calculate quantity if price exists (crypto - 8 decimals)
           if (price > 0) {
-            updated.quantity = (total / price).toFixed(4);
+            updated.quantity = (total / price).toFixed(8);
           }
         }
       }

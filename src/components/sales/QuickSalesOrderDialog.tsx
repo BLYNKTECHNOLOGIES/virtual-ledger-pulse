@@ -223,18 +223,18 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       const price = field === 'price_per_unit' ? value : prev.price_per_unit;
       
       if (field === 'quantity' && price > 0) {
-        // User changed quantity - calculate total
+        // User changed quantity - calculate total (INR - 2 decimals)
         updated.total_amount = parseFloat((value * price).toFixed(2));
       } else if (field === 'price_per_unit') {
         // User changed price - calculate total if quantity exists, or quantity if total exists
         if (prev.quantity > 0) {
           updated.total_amount = parseFloat((prev.quantity * value).toFixed(2));
         } else if (prev.total_amount > 0 && value > 0) {
-          updated.quantity = parseFloat((prev.total_amount / value).toFixed(2));
+          updated.quantity = parseFloat((prev.total_amount / value).toFixed(8));
         }
       } else if (field === 'total_amount' && price > 0) {
-        // User changed total - calculate quantity
-        updated.quantity = parseFloat((value / price).toFixed(2));
+        // User changed total - calculate quantity (crypto - 8 decimals)
+        updated.quantity = parseFloat((value / price).toFixed(8));
       }
       
       return updated;

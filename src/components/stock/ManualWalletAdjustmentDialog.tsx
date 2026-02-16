@@ -245,7 +245,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
               <SelectContent>
                 {wallets?.filter(w => w.wallet_name !== ADJUSTMENT_WALLET_NAME).map((wallet) => (
                   <SelectItem key={wallet.id} value={wallet.id}>
-                    {wallet.wallet_name} - {(Number(wallet.current_balance ?? 0)).toFixed(2)}
+                    {wallet.wallet_name} - {(Number(wallet.current_balance ?? 0)).toFixed(4)}
                   </SelectItem>
                 ))}
               </SelectContent>

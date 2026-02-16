@@ -175,7 +175,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
           if (total > 0 && price > 0) {
-            updated.quantity = (total / price).toFixed(4);
+            updated.quantity = (total / price).toFixed(8);
           } else if (qty > 0 && price > 0) {
             updated.total_amount = (qty * price).toFixed(2);
           }

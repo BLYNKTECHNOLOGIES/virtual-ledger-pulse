@@ -57,16 +57,58 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     }
   }, [open, assetCode, isNonUsdt]);
 
-  // Auto-suggest TDS based on PAN availability
+  // Fetch PAN and contact from counterparty records when dialog opens
   useEffect(() => {
-    if (syncRecord?.pan_number) {
-      setTdsOption('1%');
-      setPanNumber(syncRecord.pan_number);
-    } else {
-      setTdsOption('20%');
-    }
-    setLinkedClientId(syncRecord?.client_id || '');
-  }, [syncRecord]);
+    if (!open || !syncRecord?.counterparty_name) return;
+
+    const nickname = syncRecord.order_data?.counterparty_nickname || syncRecord.counterparty_name;
+
+    // Fetch PAN from counterparty_pan_records if not already on sync record
+    const fetchCounterpartyData = async () => {
+      let resolvedPan = syncRecord?.pan_number || '';
+      let resolvedContact = '';
+
+      if (!resolvedPan) {
+        const { data: panRec } = await supabase
+          .from('counterparty_pan_records')
+          .select('pan_number')
+          .eq('counterparty_nickname', nickname)
+          .maybeSingle();
+        if (panRec?.pan_number) resolvedPan = panRec.pan_number;
+      }
+
+      // Fetch contact from counterparty_contact_records
+      const { data: contactRec } = await supabase
+        .from('counterparty_contact_records')
+        .select('contact_number, state')
+        .eq('counterparty_nickname', nickname)
+        .maybeSingle();
+      if (contactRec?.contact_number) resolvedContact = contactRec.contact_number;
+
+      // Set PAN and TDS
+      if (resolvedPan) {
+        setPanNumber(resolvedPan);
+        setTdsOption('1%');
+      } else {
+        setTdsOption('20%');
+      }
+
+      // Auto-create client if contact is available and no client linked yet
+      if (!syncRecord?.client_id && syncRecord?.counterparty_name) {
+        const clientData = await createSellerClient(
+          syncRecord.counterparty_name,
+          resolvedContact || undefined
+        );
+        if (clientData) {
+          setLinkedClientId(clientData.id);
+        }
+      } else {
+        setLinkedClientId(syncRecord?.client_id || '');
+      }
+    };
+
+    fetchCounterpartyData();
+  }, [open, syncRecord]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({
@@ -140,12 +182,20 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     ));
   };
 
-  // Create client mutation
+  // Create client mutation (fallback if auto-creation didn't trigger)
   const createClientMutation = useMutation({
     mutationFn: async () => {
+      const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
+      // Look up contact number from counterparty records
+      const { data: contactRec } = await supabase
+        .from('counterparty_contact_records')
+        .select('contact_number')
+        .eq('counterparty_nickname', nickname)
+        .maybeSingle();
+
       const clientData = await createSellerClient(
         syncRecord.counterparty_name,
-        'Terminal Counterparty'
+        contactRec?.contact_number || undefined
       );
       return clientData;
     },

@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield } from 'lucide-react';
+import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield, FileText } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
 import { CounterpartyContactInput } from './CounterpartyContactInput';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -20,6 +21,8 @@ interface Props {
 
 export function OrderDetailWorkspace({ order, onClose }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'history'>('profile');
+  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'profile'>('chat');
+  const isMobile = useIsMobile();
   const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
   const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
   const counterparty = counterpartyById || counterpartyByNick;
@@ -27,22 +30,15 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
 
-  // Use live status: prefer history (returns string status like "COMPLETED"),
-  // then detail endpoint, then fall back to list status
   const liveOrder = useMemo(() => {
     const numStatusMap: Record<number, string> = {
       1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
       5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
     };
-
     let liveStatus = order.order_status;
-
-    // Priority 1: Order history returns status as string (most reliable)
     if (historyOrder?.orderStatus && typeof historyOrder.orderStatus === 'string') {
       liveStatus = historyOrder.orderStatus.toUpperCase();
-    }
-    // Priority 2: Order detail endpoint
-    else if (liveDetail?.data) {
+    } else if (liveDetail?.data) {
       const detail = liveDetail.data;
       const raw = detail.orderStatus ?? detail.tradeStatus ?? detail.status;
       if (typeof raw === 'number') {
@@ -51,85 +47,127 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
         liveStatus = raw.toUpperCase();
       }
     }
-
-    // Also get unit price from history if available
     let unitPrice = order.unit_price;
     if (historyOrder?.unitPrice) {
       unitPrice = parseFloat(historyOrder.unitPrice) || unitPrice;
     }
-
     return { ...order, order_status: liveStatus, unit_price: unitPrice };
   }, [order, liveDetail, historyOrder]);
 
-  // Extract counterparty verified name from live detail
   const counterpartyVerifiedName = useMemo(() => {
     const detail = liveDetail?.data;
     if (!detail) return undefined;
-    // For BUY orders, counterparty is the seller; for SELL orders, counterparty is the buyer
     return order.trade_type === 'BUY' ? detail.sellerName : detail.buyerName;
   }, [liveDetail, order.trade_type]);
 
-  return (
-    <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-xs font-medium text-foreground">
-            Order #{order.binance_order_number.slice(-8)}
-          </span>
-          <span className={`text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-            {order.trade_type}
-          </span>
+  const topBar = (
+    <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-border bg-card">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-xs font-medium text-foreground">
+          Order #{order.binance_order_number.slice(-8)}
+        </span>
+        <span className={`text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+          {order.trade_type}
+        </span>
+      </div>
+    </div>
+  );
+
+  const chatContent = (
+    <ChatPanel
+      orderId={order.id}
+      orderNumber={order.binance_order_number}
+      counterpartyId={order.counterparty_id}
+      counterpartyNickname={order.counterparty_nickname}
+      tradeType={order.trade_type}
+      counterpartyVerifiedName={counterpartyVerifiedName}
+    />
+  );
+
+  const profileContent = (
+    <>
+      <div className="px-2 py-2 border-b border-border">
+        <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)}>
+          <TabsList className="w-full h-8 bg-secondary">
+            <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
+              <User className="h-3 w-3" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="history" className="text-[10px] h-6 flex-1 gap-1">
+              <History className="h-3 w-3" />
+              History
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      {rightPanel === 'profile' ? (
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+      ) : (
+        <PastInteractionsPanel counterpartyId={order.counterparty_id} currentOrderId={order.id} />
+      )}
+    </>
+  );
+
+  // Mobile layout: tabbed single-panel view
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-full">
+        {topBar}
+        <div className="px-2 py-1.5 border-b border-border bg-card shrink-0">
+          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)}>
+            <TabsList className="w-full h-8 bg-secondary">
+              <TabsTrigger value="details" className="text-[10px] h-6 flex-1 gap-1">
+                <FileText className="h-3 w-3" />
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="chat" className="text-[10px] h-6 flex-1 gap-1">
+                <MessageSquare className="h-3 w-3" />
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
+                <User className="h-3 w-3" />
+                Profile
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {mobileTab === 'details' && (
+            <div className="h-full overflow-y-auto bg-card">
+              <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} />
+            </div>
+          )}
+          {mobileTab === 'chat' && (
+            <div className="h-full flex flex-col min-w-0 bg-background">
+              {chatContent}
+            </div>
+          )}
+          {mobileTab === 'profile' && (
+            <div className="h-full overflow-hidden flex flex-col bg-card">
+              {profileContent}
+            </div>
+          )}
         </div>
       </div>
+    );
+  }
 
-      {/* 3-panel layout */}
+  // Desktop layout (unchanged 3-panel)
+  return (
+    <div className="flex flex-col h-full">
+      {topBar}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Order Summary + Actions */}
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
           <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} />
         </div>
-
-        {/* Middle: Chat */}
         <div className="flex-1 flex flex-col min-w-0 bg-background">
-          <ChatPanel
-            orderId={order.id}
-            orderNumber={order.binance_order_number}
-            counterpartyId={order.counterparty_id}
-            counterpartyNickname={order.counterparty_nickname}
-            tradeType={order.trade_type}
-            counterpartyVerifiedName={counterpartyVerifiedName}
-          />
+          {chatContent}
         </div>
-
-        {/* Right: Profile / Past Interactions toggle */}
         <div className="w-[280px] border-l border-border overflow-hidden bg-card shrink-0 flex flex-col">
-          <div className="px-2 py-2 border-b border-border">
-            <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)}>
-              <TabsList className="w-full h-8 bg-secondary">
-                <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
-                  <User className="h-3 w-3" />
-                  Profile
-                </TabsTrigger>
-                <TabsTrigger value="history" className="text-[10px] h-6 flex-1 gap-1">
-                  <History className="h-3 w-3" />
-                  History
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {rightPanel === 'profile' ? (
-            <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
-          ) : (
-            <PastInteractionsPanel
-              counterpartyId={order.counterparty_id}
-              currentOrderId={order.id}
-            />
-          )}
+          {profileContent}
         </div>
       </div>
     </div>

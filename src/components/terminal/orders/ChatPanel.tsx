@@ -93,17 +93,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
         const content = msg.content || msg.message || '';
 
-        // Check if image might be expired (order older than 7 days)
-        const isOldOrder = Date.now() - order.orderDate > 7 * 24 * 60 * 60 * 1000;
-        const effectiveImgUrl = isImage && isOldOrder ? undefined : (isImage ? (imgUrl || content || undefined) : imgUrl);
+        const effectiveImgUrl = isImage ? (imgUrl || content || undefined) : imgUrl;
 
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
           source: 'binance' as const,
           senderType: msgType === 'system' ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
-          text: isImage
-            ? (isOldOrder ? '🖼️ Image expired (older than 7 days)' : null)
-            : (content || null),
+          text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: msg.createTime || 0,
           senderName: isSelf ? getSenderName(order.orderNumber, content) : null,

@@ -193,15 +193,20 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           amount: parseFloat(s.amount)
         }));
 
+        // Net quantity = gross amount - commission (fee is deducted from received coins)
+        const grossQty = parseFloat(od.amount) || 0;
+        const commission = parseFloat(od.commission) || 0;
+        const netQty = grossQty - commission;
+
         const rpcParams = {
           p_order_number: od.order_number || `TRM-${Date.now()}`,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: settlementDate,
           p_total_amount: totalAmount,
           p_product_id: matchedProduct?.id,
-          p_quantity: parseFloat(od.amount) || 0,
+          p_quantity: netQty,
           p_unit_price: parseFloat(od.unit_price) || 0,
-          p_description: `Terminal P2P Purchase - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
+          p_description: `Terminal P2P Purchase - ${od.order_number}${remarks ? ` | ${remarks}` : ''} | Gross: ${grossQty}, Fee: ${commission}`,
           p_credit_wallet_id: od.wallet_id || undefined,
           p_tds_option: tdsOption,
           p_pan_number: panNumber || undefined,
@@ -215,16 +220,21 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         result = data;
         rpcError = error;
       } else {
+        // Net quantity = gross amount - commission (fee is deducted from received coins)
+        const grossQty = parseFloat(od.amount) || 0;
+        const commission = parseFloat(od.commission) || 0;
+        const netQty = grossQty - commission;
+
         const rpcParams = {
           p_order_number: od.order_number || `TRM-${Date.now()}`,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: settlementDate,
           p_total_amount: totalAmount,
           p_product_id: matchedProduct?.id || null,
-          p_quantity: parseFloat(od.amount) || 0,
+          p_quantity: netQty,
           p_unit_price: parseFloat(od.unit_price) || 0,
           p_bank_account_id: bankAccountId,
-          p_description: `Terminal P2P Purchase - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
+          p_description: `Terminal P2P Purchase - ${od.order_number}${remarks ? ` | ${remarks}` : ''} | Gross: ${grossQty}, Fee: ${commission}`,
           p_credit_wallet_id: od.wallet_id || null,
           p_tds_option: tdsOption,
           p_pan_number: panNumber || null,

@@ -209,7 +209,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
       {
         id: "invoice-creator",
         title: "Invoice Creator",
-        url: "https://preview--order-to-invoice-hero.lovable.app/",
+        url: "/invoice-creator",
         icon: FileText,
         color: "text-orange-600",
         bgColor: "bg-orange-100",

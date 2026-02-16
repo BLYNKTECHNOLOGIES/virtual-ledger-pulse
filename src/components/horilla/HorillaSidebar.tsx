@@ -141,7 +141,9 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "UTILITY",
-    items: [],
+    items: [
+      { label: "Invoice Creator", icon: FileText, path: "https://preview--order-to-invoice-hero.lovable.app/", children: [] },
+    ],
   },
   {
     title: "SYSTEM",
@@ -219,7 +221,9 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                   >
                     <button
                       onClick={() => {
-                        if (hasChildren && !collapsed) {
+                        if (item.path.startsWith("http")) {
+                          window.open(item.path, "_blank");
+                        } else if (hasChildren && !collapsed) {
                           toggleExpand(item.label);
                         } else {
                           navigate(item.path);

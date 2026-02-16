@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -196,6 +196,24 @@ const sidebarGroups: SidebarGroupConfig[] = [
         color: "text-green-600",
         bgColor: "bg-green-100",
         permissions: ["statistics_view", "statistics_manage"]
+      }
+     ]
+  },
+  {
+    id: "utility",
+    title: "Utility",
+    icon: Wrench,
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+    children: [
+      {
+        id: "invoice-creator",
+        title: "Invoice Creator",
+        url: "https://preview--order-to-invoice-hero.lovable.app/",
+        icon: FileText,
+        color: "text-orange-600",
+        bgColor: "bg-orange-100",
+        permissions: ["dashboard_view"]
       }
     ]
   }

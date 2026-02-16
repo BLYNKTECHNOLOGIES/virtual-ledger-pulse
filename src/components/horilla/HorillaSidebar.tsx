@@ -140,12 +140,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    title: "UTILITY",
-    items: [
-      { label: "Invoice Creator", icon: FileText, path: "https://preview--order-to-invoice-hero.lovable.app/", children: [] },
-    ],
-  },
-  {
     title: "SYSTEM",
     items: [
       { label: "Offboarding", icon: LogOut, path: "/hrms/offboarding" },

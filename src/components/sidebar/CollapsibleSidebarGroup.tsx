@@ -144,8 +144,18 @@ export function CollapsibleSidebarGroup({
           <CollapsibleContent className="pl-4">
             {group.children.map((item) => {
               const ItemIcon = item.icon;
-              const isActive = location.pathname === item.url;
+              const isExternal = item.url.startsWith('http');
+              const isActive = !isExternal && location.pathname === item.url;
               
+              const linkContent = (
+                <div className="flex items-center gap-2 px-2 py-2">
+                  <div className={`p-1.5 rounded-md ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200`}>
+                    <ItemIcon className={`h-3.5 w-3.5 ${isActive ? 'text-blue-700' : item.color}`} />
+                  </div>
+                  <span className="text-sm truncate">{item.title}</span>
+                </div>
+              );
+
               return (
                 <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton
@@ -155,12 +165,15 @@ export function CollapsibleSidebarGroup({
                       ${isActive ? 'bg-blue-50 text-blue-700 font-medium border-blue-100' : ''}
                     `}
                   >
-                    <Link to={item.url} className="flex items-center gap-2 px-2 py-2">
-                      <div className={`p-1.5 rounded-md ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200`}>
-                        <ItemIcon className={`h-3.5 w-3.5 ${isActive ? 'text-blue-700' : item.color}`} />
-                      </div>
-                      <span className="text-sm truncate">{item.title}</span>
-                    </Link>
+                    {isExternal ? (
+                      <a href={item.url} target="_blank" rel="noopener noreferrer">
+                        {linkContent}
+                      </a>
+                    ) : (
+                      <Link to={item.url}>
+                        {linkContent}
+                      </Link>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );

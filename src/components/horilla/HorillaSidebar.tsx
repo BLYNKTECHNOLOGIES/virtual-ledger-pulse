@@ -140,6 +140,10 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "UTILITY",
+    items: [],
+  },
+  {
     title: "SYSTEM",
     items: [
       { label: "Offboarding", icon: LogOut, path: "/hrms/offboarding" },

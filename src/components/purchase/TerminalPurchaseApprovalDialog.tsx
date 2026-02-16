@@ -93,18 +93,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         setTdsOption('20%');
       }
 
-      // Auto-create client if contact is available and no client linked yet
-      if (!syncRecord?.client_id && syncRecord?.counterparty_name) {
-        const clientData = await createSellerClient(
-          syncRecord.counterparty_name,
-          resolvedContact || undefined
-        );
-        if (clientData) {
-          setLinkedClientId(clientData.id);
-        }
-      } else {
-        setLinkedClientId(syncRecord?.client_id || '');
-      }
+      // Set linked client from sync record (no auto-creation)
+      setLinkedClientId(syncRecord?.client_id || '');
     };
 
     fetchCounterpartyData();
@@ -353,6 +343,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const orderDate = od.create_time ? format(new Date(od.create_time), 'dd MMM yyyy, HH:mm') : '—';
 
   const isSubmitDisabled = approveMutation.isPending || 
+    !linkedClientId ||
     (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 
   return (
@@ -403,19 +394,22 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                   <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm text-muted-foreground">No matching client found</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px] gap-1"
-                    onClick={() => createClientMutation.mutate()}
-                    disabled={createClientMutation.isPending}
-                  >
-                    {createClientMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                    Create Client
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm text-muted-foreground">No matching client found — create to approve</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] gap-1"
+                      onClick={() => createClientMutation.mutate()}
+                      disabled={createClientMutation.isPending}
+                    >
+                      {createClientMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                      Create Client
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-destructive font-medium">⚠ Approval blocked until client is created</p>
                 </div>
               )}
             </CardContent>

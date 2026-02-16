@@ -2864,6 +2864,7 @@ export type Database = {
           additional_info: Json | null
           address: string | null
           badge_id: string
+          basic_salary: number | null
           children: number | null
           city: string | null
           country: string | null
@@ -2891,6 +2892,7 @@ export type Database = {
           additional_info?: Json | null
           address?: string | null
           badge_id: string
+          basic_salary?: number | null
           children?: number | null
           city?: string | null
           country?: string | null
@@ -2918,6 +2920,7 @@ export type Database = {
           additional_info?: Json | null
           address?: string | null
           badge_id?: string
+          basic_salary?: number | null
           children?: number | null
           city?: string | null
           country?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.hr_employees ADD COLUMN IF NOT EXISTS basic_salary numeric DEFAULT NULL;

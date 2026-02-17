@@ -3,7 +3,7 @@ import { useSpotTradeHistory } from "@/hooks/useBinanceAssets";
 import { useSpotTradeSync } from "@/hooks/useSpotTradeSync";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Monitor, Smartphone, LayoutList } from "lucide-react";
+import { Loader2, Monitor, Smartphone, LayoutList, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 type SourceFilter = "all" | "terminal" | "binance_app";
@@ -13,7 +13,7 @@ export function TradeHistory() {
   const { data: trades, isLoading } = useSpotTradeHistory();
 
   // Trigger background sync of Binance spot trades
-  useSpotTradeSync();
+  const { manualSync, isManuallySyncing } = useSpotTradeSync();
 
   // Deduplicate trades with same binance_order_id (Terminal + Binance sync create two entries)
   // Prefer the binance_app record (has commission data)
@@ -102,6 +102,16 @@ export function TradeHistory() {
                 Binance App
               </Button>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+              onClick={manualSync}
+              disabled={isManuallySyncing}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isManuallySyncing ? "animate-spin" : ""}`} />
+              {isManuallySyncing ? "Syncing..." : "Sync"}
+            </Button>
             <span className="text-[10px] text-muted-foreground">{filteredTrades?.length || 0} records</span>
           </div>
         </div>

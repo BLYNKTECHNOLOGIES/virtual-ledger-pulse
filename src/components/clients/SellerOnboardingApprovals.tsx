@@ -49,6 +49,7 @@ export function SellerOnboardingApprovals() {
         .is('aadhar_front_url', null)
         .in('kyc_status', ['PENDING', 'PENDING_APPROVAL'])
         .eq('is_seller', true)
+        .neq('seller_approval_status', 'APPROVED')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -88,7 +89,11 @@ export function SellerOnboardingApprovals() {
     mutationFn: async (sellerId: string) => {
       const { error } = await supabase
         .from('clients')
-        .update({ kyc_status: 'VERIFIED' })
+        .update({ 
+          kyc_status: 'VERIFIED',
+          seller_approval_status: 'APPROVED',
+          seller_approved_at: new Date().toISOString(),
+        })
         .eq('id', sellerId);
       
       if (error) throw error;

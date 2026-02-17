@@ -75,6 +75,14 @@ export const createSellerClient = async (
     if (existingClient) {
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
+      // Ensure seller flags are set on existing client
+      if (!existingClient.is_seller) {
+        updates.is_seller = 'true' as any;
+        // Only set to PENDING if not already approved
+        if (!existingClient.seller_approval_status || existingClient.seller_approval_status === 'NOT_APPLICABLE') {
+          updates.seller_approval_status = 'PENDING' as any;
+        }
+      }
       if (Object.keys(updates).length > 0) {
         await supabase.from('clients').update(updates).eq('id', existingClient.id);
       }

@@ -38,12 +38,12 @@ export function AddPaymentGatewayDialog({
     type: "UPI",
     upi_id: "",
     bank_account_id: "",
-    risk_category: "LOW",
+    risk_category: "Low Risk",
     payment_limit: "",
-    min_limit: "",
+    min_limit: "200",
     max_limit: "",
-    frequency: "DAILY",
-    settlement_cycle: "T+1",
+    frequency: "Daily",
+    settlement_cycle: "T+1 Day",
     settlement_days: "",
   });
   const { toast } = useToast();
@@ -96,15 +96,11 @@ export function AddPaymentGatewayDialog({
     try {
       const settlementDays = formData.settlement_cycle === "Custom" 
         ? parseInt(formData.settlement_days) || 1
-        : formData.settlement_cycle === "Instant" 
+        : formData.settlement_cycle === "Instant Settlement" 
           ? 0 
-          : formData.settlement_cycle === "T+1" 
+          : formData.settlement_cycle === "T+1 Day" 
             ? 1 
-            : formData.settlement_cycle === "T+2" 
-              ? 2 
-              : formData.settlement_cycle === "T+3" 
-                ? 3 
-                : 1;
+            : 1;
 
       const { error } = await supabase
         .from('sales_payment_methods')
@@ -114,8 +110,8 @@ export function AddPaymentGatewayDialog({
           bank_account_id: formData.bank_account_id,
           risk_category: formData.risk_category,
           payment_limit: parseFloat(formData.payment_limit),
-          min_limit: parseFloat(formData.min_limit) || 0,
-          max_limit: parseFloat(formData.max_limit) || parseFloat(formData.payment_limit),
+          min_limit: Math.max(parseFloat(formData.min_limit) || 200, 200),
+          max_limit: Math.max(parseFloat(formData.max_limit) || parseFloat(formData.payment_limit), 200),
           frequency: formData.frequency,
           payment_gateway: true,
           settlement_cycle: formData.settlement_cycle,
@@ -136,12 +132,12 @@ export function AddPaymentGatewayDialog({
         type: "UPI",
         upi_id: "",
         bank_account_id: "",
-        risk_category: "LOW",
+        risk_category: "Low Risk",
         payment_limit: "",
-        min_limit: "",
+        min_limit: "200",
         max_limit: "",
-        frequency: "DAILY",
-        settlement_cycle: "T+1",
+        frequency: "Daily",
+        settlement_cycle: "T+1 Day",
         settlement_days: "",
       });
 
@@ -181,12 +177,7 @@ export function AddPaymentGatewayDialog({
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="UPI">UPI</SelectItem>
-                <SelectItem value="IMPS">IMPS</SelectItem>
-                <SelectItem value="NEFT">NEFT</SelectItem>
-                <SelectItem value="RTGS">RTGS</SelectItem>
-                <SelectItem value="Card">Card</SelectItem>
-                <SelectItem value="NetBanking">Net Banking</SelectItem>
-                <SelectItem value="Wallet">Wallet</SelectItem>
+                <SelectItem value="Bank Account">Bank Account</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -235,9 +226,10 @@ export function AddPaymentGatewayDialog({
                 <SelectValue placeholder="Select risk category" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="LOW">Low Risk</SelectItem>
-                <SelectItem value="MEDIUM">Medium Risk</SelectItem>
-                <SelectItem value="HIGH">High Risk</SelectItem>
+                <SelectItem value="Low Risk">Low Risk</SelectItem>
+                <SelectItem value="Medium Risk">Medium Risk</SelectItem>
+                <SelectItem value="High Risk">High Risk</SelectItem>
+                <SelectItem value="No Risk">No Risk</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -287,9 +279,10 @@ export function AddPaymentGatewayDialog({
                 <SelectValue placeholder="Select frequency" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="DAILY">Daily</SelectItem>
-                <SelectItem value="WEEKLY">Weekly</SelectItem>
-                <SelectItem value="MONTHLY">Monthly</SelectItem>
+                <SelectItem value="24 hours">24 Hours</SelectItem>
+                <SelectItem value="Daily">Daily</SelectItem>
+                <SelectItem value="48 hours">48 Hours</SelectItem>
+                <SelectItem value="Custom">Custom</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -304,10 +297,8 @@ export function AddPaymentGatewayDialog({
                 <SelectValue placeholder="Select settlement cycle" />
               </SelectTrigger>
               <SelectContent className="bg-background border shadow-lg z-50">
-                <SelectItem value="Instant">Instant</SelectItem>
-                <SelectItem value="T+1">T+1 (Next Day)</SelectItem>
-                <SelectItem value="T+2">T+2 (2 Days)</SelectItem>
-                <SelectItem value="T+3">T+3 (3 Days)</SelectItem>
+                <SelectItem value="Instant Settlement">Instant Settlement</SelectItem>
+                <SelectItem value="T+1 Day">T+1 Day</SelectItem>
                 <SelectItem value="Custom">Custom</SelectItem>
               </SelectContent>
             </Select>

@@ -24,15 +24,23 @@ export function TradeHistory() {
       const key = trade.binance_order_id || trade.id;
       const existing = orderMap.get(key);
       if (!existing) {
-        orderMap.set(key, trade);
+        orderMap.set(key, { ...trade });
       } else {
-        // Prefer binance_app source (has commission data)
+        // Aggregate partial fills: sum qty, quote, commission
+        existing.quantity = parseFloat(String(existing.quantity || 0)) + parseFloat(String(trade.quantity || 0));
+        existing.quote_quantity = parseFloat(String(existing.quote_quantity || 0)) + parseFloat(String(trade.quote_quantity || 0));
+        existing.commission = parseFloat(String(existing.commission || 0)) + parseFloat(String(trade.commission || 0));
+        // Use weighted avg price: total_quote / total_qty
+        if (existing.quantity > 0) {
+          existing.executed_price = existing.quote_quantity / existing.quantity;
+        }
+        // Prefer binance_app source for metadata
         if (trade.source === "binance_app" && existing.source === "terminal") {
-          orderMap.set(key, trade);
+          existing.source = trade.source;
+          existing.commission_asset = trade.commission_asset;
         }
       }
     }
-    // Re-sort after deduplication using display time logic
     return Array.from(orderMap.values()).sort((a, b) => {
       const timeA = a.trade_time ? Number(a.trade_time) : new Date(a.created_at).getTime();
       const timeB = b.trade_time ? Number(b.trade_time) : new Date(b.created_at).getTime();

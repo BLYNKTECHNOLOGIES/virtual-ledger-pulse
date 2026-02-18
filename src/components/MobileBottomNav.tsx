@@ -1,8 +1,7 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, X } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const mainNavItems = [
@@ -38,6 +37,8 @@ export function MobileBottomNav() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
 
+  const isTerminalActive = location.pathname.startsWith("/terminal");
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t-2 border-gray-200 shadow-lg">
       <div className="flex items-center justify-around h-16 px-2">
@@ -60,7 +61,7 @@ export function MobileBottomNav() {
             </Link>
           );
         })}
-        
+
         {/* More menu */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
@@ -95,6 +96,20 @@ export function MobileBottomNav() {
                     </Link>
                   );
                 })}
+
+                {/* Terminal — full-width black button at the bottom of the grid */}
+                <Link
+                  to="/terminal"
+                  onClick={() => setIsOpen(false)}
+                  className={`col-span-3 flex items-center justify-center gap-3 px-6 py-4 rounded-xl transition-all mt-1 ${
+                    isTerminalActive
+                      ? "bg-zinc-700 text-white border-2 border-zinc-500"
+                      : "bg-zinc-900 text-white border-2 border-zinc-900 hover:bg-zinc-800"
+                  }`}
+                >
+                  <Terminal className="h-5 w-5" />
+                  <span className="text-sm font-semibold tracking-widest uppercase">Terminal</span>
+                </Link>
               </div>
             </ScrollArea>
           </SheetContent>

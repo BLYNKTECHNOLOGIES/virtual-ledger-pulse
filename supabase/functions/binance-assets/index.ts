@@ -509,14 +509,72 @@ serve(async (req) => {
           } catch (e) { console.error(`Transfer sync error (${tType}):`, e); }
         }
 
-        // Update sync metadata
+        // Update sync metadata — record the sync time so next run uses an incremental window
         await sb.from("asset_movement_sync_metadata").upsert({
           id: "default",
           last_sync_at: new Date().toISOString(),
+          // Reset cursor times to 0 so they don't interfere with dynamic cutoff logic
+          last_deposit_time: 0,
+          last_withdraw_time: 0,
+          last_transfer_time: 0,
         }, { onConflict: "id" });
 
+        // After syncing movements, immediately run checkNewMovements to queue any new ones
+        // This ensures the ERP queue is always up to date after a sync
+        const { data: activeLink2 } = await sb
+          .from("terminal_wallet_links")
+          .select("wallet_id")
+          .eq("status", "active")
+          .eq("platform_source", "terminal")
+          .limit(1)
+          .maybeSingle();
+
+        const mappedWalletId2 = activeLink2?.wallet_id || null;
+
+        // Get existing queue IDs
+        const { data: existingQ } = await sb.from("erp_action_queue").select("movement_id");
+        const existingQIds = new Set((existingQ || []).map((q: any) => q.movement_id));
+
+        // Look back 48h from now to find any newly synced movements not yet in queue
+        const lookbackMs = now - 48 * 60 * 60 * 1000;
+        const { data: newMovements } = await sb
+          .from("asset_movement_history")
+          .select("*")
+          .in("movement_type", ["deposit", "withdrawal"])
+          .gte("movement_time", lookbackMs)
+          .order("movement_time", { ascending: false });
+
+        const toQueue = (newMovements || []).filter((m: any) => {
+          if (existingQIds.has(m.id)) return false;
+          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
+          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
+          return isCompletedDeposit || isCompletedWithdrawal;
+        });
+
+        if (toQueue.length > 0) {
+          const queueRows2 = toQueue.map((m: any) => ({
+            movement_id: m.id,
+            movement_type: m.movement_type,
+            asset: m.asset,
+            amount: m.amount,
+            tx_id: m.tx_id || null,
+            network: m.network || null,
+            wallet_id: mappedWalletId2,
+            movement_time: m.movement_time,
+            status: "PENDING",
+            raw_data: m.raw_data || m,
+          }));
+          const { error: autoQErr } = await sb
+            .from("erp_action_queue")
+            .upsert(queueRows2, { onConflict: "movement_id", ignoreDuplicates: true });
+          if (autoQErr) console.error("Auto-queue after sync error:", autoQErr);
+          else console.log(`syncAssetMovements: auto-queued ${toQueue.length} new movements`);
+        } else {
+          console.log("syncAssetMovements: no new movements to auto-queue");
+        }
+
         console.log(`syncAssetMovements: total upserted ${totalUpserted}`);
-        result = { synced: true, totalUpserted };
+        result = { synced: true, totalUpserted, autoQueued: toQueue.length };
         break;
       }
 
@@ -537,39 +595,54 @@ serve(async (req) => {
 
         const mappedWalletId = activeLink?.wallet_id || null;
 
-        // Try RPC first; fall back to manual query
-        const { data: unqueued, error: uqErr } = await sb.rpc("get_unqueued_movements");
+        // Dynamic cutoff: use the last processed/rejected item's movement_time
+        // to only pick up movements that arrived AFTER our last action.
+        // Fall back to 48 hours ago if no queue history exists.
+        const { data: lastQueuedItem } = await sb
+          .from("erp_action_queue")
+          .select("movement_time")
+          .in("status", ["PROCESSED", "REJECTED"])
+          .order("movement_time", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        let movements: any[] = [];
-        // Cutoff: Feb 12, 2026 00:00:00 IST
-        const cutoffTime = new Date("2026-02-12T00:00:00+05:30").getTime();
+        const nowMs = Date.now();
+        // If we have a previously processed item, use its movement_time as the cutoff
+        // so we only check for movements that arrived after that point.
+        // Always look back at least 48h to catch any gaps.
+        const fortyEightHoursAgo = nowMs - 48 * 60 * 60 * 1000;
+        const dynamicCutoff = lastQueuedItem?.movement_time
+          ? Math.min(lastQueuedItem.movement_time, fortyEightHoursAgo)
+          : fortyEightHoursAgo;
 
-        if (uqErr) {
-          console.log("RPC not available, using manual query");
-          // Fetch completed deposits & withdrawals from cutoff onward
-          const { data: allMovements } = await sb
-            .from("asset_movement_history")
-            .select("*")
-            .in("movement_type", ["deposit", "withdrawal"])
-            .gte("movement_time", cutoffTime)
-            .order("movement_time", { ascending: false });
+        console.log(`checkNewMovements: dynamic cutoff = ${new Date(dynamicCutoff).toISOString()}`);
 
-          // Get existing queue movement IDs to avoid duplicates
-          const { data: existingQueue } = await sb
-            .from("erp_action_queue")
-            .select("movement_id");
+        // Get existing queue movement IDs to avoid re-queuing already queued items
+        const { data: existingQueue } = await sb
+          .from("erp_action_queue")
+          .select("movement_id");
 
-          const existingIds = new Set((existingQueue || []).map((q: any) => q.movement_id));
-          movements = (allMovements || []).filter((m: any) => {
-            // Deposit statuses from Binance: 0=pending, 6=credited but cannot withdraw, 1=success
-            const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
-            // Withdrawal status from Binance: 6=completed
-            const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
-            return (isCompletedDeposit || isCompletedWithdrawal) && !existingIds.has(m.id);
-          });
-        } else {
-          movements = (unqueued || []).filter((m: any) => m.movement_time >= cutoffTime);
-        }
+        const existingIds = new Set((existingQueue || []).map((q: any) => q.movement_id));
+
+        // Fetch completed deposits & withdrawals from cutoff onward
+        const { data: allMovements } = await sb
+          .from("asset_movement_history")
+          .select("*")
+          .in("movement_type", ["deposit", "withdrawal"])
+          .gte("movement_time", dynamicCutoff)
+          .order("movement_time", { ascending: false });
+
+        let movements: any[] = (allMovements || []).filter((m: any) => {
+          // Skip already queued movement IDs
+          if (existingIds.has(m.id)) return false;
+          // Deposit statuses from Binance: 1=success, 6=credited but cannot withdraw
+          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
+          // Withdrawal status from Binance: 6=completed
+          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
+          return isCompletedDeposit || isCompletedWithdrawal;
+        });
+
+        console.log(`checkNewMovements: ${allMovements?.length || 0} movements in window, ${movements.length} are new & completed`);
 
         if (movements.length === 0) {
           console.log("checkNewMovements: no new movements to queue");

@@ -51,12 +51,16 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       .eq('id', activeLink.wallet_id)
       .single();
 
-    // 2. Get completed BUY orders from binance_order_history — only today's orders (from 00:00 IST)
-    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-    const nowUTC = Date.now();
-    const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
-    const cutoffTime = midnightISTinUTC;
-    console.log('[PurchaseSync] Cutoff (today 00:00 IST):', new Date(cutoffTime).toISOString(), 'cutoffMs:', cutoffTime);
+    // 2. Get completed BUY orders from binance_order_history
+    // Look back 7 days to catch orders that:
+    //   - Were created yesterday but completed/resolved today (cross-day)
+    //   - Were IN_APPEAL and later resolved to COMPLETED
+    // We filter by create_time going back 7 days but only pick COMPLETED status.
+    // Orders that were IN_APPEAL at sync time but later marked COMPLETED will be caught
+    // on the next sync run since order_history status gets updated on re-sync.
+    const LOOKBACK_DAYS = 7;
+    const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+    console.log('[PurchaseSync] Cutoff (7-day lookback):', new Date(cutoffTime).toISOString());
 
     const { data: completedBuys, error: fetchErr } = await supabase
       .from('binance_order_history')

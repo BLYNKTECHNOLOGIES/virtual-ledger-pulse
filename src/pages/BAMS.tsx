@@ -70,41 +70,69 @@ export default function BAMS() {
 
         <div className="w-full h-full flex-1 overflow-auto bg-white rounded-lg shadow-sm p-0">
           <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
-            <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full bg-gray-100 p-1 rounded-md mb-6">
-              <TabsTrigger value="account-summary" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            {/* Mobile: horizontal scroll; Desktop: 7-column grid */}
+            <div className="md:hidden overflow-x-auto pb-1 mb-4">
+              <TabsList className="inline-flex w-max bg-gray-100 p-1 rounded-md gap-1">
+                <TabsTrigger value="account-summary" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <BarChart3 className="h-3.5 w-3.5 shrink-0" />
+                  Summary
+                </TabsTrigger>
+                <TabsTrigger value="bank-accounts" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <Building className="h-3.5 w-3.5 shrink-0" />
+                  Banks
+                </TabsTrigger>
+                <TabsTrigger value="payment-methods" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <CreditCard className="h-3.5 w-3.5 shrink-0" />
+                  Sales
+                </TabsTrigger>
+                <TabsTrigger value="purchases" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
+                  Purchases
+                </TabsTrigger>
+                <TabsTrigger value="journal-entries" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                  Journal
+                </TabsTrigger>
+                <TabsTrigger value="payment-gateway" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <Smartphone className="h-3.5 w-3.5 shrink-0" />
+                  Gateway
+                </TabsTrigger>
+                <TabsTrigger value="case-generator" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  Cases
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* Desktop: original 7-column grid — unchanged */}
+            <TabsList className="hidden md:grid md:grid-cols-7 w-full bg-gray-100 p-1 rounded-md mb-6">
+              <TabsTrigger value="account-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Account Summary</span>
-                <span className="sm:hidden">Summary</span>
+                <span>Account Summary</span>
               </TabsTrigger>
-              <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="bank-accounts" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Building className="h-4 w-4" />
-                <span className="hidden sm:inline">Bank Accounts</span>
-                <span className="sm:hidden">Banks</span>
+                <span>Bank Accounts</span>
               </TabsTrigger>
-              <TabsTrigger value="payment-methods" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="payment-methods" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <CreditCard className="h-4 w-4" />
-                <span className="hidden sm:inline">Sales Methods</span>
-                <span className="sm:hidden">Sales</span>
+                <span>Sales Methods</span>
               </TabsTrigger>
-              <TabsTrigger value="purchases" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="purchases" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <ShoppingBag className="h-4 w-4" />
-                <span className="hidden sm:inline">Purchase Management</span>
-                <span className="sm:hidden">Purchases</span>
+                <span>Purchase Management</span>
               </TabsTrigger>
-              <TabsTrigger value="journal-entries" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="journal-entries" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BookOpen className="h-4 w-4" />
-                <span className="hidden sm:inline">Bank Journal Entries</span>
-                <span className="sm:hidden">Journal</span>
+                <span>Bank Journal Entries</span>
               </TabsTrigger>
-              <TabsTrigger value="payment-gateway" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="payment-gateway" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <Smartphone className="h-4 w-4" />
-                <span className="hidden sm:inline">Payment Gateway</span>
-                <span className="sm:hidden">Gateway</span>
+                <span>Payment Gateway</span>
               </TabsTrigger>
-              <TabsTrigger value="case-generator" className="flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsTrigger value="case-generator" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <AlertCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">Case Generator</span>
-                <span className="sm:hidden">Cases</span>
+                <span>Case Generator</span>
               </TabsTrigger>
             </TabsList>
 

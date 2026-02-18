@@ -134,11 +134,12 @@ export function EnhancedOrderCreationDialog({ open, onOpenChange }: EnhancedOrde
          for (const salesOrder of data) {
            try {
              const { data: existingClient } = await supabase
-               .from('clients')
-               .select('id, name')
-               .or(`name.ilike.${salesOrder.client_name}`)
-               .limit(1)
-               .maybeSingle();
+                .from('clients')
+                .select('id, name')
+                .ilike('name', salesOrder.client_name.trim())
+                .eq('is_deleted', false)
+                .limit(1)
+                .maybeSingle();
              
              // If client doesn't exist, create an onboarding approval request
              if (!existingClient) {

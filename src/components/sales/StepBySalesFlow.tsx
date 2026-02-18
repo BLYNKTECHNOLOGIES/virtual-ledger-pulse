@@ -383,7 +383,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
          const { data: existingClient } = await supabase
            .from('clients')
            .select('id, name')
-           .or(`name.ilike.${clientName},phone.eq.${clientPhone || ''}`)
+           .ilike('name', clientName.trim())
+           .eq('is_deleted', false)
            .limit(1)
            .maybeSingle();
          

@@ -282,11 +282,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         }
       }
 
-      // Check if client already exists in the clients table
+      // Check if client already exists in the clients table (exact name match, not deleted)
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, name')
-       .or(`name.ilike.%${data.client_name}%,phone.eq.${data.client_phone || 'NO_PHONE_MATCH'}`)
+        .ilike('name', data.client_name.trim())
+        .eq('is_deleted', false)
         .limit(1)
         .maybeSingle();
 

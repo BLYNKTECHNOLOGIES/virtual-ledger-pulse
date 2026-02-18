@@ -110,11 +110,12 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
       if (salesError) throw salesError;
       console.log('✅ Sales order created:', salesOrder.id);
 
-      // Check if client already exists in the clients table
+      // Check if client already exists in the clients table (exact name match, not deleted)
       const { data: existingClient } = await supabase
         .from('clients')
         .select('id, name')
-        .or(`name.ilike.${orderData.client_name},phone.eq.${orderData.client_phone}`)
+        .ilike('name', orderData.client_name.trim())
+        .eq('is_deleted', false)
         .limit(1)
         .maybeSingle();
 

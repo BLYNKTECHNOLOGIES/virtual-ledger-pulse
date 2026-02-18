@@ -36,6 +36,14 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
 
+  // For on-chain withdrawals, pre-fill quantity as amount + Binance network fee
+  // so that the fee is absorbed into the sales quantity (charged to counterparty)
+  const binanceNetworkFee =
+    item.movement_type === 'withdrawal'
+      ? parseFloat(item.raw_data?.transactionFee ?? item.raw_data?.fee ?? 0) || 0
+      : 0;
+  const prefillQuantity = item.amount + binanceNetworkFee;
+
   const [formData, setFormData] = useState({
     order_number: '',
     client_name: '',
@@ -44,7 +52,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
     product_id: '',
     wallet_id: item.wallet_id || '',
     platform: '',
-    quantity: String(item.amount),
+    quantity: String(prefillQuantity),
     price_per_unit: '',
     total_amount: '',
     platform_fees: '',
@@ -432,6 +440,11 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                 min="0" step="0.01" placeholder="Enter quantity"
                 className={stockValidationError ? "border-destructive" : ""}
               />
+              {binanceNetworkFee > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {item.amount} + {binanceNetworkFee} network fee = {prefillQuantity} {item.asset}
+                </p>
+              )}
             </div>
           </div>
 

@@ -282,6 +282,12 @@ export function ClientDashboard() {
       
       if (!isBuyer) return false;
 
+      // CRITICAL: Clients with buyer_approval_status = PENDING have NOT been through
+      // Buyer Approval yet. They must NOT appear in the Client Directory — only in
+      // the Buyer Approvals queue. Only APPROVED (or null/NOT_APPLICABLE legacy) clients
+      // are shown in the directory.
+      if (client.buyer_approval_status === 'PENDING') return false;
+
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;

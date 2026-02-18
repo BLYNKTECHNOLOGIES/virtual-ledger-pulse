@@ -122,14 +122,20 @@ export default function ProfitLoss() {
   };
 
 
+  // Compute date strings OUTSIDE queryFn so they're stable, deterministic, and in the key
+  // This eliminates closure ambiguity entirely — queryFn receives dates as arguments
+  const { startDate: _startDate, endDate: _endDate } = getDateRange();
+  const computedStartStr = format(_startDate, 'yyyy-MM-dd');
+  const computedEndStr = format(_endDate, 'yyyy-MM-dd');
+
   // Fetch comprehensive P&L data with period-based calculations
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['period_based_pl_dashboard', datePreset, dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null, dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null, selectedAsset],
+    queryKey: ['period_based_pl_dashboard_v2', computedStartStr, computedEndStr, selectedAsset],
+    staleTime: 0, // Always re-fetch — P&L data is time-sensitive
     queryFn: async () => {
-      const { startDate, endDate } = getDateRange();
-      // Always format using local date (not ISO/UTC) to avoid timezone-shifted dates
-      const startStr = format(startDate, 'yyyy-MM-dd');
-      const endStr = format(endDate, 'yyyy-MM-dd');
+      // Use the pre-computed strings passed via queryKey to avoid closure issues entirely
+      const startStr = computedStartStr;
+      const endStr = computedEndStr;
 
       // Fetch completed sales orders within period - sales have quantity/price directly on the order
       const { data: salesOrders } = await supabase

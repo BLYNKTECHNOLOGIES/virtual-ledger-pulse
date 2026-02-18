@@ -123,21 +123,23 @@ export const createSellerClient = async (
 };
 
 /**
- * Create a new buyer client from sales order
+ * Create a new buyer client from sales order.
+ * IMPORTANT: State is intentionally NOT stored here — new clients created from Sales
+ * must go through Buyer Approval where State is entered manually. Never auto-populate state.
  */
 export const createBuyerClient = async (
   buyerName: string,
   contactNumber?: string,
-  state?: string
+  _state?: string  // Intentionally ignored — state must be entered during Buyer Approval
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     // Always check for existing client first
     const existingClient = await findClientByName(buyerName);
     if (existingClient) {
-      // Update missing fields on existing client
+      // Update missing fields on existing client — but NEVER override/set state for new clients
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-      if (state && !existingClient.state) updates.state = state;
+      // State is NOT updated here — state can only be set by manual input during Buyer Approval
       if (Object.keys(updates).length > 0) {
         await supabase.from('clients').update(updates).eq('id', existingClient.id);
       }
@@ -153,7 +155,7 @@ export const createBuyerClient = async (
         kyc_status: 'PENDING',
         date_of_onboarding: new Date().toISOString().split('T')[0],
         phone: contactNumber || null,
-        state: state || null,
+        state: null,  // ALWAYS null — state must be entered manually during Buyer Approval
         risk_appetite: 'MEDIUM',
         is_buyer: true,
         is_seller: false,

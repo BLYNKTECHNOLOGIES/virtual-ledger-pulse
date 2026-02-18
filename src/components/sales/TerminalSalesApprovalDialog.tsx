@@ -93,7 +93,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     const name = displayName.trim().toLowerCase();
     if (!name) return;
 
-    // Find exact match
+    // Find exact match — only among APPROVED or already-existing clients
+    // (PENDING clients are in approval queue, still valid to link but treated as new)
     const exactMatch = allClients.find(
       c => !(c as any).is_deleted && c.buyer_approval_status !== 'REJECTED' && c.name.trim().toLowerCase() === name
     );
@@ -102,9 +103,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Auto-populate contact/state from client if not already set
+      // Auto-populate contact/state ONLY from existing APPROVED clients
+      // For PENDING (new) clients, do NOT auto-assign state — it must be blank
+      const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
-      if (!clientState && exactMatch.state) setClientState(exactMatch.state);
+      if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
     }
   }, [open, displayName, allClients]);
 
@@ -234,9 +237,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     setLinkedClientName(client.name);
     setShowClientDropdown(false);
     setClientAutoMatched(true);
-    // Auto-populate contact/state from selected client
+    // Auto-populate contact from selected client always
+    // Auto-populate state ONLY if client is already APPROVED (not PENDING new client)
     if (client.phone && !contactNumber) setContactNumber(client.phone);
-    if (client.state && !clientState) setClientState(client.state);
+    if (client.state && !clientState && client.buyer_approval_status === 'APPROVED') setClientState(client.state);
     toast({ title: "Client Linked", description: `${client.name} selected as buyer client` });
   };
 
@@ -419,12 +423,24 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           }, { onConflict: 'counterparty_nickname' });
       }
 
-      // Sync contact to client master
+      // Sync contact/state to client master — but ONLY for APPROVED clients.
+      // For PENDING (new) clients, state must NOT be written; it stays blank until Buyer Approval.
       if (linkedClientId && (contactNumber || clientState)) {
+        const { data: clientForUpdate } = await supabase
+          .from('clients')
+          .select('buyer_approval_status')
+          .eq('id', linkedClientId)
+          .maybeSingle();
+
         const updates: any = {};
         if (contactNumber) updates.phone = contactNumber;
-        if (clientState) updates.state = clientState;
-        await supabase.from('clients').update(updates).eq('id', linkedClientId);
+        // Only update state if client is already APPROVED (not a new PENDING client)
+        if (clientState && clientForUpdate?.buyer_approval_status === 'APPROVED') {
+          updates.state = clientState;
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('clients').update(updates).eq('id', linkedClientId);
+        }
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
@@ -436,9 +452,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           .maybeSingle();
 
         if (clientRecord && clientRecord.buyer_approval_status === 'PENDING') {
-          // Check no approval record already exists for this client today
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
+          // Check no approval record already exists for this sales order
           const { data: existingApproval } = await supabase
             .from('client_onboarding_approvals')
             .select('id')
@@ -450,7 +464,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               sales_order_id: salesOrder.id,
               client_name: clientRecord.name || displayName,
               client_phone: clientRecord.phone || contactNumber || null,
-              client_state: clientRecord.state || clientState || null,
+              // State intentionally NOT carried from form — must be blank for new clients.
+              // Buyer Approval officer will enter state manually.
+              client_state: null,
               order_amount: totalAmount,
               order_date: orderDate,
               approval_status: 'PENDING',
@@ -532,49 +548,60 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
               {/* Linked client - with hover preview */}
               {linkedClientId && selectedClient ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-                  <HoverCard openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
-                    if (isOpen) setHoveredClientId(selectedClient.id);
-                  }}>
-                    <HoverCardTrigger asChild>
-                      <span className="text-sm font-medium cursor-pointer hover:underline underline-offset-2">
-                        {selectedClient.name}
-                      </span>
-                    </HoverCardTrigger>
-                    <HoverCardContent
-                      side="right"
-                      align="start"
-                      className="w-80 p-3 z-[9999] bg-popover border border-border shadow-xl"
-                      sideOffset={8}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                    <HoverCard openDelay={300} closeDelay={100} onOpenChange={(isOpen) => {
+                      if (isOpen) setHoveredClientId(selectedClient.id);
+                    }}>
+                      <HoverCardTrigger asChild>
+                        <span className="text-sm font-medium cursor-pointer hover:underline underline-offset-2">
+                          {selectedClient.name}
+                        </span>
+                      </HoverCardTrigger>
+                      <HoverCardContent
+                        side="right"
+                        align="start"
+                        className="w-80 p-3 z-[9999] bg-popover border border-border shadow-xl"
+                        sideOffset={8}
+                      >
+                        <ClientOrderPreview
+                          clientId={selectedClient.id}
+                          clientName={selectedClient.name}
+                          clientData={{
+                            client_id: selectedClient.client_id,
+                            phone: selectedClient.phone,
+                            date_of_onboarding: selectedClient.date_of_onboarding,
+                            client_type: selectedClient.client_type,
+                            is_buyer: selectedClient.is_buyer,
+                            is_seller: selectedClient.is_seller,
+                          }}
+                          isOpen={hoveredClientId === selectedClient.id}
+                        />
+                      </HoverCardContent>
+                    </HoverCard>
+                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
+                      {selectedClient.client_id}
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">Linked</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
+                      onClick={handleUnlinkClient}
                     >
-                      <ClientOrderPreview
-                        clientId={selectedClient.id}
-                        clientName={selectedClient.name}
-                        clientData={{
-                          client_id: selectedClient.client_id,
-                          phone: selectedClient.phone,
-                          date_of_onboarding: selectedClient.date_of_onboarding,
-                          client_type: selectedClient.client_type,
-                          is_buyer: selectedClient.is_buyer,
-                          is_seller: selectedClient.is_seller,
-                        }}
-                        isOpen={hoveredClientId === selectedClient.id}
-                      />
-                    </HoverCardContent>
-                  </HoverCard>
-                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
-                    {selectedClient.client_id}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">Linked</Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[10px] text-muted-foreground hover:text-destructive ml-auto"
-                    onClick={handleUnlinkClient}
-                  >
-                    Change
-                  </Button>
+                      Change
+                    </Button>
+                  </div>
+                  {/* Show Buyer Approval Pending warning for newly created clients */}
+                  {selectedClient.buyer_approval_status === 'PENDING' && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                        New Client – Buyer Approval Pending. This client will appear in the Buyer Approvals queue after this sale is approved.
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : linkedClientId && !selectedClient ? (
                 // Fallback: client ID exists but not found in allClients yet

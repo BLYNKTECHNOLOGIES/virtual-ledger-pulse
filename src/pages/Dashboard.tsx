@@ -122,10 +122,15 @@ export default function Dashboard() {
         .eq('status', 'ACTIVE')
         .is('dormant_at', null); // Exclude dormant accounts
 
-      // Get stock inventory data using cost_price for total value calculation
-      const { data: stockData } = await supabase
+      // Get products for cost_price lookup (INR rate per unit)
+      const { data: productsData } = await supabase
         .from('products')
-        .select('id, cost_price, current_stock_quantity');
+        .select('code, cost_price');
+
+      // Get actual live wallet asset balances (source of truth for crypto stock)
+      const { data: walletAssetBalances } = await supabase
+        .from('wallet_asset_balances')
+        .select('asset_code, balance');
 
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
@@ -134,15 +139,32 @@ export default function Dashboard() {
       const verifiedClients = clientsData?.length || 0;
       const totalClients = totalClientsData?.length || 0;
       
-      // Calculate total cash (sum of available bank balances + stock value using cost_price)
+      // Calculate total cash (sum of available bank balances + stock value)
       // Available Balance = Total Balance - Lien Amount
       const bankBalance = bankData?.reduce((sum, account) => {
         const availableBalance = Number(account.balance) - Number(account.lien_amount || 0);
         return sum + availableBalance;
       }, 0) || 0;
-      const stockValue = stockData?.reduce((sum, product) => {
-        return sum + (Number(product.cost_price || 0) * Number(product.current_stock_quantity));
-      }, 0) || 0;
+
+      // Build cost price map from products (INR rate per unit)
+      const costPriceMap: Record<string, number> = {};
+      productsData?.forEach(p => {
+        if (p.code) costPriceMap[p.code] = Number(p.cost_price || 0);
+      });
+
+      // Aggregate actual balances per asset from wallet_asset_balances (source of truth)
+      const assetTotals: Record<string, number> = {};
+      walletAssetBalances?.forEach(ab => {
+        const code = ab.asset_code;
+        assetTotals[code] = (assetTotals[code] || 0) + Number(ab.balance || 0);
+      });
+
+      // Stock value = sum of (live wallet balance × INR cost price per unit)
+      const stockValue = Object.entries(assetTotals).reduce((sum, [code, balance]) => {
+        const inrRate = costPriceMap[code] || 0;
+        return sum + (balance * inrRate);
+      }, 0);
+
       const totalCash = bankBalance + stockValue;
 
       return {

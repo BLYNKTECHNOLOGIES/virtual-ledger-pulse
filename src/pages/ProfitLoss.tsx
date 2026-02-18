@@ -97,10 +97,23 @@ export default function ProfitLoss() {
   const handleDatePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset);
     localStorage.setItem('pnl_date_preset', preset);
+    // CRITICAL: also update dateRange so the query re-runs with fresh dates.
+    // Without this, switching to "today" keeps the stale previous range.
+    const newRange = getDateRangeFromPreset(preset);
+    setDateRange(newRange);
   };
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
 
   const getDateRange = () => {
+    // For time-sensitive presets (today, yesterday, last7days etc.), always recompute
+    // a fresh date range so that if the page was loaded before midnight the dates
+    // don't become stale. Only for "custom" do we rely on the dateRange state.
+    if (datePreset && datePreset !== 'custom' && datePreset !== 'allTime') {
+      const freshRange = getDateRangeFromPreset(datePreset);
+      if (freshRange?.from && freshRange?.to) {
+        return { startDate: freshRange.from, endDate: freshRange.to };
+      }
+    }
     if (dateRange?.from && dateRange?.to) {
       return { startDate: dateRange.from, endDate: dateRange.to };
     }
@@ -108,9 +121,10 @@ export default function ProfitLoss() {
     return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
   };
 
+
   // Fetch comprehensive P&L data with period-based calculations
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['period_based_pl_dashboard', dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
+    queryKey: ['period_based_pl_dashboard', datePreset, dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
       const startStr = format(startDate, 'yyyy-MM-dd');

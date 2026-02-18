@@ -36,10 +36,10 @@ export function TerminalSyncTab() {
   const { data: syncRecords = [], isLoading, refetch } = useQuery({
     queryKey: ['terminal-purchase-sync', statusFilter],
     queryFn: async () => {
-      // Only show orders from today (00:00 IST onwards) based on order create_time
-      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-      const nowUTC = Date.now();
-      const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
+      // Show orders from the last 7 days to catch cross-day orders
+      // (orders created yesterday but completed/appeal-resolved today)
+      const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+      const cutoffTime = Date.now() - LOOKBACK_MS;
 
       let query = supabase
         .from('terminal_purchase_sync')
@@ -54,11 +54,12 @@ export function TerminalSyncTab() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Filter client-side by order create_time (from order_data JSONB)
+      // Filter client-side by order create_time (from order_data JSONB) — last 7 days
       return (data || []).filter(record => {
         const od = record.order_data as any;
         const createTime = od?.create_time ? Number(od.create_time) : 0;
-        return createTime >= midnightISTinUTC;
+        // Always show records with no create_time (legacy) or within 7 days
+        return createTime === 0 || createTime >= cutoffTime;
       });
     },
   });

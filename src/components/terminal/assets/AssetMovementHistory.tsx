@@ -142,14 +142,21 @@ export function AssetMovementHistory() {
     if (dbMovements) {
       for (const m of dbMovements) {
         const mType = m.movement_type as MovementType;
+        const isBinancePay = m.network === "Binance Pay";
         let statusLabel = m.status || "";
-        if (mType === "deposit") statusLabel = DEPOSIT_STATUS[m.status || ""] || m.status || "";
-        if (mType === "withdrawal") statusLabel = WITHDRAW_STATUS[m.status || ""] || m.status || "";
+        if (mType === "deposit") statusLabel = isBinancePay ? "Completed" : (DEPOSIT_STATUS[m.status || ""] || m.status || "");
+        if (mType === "withdrawal") statusLabel = isBinancePay ? "Completed" : (WITHDRAW_STATUS[m.status || ""] || m.status || "");
 
         let details = "";
-        if (mType === "deposit") details = `${m.network || ""} Deposit`;
-        else if (mType === "withdrawal") details = `${m.network || ""} Withdrawal`;
-        else if (mType === "transfer") details = m.transfer_direction || "Internal Transfer";
+        if (isBinancePay) {
+          details = mType === "withdrawal" ? "Binance Pay Sent" : "Binance Pay Received";
+        } else if (mType === "deposit") {
+          details = `${m.network || ""} Deposit`;
+        } else if (mType === "withdrawal") {
+          details = `${m.network || ""} Withdrawal`;
+        } else if (mType === "transfer") {
+          details = m.transfer_direction || "Internal Transfer";
+        }
 
         movements.push({
           id: m.id,
@@ -159,7 +166,7 @@ export function AssetMovementHistory() {
           status: statusLabel,
           timestamp: Number(m.movement_time) || 0,
           details,
-          network: m.network || undefined,
+          network: isBinancePay ? "Binance Pay" : (m.network || undefined),
           txId: m.tx_id || undefined,
           address: m.address || undefined,
           fee: Number(m.fee) || undefined,
@@ -331,15 +338,24 @@ export function AssetMovementHistory() {
                   </td>
                   <td className="py-2 px-3 text-muted-foreground max-w-[200px]">
                     <div className="truncate">{m.details}</div>
-                    {m.network && m.type !== "transfer" && (
+                    {/* For Binance Pay: show counterparty (address field) instead of network label */}
+                    {m.network === "Binance Pay" && m.address && (
+                      <div className="text-[10px] text-muted-foreground/70 truncate">To/From: {m.address}</div>
+                    )}
+                    {m.network && m.network !== "Binance Pay" && m.type !== "transfer" && (
                       <div className="text-[10px] text-muted-foreground/70">Net: {m.network}</div>
                     )}
                     {m.counterparty && (
                       <div className="text-[10px] text-muted-foreground/70">{m.counterparty}</div>
                     )}
-                    {m.txId && (
+                    {m.txId && m.network !== "Binance Pay" && (
                       <div className="text-[10px] text-muted-foreground/50 truncate max-w-[180px]" title={m.txId}>
                         TX: {m.txId.substring(0, 16)}…
+                      </div>
+                    )}
+                    {m.txId && m.network === "Binance Pay" && (
+                      <div className="text-[10px] text-muted-foreground/50 truncate max-w-[180px]" title={m.txId}>
+                        Pay ID: {m.txId}
                       </div>
                     )}
                   </td>

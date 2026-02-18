@@ -354,6 +354,17 @@ serve(async (req) => {
         break;
       }
 
+      // ===== BINANCE PAY TRANSACTION HISTORY =====
+      case "getPayTransactions": {
+        const { startTimestamp, endTimestamp, limit: payLimit } = payload;
+        const params: Record<string, string> = {};
+        if (startTimestamp) params.startTimestamp = String(startTimestamp);
+        if (endTimestamp) params.endTimestamp = String(endTimestamp);
+        params.limit = String(payLimit || 100);
+        result = await proxyGet("/sapi/v1/pay/transactions", params);
+        break;
+      }
+
       // ===== UNIVERSAL TRANSFER HISTORY =====
       case "getTransferHistory": {
         const { type: transferType, startTime, endTime, current, size } = payload;
@@ -508,6 +519,74 @@ serve(async (req) => {
             }
           } catch (e) { console.error(`Transfer sync error (${tType}):`, e); }
         }
+
+        // --- Binance Pay Transactions (sent=withdrawal, received=deposit) ---
+        try {
+          // Binance Pay API supports max 100 records per call, up to 90 days
+          const payStartTime = Math.max(syncStartTime, now - 90 * 24 * 60 * 60 * 1000);
+          const payParams: Record<string, string> = {
+            startTimestamp: String(payStartTime),
+            endTimestamp: String(now),
+            limit: "100",
+          };
+          const payData = await proxyGet("/sapi/v1/pay/transactions", payParams);
+          // Binance Pay API returns: { code: "000000", data: [...] } or just an array
+          const payList: any[] = Array.isArray(payData)
+            ? payData
+            : Array.isArray(payData?.data)
+            ? payData.data
+            : [];
+
+          console.log(`Pay API returned ${payList.length} transactions`);
+
+          if (payList.length > 0) {
+            const payRows = payList.map((p: any) => {
+              // Determine direction: Binance Pay API uses transactionType or type field
+              // "PAY" / "SEND" / "OUT" = sent by us = withdrawal
+              // "PAY_REFUND" / "RECEIVE" / "IN" = received by us = deposit
+              const txType = (p.transactionType || p.type || "").toUpperCase();
+              const isSent =
+                txType === "PAY" ||
+                txType === "SEND" ||
+                txType === "OUT" ||
+                txType.startsWith("PAY") && !txType.includes("REFUND") && !txType.includes("IN");
+
+              const movementType = isSent ? "withdrawal" : "deposit";
+              // Use Binance completed statuses: 6=completed for withdrawal, 1=success for deposit
+              const status = isSent ? "6" : "1";
+
+              // Counterparty info
+              const counterparty = isSent
+                ? (p.receiverInfo?.name || p.receiverInfo?.nickName || p.receiverInfo?.binanceId || "")
+                : (p.payerInfo?.name || p.payerInfo?.nickName || p.payerInfo?.binanceId || "");
+
+              const orderId = p.orderId || p.transactionId || String(p.transactionTime);
+
+              return {
+                id: `pay-${orderId}`,
+                movement_type: movementType,
+                asset: p.currency || p.asset || "USDT",
+                amount: parseFloat(p.amount || "0"),
+                fee: 0, // Binance Pay has no network fee
+                status,
+                network: "Binance Pay",
+                tx_id: orderId,
+                address: counterparty || null,
+                transfer_direction: null,
+                raw_data: p,
+                movement_time: p.transactionTime || 0,
+                synced_at: new Date().toISOString(),
+              };
+            });
+
+            if (payRows.length > 0) {
+              const { error } = await sb.from("asset_movement_history").upsert(payRows, { onConflict: "id" });
+              if (error) console.error("Pay upsert error:", error);
+              else totalUpserted += payRows.length;
+            }
+            console.log(`Synced ${payRows.length} Pay transactions`);
+          }
+        } catch (e) { console.error("Pay sync error:", e); }
 
         // Update sync metadata — record the sync time so next run uses an incremental window
         await sb.from("asset_movement_sync_metadata").upsert({

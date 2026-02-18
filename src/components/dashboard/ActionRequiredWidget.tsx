@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, ArrowDownLeft, ArrowUpRight, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowDownLeft, ArrowUpRight, RefreshCw, CheckCircle, History } from "lucide-react";
 import { useErpActionQueue, useCheckNewMovements, ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { RejectDialog } from "./erp-actions/RejectDialog";
 import { ActionSelectionDialog } from "./erp-actions/ActionSelectionDialog";
+import { ErpHistoryDialog } from "./erp-actions/ErpHistoryDialog";
 import { format } from "date-fns";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
@@ -17,6 +18,7 @@ export function ActionRequiredWidget() {
   const checkMutation = useCheckNewMovements();
   const [rejectItem, setRejectItem] = useState<ErpActionQueueItem | null>(null);
   const [entryItem, setEntryItem] = useState<ErpActionQueueItem | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { addNotification } = useNotifications();
   const notifiedIdsRef = useRef<Set<string>>(
     (() => {
@@ -79,7 +81,11 @@ export function ActionRequiredWidget() {
   return (
     <>
       <Card className="bg-card border-2 border-border shadow-xl">
-        <CardHeader className="bg-muted/80 border-b border-border rounded-t-lg">
+        <CardHeader
+          className="bg-muted/80 border-b border-border rounded-t-lg cursor-pointer hover:bg-muted/90 transition-colors group"
+          onClick={() => setHistoryOpen(true)}
+          title="Click to view full history"
+        >
           <CardTitle className="flex items-center gap-2 text-lg text-foreground">
             <div className="p-2 bg-muted rounded-lg border border-border">
               <AlertTriangle className="h-5 w-5 text-muted-foreground" />
@@ -98,11 +104,21 @@ export function ActionRequiredWidget() {
                   {withdrawals.length} Withdrawals
                 </Badge>
               )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="p-1.5 rounded-md text-muted-foreground group-hover:text-foreground transition-colors">
+                    <History className="h-4 w-4" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  <p className="text-xs">View full history</p>
+                </TooltipContent>
+              </Tooltip>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:bg-muted"
-                onClick={() => checkMutation.mutate({ force: true })}
+                onClick={(e) => { e.stopPropagation(); checkMutation.mutate({ force: true }); }}
                 disabled={checkMutation.isPending}
               >
                 <RefreshCw className={`h-4 w-4 ${checkMutation.isPending ? "animate-spin" : ""}`} />
@@ -203,6 +219,12 @@ export function ActionRequiredWidget() {
         item={entryItem}
         open={!!entryItem}
         onOpenChange={(open) => !open && setEntryItem(null)}
+      />
+
+      {/* Full history dialog */}
+      <ErpHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
       />
     </>
   );

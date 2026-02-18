@@ -124,9 +124,10 @@ export default function ProfitLoss() {
 
   // Fetch comprehensive P&L data with period-based calculations
   const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['period_based_pl_dashboard', datePreset, dateRange?.from?.toISOString(), dateRange?.to?.toISOString(), selectedAsset],
+    queryKey: ['period_based_pl_dashboard', datePreset, dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null, dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null, selectedAsset],
     queryFn: async () => {
       const { startDate, endDate } = getDateRange();
+      // Always format using local date (not ISO/UTC) to avoid timezone-shifted dates
       const startStr = format(startDate, 'yyyy-MM-dd');
       const endStr = format(endDate, 'yyyy-MM-dd');
 

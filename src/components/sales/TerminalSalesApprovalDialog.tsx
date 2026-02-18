@@ -423,24 +423,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           }, { onConflict: 'counterparty_nickname' });
       }
 
-      // Sync contact/state to client master — but ONLY for APPROVED clients.
-      // For PENDING (new) clients, state must NOT be written; it stays blank until Buyer Approval.
+      // Sync contact/state to client master.
+      // State is NEVER auto-populated in the dialog for new clients (starts null).
+      // However, if the operator manually enters/selects state in the dialog, it IS saved —
+      // regardless of whether the client is PENDING or APPROVED.
       if (linkedClientId && (contactNumber || clientState)) {
-        const { data: clientForUpdate } = await supabase
-          .from('clients')
-          .select('buyer_approval_status')
-          .eq('id', linkedClientId)
-          .maybeSingle();
-
         const updates: any = {};
         if (contactNumber) updates.phone = contactNumber;
-        // Only update state if client is already APPROVED (not a new PENDING client)
-        if (clientState && clientForUpdate?.buyer_approval_status === 'APPROVED') {
-          updates.state = clientState;
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('clients').update(updates).eq('id', linkedClientId);
-        }
+        if (clientState) updates.state = clientState; // Only set if operator manually entered it
+        await supabase.from('clients').update(updates).eq('id', linkedClientId);
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
@@ -464,9 +455,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               sales_order_id: salesOrder.id,
               client_name: clientRecord.name || displayName,
               client_phone: clientRecord.phone || contactNumber || null,
-              // State intentionally NOT carried from form — must be blank for new clients.
-              // Buyer Approval officer will enter state manually.
-              client_state: null,
+              // Pass state only if operator manually entered it in the dialog.
+              // If left blank (null), Buyer Approval officer will enter it during review.
+              client_state: clientState || null,
               order_amount: totalAmount,
               order_date: orderDate,
               approval_status: 'PENDING',

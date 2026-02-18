@@ -315,7 +315,8 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         const { data: existingClient } = await supabase
           .from('clients')
           .select('id, name')
-          .ilike('name', formData.client_name)
+          .ilike('name', formData.client_name.trim())
+          .eq('is_deleted', false)
           .limit(1)
           .maybeSingle();
         

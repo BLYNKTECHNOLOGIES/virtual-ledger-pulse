@@ -426,7 +426,39 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         if (clientState) updates.state = clientState;
         await supabase.from('clients').update(updates).eq('id', linkedClientId);
       }
-    },
+
+      // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
+      if (linkedClientId) {
+        const { data: clientRecord } = await supabase
+          .from('clients')
+          .select('buyer_approval_status, name, phone, state')
+          .eq('id', linkedClientId)
+          .maybeSingle();
+
+        if (clientRecord && clientRecord.buyer_approval_status === 'PENDING') {
+          // Check no approval record already exists for this client today
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const { data: existingApproval } = await supabase
+            .from('client_onboarding_approvals')
+            .select('id')
+            .eq('sales_order_id', salesOrder.id)
+            .maybeSingle();
+
+          if (!existingApproval) {
+            await supabase.from('client_onboarding_approvals').insert({
+              sales_order_id: salesOrder.id,
+              client_name: clientRecord.name || displayName,
+              client_phone: clientRecord.phone || contactNumber || null,
+              client_state: clientRecord.state || clientState || null,
+              order_amount: totalAmount,
+              order_date: orderDate,
+              approval_status: 'PENDING',
+            });
+          }
+        }
+      }
+    }, // end mutationFn
     onSuccess: () => {
       toast({ title: "Sales Order Approved", description: "Terminal sell order has been approved and sales order created" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });

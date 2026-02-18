@@ -521,9 +521,31 @@ serve(async (req) => {
         }
 
         // --- Binance Pay Transactions (sent=withdrawal, received=deposit) ---
+        // IMPORTANT: Only sync Pay transactions from the feature activation date onwards.
+        // We hardcode the cutoff to the moment this feature was deployed (2026-02-19T00:00:00 UTC).
+        // This prevents historical Pay transactions (already accounted for manually) from being synced.
+        // Incremental: after the first sync, we use the latest Pay record's movement_time as the floor.
+        const PAY_FEATURE_ACTIVATION_MS = 1739923200000; // 2026-02-19T00:00:00 UTC
+
         try {
-          // Binance Pay API supports max 100 records per call, up to 90 days
-          const payStartTime = Math.max(syncStartTime, now - 90 * 24 * 60 * 60 * 1000);
+          // Find the latest already-synced Pay record time for incremental sync
+          const { data: latestPay } = await sb
+            .from("asset_movement_history")
+            .select("movement_time")
+            .like("id", "pay-%")
+            .order("movement_time", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // Use the latest Pay record time (minus 5 min buffer) or the activation cutoff — whichever is later.
+          // This ensures: first run = activation cutoff (no old data), subsequent runs = incremental from last record.
+          const latestPayTime = latestPay?.movement_time
+            ? latestPay.movement_time - 5 * 60 * 1000
+            : null;
+          const payStartTime = Math.max(
+            PAY_FEATURE_ACTIVATION_MS,
+            latestPayTime ?? PAY_FEATURE_ACTIVATION_MS
+          );
           const payParams: Record<string, string> = {
             startTimestamp: String(payStartTime),
             endTimestamp: String(now),

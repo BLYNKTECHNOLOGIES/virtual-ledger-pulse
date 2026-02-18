@@ -65,14 +65,24 @@ export function useCheckNewMovements() {
     },
   });
 
-  // Auto-check on mount with 5-minute stale check
+  // Auto-check on mount with 2-minute stale check, and repeat every 2 minutes
   useEffect(() => {
-    const now = Date.now();
-    const fiveMinutes = 5 * 60 * 1000;
-    if (now - lastCheckRef.current > fiveMinutes) {
-      lastCheckRef.current = now;
-      checkMutation.mutate({ force: false });
-    }
+    const twoMinutes = 2 * 60 * 1000;
+
+    const runCheck = () => {
+      const now = Date.now();
+      if (now - lastCheckRef.current > twoMinutes) {
+        lastCheckRef.current = now;
+        checkMutation.mutate({ force: false });
+      }
+    };
+
+    // Run immediately on mount
+    runCheck();
+
+    // Then repeat every 2 minutes so new Binance movements get queued promptly
+    const interval = setInterval(runCheck, twoMinutes);
+    return () => clearInterval(interval);
   }, []);
 
   return checkMutation;

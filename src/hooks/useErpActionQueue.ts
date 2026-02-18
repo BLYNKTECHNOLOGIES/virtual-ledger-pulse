@@ -46,10 +46,10 @@ export function useCheckNewMovements() {
   const lastCheckRef = useRef<number>(0);
 
   const checkMutation = useMutation({
-    mutationFn: async () => {
-      // First trigger asset movement sync
+    mutationFn: async (opts?: { force?: boolean }) => {
+      // Trigger asset movement sync — force=true when manually triggered by user
       const { data: syncResult } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "syncAssetMovements" },
+        body: { action: "syncAssetMovements", force: opts?.force ?? false },
       });
       console.log("syncAssetMovements result:", syncResult);
 
@@ -71,7 +71,7 @@ export function useCheckNewMovements() {
     const fiveMinutes = 5 * 60 * 1000;
     if (now - lastCheckRef.current > fiveMinutes) {
       lastCheckRef.current = now;
-      checkMutation.mutate();
+      checkMutation.mutate({ force: false });
     }
   }, []);
 

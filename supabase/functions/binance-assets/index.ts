@@ -224,8 +224,6 @@ serve(async (req) => {
         if (quoteOrderQty) {
           orderParams.quoteOrderQty = String(quoteOrderQty);
         } else if (quantity) {
-          // Round quantity down to LOT_SIZE stepSize to avoid Filter failure: LOT_SIZE
-          // Common step sizes: BTC=0.00001(5dp), ETH=0.0001(4dp), BNB=0.001(3dp), etc.
           const stepSizes: Record<string, number> = {
             BTCUSDT: 5, ETHUSDT: 4, BNBUSDT: 3, XRPUSDT: 1, SOLUSDT: 3,
             TRXUSDT: 0, SHIBUSDT: 0, TONUSDT: 2, USDCUSDT: 2, FDUSDUSDT: 2,
@@ -359,7 +357,6 @@ serve(async (req) => {
       // ===== UNIVERSAL TRANSFER HISTORY =====
       case "getTransferHistory": {
         const { type: transferType, startTime, endTime, current, size } = payload;
-        // Transfer types: MAIN_UMFUTURE, MAIN_CMFUTURE, MAIN_MARGIN, MAIN_FUNDING, FUNDING_MAIN, etc.
         if (!transferType) throw new Error("Missing: type (transfer type enum)");
         const params: Record<string, string> = { type: transferType };
         if (startTime) params.startTime = String(startTime);
@@ -385,11 +382,12 @@ serve(async (req) => {
           .maybeSingle();
 
         const lastSync = syncMeta?.last_sync_at ? new Date(syncMeta.last_sync_at).getTime() : 0;
-        const fiveMinutes = 5 * 60 * 1000;
+        const twoMinutes = 2 * 60 * 1000;
         const now = Date.now();
         const forceSync = payload.force === true;
 
-        if (!forceSync && lastSync > 0 && (now - lastSync) < fiveMinutes) {
+        // Allow force sync or if data is older than 2 minutes
+        if (!forceSync && lastSync > 0 && (now - lastSync) < twoMinutes) {
           console.log("syncAssetMovements: data is fresh, skipping sync");
           result = { synced: false, reason: "fresh" };
           break;
@@ -397,12 +395,21 @@ serve(async (req) => {
 
         console.log("syncAssetMovements: starting sync...");
         const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+        // Always ensure today's data is captured: use 26h ago as minimum start
+        const oneDayAgo = now - 26 * 60 * 60 * 1000;
+        // If we have a previous sync, go back 2 hours before it to catch any late-arriving records;
+        // but always include at least 26h to ensure today is covered
+        const syncStartTime = lastSync > 0
+          ? Math.min(lastSync - 2 * 60 * 60 * 1000, oneDayAgo)
+          : ninetyDaysAgo;
+
+        console.log(`syncAssetMovements: syncStartTime=${new Date(syncStartTime).toISOString()}`);
         let totalUpserted = 0;
 
         // --- Deposits ---
         try {
           const depParams: Record<string, string> = {
-            startTime: String(ninetyDaysAgo),
+            startTime: String(syncStartTime),
             endTime: String(now),
             limit: "200",
           };
@@ -435,7 +442,7 @@ serve(async (req) => {
         // --- Withdrawals ---
         try {
           const wdParams: Record<string, string> = {
-            startTime: String(ninetyDaysAgo),
+            startTime: String(syncStartTime),
             endTime: String(now),
             limit: "200",
           };
@@ -468,7 +475,13 @@ serve(async (req) => {
         // --- Transfers (MAIN_FUNDING + FUNDING_MAIN) ---
         for (const tType of ["MAIN_FUNDING", "FUNDING_MAIN"]) {
           try {
-            const trParams: Record<string, string> = { type: tType, size: "100" };
+            // Binance transfer history API supports up to 30 days per request
+            const transferStartTime = Math.max(syncStartTime, now - 30 * 24 * 60 * 60 * 1000);
+            const trParams: Record<string, string> = {
+              type: tType,
+              size: "100",
+              startTime: String(transferStartTime),
+            };
             const trData = await proxyGet("/sapi/v1/asset/transfer", trParams);
             const trRows = trData?.rows || [];
             if (Array.isArray(trRows) && trRows.length > 0) {
@@ -524,18 +537,16 @@ serve(async (req) => {
 
         const mappedWalletId = activeLink?.wallet_id || null;
 
-        // Get completed deposits (status 1 = success for deposits) and withdrawals (status 6 = completed)
-        // that are NOT yet in erp_action_queue
+        // Try RPC first; fall back to manual query
         const { data: unqueued, error: uqErr } = await sb.rpc("get_unqueued_movements");
 
-        // If RPC doesn't exist, fall back to manual query
         let movements: any[] = [];
-        // Feb 12, 2026 00:00:00 IST in milliseconds
+        // Cutoff: Feb 12, 2026 00:00:00 IST
         const cutoffTime = new Date("2026-02-12T00:00:00+05:30").getTime();
-        
+
         if (uqErr) {
           console.log("RPC not available, using manual query");
-          // Get all completed deposits and withdrawals from Feb 12 onward
+          // Fetch completed deposits & withdrawals from cutoff onward
           const { data: allMovements } = await sb
             .from("asset_movement_history")
             .select("*")
@@ -543,20 +554,20 @@ serve(async (req) => {
             .gte("movement_time", cutoffTime)
             .order("movement_time", { ascending: false });
 
-          // Get existing queue entries
+          // Get existing queue movement IDs to avoid duplicates
           const { data: existingQueue } = await sb
             .from("erp_action_queue")
             .select("movement_id");
 
           const existingIds = new Set((existingQueue || []).map((q: any) => q.movement_id));
           movements = (allMovements || []).filter((m: any) => {
-            // Filter for completed movements only
-            const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6");
-            const isCompletedWithdrawal = m.movement_type === "withdrawal" && m.status === "6";
+            // Deposit statuses from Binance: 0=pending, 6=credited but cannot withdraw, 1=success
+            const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
+            // Withdrawal status from Binance: 6=completed
+            const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
             return (isCompletedDeposit || isCompletedWithdrawal) && !existingIds.has(m.id);
           });
         } else {
-          // Filter RPC results to only include movements from Feb 12 onward
           movements = (unqueued || []).filter((m: any) => m.movement_time >= cutoffTime);
         }
 
@@ -565,6 +576,8 @@ serve(async (req) => {
           result = { inserted: 0 };
           break;
         }
+
+        console.log(`checkNewMovements: found ${movements.length} new movements to queue`);
 
         // Insert new movements into erp_action_queue
         const queueRows = movements.map((m: any) => ({

@@ -102,7 +102,7 @@ export function ActionRequiredWidget() {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:bg-muted"
-                onClick={() => checkMutation.mutate()}
+                onClick={() => checkMutation.mutate({ force: true })}
                 disabled={checkMutation.isPending}
               >
                 <RefreshCw className={`h-4 w-4 ${checkMutation.isPending ? "animate-spin" : ""}`} />

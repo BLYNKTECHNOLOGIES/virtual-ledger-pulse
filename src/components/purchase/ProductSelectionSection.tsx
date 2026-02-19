@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,6 +160,7 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-end">
+              {/* Quantity: changing qty → recalculate total */}
               <div>
                 <Label>Quantity *</Label>
                 <Input
@@ -168,17 +169,16 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   value={item.quantity || ""}
                   onChange={(e) => {
                     const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
-                    updateItem(index, 'quantity', value);
-                    // Auto-calculate total amount if unit price exists
-                    if (item.unit_price && value) {
-                      const totalAmount = value * item.unit_price;
-                      updateItemWithTotal(index, 'quantity', value, totalAmount);
-                    }
+                    const updatedItems = [...items];
+                    const total = item.unit_price && value ? value * item.unit_price : (item as any).total_amount;
+                    updatedItems[index] = { ...updatedItems[index], quantity: value as any, total_amount: total } as any;
+                    onItemsChange(updatedItems);
                   }}
                   placeholder="0.00"
                 />
               </div>
 
+              {/* Unit Price: if total was manually set → recalculate qty; else → recalculate total */}
               <div>
                 <Label>Unit Price *</Label>
                 <Input
@@ -187,17 +187,25 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   value={item.unit_price || ""}
                   onChange={(e) => {
                     const value = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
-                    updateItem(index, 'unit_price', value);
-                    // Auto-calculate total amount if quantity exists
-                    if (item.quantity && value) {
-                      const totalAmount = item.quantity * value;
-                      updateItemWithTotal(index, 'unit_price', value, totalAmount);
+                    const updatedItems = [...items];
+                    const existingTotal = (item as any).total_amount;
+                    const existingQty = item.quantity;
+                    // If total was set and qty can be derived → keep total, recalc qty
+                    // But only if total was NOT auto-calculated (i.e., qty was not already used to compute it)
+                    // Simple heuristic: if qty exists use qty*price→total; total field drives qty
+                    let newTotal = existingTotal;
+                    let newQty = existingQty;
+                    if (existingQty && value) {
+                      newTotal = existingQty * value;
                     }
+                    updatedItems[index] = { ...updatedItems[index], unit_price: value as any, total_amount: newTotal, quantity: newQty } as any;
+                    onItemsChange(updatedItems);
                   }}
                   placeholder="0.00"
                 />
               </div>
 
+              {/* Total Amount: changing total → recalculate qty from total/price */}
               <div>
                 <Label>Total Amount *</Label>
                 <Input
@@ -206,13 +214,10 @@ export function ProductSelectionSection({ items, onItemsChange }: ProductSelecti
                   value={(item as any).total_amount || ""}
                   onChange={(e) => {
                     const totalAmount = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
-                    // Auto-calculate quantity if unit price exists
-                    if (item.unit_price && totalAmount) {
-                      const calculatedQuantity = totalAmount / item.unit_price;
-                      updateItemWithQuantityFromTotal(index, totalAmount, calculatedQuantity);
-                    } else {
-                      updateItemTotal(index, totalAmount);
-                    }
+                    const updatedItems = [...items];
+                    const newQty = item.unit_price && totalAmount ? totalAmount / item.unit_price : item.quantity;
+                    updatedItems[index] = { ...updatedItems[index], total_amount: totalAmount, quantity: newQty } as any;
+                    onItemsChange(updatedItems);
                   }}
                   placeholder="0.00"
                 />

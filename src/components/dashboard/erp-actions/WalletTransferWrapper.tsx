@@ -39,7 +39,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
     },
   });
 
-  // Fetch asset-specific balances (source of truth for the trigger)
+  // Fetch asset-specific balances from wallet_asset_balances (non-USDT)
   const { data: assetBalances } = useQuery({
     queryKey: ["wallet_asset_balances", item.asset],
     queryFn: async () => {
@@ -53,6 +53,10 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   });
 
   const getAssetBalance = (walletId: string) => {
+    if (item.asset === 'USDT') {
+      // USDT source of truth is wallets.current_balance
+      return Number(wallets?.find(w => w.id === walletId)?.current_balance ?? 0);
+    }
     return Number(assetBalances?.find(b => b.wallet_id === walletId)?.balance ?? 0);
   };
 

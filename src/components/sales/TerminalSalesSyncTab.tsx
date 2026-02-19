@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,16 +33,13 @@ export function TerminalSalesSyncTab() {
   const [rejectRecord, setRejectRecord] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  // Fetch sync records
-  const { data: syncRecords = [], isLoading, refetch } = useQuery({
+  // Fetch sync records + reviewer usernames
+  const { data: syncData = { records: [], userMap: {} as Record<string, string> }, isLoading, refetch } = useQuery({
     queryKey: ['terminal-sales-sync', statusFilter],
     queryFn: async () => {
-      // Calculate start of today in IST (epoch ms) for filtering by order create_time
-      const now = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const istNow = new Date(now.getTime() + istOffset);
-      const todayStartIST = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
-      const todayStartEpochMs = todayStartIST.getTime() - istOffset;
+      // Show last 7 days to catch cross-day orders
+      const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+      const cutoffTime = Date.now() - LOOKBACK_MS;
 
       let query = supabase
         .from('terminal_sales_sync')
@@ -50,12 +47,8 @@ export function TerminalSalesSyncTab() {
         .order('synced_at', { ascending: false })
         .limit(500);
 
-      if (statusFilter === 'rejected') {
-        query = query.eq('sync_status', 'rejected');
-      } else if (statusFilter !== 'all') {
-        query = query.eq('sync_status', statusFilter).neq('sync_status', 'rejected');
-      } else {
-        query = query.neq('sync_status', 'rejected');
+      if (statusFilter !== 'all') {
+        query = query.eq('sync_status', statusFilter);
       }
 
       const { data, error } = await query;
@@ -64,11 +57,12 @@ export function TerminalSalesSyncTab() {
       // Fetch small sales config to exclude small-range orders from terminal sync view
       const smallConfig = await getSmallSalesConfig();
 
-      // Filter: only orders created today (IST) or later, and exclude small sales range
+      // Filter: orders within 7-day window, excluding small sales range
       const filtered = (data || []).filter(r => {
         const od = r.order_data as any;
         const createTime = Number(od?.create_time || 0);
-        if (createTime < todayStartEpochMs) return false;
+        // Allow legacy records with no create_time; filter out very old ones
+        if (createTime > 0 && createTime < cutoffTime) return false;
 
         // Exclude orders in small sales range — they belong in Small Sales tab
         if (smallConfig?.is_enabled) {
@@ -79,19 +73,37 @@ export function TerminalSalesSyncTab() {
       });
 
       // Sort by order creation time (latest first)
-      return filtered.sort((a, b) => {
+      const sorted = filtered.sort((a, b) => {
         const timeA = Number((a.order_data as any)?.create_time || 0);
         const timeB = Number((b.order_data as any)?.create_time || 0);
         return timeB - timeA;
       });
+
+      // Fetch reviewer usernames for records that have reviewed_by
+      const reviewerIds = [...new Set(sorted.map((r: any) => r.reviewed_by).filter(Boolean))];
+      let userMap: Record<string, string> = {};
+      if (reviewerIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, username, first_name, last_name')
+          .in('id', reviewerIds as string[]);
+        for (const u of (users || [])) {
+          const displayName = u.first_name ? `${u.first_name} ${u.last_name || ''}`.trim() : u.username;
+          userMap[u.id] = displayName;
+        }
+      }
+
+      return { records: sorted, userMap };
     },
   });
+
+  const syncRecords = syncData.records;
+  const userMap = syncData.userMap;
 
   // Enrich missing verified names
   const enrichMutation = useMutation({
     mutationFn: async () => {
-      // Find records missing verified_name
-      const pendingRecords = syncRecords.filter(r => {
+      const pendingRecords = syncRecords.filter((r: any) => {
         const od = r.order_data as any;
         return !od?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending');
       });
@@ -169,15 +181,15 @@ export function TerminalSalesSyncTab() {
     },
   });
 
-  const pendingCount = syncRecords.filter(r => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
+  const pendingCount = syncRecords.filter((r: any) => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
 
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent className="bg-white border z-50">
@@ -193,7 +205,7 @@ export function TerminalSalesSyncTab() {
             <Badge variant="default" className="text-xs">{pendingCount} Pending</Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
@@ -202,10 +214,10 @@ export function TerminalSalesSyncTab() {
             {syncMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
             Sync Now
           </Button>
-          {syncRecords.some(r => !(r.order_data as any)?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending')) && (
+          {syncRecords.some((r: any) => !(r.order_data as any)?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending')) && (
             <Button size="sm" variant="outline" onClick={() => enrichMutation.mutate()} disabled={enrichMutation.isPending} className="gap-1">
               {enrichMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Fetch Verified Names
+              Fetch Names
             </Button>
           )}
         </div>
@@ -231,22 +243,22 @@ export function TerminalSalesSyncTab() {
                 <TableHead className="text-xs">Order #</TableHead>
                 <TableHead className="text-xs">Buyer</TableHead>
                 <TableHead className="text-xs">Amount (₹)</TableHead>
-                <TableHead className="text-xs">Qty (USDT)</TableHead>
+                <TableHead className="text-xs">Qty</TableHead>
                 <TableHead className="text-xs">Price</TableHead>
-                <TableHead className="text-xs">Fee</TableHead>
-                <TableHead className="text-xs">Contact</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs">Reviewed By</TableHead>
                 <TableHead className="text-xs">Order Time</TableHead>
                 <TableHead className="text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {syncRecords.map((record) => {
+              {syncRecords.map((record: any) => {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
                 const buyerDisplay = verifiedName || null;
                 const isPendingVerifiedName = !verifiedName && (record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending');
+                const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (
                   <TableRow key={record.id} className={isPendingVerifiedName ? 'opacity-60' : ''}>
@@ -261,20 +273,27 @@ export function TerminalSalesSyncTab() {
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">{Number(od?.commission || 0).toLocaleString()}</TableCell>
-                    <TableCell className="text-xs">
-                      {record.contact_number ? (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
-                          {record.contact_number}
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant={statusCfg.variant} className="text-[10px] w-fit">
+                          {statusCfg.label}
                         </Badge>
+                        {record.sync_status === 'rejected' && record.rejection_reason && (
+                          <span className="text-[9px] text-muted-foreground max-w-[100px] truncate" title={record.rejection_reason}>
+                            {record.rejection_reason}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {reviewerName ? (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">{reviewerName}</span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusCfg.variant} className="text-[10px]">
-                        {statusCfg.label}
-                      </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {od?.create_time ? format(new Date(Number(od.create_time)), 'dd MMM HH:mm') : (record.synced_at ? format(new Date(record.synced_at), 'dd MMM HH:mm') : '—')}
@@ -284,18 +303,18 @@ export function TerminalSalesSyncTab() {
                         <div className="flex gap-1">
                           {isPendingVerifiedName ? (
                             <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                              Awaiting Verified Name
+                              Awaiting Name
                             </Badge>
                           ) : (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-7 text-[10px] gap-1"
-                            onClick={() => setApprovalRecord(record)}
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            Approve
-                          </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-7 text-[10px] gap-1"
+                              onClick={() => setApprovalRecord(record)}
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              Approve
+                            </Button>
                           )}
                           <Button
                             variant="destructive"

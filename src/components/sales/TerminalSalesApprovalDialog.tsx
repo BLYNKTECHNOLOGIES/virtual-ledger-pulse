@@ -139,8 +139,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   useEffect(() => {
     setLinkedClientId(syncRecord?.client_id || '');
     setLinkedClientName('');
-    setContactNumber(syncRecord?.contact_number || '');
-    setClientState(''); // NEVER pre-fill state from syncRecord — it may be stale from old counterparty data
+    setContactNumber(''); // NEVER pre-fill contact from syncRecord — only from actual client record
+    setClientState('');   // NEVER pre-fill state from syncRecord — only from actual client record
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);

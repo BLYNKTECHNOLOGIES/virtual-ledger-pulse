@@ -140,7 +140,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     setLinkedClientId(syncRecord?.client_id || '');
     setLinkedClientName('');
     setContactNumber(syncRecord?.contact_number || '');
-    setClientState(syncRecord?.state || '');
+    setClientState(''); // NEVER pre-fill state from syncRecord — it may be stale from old counterparty data
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);

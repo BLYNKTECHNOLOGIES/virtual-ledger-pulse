@@ -103,47 +103,36 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Auto-populate contact/state ONLY from existing APPROVED clients
-      // For PENDING (new) clients, do NOT auto-assign state — it must be blank
+      // Auto-populate contact ONLY if the client actually has a phone number stored
+      // Auto-populate state ONLY if the client actually has a state stored AND is APPROVED
+      // Never infer or guess — only populate if the value genuinely exists in the client record
       const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
       if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
+    } else {
+      // No matching client — ensure state/contact are blank (don't carry over from syncRecord stale data)
+      setClientState('');
+      setContactNumber('');
     }
   }, [open, displayName, allClients]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
+  // ONLY fills contact number (never state — state must come from actual client record)
   const lookupContact = async (nicknames: string[]) => {
     const unique = [...new Set(nicknames.filter(Boolean))];
     if (unique.length === 0) return;
 
+    // Only do exact nickname matches — no fuzzy/prefix matching to avoid cross-client pollution
     const { data: exactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('contact_number, state')
       .in('counterparty_nickname', unique);
-    const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
-    if (exactFound) {
-      if (exactFound.contact_number) setContactNumber(exactFound.contact_number);
-      if (exactFound.state) setClientState(exactFound.state);
-      return;
+    const exactFound = (exactRecords || []).find(r => r.contact_number);
+    if (exactFound?.contact_number) {
+      // Only fill contact number if not already set; NEVER auto-fill state from counterparty records
+      setContactNumber(prev => prev || exactFound.contact_number!);
     }
-
-    for (const nick of unique) {
-      if (nick.includes('*')) {
-        const prefix = nick.replace(/\*+$/, '');
-        if (prefix.length >= 2) {
-          const { data: prefixRecords } = await supabase
-            .from('counterparty_contact_records')
-            .select('contact_number, state')
-            .ilike('counterparty_nickname', `${prefix}%`);
-          const found = (prefixRecords || []).find(r => r.contact_number || r.state);
-          if (found) {
-            if (found.contact_number) setContactNumber(found.contact_number);
-            if (found.state) setClientState(found.state);
-            return;
-          }
-        }
-      }
-    }
+    // NOTE: state is intentionally NOT set here — it must come only from the linked client's actual record
   };
 
   // Reset state and fetch verified name when dialog opens
@@ -237,10 +226,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     setLinkedClientName(client.name);
     setShowClientDropdown(false);
     setClientAutoMatched(true);
-    // Auto-populate contact from selected client always
-    // Auto-populate state ONLY if client is already APPROVED (not PENDING new client)
+    // Auto-populate contact ONLY if the client actually has a phone number in their record
+    // Auto-populate state ONLY if the client actually has a state saved AND is APPROVED
+    // Never infer or cross-populate from other sources
     if (client.phone && !contactNumber) setContactNumber(client.phone);
-    if (client.state && !clientState && client.buyer_approval_status === 'APPROVED') setClientState(client.state);
+    if (client.state && client.buyer_approval_status === 'APPROVED') setClientState(client.state);
+    else if (!client.state) setClientState(''); // Clear state if client has none
     toast({ title: "Client Linked", description: `${client.name} selected as buyer client` });
   };
 

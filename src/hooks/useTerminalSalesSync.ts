@@ -53,9 +53,9 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       .eq('id', activeLink.wallet_id)
       .single();
 
-    // 2. Get completed SELL orders from binance_order_history — only recent ones (last 24 hours)
-    // This prevents syncing old historical orders; only newly completed orders get picked up
-    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago in epoch ms
+    // 2. Get completed SELL orders from binance_order_history — last 7 days to catch cross-day orders
+    // (orders created yesterday but completed/appeal-resolved today)
+    const cutoffTime = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago in epoch ms
     const { data: completedSells, error: fetchErr } = await supabase
       .from('binance_order_history')
       .select('*')

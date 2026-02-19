@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,12 +32,11 @@ export function TerminalSyncTab() {
   const [rejectRecord, setRejectRecord] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  // Fetch sync records
-  const { data: syncRecords = [], isLoading, refetch } = useQuery({
+  // Fetch sync records + reviewer usernames
+  const { data: syncData = { records: [], userMap: {} as Record<string, string> }, isLoading, refetch } = useQuery({
     queryKey: ['terminal-purchase-sync', statusFilter],
     queryFn: async () => {
       // Show orders from the last 7 days to catch cross-day orders
-      // (orders created yesterday but completed/appeal-resolved today)
       const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
       const cutoffTime = Date.now() - LOOKBACK_MS;
 
@@ -55,14 +54,32 @@ export function TerminalSyncTab() {
       if (error) throw error;
 
       // Filter client-side by order create_time (from order_data JSONB) — last 7 days
-      return (data || []).filter(record => {
+      const filtered = (data || []).filter(record => {
         const od = record.order_data as any;
         const createTime = od?.create_time ? Number(od.create_time) : 0;
-        // Always show records with no create_time (legacy) or within 7 days
         return createTime === 0 || createTime >= cutoffTime;
       });
+
+      // Fetch reviewer usernames for records that have reviewed_by
+      const reviewerIds = [...new Set(filtered.map((r: any) => r.reviewed_by).filter(Boolean))];
+      let userMap: Record<string, string> = {};
+      if (reviewerIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, username, first_name, last_name')
+          .in('id', reviewerIds as string[]);
+        for (const u of (users || [])) {
+          const displayName = u.first_name ? `${u.first_name} ${u.last_name || ''}`.trim() : u.username;
+          userMap[u.id] = displayName;
+        }
+      }
+
+      return { records: filtered, userMap };
     },
   });
+
+  const syncRecords = syncData.records;
+  const userMap = syncData.userMap;
 
   // Manual sync trigger
   const syncMutation = useMutation({
@@ -102,15 +119,15 @@ export function TerminalSyncTab() {
     },
   });
 
-  const pendingCount = syncRecords.filter(r => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
+  const pendingCount = syncRecords.filter((r: any) => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
 
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent className="bg-white border z-50">
@@ -126,7 +143,7 @@ export function TerminalSyncTab() {
             <Badge variant="default" className="text-xs">{pendingCount} Pending</Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1">
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
@@ -160,20 +177,21 @@ export function TerminalSyncTab() {
                 <TableHead className="text-xs">Amount (₹)</TableHead>
                 <TableHead className="text-xs">Qty (USDT)</TableHead>
                 <TableHead className="text-xs">Price</TableHead>
-                <TableHead className="text-xs">Fee</TableHead>
                 <TableHead className="text-xs">PAN</TableHead>
                 <TableHead className="text-xs">Status</TableHead>
+                <TableHead className="text-xs">Reviewed By</TableHead>
                 <TableHead className="text-xs">Order Time</TableHead>
                 <TableHead className="text-xs">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {syncRecords.map((record) => {
+              {syncRecords.map((record: any) => {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
                 const sellerDisplay = verifiedName || record.counterparty_name;
                 const isMaskedName = !verifiedName && (record.counterparty_name?.includes('***'));
+                const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (
                   <TableRow key={record.id}>
@@ -190,7 +208,6 @@ export function TerminalSyncTab() {
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">{Number(od?.commission || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">
                       {record.pan_number ? (
                         <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
@@ -201,9 +218,26 @@ export function TerminalSyncTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusCfg.variant} className="text-[10px]">
-                        {statusCfg.label}
-                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant={statusCfg.variant} className="text-[10px] w-fit">
+                          {statusCfg.label}
+                        </Badge>
+                        {record.sync_status === 'rejected' && record.rejection_reason && (
+                          <span className="text-[9px] text-muted-foreground max-w-[100px] truncate" title={record.rejection_reason}>
+                            {record.rejection_reason}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {reviewerName ? (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">{reviewerName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {od?.create_time ? format(new Date(Number(od.create_time)), 'dd MMM HH:mm') : (record.synced_at ? format(new Date(record.synced_at), 'dd MMM HH:mm') : '—')}

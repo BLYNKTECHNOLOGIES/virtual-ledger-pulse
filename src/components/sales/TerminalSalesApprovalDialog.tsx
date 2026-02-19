@@ -414,15 +414,29 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           }, { onConflict: 'counterparty_nickname' });
       }
 
-      // Sync contact/state to client master.
-      // State is NEVER auto-populated in the dialog for new clients (starts null).
-      // However, if the operator manually enters/selects state in the dialog, it IS saved —
-      // regardless of whether the client is PENDING or APPROVED.
+      // Sync contact/state to client master — only update fields that are currently missing on the client.
+      // If the operator provides phone/state in this dialog and the client doesn't have them yet, fill them in.
+      // This ensures repeat orders progressively enrich the client profile without overwriting existing data.
       if (linkedClientId && (contactNumber || clientState)) {
+        const { data: existingClient } = await supabase
+          .from('clients')
+          .select('phone, state')
+          .eq('id', linkedClientId)
+          .maybeSingle();
+
         const updates: any = {};
-        if (contactNumber) updates.phone = contactNumber;
-        if (clientState) updates.state = clientState; // Only set if operator manually entered it
-        await supabase.from('clients').update(updates).eq('id', linkedClientId);
+        // Update phone if client has none OR if a different number is provided (operator correction)
+        if (contactNumber && (!existingClient?.phone || existingClient.phone !== contactNumber)) {
+          updates.phone = contactNumber;
+        }
+        // Update state only if client has no state yet (never overwrite an existing state)
+        if (clientState && !existingClient?.state) {
+          updates.state = clientState;
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('clients').update(updates).eq('id', linkedClientId);
+          console.log('✅ Client profile updated from terminal sale approval:', updates);
+        }
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval

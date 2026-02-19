@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
@@ -22,26 +21,22 @@ interface AdResult { advNo: string; status: ResultStatus; message?: string; oldR
 export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }: Props) {
   const { toast } = useToast();
   const updateAd = useUpdateAd();
-  const [mode, setMode] = useState<'set' | 'adjust'>('adjust');
   const [value, setValue] = useState('');
   const [step, setStep] = useState<'form' | 'confirm' | 'executing' | 'done'>('form');
   const [results, setResults] = useState<AdResult[]>([]);
 
-  const reset = () => { setValue(''); setMode('adjust'); setStep('form'); setResults([]); };
+  const reset = () => { setValue(''); setStep('form'); setResults([]); };
 
   const handleClose = (v: boolean) => {
     if (!v) { reset(); if (step === 'done') onComplete(); }
     onOpenChange(v);
   };
 
-  const computeNewRatio = (current: number | string | undefined): number => {
-    const cur = Number(current) || 0;
-    if (mode === 'set') return Number(value) || 0;
-    return cur + (Number(value) || 0);
-  };
+  // Always sets the ratio to exactly the entered value — no addition/adjustment
+  const getNewRatio = (): number => Number(value) || 0;
 
   const handleConfirm = () => {
-    if (!value || Number(value) === 0) {
+    if (!value || isNaN(Number(value))) {
       toast({ title: 'Value required', description: 'Enter a floating ratio value', variant: 'destructive' });
       return;
     }
@@ -50,21 +45,20 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
 
   const executeUpdates = async () => {
     setStep('executing');
+    const newRatio = getNewRatio();
     const initial: AdResult[] = ads.map(ad => ({
       advNo: ad.advNo,
       status: 'pending',
       oldRatio: ad.priceFloatingRatio,
-      newRatio: computeNewRatio(ad.priceFloatingRatio || 0),
+      newRatio,
     }));
     setResults(initial);
 
     for (let i = 0; i < ads.length; i++) {
       const ad = ads[i];
-      const newRatio = computeNewRatio(ad.priceFloatingRatio);
-      
-      // Add delay between requests to avoid rate limits
+
       if (i > 0) await new Promise(r => setTimeout(r, 300));
-      
+
       try {
         const tradeMethods = (ad.tradeMethods || []).map(m => ({
           payType: m.payType,
@@ -106,51 +100,40 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Bulk Floating Price Adjustment</DialogTitle>
+          <DialogTitle>Bulk Floating Price Update</DialogTitle>
         </DialogHeader>
 
         {step === 'form' && (
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Adjust floating price ratio for <strong>{ads.length}</strong> floating ad{ads.length !== 1 ? 's' : ''}.
+              Set floating price ratio for <strong>{ads.length}</strong> floating ad{ads.length !== 1 ? 's' : ''}.
             </p>
             <div>
-              <Label>Mode</Label>
-              <Select value={mode} onValueChange={(v) => setMode(v as 'set' | 'adjust')}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="adjust">Adjust by (+ or −)</SelectItem>
-                  <SelectItem value="set">Set to exact value</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{mode === 'adjust' ? 'Adjustment (%)' : 'New Ratio (%)'}</Label>
+              <Label>New Floating Ratio (%)</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={value}
                 onChange={e => setValue(e.target.value)}
-                placeholder={mode === 'adjust' ? 'e.g. +0.5 or -0.3' : 'e.g. 1.5'}
+                placeholder="e.g. 103.5"
+                autoFocus
               />
-              {mode === 'adjust' && (
-                <p className="text-xs text-muted-foreground mt-1">Use positive to increase, negative to decrease</p>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                All selected ads will be set to exactly this ratio — the current ratio is replaced, not added to.
+              </p>
             </div>
           </div>
         )}
 
         {step === 'confirm' && (
           <div className="space-y-3 py-2">
-            <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-lg p-3">
+              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-medium">Confirm Bulk Floating Price Update</p>
                 <p className="text-muted-foreground mt-1">
-                  {mode === 'set'
-                    ? `Set floating ratio to ${value}% for ${ads.length} ad(s)`
-                    : `${Number(value) > 0 ? 'Increase' : 'Decrease'} floating ratio by ${value}% for ${ads.length} ad(s)`
-                  }
+                  Set floating ratio to exactly <strong>{value}%</strong> for {ads.length} ad(s).
+                  Current ratios will be replaced.
                 </p>
               </div>
             </div>
@@ -160,7 +143,7 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
                   <div key={ad.advNo} className="flex items-center justify-between text-xs px-1">
                     <span className="font-mono">…{ad.advNo.slice(-8)}</span>
                     <span>
-                      {Number(ad.priceFloatingRatio || 0).toFixed(2)}% → <strong>{computeNewRatio(ad.priceFloatingRatio || 0).toFixed(2)}%</strong>
+                      {Number(ad.priceFloatingRatio || 0).toFixed(2)}% → <strong>{getNewRatio().toFixed(2)}%</strong>
                     </span>
                   </div>
                 ))}

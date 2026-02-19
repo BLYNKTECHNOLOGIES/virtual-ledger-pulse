@@ -85,51 +85,51 @@ export default function StockManagement() {
         </div>
       </div>
 
-      <div className="p-6">
-      <div className="mb-6">
+      <div className="p-4 md:p-6">
+      <div className="mb-6 hidden md:block">
         <h1 className="text-3xl font-bold text-gray-900">Stock Management System</h1>
         <p className="text-gray-600 mt-2">Comprehensive inventory and stock control</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid" style={{ gridTemplateColumns: `repeat(${6 + (showAIRecon ? 1 : 0) + (isAdmin ? 1 : 0)}, minmax(0, 1fr))` }}>
-          <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: `repeat(${6 + (showAIRecon ? 1 : 0) + (isAdmin ? 1 : 0)}, minmax(0, 1fr))` }}>
+          <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Grid className="h-4 w-4" />
             <span className="hidden sm:inline">Quick View</span>
             <span className="sm:hidden">View</span>
           </TabsTrigger>
-          <TabsTrigger value="transactions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+          <TabsTrigger value="transactions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Transactions</span>
             <span className="sm:hidden">Trans.</span>
           </TabsTrigger>
-          <TabsTrigger value="warehouse" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+          <TabsTrigger value="warehouse" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Building className="h-4 w-4" />
             Wallets
           </TabsTrigger>
-          <TabsTrigger value="conversions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+          <TabsTrigger value="conversions" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <ArrowLeftRight className="h-4 w-4" />
             <span className="hidden sm:inline">Conversions</span>
             <span className="sm:hidden">Conv.</span>
           </TabsTrigger>
-          <TabsTrigger value="valuation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+          <TabsTrigger value="valuation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <BarChart className="h-4 w-4" />
             <span className="hidden sm:inline">Valuation</span>
             <span className="sm:hidden">Value</span>
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+          <TabsTrigger value="reports" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
           {showAIRecon && (
-            <TabsTrigger value="ai-reconciliation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <TabsTrigger value="ai-reconciliation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
               <Brain className="h-4 w-4" />
               <span className="hidden sm:inline">AI Reconciliation</span>
               <span className="sm:hidden">AI</span>
             </TabsTrigger>
           )}
           {isAdmin && (
-            <TabsTrigger value="ai-settings" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
+            <TabsTrigger value="ai-settings" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
               <Settings2 className="h-4 w-4" />
               <span className="hidden sm:inline">AI Settings</span>
               <span className="sm:hidden">⚙️ AI</span>

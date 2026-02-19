@@ -308,6 +308,39 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         .eq('id', syncRecord.id);
       if (updateErr) throw updateErr;
 
+      // Sync contact/state to linked client master if provided — only fill in missing fields.
+      // This ensures the client profile stays enriched across repeat orders.
+      if (linkedClientId) {
+        const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
+
+        // Fetch contact from counterparty records (phone/state collected during this order)
+        const { data: contactRec } = await supabase
+          .from('counterparty_contact_records')
+          .select('contact_number, state')
+          .eq('counterparty_nickname', nickname)
+          .maybeSingle();
+
+        const resolvedPhone = contactRec?.contact_number || null;
+        const resolvedState = contactRec?.state || null;
+
+        if (resolvedPhone || resolvedState) {
+          const { data: existingClient } = await supabase
+            .from('clients')
+            .select('phone, state')
+            .eq('id', linkedClientId)
+            .maybeSingle();
+
+          const updates: any = {};
+          if (resolvedPhone && !existingClient?.phone) updates.phone = resolvedPhone;
+          if (resolvedState && !existingClient?.state) updates.state = resolvedState;
+
+          if (Object.keys(updates).length > 0) {
+            await supabase.from('clients').update(updates).eq('id', linkedClientId);
+            console.log('✅ Client profile updated from terminal purchase approval:', updates);
+          }
+        }
+      }
+
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
         const asset = (od.asset || 'USDT').toUpperCase();

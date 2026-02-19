@@ -20,6 +20,7 @@ import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
+import { updateClientFromOrder } from "@/utils/updateClientFromOrder";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -476,6 +477,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           // Log but don't fail - purchase order was already created
           console.warn('Failed to create seller client, but purchase order succeeded:', clientError);
         }
+      }
+
+      // If an existing client is linked, update their profile with any new contact/state info
+      if (!isNewClient && selectedClientId && formData.contact_number) {
+        await updateClientFromOrder({
+          clientId: selectedClientId,
+          phone: formData.contact_number || null,
+        });
       }
 
       // Record timing for manual entry - result contains the purchase order id

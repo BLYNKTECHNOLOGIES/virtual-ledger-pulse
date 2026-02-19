@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
+import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ interface SalesEntryDialogProps {
 export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { handleFieldChange: calcTriField, resetManualFlags } = useTriFieldCalc();
   
   // State for wallet balance and validation errors
   const [selectedWalletBalance, setSelectedWalletBalance] = useState<number | null>(null);
@@ -501,30 +503,18 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         setStockValidationError(null);
       }
       
-      // Auto-calculate bidirectionally
+      // Auto-calculate bidirectionally using useTriFieldCalc
+      // Tracks whether total was manually entered to prevent cascading recalculations
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
-        const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(updated.quantity) || 0;
-        const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
-        const total = field === 'total_amount' ? parseFloat(value) || 0 : parseFloat(String(updated.total_amount)) || 0;
-        
-        if (field === 'quantity' && price > 0) {
-          // User changed quantity - calculate total (INR - 2 decimals)
-          updated.total_amount = (qty * price).toFixed(2);
-        } else if (field === 'price_per_unit') {
-          // User changed price - prioritize calculating quantity from total if total exists
-          if (total > 0 && price > 0) {
-            // Total amount exists, calculate quantity from it (crypto - 8 decimals)
-            updated.quantity = (total / price).toFixed(8);
-          } else if (qty > 0 && price > 0) {
-            // No total but quantity exists, calculate total (INR - 2 decimals)
-            updated.total_amount = (qty * price).toFixed(2);
-          }
-        } else if (field === 'total_amount') {
-          // User changed total - calculate quantity if price exists (crypto - 8 decimals)
-          if (price > 0) {
-            updated.quantity = (total / price).toFixed(8);
-          }
-        }
+        const calcField = field === 'price_per_unit' ? 'price' : field === 'total_amount' ? 'total' : 'quantity';
+        const result = calcTriField(calcField, String(value), {
+          quantity: String(updated.quantity),
+          price: String(updated.price_per_unit),
+          total: String(updated.total_amount),
+        });
+        if (field !== 'quantity') updated.quantity = result.quantity;
+        if (field !== 'price_per_unit') updated.price_per_unit = result.price;
+        if (field !== 'total_amount') updated.total_amount = result.total;
       }
       
       return updated;

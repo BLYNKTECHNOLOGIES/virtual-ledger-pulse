@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ interface SalesOrderDialogProps {
 export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { handleFieldChange: calcTriField } = useTriFieldCalc();
   const [showPaymentMethodAlert, setShowPaymentMethodAlert] = useState(false);
   
   const [formData, setFormData] = useState(() => {
@@ -492,30 +494,50 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     return Math.min((method.current_usage / method.payment_limit) * 100, 100);
   };
 
-  // Calculate price per unit when amount or quantity changes
+  // Amount/Quantity/Price handlers using tri-field calc to prevent cascading recalculation
   const handleAmountChange = (amount: number) => {
+    const result = calcTriField('total', String(amount), {
+      quantity: formData.quantity || '0',
+      price: formData.price_per_unit || '0',
+      total: String(amount),
+    });
     setFormData(prev => ({
       ...prev,
       amount,
-      price_per_unit: prev.quantity && parseFloat(prev.quantity) > 0 ? (amount / parseFloat(prev.quantity)).toString() : ""
+      quantity: result.quantity !== String(amount) ? result.quantity : prev.quantity,
     }));
   };
 
   const handleQuantityChange = (quantity: string) => {
+    const result = calcTriField('quantity', quantity, {
+      quantity,
+      price: formData.price_per_unit || '0',
+      total: String(formData.amount || 0),
+    });
     setFormData(prev => ({
       ...prev,
       quantity,
-      price_per_unit: quantity && parseFloat(quantity) > 0 ? (prev.amount / parseFloat(quantity)).toString() : ""
+      amount: result.total ? parseFloat(result.total) : prev.amount,
     }));
   };
 
   const handlePricePerUnitChange = (pricePerUnit: string) => {
+    const result = calcTriField('price', pricePerUnit, {
+      quantity: formData.quantity || '0',
+      price: pricePerUnit,
+      total: String(formData.amount || 0),
+    });
     setFormData(prev => ({
       ...prev,
       price_per_unit: pricePerUnit,
-      amount: pricePerUnit && prev.quantity && parseFloat(pricePerUnit) > 0 && parseFloat(prev.quantity) > 0 
-        ? parseFloat(pricePerUnit) * parseFloat(prev.quantity) 
-        : prev.amount
+      // Only update amount if total was NOT manually entered (i.e., price drives total)
+      amount: result.total && result.total !== String(prev.amount)
+        ? parseFloat(result.total) || prev.amount
+        : prev.amount,
+      // Only update quantity if it differs from previous (total was manually entered)
+      quantity: result.quantity !== String(prev.quantity)
+        ? result.quantity
+        : prev.quantity,
     }));
   };
 

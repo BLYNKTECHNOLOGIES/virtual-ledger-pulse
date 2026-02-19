@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const { handleFieldChange: calcTriField, resetManualFlags } = useTriFieldCalc();
   const [selectedClientBankDetails, setSelectedClientBankDetails] = useState<{
     pan_card_number?: string | null;
     linked_bank_accounts?: Array<{
@@ -218,35 +220,18 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Bidirectional auto-calculation for amounts:
-      // Priority: When editing a field, only recalculate the OTHER fields based on existing data.
-      // Never overwrite the field the user is currently typing in.
+      // Bidirectional auto-calculation using useTriFieldCalc:
+      // Tracks whether total was manually entered to prevent cascading recalculations
       if (field === 'quantity' || field === 'price_per_unit' || field === 'total_amount') {
-        const newValue = parseFloat(value as string) || 0;
-        const existingQty = parseFloat(prev.quantity) || 0;
-        const existingPrice = parseFloat(prev.price_per_unit) || 0;
-        const existingTotal = parseFloat(prev.total_amount) || 0;
-
-        if (field === 'quantity') {
-          // User changed quantity: if price exists, calculate total
-          if (existingPrice > 0 && newValue > 0) {
-            updated.total_amount = (newValue * existingPrice).toFixed(2);
-          }
-        } else if (field === 'price_per_unit') {
-          // User changed price: 
-          // If total already exists, calculate quantity from total/price (preserve total, update qty)
-          // Else if quantity exists, calculate total from qty*price
-          if (existingTotal > 0 && newValue > 0) {
-            updated.quantity = (existingTotal / newValue).toFixed(8);
-          } else if (existingQty > 0 && newValue > 0) {
-            updated.total_amount = (existingQty * newValue).toFixed(2);
-          }
-        } else if (field === 'total_amount') {
-          // User changed total: if price exists, calculate quantity
-          if (existingPrice > 0 && newValue > 0) {
-            updated.quantity = (newValue / existingPrice).toFixed(8);
-          }
-        }
+        const calcField = field === 'price_per_unit' ? 'price' : field === 'total_amount' ? 'total' : 'quantity';
+        const result = calcTriField(calcField, String(value), {
+          quantity: String(prev.quantity),
+          price: String(prev.price_per_unit),
+          total: String(prev.total_amount),
+        });
+        if (field !== 'quantity') updated.quantity = result.quantity;
+        if (field !== 'price_per_unit') updated.price_per_unit = result.price;
+        if (field !== 'total_amount') updated.total_amount = result.total;
       }
 
       // Auto-populate wallet fee percentage when wallet is selected

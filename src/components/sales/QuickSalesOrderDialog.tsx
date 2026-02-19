@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ interface SalesOrderFormData {
 export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { handleFieldChange: calcTriField } = useTriFieldCalc();
   
   const [formData, setFormData] = useState<SalesOrderFormData>({
     order_number: "",
@@ -217,28 +219,23 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     createSalesOrderMutation.mutate(formData);
   };
 
-  // Auto-calculate values bidirectionally
+  // Auto-calculate values using the tri-field calc hook
+  // Prevents cascading recalculation when quantity is pre-filled and user types price
   const handleFieldChange = (field: 'quantity' | 'price_per_unit' | 'total_amount', value: number) => {
     setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      const price = field === 'price_per_unit' ? value : prev.price_per_unit;
-      
-      if (field === 'quantity' && price > 0) {
-        // User changed quantity - calculate total (INR - 2 decimals)
-        updated.total_amount = parseFloat((value * price).toFixed(2));
-      } else if (field === 'price_per_unit') {
-        // User changed price - calculate total if quantity exists, or quantity if total exists
-        if (prev.quantity > 0) {
-          updated.total_amount = parseFloat((prev.quantity * value).toFixed(2));
-        } else if (prev.total_amount > 0 && value > 0) {
-          updated.quantity = parseFloat((prev.total_amount / value).toFixed(8));
-        }
-      } else if (field === 'total_amount' && price > 0) {
-        // User changed total - calculate quantity (crypto - 8 decimals)
-        updated.quantity = parseFloat((value / price).toFixed(8));
-      }
-      
-      return updated;
+      const calcField = field === 'price_per_unit' ? 'price' : field === 'total_amount' ? 'total' : 'quantity';
+      const result = calcTriField(calcField, String(value), {
+        quantity: String(prev.quantity),
+        price: String(prev.price_per_unit),
+        total: String(prev.total_amount),
+      });
+      return {
+        ...prev,
+        [field]: value,
+        ...(field !== 'quantity' ? { quantity: parseFloat(result.quantity) || 0 } : {}),
+        ...(field !== 'price_per_unit' ? { price_per_unit: parseFloat(result.price) || 0 } : {}),
+        ...(field !== 'total_amount' ? { total_amount: parseFloat(result.total) || 0 } : {}),
+      };
     });
   };
 

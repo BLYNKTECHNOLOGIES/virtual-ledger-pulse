@@ -563,17 +563,26 @@ serve(async (req) => {
 
           if (payList.length > 0) {
             const payRows = payList.map((p: any) => {
-              // Determine direction: Binance Pay API uses transactionType or type field
-              // "PAY" / "SEND" / "OUT" = sent by us = withdrawal
-              // "PAY_REFUND" / "RECEIVE" / "IN" = received by us = deposit
+              // PRIMARY signal: Binance Pay returns a signed `amount` field.
+              // Negative amount = WE sent money (withdrawal / sales payment to buyer)
+              // Positive amount = WE received money (deposit / purchase payment from seller)
+              // This is the most reliable signal — the API does NOT consistently return transactionType.
+              const rawAmount = parseFloat(p.amount || "0");
+              const isSent = rawAmount < 0;
+
+              // Fallback: check transactionType / orderType if amount is ambiguous (zero)
               const txType = (p.transactionType || p.type || "").toUpperCase();
-              const isSent =
+              const isSentByType =
                 txType === "PAY" ||
                 txType === "SEND" ||
                 txType === "OUT" ||
-                txType.startsWith("PAY") && !txType.includes("REFUND") && !txType.includes("IN");
+                (txType.startsWith("PAY") && !txType.includes("REFUND") && !txType.includes("IN"));
 
-              const movementType = isSent ? "withdrawal" : "deposit";
+              // Use amount sign as primary, type as tiebreaker for zero-amount edge cases
+              const finalIsSent = rawAmount !== 0 ? isSent : isSentByType;
+              const movementType = finalIsSent ? "withdrawal" : "deposit";
+              // Store amount as positive absolute value regardless of Binance sign convention
+              const absAmount = Math.abs(rawAmount);
               // Use Binance completed statuses: 6=completed for withdrawal, 1=success for deposit
               const status = isSent ? "6" : "1";
 
@@ -588,7 +597,7 @@ serve(async (req) => {
                 id: `pay-${orderId}`,
                 movement_type: movementType,
                 asset: p.currency || p.asset || "USDT",
-                amount: parseFloat(p.amount || "0"),
+                amount: absAmount,
                 fee: 0, // Binance Pay has no network fee
                 status,
                 network: "Binance Pay",

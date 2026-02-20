@@ -173,17 +173,21 @@ export function DateRangePicker({
           <span>{getDisplayText()}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-background border shadow-lg z-50" align={align}>
-        <div className="p-4 space-y-4">
-          {/* Preset buttons */}
-          <div className="flex flex-wrap gap-2">
+      <PopoverContent
+        className="w-auto p-0 bg-background border shadow-lg z-50 max-w-[calc(100vw-16px)] sm:max-w-none"
+        align={align}
+        sideOffset={4}
+      >
+        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 w-full">
+          {/* Preset buttons — horizontal scroll on mobile */}
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0 no-scrollbar">
             {presets.map((p) => (
               <Button
                 key={p.value}
                 variant={selectedPreset === p.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => handlePresetClick(p.value)}
-                className="text-xs"
+                className="text-xs shrink-0"
               >
                 {p.label}
               </Button>
@@ -195,16 +199,18 @@ export function DateRangePicker({
             Custom Range
           </div>
 
-          {/* Calendar */}
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={localRange?.from}
-            selected={localRange}
-            onSelect={handleCalendarSelect}
-            numberOfMonths={1}
-            className="pointer-events-auto rounded-md border"
-          />
+          {/* Calendar — scale down on very small screens */}
+          <div className="overflow-x-auto">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={localRange?.from}
+              selected={localRange}
+              onSelect={handleCalendarSelect}
+              numberOfMonths={1}
+              className="pointer-events-auto rounded-md border"
+            />
+          </div>
 
           {/* Action buttons */}
           <div className="flex items-center justify-between pt-2 border-t">

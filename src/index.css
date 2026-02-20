@@ -329,3 +329,12 @@ html {
 .hover-lift:hover {
   transform: translateY(-4px);
 }
+
+/* Hide scrollbar for horizontal preset buttons on mobile */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

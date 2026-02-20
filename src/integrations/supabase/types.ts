@@ -1724,9 +1724,12 @@ export type Database = {
       }
       erp_product_conversions: {
         Row: {
+          actual_execution_rate: number | null
+          actual_usdt_received: number | null
           approved_at: string | null
           approved_by: string | null
           asset_code: string
+          binance_transfer_id: string | null
           cost_out_usdt: number | null
           created_at: string
           created_by: string
@@ -1747,6 +1750,9 @@ export type Database = {
           quantity: number
           quantity_gross: number | null
           quantity_net: number | null
+          rate_reconciled_at: string | null
+          rate_reconciled_by: string | null
+          rate_variance_usdt: number | null
           realized_pnl_usdt: number | null
           reference_no: string | null
           rejected_at: string | null
@@ -1759,9 +1765,12 @@ export type Database = {
           wallet_id: string
         }
         Insert: {
+          actual_execution_rate?: number | null
+          actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
           asset_code: string
+          binance_transfer_id?: string | null
           cost_out_usdt?: number | null
           created_at?: string
           created_by: string
@@ -1782,6 +1791,9 @@ export type Database = {
           quantity: number
           quantity_gross?: number | null
           quantity_net?: number | null
+          rate_reconciled_at?: string | null
+          rate_reconciled_by?: string | null
+          rate_variance_usdt?: number | null
           realized_pnl_usdt?: number | null
           reference_no?: string | null
           rejected_at?: string | null
@@ -1794,9 +1806,12 @@ export type Database = {
           wallet_id: string
         }
         Update: {
+          actual_execution_rate?: number | null
+          actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
           asset_code?: string
+          binance_transfer_id?: string | null
           cost_out_usdt?: number | null
           created_at?: string
           created_by?: string
@@ -1817,6 +1832,9 @@ export type Database = {
           quantity?: number
           quantity_gross?: number | null
           quantity_net?: number | null
+          rate_reconciled_at?: string | null
+          rate_reconciled_by?: string | null
+          rate_variance_usdt?: number | null
           realized_pnl_usdt?: number | null
           reference_no?: string | null
           rejected_at?: string | null

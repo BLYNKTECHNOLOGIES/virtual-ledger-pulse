@@ -1,13 +1,14 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, History, Briefcase, Activity, BarChart3 } from "lucide-react";
+import { Plus, Clock, History, Briefcase, Activity, BarChart3, Link2 } from "lucide-react";
 import { CreateConversionForm } from "./conversion/CreateConversionForm";
 import { PendingConversionsTable } from "./conversion/PendingConversionsTable";
 import { ConversionHistoryTable } from "./conversion/ConversionHistoryTable";
 import { PortfolioSnapshot } from "./conversion/PortfolioSnapshot";
 import { RealizedPnlReport } from "./conversion/RealizedPnlReport";
 import { ExecutionVarianceReport } from "./conversion/ExecutionVarianceReport";
+import { BinanceConversionReconcile } from "./conversion/BinanceConversionReconcile";
 
 export function InterProductConversionTab() {
   const [subTab, setSubTab] = useState("create");
@@ -40,6 +41,10 @@ export function InterProductConversionTab() {
             <BarChart3 className="h-3.5 w-3.5" />
             Variance
           </TabsTrigger>
+          <TabsTrigger value="reconcile" className="flex items-center gap-1.5">
+            <Link2 className="h-3.5 w-3.5" />
+            Reconcile
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create">
@@ -60,7 +65,11 @@ export function InterProductConversionTab() {
         <TabsContent value="variance">
           <ExecutionVarianceReport />
         </TabsContent>
+        <TabsContent value="reconcile">
+          <BinanceConversionReconcile />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
+

@@ -26,6 +26,9 @@ const FORMULA_VARIABLES = [
   { label: "Total Allowances", value: "total_allowances" },
 ];
 
+// Note: In addition to the above, you can use any component CODE (lowercase) as a variable in formulas.
+// e.g., epf_employee, esi_employee, hra, etc.
+
 export default function SalaryStructureTemplates() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -371,7 +374,8 @@ export default function SalaryStructureTemplates() {
                               placeholder="e.g. total_salary - total_deductions" 
                             />
                             <p className="text-[10px] text-gray-400 mt-1">
-                              Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}. Operators: + - * /
+                              Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}, + any component code (lowercase).
+                              Operators: + - * /
                             </p>
                           </div>
                         ) : (

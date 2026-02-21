@@ -63,7 +63,7 @@ export function ExpensesIncomesTab() {
           clients!client_id(id, name, client_id)
         `)
         .in('transaction_type', ['INCOME', 'EXPENSE'])
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")') // Exclude core trading operations
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Settlement","Payment Gateway Settlement")') // Exclude core trading & settlement operations
         .order('created_at', { ascending: false });
       
       if (bankError) {

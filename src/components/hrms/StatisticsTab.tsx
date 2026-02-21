@@ -711,7 +711,7 @@ export function StatisticsTab() {
               <CardContent className="p-4 text-center">
                 <Clock className="h-6 w-6 mx-auto text-orange-600 mb-2" />
                 <p className="text-2xl font-bold">{onboardingStats.pending}</p>
-                <p className="text-xs text-muted-foreground">Pending KYC</p>
+                <p className="text-xs text-muted-foreground">Pending Approvals</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
@@ -764,9 +764,9 @@ export function StatisticsTab() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">Pending KYC</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">Unverified KYC</p>
                     <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{kycStats.pending}</p>
-                    <p className="text-xs text-amber-500 mt-1">Awaiting verification</p>
+                    <p className="text-xs text-amber-500 mt-1">Clients without verified KYC</p>
                   </div>
                   <AlertCircle className="h-10 w-10 text-amber-400" />
                 </div>

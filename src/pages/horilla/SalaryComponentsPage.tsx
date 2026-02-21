@@ -5,13 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-const defaultForm = { name: "", code: "", component_type: "allowance", is_taxable: false, is_fixed: true, calculation_type: "fixed", default_amount: 0, percentage_of: "" };
+const defaultForm = { name: "", code: "", component_type: "allowance", is_taxable: false, is_fixed: true, calculation_type: "fixed", default_amount: 0, percentage_of: "" as string };
 
 export default function SalaryComponentsPage({ componentType = "allowance" }: { componentType?: "allowance" | "deduction" }) {
   const qc = useQueryClient();
@@ -70,7 +69,7 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
 
   const openEdit = (c: any) => {
     setEditId(c.id);
-    setForm({ name: c.name, code: c.code, component_type: c.component_type, is_taxable: c.is_taxable ?? false, is_fixed: c.is_fixed ?? true, calculation_type: c.calculation_type || "fixed", default_amount: c.default_amount || 0, percentage_of: c.percentage_of || "" });
+    setForm({ name: c.name, code: c.code, component_type: c.component_type, is_taxable: c.is_taxable ?? false, is_fixed: c.is_fixed ?? true, calculation_type: "fixed", default_amount: c.default_amount || 0, percentage_of: "" });
     setShowDialog(true);
   };
 
@@ -106,11 +105,8 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
                   <tr key={c.id} className={`border-b hover:bg-gray-50 ${!c.is_active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3 font-medium">{c.name}</td>
                     <td className="px-4 py-3"><span className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{c.code}</span></td>
-                    <td className="px-4 py-3 text-gray-500 capitalize">{c.calculation_type || "fixed"}</td>
-                    <td className="px-4 py-3 font-medium">
-                      {c.calculation_type === "percentage" ? `${c.default_amount}%` : `₹${(c.default_amount || 0).toLocaleString()}`}
-                      {c.percentage_of && <span className="text-xs text-gray-400 ml-1">of {c.percentage_of}</span>}
-                    </td>
+                    <td className="px-4 py-3 text-gray-500">Fixed</td>
+                    <td className="px-4 py-3 font-medium">₹{(c.default_amount || 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       {c.is_taxable ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-gray-400">Non-taxable</span>}
                     </td>
@@ -139,22 +135,11 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
               <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. HRA" /></div>
               <div><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. HRA" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Calculation Type</Label>
-                <Select value={form.calculation_type} onValueChange={(v) => setForm({ ...form, calculation_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">Fixed Amount</SelectItem>
-                    <SelectItem value="percentage">Percentage</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>{form.calculation_type === "percentage" ? "Percentage (%)" : "Amount (₹)"}</Label><Input type="number" value={form.default_amount} onChange={(e) => setForm({ ...form, default_amount: parseFloat(e.target.value) || 0 })} /></div>
+            <div>
+              <Label>Default Amount (₹)</Label>
+              <Input type="number" value={form.default_amount} onChange={(e) => setForm({ ...form, default_amount: parseFloat(e.target.value) || 0 })} placeholder="0" />
+              <p className="text-xs text-muted-foreground mt-1">Percentage/fixed calculation is configured in the Salary Structure template</p>
             </div>
-            {form.calculation_type === "percentage" && (
-              <div><Label>Percentage Of</Label><Input value={form.percentage_of} onChange={(e) => setForm({ ...form, percentage_of: e.target.value })} placeholder="e.g. basic_salary" /></div>
-            )}
             <div className="space-y-3">
               <div className="flex items-center gap-2"><Switch checked={form.is_taxable} onCheckedChange={(v) => setForm({ ...form, is_taxable: v })} /><Label>Taxable</Label></div>
               <div className="flex items-center gap-2"><Switch checked={form.is_fixed} onCheckedChange={(v) => setForm({ ...form, is_fixed: v })} /><Label>Fixed (same every month)</Label></div>

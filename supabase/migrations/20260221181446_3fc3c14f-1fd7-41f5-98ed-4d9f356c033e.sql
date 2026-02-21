@@ -1,0 +1,1 @@
+DELETE FROM hr_salary_components WHERE code = 'BASIC' AND component_type = 'earning';

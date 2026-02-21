@@ -51,6 +51,95 @@ interface BankAccount {
   branch?: string;
 }
 
+// ─── Employee Banking Sub-Component (HRMS bank details) ───
+function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
+  const { data: bankDetails = [], isLoading } = useQuery({
+    queryKey: ['hr_employee_bank_details', employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('hr_employee_bank_details')
+        .select('*')
+        .eq('employee_id', employeeId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
+
+  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading bank details...</p>;
+
+  if (bankDetails.length === 0) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Bank Details Found</h3>
+          <p className="text-muted-foreground">Your salary bank details have not been added by HR yet. Please contact HR.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">Salary Bank Account</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {bankDetails.map((bank: any) => (
+          <Card key={bank.id}>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-green-100 rounded-lg"><CreditCard className="h-5 w-5 text-green-600" /></div>
+                <div>
+                  <h4 className="font-semibold text-foreground">{bank.bank_name || 'Bank'}</h4>
+                  {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                {bank.account_number && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">Account Number</span>
+                    <span className="font-mono font-medium">{bank.account_number}</span>
+                  </div>
+                )}
+                {bank.bank_code_1 && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">IFSC / Bank Code</span>
+                    <span className="font-mono font-medium">{bank.bank_code_1}</span>
+                  </div>
+                )}
+                {bank.bank_code_2 && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">Bank Code 2</span>
+                    <span className="font-mono font-medium">{bank.bank_code_2}</span>
+                  </div>
+                )}
+                {bank.city && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">City</span>
+                    <span className="font-medium">{bank.city}</span>
+                  </div>
+                )}
+                {bank.state && (
+                  <div className="flex justify-between border-b border-border/50 pb-2">
+                    <span className="text-muted-foreground">State</span>
+                    <span className="font-medium">{bank.state}</span>
+                  </div>
+                )}
+                {bank.country && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Country</span>
+                    <span className="font-medium">{bank.country}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Salary & PF Sub-Component (uses real HRMS salary structure) ───
 function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
   const totalSalary = hrEmployee?.total_salary || 0;
@@ -672,71 +761,10 @@ export default function UserProfile() {
 
         {/* ═══════ Banking Tab ═══════ */}
         <TabsContent value="banking" className="space-y-6">
-          {!hrEmployee && !employeeData ? (
+          {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <>
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Bank Accounts</h3>
-                <Button onClick={() => setIsEditingBank(true)} className="flex items-center gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Add Bank Account
-                </Button>
-              </div>
-
-              {isEditingBank && (
-                <Card>
-                  <CardHeader><CardTitle>Add New Bank Account</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><Label>Account Holder Name</Label><Input value={newBankAccount.account_name} onChange={(e) => setNewBankAccount(prev => ({ ...prev, account_name: e.target.value }))} placeholder="Enter account holder name" /></div>
-                      <div><Label>Account Number</Label><Input value={newBankAccount.account_number} onChange={(e) => setNewBankAccount(prev => ({ ...prev, account_number: e.target.value }))} placeholder="Enter account number" /></div>
-                      <div><Label>Bank Name</Label><Input value={newBankAccount.bank_name} onChange={(e) => setNewBankAccount(prev => ({ ...prev, bank_name: e.target.value }))} placeholder="Enter bank name" /></div>
-                      <div><Label>IFSC Code</Label><Input value={newBankAccount.ifsc_code} onChange={(e) => setNewBankAccount(prev => ({ ...prev, ifsc_code: e.target.value }))} placeholder="Enter IFSC code" /></div>
-                      <div><Label>Branch</Label><Input value={newBankAccount.branch} onChange={(e) => setNewBankAccount(prev => ({ ...prev, branch: e.target.value }))} placeholder="Enter branch name" /></div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={() => addBankAccountMutation.mutate(newBankAccount)} disabled={addBankAccountMutation.isPending}>
-                        {addBankAccountMutation.isPending ? 'Adding...' : 'Add Account'}
-                      </Button>
-                      <Button variant="outline" onClick={() => setIsEditingBank(false)}>Cancel</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bankAccounts.map((account) => (
-                  <Card key={account.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-green-100 rounded-lg"><CreditCard className="h-5 w-5 text-green-600" /></div>
-                        <div>
-                          <h4 className="font-semibold">{account.bank_name}</h4>
-                          <p className="text-sm text-muted-foreground">{account.account_name}</p>
-                        </div>
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        <p><span className="font-medium">Account:</span> {account.account_number}</p>
-                        <p><span className="font-medium">IFSC:</span> {account.IFSC}</p>
-                        <p><span className="font-medium">Branch:</span> {account.branch}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {bankAccounts.length === 0 && !isEditingBank && (
-                <Card>
-                  <CardContent className="text-center py-12">
-                    <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Bank Accounts</h3>
-                    <p className="text-muted-foreground mb-4">Add your bank account details for salary payments</p>
-                    <Button onClick={() => setIsEditingBank(true)}>Add Bank Account</Button>
-                  </CardContent>
-                </Card>
-              )}
-            </>
+            <EmployeeBankingTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
 

@@ -277,7 +277,7 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           Add Widget
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="sm:max-w-[95vw] lg:max-w-[1100px] max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-border">
           <DialogTitle className="text-xl font-bold text-foreground">
             Add Dashboard Widget
@@ -307,7 +307,7 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
           </div>
 
           {/* Widget Grid - Fixed 3 columns for desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredWidgets.map((widget) => {
               const IconComponent = widget.icon;
               return (

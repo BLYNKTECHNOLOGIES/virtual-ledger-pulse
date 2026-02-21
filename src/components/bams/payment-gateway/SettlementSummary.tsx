@@ -199,7 +199,7 @@ export function SettlementSummary() {
     try {
       // Get current user ID from localStorage session
       const sessionStr = localStorage.getItem('userSession');
-      const currentUserId = sessionStr ? JSON.parse(sessionStr)?.id : null;
+      const currentUserId = sessionStr ? JSON.parse(sessionStr)?.user?.id : null;
       const isValidUuid = currentUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUserId);
 
       const { data, error } = await supabase.rpc('reverse_payment_gateway_settlement', {

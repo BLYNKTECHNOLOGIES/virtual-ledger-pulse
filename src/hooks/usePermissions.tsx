@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -106,17 +106,17 @@ export function usePermissions() {
     }
   };
 
-  const hasPermission = (permission: string): boolean => {
+  const hasPermission = useCallback((permission: string): boolean => {
     return permissions.includes(permission);
-  };
+  }, [permissions]);
 
-  const hasAnyPermission = (permissionList: string[]): boolean => {
+  const hasAnyPermission = useCallback((permissionList: string[]): boolean => {
     return permissionList.some(permission => permissions.includes(permission));
-  };
+  }, [permissions]);
 
-  const hasAllPermissions = (permissionList: string[]): boolean => {
+  const hasAllPermissions = useCallback((permissionList: string[]): boolean => {
     return permissionList.every(permission => permissions.includes(permission));
-  };
+  }, [permissions]);
 
   useEffect(() => {
     fetchPermissions();

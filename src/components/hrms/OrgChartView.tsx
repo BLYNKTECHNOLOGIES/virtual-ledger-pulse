@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Building2, Briefcase, User, ChevronDown, ChevronRight, Users,
+  Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,10 +31,9 @@ interface EmpChartNode {
   department: string;
   profileUrl: string | null;
   children: EmpChartNode[];
-  collapsed?: boolean;
 }
 
-/* ── Position Tree Item (tree/list view) ── */
+/* ── Position Tree Item ── */
 
 function PosTreeItem({ node, depth = 0 }: { node: PosTreeNode; depth?: number }) {
   const [expanded, setExpanded] = useState(depth < 3);
@@ -69,78 +68,80 @@ function PosTreeItem({ node, depth = 0 }: { node: PosTreeNode; depth?: number })
   );
 }
 
-/* ── Visual Org Chart Card ── */
+/* ── Org Chart Node with proper connectors ── */
 
-function OrgChartCard({
+function OrgChartNode({
   node,
+  collapsedIds,
   onToggle,
   highlightId,
 }: {
   node: EmpChartNode;
+  collapsedIds: Set<string>;
   onToggle: (id: string) => void;
   highlightId: string | null;
 }) {
   const hasChildren = node.children.length > 0;
+  const isCollapsed = collapsedIds.has(node.id);
   const isHighlighted = highlightId === node.id;
-  const isCollapsed = node.collapsed;
+  const showChildren = hasChildren && !isCollapsed;
 
   return (
     <div className="flex flex-col items-center">
-      {/* Card */}
+      {/* The card itself */}
       <div
-        className={`relative border rounded-lg px-5 py-3 min-w-[160px] max-w-[200px] text-center transition-all cursor-pointer
+        className={`relative rounded-md px-5 py-3 min-w-[150px] max-w-[200px] text-center transition-all select-none
+          border
           ${isHighlighted
-            ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-lg"
-            : "border-border bg-[hsl(20,80%,95%)] dark:bg-accent/30 hover:shadow-md"
+            ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-lg"
+            : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
-        onClick={() => hasChildren && onToggle(node.id)}
       >
-        <p className="text-sm font-semibold text-foreground truncate">{node.name}</p>
-        <p className="text-xs text-muted-foreground truncate">{node.designation || "Not set"}</p>
+        <p className="text-sm font-semibold text-foreground leading-tight">{node.name}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{node.designation || "Not set"}</p>
+
+        {/* Collapse/expand toggle button at bottom of card */}
         {hasChildren && (
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-10">
-            <div className="h-4 w-4 rounded-full bg-background border border-border flex items-center justify-center">
-              {isCollapsed ? (
-                <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
-              )}
-            </div>
-          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}
+            className="absolute -bottom-[10px] left-1/2 -translate-x-1/2 z-10 h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
+          >
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+          </button>
         )}
       </div>
 
-      {/* Connector line down */}
-      {hasChildren && !isCollapsed && (
+      {/* Vertical connector from card to children row */}
+      {showChildren && (
         <>
-          <div className="w-px h-6 bg-border" />
-          {/* Horizontal line + children */}
+          <div className="w-px h-8 bg-border" />
+
+          {/* Children row */}
           <div className="relative flex items-start">
-            {/* Horizontal connector */}
-            {/* spacer */}
-            <div className="flex gap-0 items-start relative">
-              {/* Full-width horizontal line across all children */}
-              {node.children.length > 1 && (
-                <div className="absolute top-0 left-[calc(50%/var(--child-count))] right-[calc(50%/var(--child-count))] h-px bg-border"
-                  style={{
-                    // We position from first child center to last child center
-                    left: `${100 / (2 * node.children.length)}%`,
-                    right: `${100 / (2 * node.children.length)}%`,
-                  }}
+            {/* Horizontal connector line spanning from first to last child center */}
+            {node.children.length > 1 && (
+              <div
+                className="absolute top-0 h-px bg-border"
+                style={{
+                  left: `calc(${(100 / node.children.length) / 2}%)`,
+                  right: `calc(${(100 / node.children.length) / 2}%)`,
+                }}
+              />
+            )}
+
+            {/* Each child column */}
+            {node.children.map((child) => (
+              <div key={child.id} className="flex flex-col items-center" style={{ minWidth: 'max-content', padding: '0 8px' }}>
+                {/* Vertical line from horizontal bar to child card */}
+                <div className="w-px h-8 bg-border" />
+                <OrgChartNode
+                  node={child}
+                  collapsedIds={collapsedIds}
+                  onToggle={onToggle}
+                  highlightId={highlightId}
                 />
-              )}
-              {node.children.map((child) => (
-                <div key={child.id} className="flex flex-col items-center px-2">
-                  {/* Vertical line from horizontal connector to child card */}
-                  <div className="w-px h-6 bg-border" />
-                  <OrgChartCard
-                    node={child}
-                    onToggle={onToggle}
-                    highlightId={highlightId}
-                  />
-                </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </>
       )}
@@ -152,7 +153,6 @@ function OrgChartCard({
 
 export function OrgChartView() {
   const [posTree, setPosTree] = useState<PosTreeNode[]>([]);
-  const [empNodes, setEmpNodes] = useState<EmpChartNode[]>([]);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -163,7 +163,12 @@ export function OrgChartView() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Raw data for building trees
+  // Drag-to-pan state
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
+
+  // Raw data
   const [rawEmployees, setRawEmployees] = useState<any[]>([]);
   const [rawWorkInfos, setRawWorkInfos] = useState<any[]>([]);
   const [rawPositions, setRawPositions] = useState<any[]>([]);
@@ -223,7 +228,7 @@ export function OrgChartView() {
     load();
   }, []);
 
-  // Build employee chart tree based on reporting_manager_id from work_info
+  // Build employee chart tree
   const { empTree, managers } = useMemo(() => {
     const posMap = new Map(rawPositions.map(p => [p.id, p]));
     const deptMap = new Map(rawDepts.map(d => [d.id, d]));
@@ -241,11 +246,9 @@ export function OrgChartView() {
         department: dept?.name || "",
         profileUrl: e.profile_image_url,
         children: [],
-        collapsed: collapsedIds.has(e.id),
       });
     });
 
-    // Identify managers (employees who have someone reporting to them)
     const managerIds = new Set<string>();
     rawWorkInfos.forEach(w => {
       if (w.reporting_manager_id) managerIds.add(w.reporting_manager_id);
@@ -255,7 +258,6 @@ export function OrgChartView() {
       .map(e => ({ id: e.id, name: `${e.first_name} ${e.last_name}`.trim() }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    // Build tree
     const roots: EmpChartNode[] = [];
     nodeMap.forEach((node, id) => {
       const wi = wiByEmp.get(id);
@@ -267,7 +269,6 @@ export function OrgChartView() {
       }
     });
 
-    // Sort children
     const sortChildren = (nodes: EmpChartNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));
       nodes.forEach(n => sortChildren(n.children));
@@ -275,12 +276,11 @@ export function OrgChartView() {
     sortChildren(roots);
 
     return { empTree: roots, managers: managerList };
-  }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts, collapsedIds]);
+  }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
 
   // Filter tree by manager
   const filteredTree = useMemo(() => {
     if (managerFilter === "all") return empTree;
-    // Find the selected manager node and show their subtree
     const findNode = (nodes: EmpChartNode[]): EmpChartNode | null => {
       for (const n of nodes) {
         if (n.id === managerFilter) return n;
@@ -317,7 +317,7 @@ export function OrgChartView() {
   }, []);
 
   const handleZoom = (dir: "in" | "out") => {
-    setZoom(z => dir === "in" ? Math.min(z + 0.15, 2) : Math.max(z - 0.15, 0.3));
+    setZoom(z => dir === "in" ? Math.min(z + 0.15, 2.5) : Math.max(z - 0.15, 0.2));
   };
 
   const handlePan = (dir: "up" | "down" | "left" | "right") => {
@@ -328,16 +328,48 @@ export function OrgChartView() {
     }));
   };
 
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom(z => Math.min(2.5, Math.max(0.2, z - e.deltaY * 0.002)));
+    }
+  }, []);
+
+  // Drag-to-pan handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...pan };
+    (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
+  }, [pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPan({
+      x: panStart.current.x + dx / zoom,
+      y: panStart.current.y + dy / zoom,
+    });
+  }, [zoom]);
+
+  const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    isDragging.current = false;
+    (e.currentTarget as HTMLElement).style.cursor = 'grab';
+  }, []);
+
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>;
 
   return (
-    <Tabs defaultValue="position" className="space-y-4">
+    <Tabs defaultValue="employee" className="space-y-4">
       <TabsList>
         <TabsTrigger value="position" className="gap-1.5"><Briefcase className="h-3.5 w-3.5" />Position Hierarchy</TabsTrigger>
         <TabsTrigger value="employee" className="gap-1.5"><Users className="h-3.5 w-3.5" />Employee Hierarchy</TabsTrigger>
       </TabsList>
 
-      {/* Position Hierarchy - tree/list view */}
+      {/* Position Hierarchy */}
       <TabsContent value="position">
         {posTree.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">
@@ -351,13 +383,13 @@ export function OrgChartView() {
         )}
       </TabsContent>
 
-      {/* Employee Hierarchy - visual org chart */}
+      {/* Employee Hierarchy - Visual Org Chart */}
       <TabsContent value="employee">
-        {/* Controls bar */}
+        {/* Controls */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground whitespace-nowrap">Reporting Managers :</span>
-            <Select value={managerFilter} onValueChange={setManagerFilter}>
+            <Select value={managerFilter} onValueChange={v => { setManagerFilter(v); setPan({ x: 0, y: 0 }); setZoom(1); }}>
               <SelectTrigger className="w-[200px] h-8 text-sm">
                 <SelectValue placeholder="All" />
               </SelectTrigger>
@@ -382,44 +414,59 @@ export function OrgChartView() {
         </div>
 
         {/* Chart area */}
-        <div className="relative border border-border rounded-lg bg-muted/5 overflow-hidden" style={{ minHeight: "500px" }}>
-          {/* Zoom & pan controls */}
+        <div
+          className="relative border border-border rounded-lg bg-background overflow-hidden"
+          style={{ minHeight: "550px" }}
+        >
+          {/* Zoom/pan controls */}
           <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
             <div className="flex gap-0.5">
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleZoom("in")}>
-                <ZoomIn className="h-3.5 w-3.5" />
+              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("in")}>
+                <ZoomIn className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handleZoom("out")}>
-                <ZoomOut className="h-3.5 w-3.5" />
+              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("out")}>
+                <ZoomOut className="h-4 w-4" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-0.5 mt-1">
-              <Button variant="outline" size="icon" className="h-7 w-7 col-span-2 mx-auto" onClick={() => handlePan("up")}>
+            <div className="grid grid-cols-3 gap-0.5 mt-1">
+              <div />
+              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("up")}>
                 <ArrowUp className="h-3 w-3" />
               </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePan("left")}>
+              <div />
+              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("left")}>
                 <ArrowLeft className="h-3 w-3" />
               </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => handlePan("right")}>
+              <div />
+              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("right")}>
                 <ArrowRight className="h-3 w-3" />
               </Button>
-              <Button variant="outline" size="icon" className="h-7 w-7 col-span-2 mx-auto" onClick={() => handlePan("down")}>
+              <div />
+              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("down")}>
                 <ArrowDown className="h-3 w-3" />
               </Button>
+              <div />
             </div>
           </div>
 
-          {/* Chart canvas */}
+          {/* Draggable canvas */}
           <div
             ref={chartRef}
-            className="overflow-auto p-8"
-            style={{ maxHeight: "70vh" }}
+            className="w-full h-full overflow-hidden"
+            style={{ minHeight: "550px", cursor: "grab" }}
+            onWheel={handleWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
           >
             <div
-              className="inline-flex flex-col items-center transition-transform duration-200 origin-top-left"
+              className="inline-flex justify-center pt-10 pb-20 px-10 transition-transform duration-100"
               style={{
                 transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-                minWidth: "max-content",
+                transformOrigin: "top center",
+                minWidth: "100%",
+                width: "max-content",
               }}
             >
               {filteredTree.length === 0 ? (
@@ -428,14 +475,17 @@ export function OrgChartView() {
                   No active employees found
                 </div>
               ) : (
-                filteredTree.map(root => (
-                  <OrgChartCard
-                    key={root.id}
-                    node={root}
-                    onToggle={toggleCollapse}
-                    highlightId={highlightId}
-                  />
-                ))
+                <div className="flex flex-col items-center gap-0">
+                  {filteredTree.map(root => (
+                    <OrgChartNode
+                      key={root.id}
+                      node={root}
+                      collapsedIds={collapsedIds}
+                      onToggle={toggleCollapse}
+                      highlightId={highlightId}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           </div>

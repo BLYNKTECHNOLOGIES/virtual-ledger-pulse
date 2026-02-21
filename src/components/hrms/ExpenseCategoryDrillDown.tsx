@@ -45,7 +45,7 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
 
   return (
     <Dialog open={!!category} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="md:max-w-[95vw] w-full h-[95vh] max-h-[95vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileBarChart className="h-5 w-5 text-destructive" />

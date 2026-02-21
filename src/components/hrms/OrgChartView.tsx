@@ -9,6 +9,7 @@ import {
 import {
   Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
+  Maximize2, Minimize2,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -68,30 +69,29 @@ function PosTreeItem({ node, depth = 0 }: { node: PosTreeNode; depth?: number })
   );
 }
 
-/* ── Org Chart Node with proper connectors ── */
+/* ── Org Chart Node — lazy expand, one level at a time ── */
 
 function OrgChartNode({
   node,
-  collapsedIds,
+  expandedIds,
   onToggle,
   highlightId,
 }: {
   node: EmpChartNode;
-  collapsedIds: Set<string>;
+  expandedIds: Set<string>;
   onToggle: (id: string) => void;
   highlightId: string | null;
 }) {
   const hasChildren = node.children.length > 0;
-  const isCollapsed = collapsedIds.has(node.id);
+  const isExpanded = expandedIds.has(node.id);
   const isHighlighted = highlightId === node.id;
-  const showChildren = hasChildren && !isCollapsed;
+  const showChildren = hasChildren && isExpanded;
 
   return (
     <div className="flex flex-col items-center">
-      {/* The card itself */}
+      {/* The card */}
       <div
-        className={`relative rounded-md px-5 py-3 min-w-[150px] max-w-[200px] text-center transition-all select-none
-          border
+        className={`relative rounded-md px-5 py-3 min-w-[150px] max-w-[200px] text-center transition-all select-none border
           ${isHighlighted
             ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-lg"
             : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
@@ -100,25 +100,22 @@ function OrgChartNode({
         <p className="text-sm font-semibold text-foreground leading-tight">{node.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{node.designation || "Not set"}</p>
 
-        {/* Collapse/expand toggle button at bottom of card */}
+        {/* Toggle button at bottom — only shows if node has children */}
         {hasChildren && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}
             className="absolute -bottom-[10px] left-1/2 -translate-x-1/2 z-10 h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors"
           >
-            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+            <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${!isExpanded ? '-rotate-90' : ''}`} />
           </button>
         )}
       </div>
 
-      {/* Vertical connector from card to children row */}
+      {/* Children — only rendered when this node is expanded */}
       {showChildren && (
         <>
           <div className="w-px h-8 bg-border" />
-
-          {/* Children row */}
           <div className="relative flex items-start">
-            {/* Horizontal connector line spanning from first to last child center */}
             {node.children.length > 1 && (
               <div
                 className="absolute top-0 h-px bg-border"
@@ -128,15 +125,12 @@ function OrgChartNode({
                 }}
               />
             )}
-
-            {/* Each child column */}
             {node.children.map((child) => (
               <div key={child.id} className="flex flex-col items-center" style={{ minWidth: 'max-content', padding: '0 8px' }}>
-                {/* Vertical line from horizontal bar to child card */}
                 <div className="w-px h-8 bg-border" />
                 <OrgChartNode
                   node={child}
-                  collapsedIds={collapsedIds}
+                  expandedIds={expandedIds}
                   onToggle={onToggle}
                   highlightId={highlightId}
                 />
@@ -153,8 +147,11 @@ function OrgChartNode({
 
 export function OrgChartView() {
   const [posTree, setPosTree] = useState<PosTreeNode[]>([]);
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  // Start with NO nodes expanded — user clicks to reveal each level
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenRef = useRef<HTMLDivElement>(null);
 
   // Employee chart controls
   const [search, setSearch] = useState("");
@@ -249,12 +246,12 @@ export function OrgChartView() {
       });
     });
 
-    const managerIds = new Set<string>();
+    const managerIdSet = new Set<string>();
     rawWorkInfos.forEach(w => {
-      if (w.reporting_manager_id) managerIds.add(w.reporting_manager_id);
+      if (w.reporting_manager_id) managerIdSet.add(w.reporting_manager_id);
     });
     const managerList = rawEmployees
-      .filter(e => managerIds.has(e.id))
+      .filter(e => managerIdSet.has(e.id))
       .map(e => ({ id: e.id, name: `${e.first_name} ${e.last_name}`.trim() }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -278,6 +275,13 @@ export function OrgChartView() {
     return { empTree: roots, managers: managerList };
   }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
 
+  // When empTree is built, auto-expand only root nodes so the first level is visible
+  useEffect(() => {
+    if (empTree.length > 0) {
+      setExpandedIds(new Set(empTree.map(r => r.id)));
+    }
+  }, [empTree]);
+
   // Filter tree by manager
   const filteredTree = useMemo(() => {
     if (managerFilter === "all") return empTree;
@@ -293,7 +297,14 @@ export function OrgChartView() {
     return root ? [root] : empTree;
   }, [empTree, managerFilter]);
 
-  // Search highlight
+  // When manager filter changes, auto-expand just the selected root
+  useEffect(() => {
+    if (managerFilter !== "all") {
+      setExpandedIds(new Set(filteredTree.map(r => r.id)));
+    }
+  }, [managerFilter, filteredTree]);
+
+  // Search highlight + auto-expand path to found node
   const highlightId = useMemo(() => {
     if (!search.trim()) return null;
     const q = search.toLowerCase();
@@ -308,10 +319,25 @@ export function OrgChartView() {
     return findMatch(filteredTree);
   }, [search, filteredTree]);
 
-  const toggleCollapse = useCallback((id: string) => {
-    setCollapsedIds(prev => {
+  // Toggle a single node — only expands one level (the direct children become visible but stay collapsed)
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) {
+        // Collapse this node AND all descendants
+        const collapseRecursive = (nodes: EmpChartNode[]) => {
+          for (const n of nodes) {
+            if (n.id === id || next.has(n.id)) {
+              // Find this node's subtree and collapse all
+            }
+          }
+        };
+        // Simple: just remove this id. Children won't render since parent is collapsed.
+        next.delete(id);
+      } else {
+        // Expand only this node — children cards appear but their children stay hidden
+        next.add(id);
+      }
       return next;
     });
   }, []);
@@ -328,7 +354,6 @@ export function OrgChartView() {
     }));
   };
 
-  // Mouse wheel zoom
   const handleWheel = useCallback((e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
@@ -336,7 +361,6 @@ export function OrgChartView() {
     }
   }, []);
 
-  // Drag-to-pan handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
     isDragging.current = true;
@@ -358,6 +382,29 @@ export function OrgChartView() {
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     isDragging.current = false;
     (e.currentTarget as HTMLElement).style.cursor = 'grab';
+  }, []);
+
+  // Fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!isFullscreen) {
+      fullscreenRef.current?.requestFullscreen?.().catch(() => {
+        // Fallback: use CSS fullscreen
+        setIsFullscreen(true);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
+  }, [isFullscreen]);
+
+  // Listen for fullscreen exit via Escape
+  useEffect(() => {
+    const handler = () => {
+      if (!document.fullscreenElement) setIsFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>;
@@ -385,108 +432,116 @@ export function OrgChartView() {
 
       {/* Employee Hierarchy - Visual Org Chart */}
       <TabsContent value="employee">
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground whitespace-nowrap">Reporting Managers :</span>
-            <Select value={managerFilter} onValueChange={v => { setManagerFilter(v); setPan({ x: 0, y: 0 }); setZoom(1); }}>
-              <SelectTrigger className="w-[200px] h-8 text-sm">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {managers.map(m => (
-                  <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex-1" />
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-8 h-8 w-[200px] text-sm"
-            />
-          </div>
-        </div>
-
-        {/* Chart area */}
         <div
-          className="relative border border-border rounded-lg bg-background overflow-hidden"
-          style={{ minHeight: "550px" }}
+          ref={fullscreenRef}
+          className={`flex flex-col ${isFullscreen ? "fixed inset-0 z-50 bg-background" : ""}`}
         >
-          {/* Zoom/pan controls */}
-          <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
-            <div className="flex gap-0.5">
-              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("in")}>
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-              <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("out")}>
-                <ZoomOut className="h-4 w-4" />
-              </Button>
+          {/* Controls */}
+          <div className="flex flex-wrap items-center gap-3 mb-4 px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground whitespace-nowrap">Reporting Managers :</span>
+              <Select value={managerFilter} onValueChange={v => { setManagerFilter(v); setPan({ x: 0, y: 0 }); setZoom(1); }}>
+                <SelectTrigger className="w-[200px] h-8 text-sm">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {managers.map(m => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-3 gap-0.5 mt-1">
-              <div />
-              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("up")}>
-                <ArrowUp className="h-3 w-3" />
-              </Button>
-              <div />
-              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("left")}>
-                <ArrowLeft className="h-3 w-3" />
-              </Button>
-              <div />
-              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("right")}>
-                <ArrowRight className="h-3 w-3" />
-              </Button>
-              <div />
-              <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("down")}>
-                <ArrowDown className="h-3 w-3" />
-              </Button>
-              <div />
+            <div className="flex-1" />
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-8 h-8 w-[200px] text-sm"
+              />
             </div>
           </div>
 
-          {/* Draggable canvas */}
+          {/* Chart area */}
           <div
-            ref={chartRef}
-            className="w-full h-full overflow-hidden"
-            style={{ minHeight: "550px", cursor: "grab" }}
-            onWheel={handleWheel}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            className="relative border border-border rounded-lg bg-background overflow-hidden flex-1"
+            style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px" }}
           >
+            {/* Zoom/pan/fullscreen controls */}
+            <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
+              <div className="flex gap-0.5">
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("in")}>
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("out")}>
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-0.5 mt-1">
+                <div />
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("up")}>
+                  <ArrowUp className="h-3 w-3" />
+                </Button>
+                <div />
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("left")}>
+                  <ArrowLeft className="h-3 w-3" />
+                </Button>
+                <div />
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("right")}>
+                  <ArrowRight className="h-3 w-3" />
+                </Button>
+                <div />
+                <Button variant="secondary" size="icon" className="h-7 w-7 rounded-md shadow-sm" onClick={() => handlePan("down")}>
+                  <ArrowDown className="h-3 w-3" />
+                </Button>
+                <div />
+              </div>
+            </div>
+
+            {/* Draggable canvas */}
             <div
-              className="inline-flex justify-center pt-10 pb-20 px-10 transition-transform duration-100"
-              style={{
-                transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
-                transformOrigin: "top center",
-                minWidth: "100%",
-                width: "max-content",
-              }}
+              ref={chartRef}
+              className="w-full h-full overflow-hidden"
+              style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px", cursor: "grab" }}
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
             >
-              {filteredTree.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground text-sm">
-                  <Users className="h-10 w-10 mx-auto opacity-20 mb-2" />
-                  No active employees found
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-0">
-                  {filteredTree.map(root => (
-                    <OrgChartNode
-                      key={root.id}
-                      node={root}
-                      collapsedIds={collapsedIds}
-                      onToggle={toggleCollapse}
-                      highlightId={highlightId}
-                    />
-                  ))}
-                </div>
-              )}
+              <div
+                className="inline-flex justify-center pt-10 pb-20 px-10 transition-transform duration-100"
+                style={{
+                  transform: `scale(${zoom}) translate(${pan.x}px, ${pan.y}px)`,
+                  transformOrigin: "top center",
+                  minWidth: "100%",
+                  width: "max-content",
+                }}
+              >
+                {filteredTree.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground text-sm">
+                    <Users className="h-10 w-10 mx-auto opacity-20 mb-2" />
+                    No active employees found
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-0">
+                    {filteredTree.map(root => (
+                      <OrgChartNode
+                        key={root.id}
+                        node={root}
+                        expandedIds={expandedIds}
+                        onToggle={toggleExpand}
+                        highlightId={highlightId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

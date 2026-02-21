@@ -120,6 +120,8 @@ export default function SalaryStructureAssignments() {
     items.forEach((i: any, idx: number) => {
       const comp = i.hr_salary_components;
       if (!comp || i.calculation_type === "formula") return;
+      // Variable/occasional components default to ₹0 in structure view
+      if (i.is_variable) return;
       let amount = 0;
       if (i.calculation_type === "percentage") {
         const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
@@ -186,12 +188,19 @@ export default function SalaryStructureAssignments() {
 
     const vars = buildVarsMap(items, totalSalary, basicPay);
 
-    const earnings: { name: string; code: string; amount: number }[] = [];
-    const deductionsList: { name: string; code: string; amount: number }[] = [];
+    const earnings: { name: string; code: string; amount: number; isVariable: boolean }[] = [];
+    const deductionsList: { name: string; code: string; amount: number; isVariable: boolean }[] = [];
 
     items.forEach((i: any) => {
       const comp = i.hr_salary_components;
       if (!comp) return;
+      // Variable/occasional components default to ₹0
+      if (i.is_variable) {
+        const entry = { name: comp.name, code: comp.code, amount: 0, isVariable: true };
+        if (comp.component_type === "allowance") earnings.push(entry);
+        else deductionsList.push(entry);
+        return;
+      }
       let amount: number;
       if (i.calculation_type === "formula" && i.formula) {
         amount = evalFormula(i.formula, vars);
@@ -201,7 +210,7 @@ export default function SalaryStructureAssignments() {
       } else {
         amount = Number(i.value) || 0;
       }
-      const entry = { name: comp.name, code: comp.code, amount: Math.round(amount) };
+      const entry = { name: comp.name, code: comp.code, amount: Math.round(amount), isVariable: false };
       if (comp.component_type === "allowance") {
         earnings.push(entry);
       } else {
@@ -289,9 +298,12 @@ export default function SalaryStructureAssignments() {
                         <div className="space-y-1">
                           {breakdown.earnings.length === 0 && <p className="text-xs text-gray-400">None</p>}
                           {breakdown.earnings.map((e, i) => (
-                            <div key={i} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
-                              <span>{e.name} <span className="text-xs text-gray-400">({e.code})</span></span>
-                              <span className="font-medium">₹{e.amount.toLocaleString()}</span>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-amber-50/50' : 'bg-green-50'}`}>
+                              <span>
+                                {e.name} <span className="text-xs text-gray-400">({e.code})</span>
+                                {e.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                              </span>
+                              <span className="font-medium">{e.isVariable ? '—' : `₹${e.amount.toLocaleString()}`}</span>
                             </div>
                           ))}
                         </div>
@@ -301,9 +313,12 @@ export default function SalaryStructureAssignments() {
                         <div className="space-y-1">
                           {breakdown.deductions.length === 0 && <p className="text-xs text-gray-400">None</p>}
                           {breakdown.deductions.map((d, i) => (
-                            <div key={i} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
-                              <span>{d.name} <span className="text-xs text-gray-400">({d.code})</span></span>
-                              <span className="font-medium">₹{d.amount.toLocaleString()}</span>
+                            <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-amber-50/50' : 'bg-red-50'}`}>
+                              <span>
+                                {d.name} <span className="text-xs text-gray-400">({d.code})</span>
+                                {d.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                              </span>
+                              <span className="font-medium">{d.isVariable ? '—' : `₹${d.amount.toLocaleString()}`}</span>
                             </div>
                           ))}
                         </div>

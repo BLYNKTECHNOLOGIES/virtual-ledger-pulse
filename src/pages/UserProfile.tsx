@@ -51,6 +51,171 @@ interface BankAccount {
   branch?: string;
 }
 
+// ─── Salary & PF Sub-Component (uses real HRMS salary structure) ───
+function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
+  const totalSalary = hrEmployee?.total_salary || 0;
+  const templateId = hrEmployee?.salary_structure_template_id;
+
+  const { data: templateItems = [], isLoading } = useQuery({
+    queryKey: ['salary_template_items_profile', templateId],
+    queryFn: async () => {
+      if (!templateId) return [];
+      const { data, error } = await supabase
+        .from('hr_salary_structure_template_items' as any)
+        .select('*, hr_salary_components!hr_salary_structure_template_items_component_id_fkey(id, name, code, component_type)')
+        .eq('template_id', templateId)
+        .order('priority', { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!templateId,
+  });
+
+  // Compute actual values using formula engine (simplified)
+  const computedItems = templateItems.map((item: any) => {
+    const comp = item.hr_salary_components;
+    const name = comp?.name || 'Unknown';
+    const code = comp?.code || '';
+    const type = comp?.component_type || 'earning';
+    const calcType = item.calculation_type;
+    let value = 0;
+
+    if (calcType === 'fixed') {
+      value = Number(item.fixed_amount || 0);
+    } else if (calcType === 'percentage') {
+      // Percentage of total salary (basic_pay base)
+      value = (totalSalary * Number(item.percentage || 0)) / 100;
+    } else if (calcType === 'formula' && item.formula) {
+      try {
+        const formula = item.formula
+          .replace(/total_salary/gi, String(totalSalary))
+          .replace(/basic_pay/gi, String(totalSalary * 0.5));
+        value = Function('"use strict"; return (' + formula + ')')();
+      } catch { value = 0; }
+    }
+
+    return { name, code, type, value: Math.round(value * 100) / 100, calcType, percentage: item.percentage };
+  });
+
+  const earnings = computedItems.filter((i: any) => i.type === 'earning' || i.type === 'allowance');
+  const deductions = computedItems.filter((i: any) => i.type === 'deduction' && !i.name.toLowerCase().includes('employer'));
+  const employerContribs = computedItems.filter((i: any) => i.type === 'deduction' && i.name.toLowerCase().includes('employer'));
+
+  const totalEarnings = earnings.reduce((s: number, i: any) => s + i.value, 0);
+  const totalDeductions = deductions.reduce((s: number, i: any) => s + i.value, 0);
+  const netPay = totalEarnings - totalDeductions;
+
+  if (!templateId) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <IndianRupee className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Salary Structure Assigned</h3>
+          <p className="text-muted-foreground">Please contact HR to assign a salary structure.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Salary Breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IndianRupee className="h-5 w-5" />
+            Salary Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-[#00bcd4]">Gross Salary (CTC)</Label>
+            <div className="text-2xl font-bold text-green-600">₹{totalSalary.toLocaleString()}</div>
+          </div>
+          <Separator />
+          
+          {isLoading ? (
+            <p className="text-muted-foreground text-sm">Loading salary structure...</p>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
+                {earnings.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
+                    <div>
+                      <Label className="text-[#00bcd4]">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
+                    </div>
+                    <span className="text-base font-semibold">₹{item.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+
+              {deductions.length > 0 && (
+                <div className="space-y-1 pt-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
+                  {deductions.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
+                      <div>
+                        <Label className="text-red-500">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
+                      </div>
+                      <span className="text-base font-semibold text-red-600">-₹{item.value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Separator />
+              <div className="flex justify-between items-center pt-1">
+                <Label className="text-base font-bold">Net Pay</Label>
+                <span className="text-xl font-bold text-green-600">₹{netPay.toLocaleString()}</span>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Employer Contributions / PF */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PiggyBank className="h-5 w-5" />
+            Employer Contributions
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <p className="text-muted-foreground text-sm">Loading...</p>
+          ) : employerContribs.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No employer contributions configured in salary structure.</p>
+          ) : (
+            <>
+              {employerContribs.map((item: any, idx: number) => (
+                <div key={idx} className="border-b border-border/50 pb-3">
+                  <Label className="text-[#00bcd4]">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
+                  <div className="text-xl font-semibold">₹{item.value.toLocaleString()}</div>
+                </div>
+              ))}
+              <Separator />
+              <div>
+                <Label>Monthly Employer Total</Label>
+                <div className="text-xl font-bold text-blue-600">
+                  ₹{employerContribs.reduce((s: number, i: any) => s + i.value, 0).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <Label>Estimated Annual</Label>
+                <div className="text-lg">
+                  ₹{(employerContribs.reduce((s: number, i: any) => s + i.value, 0) * 12).toLocaleString()}
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function UserProfile() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
@@ -498,82 +663,10 @@ export default function UserProfile() {
 
         {/* ═══════ Salary & PF Tab ═══════ */}
         <TabsContent value="salary" className="space-y-6">
-          {!hrEmployee && !employeeData ? (
+          {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <IndianRupee className="h-5 w-5" />
-                      Salary Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {(() => {
-                      const salary = hrEmployee?.total_salary || employeeData?.salary || 0;
-                      return (
-                        <>
-                          <div className="space-y-2">
-                            <Label>Current Salary</Label>
-                            <div className="text-2xl font-bold text-green-600">₹{salary.toLocaleString()}</div>
-                          </div>
-                          <Separator />
-                          <div className="space-y-2">
-                            <Label>Basic Salary (50%)</Label>
-                            <div className="text-lg">₹{(salary * 0.5).toLocaleString()}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>HRA (30%)</Label>
-                            <div className="text-lg">₹{(salary * 0.3).toLocaleString()}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Other Allowances (20%)</Label>
-                            <div className="text-lg">₹{(salary * 0.2).toLocaleString()}</div>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <PiggyBank className="h-5 w-5" />
-                      PF Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {(() => {
-                      const salary = hrEmployee?.total_salary || employeeData?.salary || 0;
-                      return (
-                        <>
-                          <div className="space-y-2">
-                            <Label>Employee PF Contribution (12%)</Label>
-                            <div className="text-xl font-semibold">₹{(salary * 0.12).toLocaleString()}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Employer PF Contribution (12%)</Label>
-                            <div className="text-xl font-semibold">₹{(salary * 0.12).toLocaleString()}</div>
-                          </div>
-                          <Separator />
-                          <div className="space-y-2">
-                            <Label>Monthly PF Total</Label>
-                            <div className="text-xl font-bold text-blue-600">₹{(salary * 0.24).toLocaleString()}</div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Estimated Annual PF</Label>
-                            <div className="text-lg">₹{(salary * 0.24 * 12).toLocaleString()}</div>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </CardContent>
-                </Card>
-              </div>
-            </>
+            <SalaryPFTab hrEmployee={hrEmployee} />
           )}
         </TabsContent>
 

@@ -18,6 +18,7 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay } from "date-fns";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
+import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 
 const CHART_COLORS = [
   "hsl(var(--primary))",
@@ -446,6 +447,9 @@ export function StatisticsTab() {
 
   // State for fee history dialog
   const [showFeeHistoryDialog, setShowFeeHistoryDialog] = useState(false);
+
+  // State for expense category drill-down
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -1163,8 +1167,12 @@ export function StatisticsTab() {
                     </TableHeader>
                     <TableBody>
                       {expenseBreakdown.slice(0, 8).map((expense) => (
-                        <TableRow key={expense.category}>
-                          <TableCell className="font-medium">{expense.category}</TableCell>
+                        <TableRow 
+                          key={expense.category} 
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => setSelectedExpenseCategory(expense.category)}
+                        >
+                          <TableCell className="font-medium text-primary underline-offset-2 hover:underline">{expense.category}</TableCell>
                           <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
                           <TableCell className="text-right">{expense.percentage}%</TableCell>
                         </TableRow>
@@ -1296,6 +1304,15 @@ export function StatisticsTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Expense Category Drill-Down Dialog */}
+      <ExpenseCategoryDrillDown
+        category={selectedExpenseCategory}
+        onClose={() => setSelectedExpenseCategory(null)}
+        startDate={dateRange?.from}
+        endDate={dateRange?.to}
+        formatCurrency={formatCurrency}
+      />
     </div>
   );
 }

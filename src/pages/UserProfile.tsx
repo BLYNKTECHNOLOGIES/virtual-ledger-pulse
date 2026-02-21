@@ -142,7 +142,7 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
 
 // ─── Salary & PF Sub-Component (uses real HRMS salary structure) ───
 function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
-  const totalSalary = hrEmployee?.total_salary || 0;
+  const totalSalary = Number(hrEmployee?.total_salary) || 0;
   const templateId = hrEmployee?.salary_structure_template_id;
 
   const { data: templateItems = [], isLoading } = useQuery({
@@ -160,39 +160,121 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     enabled: !!templateId,
   });
 
-  // Compute actual values using formula engine (simplified)
-  const computedItems = templateItems.map((item: any) => {
-    const comp = item.hr_salary_components;
-    const name = comp?.name || 'Unknown';
-    const code = comp?.code || '';
-    const type = comp?.component_type || 'earning';
-    const calcType = item.calculation_type;
-    let value = 0;
+  // ─── Formula engine (same as SalaryStructureAssignments) ───
+  const evalFormula = (formula: string, vars: Record<string, number>): number => {
+    try {
+      let expr = formula.trim();
+      Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
+        expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
+      });
+      if (/^[\d\s+\-*/().]+$/.test(expr)) {
+        return new Function(`return (${expr})`)() as number;
+      }
+      return 0;
+    } catch { return 0; }
+  };
 
-    if (calcType === 'fixed') {
-      value = Number(item.fixed_amount || 0);
-    } else if (calcType === 'percentage') {
-      // Percentage of total salary (basic_pay base)
-      value = (totalSalary * Number(item.percentage || 0)) / 100;
-    } else if (calcType === 'formula' && item.formula) {
-      try {
-        const formula = item.formula
-          .replace(/total_salary/gi, String(totalSalary))
-          .replace(/basic_pay/gi, String(totalSalary * 0.5));
-        value = Function('"use strict"; return (' + formula + ')')();
-      } catch { value = 0; }
+  const toSnakeCase = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+  // Compute breakdown using the real engine
+  const breakdown = (() => {
+    if (!templateItems.length) return { earnings: [], deductions: [], employerContribs: [], netPay: 0 };
+
+    // Step 1: Find basic pay
+    let basicPay = Number(hrEmployee?.basic_salary) || 0;
+    const basicItem = templateItems.find((i: any) =>
+      i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic")
+    );
+    if (basicItem) {
+      if (basicItem.calculation_type === "percentage") {
+        basicPay = (Number(basicItem.value) / 100) * totalSalary;
+      } else if (basicItem.calculation_type === "fixed") {
+        basicPay = Number(basicItem.value);
+      }
     }
 
-    return { name, code, type, value: Math.round(value * 100) / 100, calcType, percentage: item.percentage };
-  });
+    // Step 2: Build vars map (non-formula first, then formula)
+    const codeAmounts: Record<string, number> = {};
+    let tempDeductions = 0, tempAllowances = 0;
 
-  const earnings = computedItems.filter((i: any) => i.type === 'earning' || i.type === 'allowance');
-  const deductions = computedItems.filter((i: any) => i.type === 'deduction' && !i.name.toLowerCase().includes('employer'));
-  const employerContribs = computedItems.filter((i: any) => i.type === 'deduction' && i.name.toLowerCase().includes('employer'));
+    templateItems.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type === "formula" || i.is_variable) return;
+      let amount = 0;
+      if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
+      const code = comp.code?.toLowerCase();
+      if (code) codeAmounts[code] = amount;
+      const sn = toSnakeCase(comp.name || '');
+      if (sn && sn !== code) codeAmounts[sn] = amount;
+      if (comp.component_type === "deduction") tempDeductions += amount;
+      else tempAllowances += amount;
+    });
 
-  const totalEarnings = earnings.reduce((s: number, i: any) => s + i.value, 0);
-  const totalDeductions = deductions.reduce((s: number, i: any) => s + i.value, 0);
-  const netPay = totalEarnings - totalDeductions;
+    const vars: Record<string, number> = {
+      total_salary: totalSalary, basic_pay: basicPay,
+      total_deductions: tempDeductions, total_allowances: tempAllowances,
+      ...codeAmounts,
+    };
+
+    // Resolve formulas
+    templateItems.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type !== "formula" || !i.formula) return;
+      const amount = evalFormula(i.formula, vars);
+      const code = comp.code?.toLowerCase();
+      if (code) vars[code] = amount;
+      const sn = toSnakeCase(comp.name || '');
+      if (sn && sn !== code) vars[sn] = amount;
+      if (comp.component_type === "deduction") vars.total_deductions += amount;
+      else vars.total_allowances += amount;
+    });
+
+    // Step 3: Build display lists
+    const earnings: any[] = [], deductions: any[] = [], employerContribs: any[] = [];
+
+    templateItems.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp) return;
+      if (i.is_variable) return; // skip variable/occasional
+
+      let amount: number;
+      if (i.calculation_type === "formula" && i.formula) {
+        amount = evalFormula(i.formula, vars);
+      } else if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
+      amount = Math.round(amount);
+
+      const calcLabel = i.calculation_type === "percentage"
+        ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic" : "CTC"}`
+        : i.calculation_type === "formula" ? "Formula" : "Fixed";
+
+      const entry = { name: comp.name, code: comp.code, amount, calcLabel, type: comp.component_type };
+
+      const isEmployer = comp.name?.toLowerCase().includes('employer') ||
+        ['PFC', 'ESIC'].includes(comp.code);
+
+      if (comp.component_type === "deduction") {
+        if (isEmployer) employerContribs.push(entry);
+        else deductions.push(entry);
+      } else {
+        earnings.push(entry);
+      }
+    });
+
+    const totalEarn = earnings.reduce((s: number, e: any) => s + e.amount, 0);
+    const totalDed = deductions.reduce((s: number, e: any) => s + e.amount, 0);
+
+    return { earnings, deductions, employerContribs, netPay: totalEarn - totalDed };
+  })();
 
   if (!templateId) {
     return (
@@ -229,25 +311,21 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
             <>
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
-                {earnings.map((item: any, idx: number) => (
+                {breakdown.earnings.map((item: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
-                    <div>
-                      <Label className="text-[#00bcd4]">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
-                    </div>
-                    <span className="text-base font-semibold">₹{item.value.toLocaleString()}</span>
+                    <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
+                    <span className="text-base font-semibold">₹{item.amount.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
 
-              {deductions.length > 0 && (
+              {breakdown.deductions.length > 0 && (
                 <div className="space-y-1 pt-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
-                  {deductions.map((item: any, idx: number) => (
+                  {breakdown.deductions.map((item: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
-                      <div>
-                        <Label className="text-red-500">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
-                      </div>
-                      <span className="text-base font-semibold text-red-600">-₹{item.value.toLocaleString()}</span>
+                      <Label className="text-red-500">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
+                      <span className="text-base font-semibold text-red-600">-₹{item.amount.toLocaleString()}</span>
                     </div>
                   ))}
                 </div>
@@ -256,7 +334,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               <Separator />
               <div className="flex justify-between items-center pt-1">
                 <Label className="text-base font-bold">Net Pay</Label>
-                <span className="text-xl font-bold text-green-600">₹{netPay.toLocaleString()}</span>
+                <span className="text-xl font-bold text-green-600">₹{breakdown.netPay.toLocaleString()}</span>
               </div>
             </>
           )}
@@ -274,27 +352,27 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
         <CardContent className="space-y-4">
           {isLoading ? (
             <p className="text-muted-foreground text-sm">Loading...</p>
-          ) : employerContribs.length === 0 ? (
+          ) : breakdown.employerContribs.length === 0 ? (
             <p className="text-muted-foreground text-sm">No employer contributions configured in salary structure.</p>
           ) : (
             <>
-              {employerContribs.map((item: any, idx: number) => (
+              {breakdown.employerContribs.map((item: any, idx: number) => (
                 <div key={idx} className="border-b border-border/50 pb-3">
-                  <Label className="text-[#00bcd4]">{item.name}{item.calcType === 'percentage' ? ` (${item.percentage}%)` : ''}</Label>
-                  <div className="text-xl font-semibold">₹{item.value.toLocaleString()}</div>
+                  <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
+                  <div className="text-xl font-semibold">₹{item.amount.toLocaleString()}</div>
                 </div>
               ))}
               <Separator />
               <div>
                 <Label>Monthly Employer Total</Label>
                 <div className="text-xl font-bold text-blue-600">
-                  ₹{employerContribs.reduce((s: number, i: any) => s + i.value, 0).toLocaleString()}
+                  ₹{breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString()}
                 </div>
               </div>
               <div>
                 <Label>Estimated Annual</Label>
                 <div className="text-lg">
-                  ₹{(employerContribs.reduce((s: number, i: any) => s + i.value, 0) * 12).toLocaleString()}
+                  ₹{(breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0) * 12).toLocaleString()}
                 </div>
               </div>
             </>
@@ -304,7 +382,6 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     </div>
   );
 }
-
 export default function UserProfile() {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();

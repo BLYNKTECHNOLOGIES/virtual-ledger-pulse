@@ -17,6 +17,7 @@ interface TemplateItem {
   value: number;
   percentage_of: "total_salary" | "basic_pay";
   formula: string;
+  is_variable: boolean;
 }
 
 const FORMULA_VARIABLES = [
@@ -103,6 +104,7 @@ export default function SalaryStructureTemplates() {
               value: i.calculation_type === "formula" ? 0 : i.value,
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
               formula: i.calculation_type === "formula" ? i.formula : null,
+              is_variable: i.is_variable,
             })));
           if (itemErr) throw itemErr;
         }
@@ -124,6 +126,7 @@ export default function SalaryStructureTemplates() {
               value: i.calculation_type === "formula" ? 0 : i.value,
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
               formula: i.calculation_type === "formula" ? i.formula : null,
+              is_variable: i.is_variable,
             })));
           if (itemErr) throw itemErr;
         }
@@ -174,12 +177,13 @@ export default function SalaryStructureTemplates() {
       value: Number(i.value),
       percentage_of: i.percentage_of || "total_salary",
       formula: i.formula || "",
+      is_variable: i.is_variable || false,
     })));
     setShowForm(true);
   };
 
   const addItem = () => {
-    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary", formula: "" }]);
+    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary", formula: "", is_variable: false }]);
   };
 
   const updateItem = (idx: number, field: string, val: any) => {
@@ -253,7 +257,10 @@ export default function SalaryStructureTemplates() {
                             {earningItems.length === 0 && <p className="text-xs text-gray-400">None</p>}
                             {earningItems.map((i: any) => (
                               <div key={i.id} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
-                                <span>{i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span></span>
+                                <span>
+                                  {i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span>
+                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
                                     ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
@@ -271,7 +278,10 @@ export default function SalaryStructureTemplates() {
                             {deductionItems.length === 0 && <p className="text-xs text-gray-400">None</p>}
                             {deductionItems.map((i: any) => (
                               <div key={i.id} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
-                                <span>{i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span></span>
+                                <span>
+                                  {i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span>
+                                  {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
+                                </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
                                     ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
@@ -399,10 +409,24 @@ export default function SalaryStructureTemplates() {
                           </>
                         )}
                         <div className={item.calculation_type === "percentage" ? "col-span-1" : "col-span-4"}>
-                          <Button size="sm" variant="ghost" className="text-red-500 mt-4" onClick={() => removeItem(idx)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <div className="flex items-center gap-1 mt-4">
+                            <Button size="sm" variant="ghost" className="text-red-500" onClick={() => removeItem(idx)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          type="checkbox"
+                          checked={item.is_variable}
+                          onChange={(e) => updateItem(idx, "is_variable", e.target.checked)}
+                          id={`variable-${idx}`}
+                          className="rounded border-gray-300"
+                        />
+                        <label htmlFor={`variable-${idx}`} className="text-xs text-amber-700">
+                          Variable / Occasional (e.g. Incentives, Penalty — defaults to ₹0 unless applied)
+                        </label>
                       </div>
                     </div>
                   );

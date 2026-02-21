@@ -4158,6 +4158,7 @@ export type Database = {
           created_at: string
           formula: string | null
           id: string
+          is_variable: boolean
           percentage_of: string | null
           template_id: string
           value: number
@@ -4168,6 +4169,7 @@ export type Database = {
           created_at?: string
           formula?: string | null
           id?: string
+          is_variable?: boolean
           percentage_of?: string | null
           template_id: string
           value?: number
@@ -4178,6 +4180,7 @@ export type Database = {
           created_at?: string
           formula?: string | null
           id?: string
+          is_variable?: boolean
           percentage_of?: string | null
           template_id?: string
           value?: number

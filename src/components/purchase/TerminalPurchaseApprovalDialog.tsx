@@ -359,6 +359,52 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
           })
           .eq('id', result.purchase_order_id);
+
+        // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
+        if (asset !== 'USDT' && marketRateUsdt > 0) {
+          const grossQtyVal = parseFloat(od.amount) || 0;
+          const commissionVal = parseFloat(od.commission) || 0;
+          const netQtyVal = grossQtyVal - commissionVal;
+          const costUsdt = netQtyVal * marketRateUsdt;
+          const walletId = od.wallet_id;
+
+          if (walletId && netQtyVal > 0) {
+            // Upsert into wallet_asset_positions to track WAC
+            const { data: existingPos } = await supabase
+              .from('wallet_asset_positions' as any)
+              .select('id, qty_on_hand, cost_pool_usdt, avg_cost_usdt')
+              .eq('wallet_id', walletId)
+              .eq('asset_code', asset)
+              .maybeSingle();
+
+            const pos = existingPos as any;
+            if (pos) {
+              const newQty = Number(pos.qty_on_hand || 0) + netQtyVal;
+              const newPool = Number(pos.cost_pool_usdt || 0) + costUsdt;
+              const newAvg = newQty > 0 ? newPool / newQty : 0;
+              await supabase
+                .from('wallet_asset_positions' as any)
+                .update({
+                  qty_on_hand: newQty,
+                  cost_pool_usdt: newPool,
+                  avg_cost_usdt: newAvg,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', pos.id);
+            } else {
+              await supabase
+                .from('wallet_asset_positions' as any)
+                .insert({
+                  wallet_id: walletId,
+                  asset_code: asset,
+                  qty_on_hand: netQtyVal,
+                  cost_pool_usdt: costUsdt,
+                  avg_cost_usdt: marketRateUsdt,
+                });
+            }
+            console.log(`✅ WAC position updated: ${asset} +${netQtyVal} @ $${marketRateUsdt} = $${costUsdt.toFixed(4)} COGS`);
+          }
+        }
       }
     },
     onSuccess: () => {

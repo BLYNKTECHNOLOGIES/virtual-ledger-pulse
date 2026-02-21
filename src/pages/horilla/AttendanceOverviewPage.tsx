@@ -9,13 +9,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Plus, Search, Clock, CheckCircle, XCircle, AlertTriangle, Upload } from "lucide-react";
+import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
 
 export default function AttendanceOverviewPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [showUploader, setShowUploader] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     employee_id: "",
@@ -93,9 +95,14 @@ export default function AttendanceOverviewPage() {
           <h1 className="text-2xl font-bold text-gray-900">Attendance Overview</h1>
           <p className="text-sm text-gray-500">Track and manage daily attendance</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Mark Attendance
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowUploader(true)}>
+            <Upload className="h-4 w-4 mr-2" /> Upload Report
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Plus className="h-4 w-4 mr-2" /> Mark Attendance
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -228,6 +235,7 @@ export default function AttendanceOverviewPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <BiometricReportUploader open={showUploader} onOpenChange={setShowUploader} />
     </div>
   );
 }

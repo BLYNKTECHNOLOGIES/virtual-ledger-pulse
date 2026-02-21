@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useSidebarPreferences } from "@/hooks/useSidebarPreferences";
 import { DraggableSidebarItem } from "@/components/DraggableSidebarItem";
 import { CollapsibleSidebarGroup, SidebarGroupConfig, SidebarGroupItem } from "@/components/sidebar/CollapsibleSidebarGroup";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
@@ -273,9 +273,17 @@ export function AppSidebar() {
   }, [isLoading, hasAnyPermission]);
 
   // Apply saved order to entries
-  const orderedEntries = useMemo(() => {
+  const savedOrderedEntries = useMemo(() => {
     return applySidebarOrder(sidebarEntries);
   }, [sidebarEntries, applySidebarOrder]);
+
+  // Local state for immediate drag feedback
+  const [orderedEntries, setOrderedEntries] = useState(savedOrderedEntries);
+
+  // Sync local state when saved order changes (e.g. after DB fetch)
+  useEffect(() => {
+    setOrderedEntries(savedOrderedEntries);
+  }, [savedOrderedEntries]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -286,10 +294,10 @@ export function AppSidebar() {
 
     try {
       const oldIndex = orderedEntries.findIndex(
-        entry => (entry.type === 'item' ? entry.data.id : entry.data.id) === active.id
+        entry => entry.data.id === active.id
       );
       const newIndex = orderedEntries.findIndex(
-        entry => (entry.type === 'item' ? entry.data.id : entry.data.id) === over.id
+        entry => entry.data.id === over.id
       );
       
       if (oldIndex === -1 || newIndex === -1) {
@@ -297,7 +305,8 @@ export function AppSidebar() {
       }
       
       const newOrder = arrayMove(orderedEntries, oldIndex, newIndex);
-      saveSidebarOrder(newOrder);
+      setOrderedEntries(newOrder); // Immediate local update
+      saveSidebarOrder(newOrder);  // Persist in background
     } catch (error) {
       toast({
         title: "Error",

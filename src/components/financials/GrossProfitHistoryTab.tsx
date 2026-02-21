@@ -1,16 +1,18 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, TrendingUp } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { BarChart3, TrendingUp, RefreshCw } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts";
+import { toast } from "sonner";
 
 type ViewMode = "day" | "month";
 
 export function GrossProfitHistoryTab() {
   const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const queryClient = useQueryClient();
 
   const { data: historyData, isLoading } = useQuery({
     queryKey: ["daily_gross_profit_history"],
@@ -25,11 +27,101 @@ export function GrossProfitHistoryTab() {
     },
   });
 
+  // Compute today's profit live from sales/purchase data
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const { data: todayLive } = useQuery({
+    queryKey: ["daily_gross_profit_live", todayStr],
+    queryFn: async () => {
+      // Sales
+      const { data: sales } = await supabase
+        .from("sales_orders")
+        .select("quantity, price_per_unit")
+        .eq("status", "COMPLETED")
+        .eq("order_date", todayStr);
+
+      const totalSalesQty = sales?.reduce((s, o) => s + (Number(o.quantity) || 0), 0) || 0;
+      const totalSalesValue = sales?.reduce((s, o) => s + ((Number(o.quantity) || 0) * (Number(o.price_per_unit) || 0)), 0) || 0;
+      const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
+
+      // Purchases
+      const { data: purchases } = await supabase
+        .from("purchase_orders")
+        .select("id")
+        .eq("status", "COMPLETED")
+        .eq("order_date", todayStr);
+
+      let totalPurchaseValue = 0;
+      let totalPurchaseQty = 0;
+      const poIds = purchases?.map(p => p.id) || [];
+      if (poIds.length > 0) {
+        const { data: items } = await supabase
+          .from("purchase_order_items")
+          .select("quantity, unit_price, products!inner(code)")
+          .in("purchase_order_id", poIds)
+          .eq("products.code", "USDT");
+        for (const item of items || []) {
+          totalPurchaseQty += Number(item.quantity) || 0;
+          totalPurchaseValue += (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
+        }
+      }
+
+      const effectivePurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
+      const npm = avgSalesRate - effectivePurchaseRate;
+      const grossProfit = npm * totalSalesQty;
+
+      return {
+        snapshot_date: todayStr,
+        gross_profit: grossProfit,
+        total_sales_qty: totalSalesQty,
+        avg_sales_rate: avgSalesRate,
+        effective_purchase_rate: effectivePurchaseRate,
+      };
+    },
+    refetchInterval: 60000, // refresh every minute
+  });
+
+  // Merge history + today's live data
+  const mergedData = useMemo(() => {
+    const history = historyData || [];
+    if (!todayLive || todayLive.total_sales_qty === 0) return history;
+    // If today already exists in history, replace it; otherwise append
+    const filtered = history.filter(h => h.snapshot_date !== todayStr);
+    return [...filtered, todayLive];
+  }, [historyData, todayLive, todayStr]);
+
+  // Sync/backfill mutation
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      // Find last snapshot date
+      const lastDate = historyData?.length
+        ? historyData[historyData.length - 1].snapshot_date
+        : format(new Date(Date.now() - 30 * 86400000), "yyyy-MM-dd");
+
+      // Backfill from day after last snapshot to today
+      const nextDay = new Date(lastDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const fromStr = format(nextDay, "yyyy-MM-dd");
+
+      const response = await supabase.functions.invoke('snapshot-daily-profit', {
+        body: { backfill_from: fromStr, backfill_to: todayStr },
+      });
+      if (response.error) throw response.error;
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["daily_gross_profit_history"] });
+      toast.success(`Synced ${data?.backfilled || 0} daily snapshots`);
+    },
+    onError: (err: any) => {
+      toast.error("Sync failed: " + (err?.message || "Unknown error"));
+    },
+  });
+
   const chartData = useMemo(() => {
-    if (!historyData?.length) return [];
+    if (!mergedData?.length) return [];
 
     if (viewMode === "day") {
-      return historyData.map((item) => {
+      return mergedData.map((item) => {
         const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
         return {
           date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
@@ -41,7 +133,7 @@ export function GrossProfitHistoryTab() {
 
     // Month aggregation
     const monthMap = new Map<string, { profit: number; totalNpm: number; days: number }>();
-    for (const item of historyData) {
+    for (const item of mergedData) {
       const monthKey = format(new Date(item.snapshot_date), "yyyy-MM");
       const existing = monthMap.get(monthKey) || { profit: 0, totalNpm: 0, days: 0 };
       const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
@@ -58,17 +150,17 @@ export function GrossProfitHistoryTab() {
       value: v.profit,
       npm: v.days > 0 ? v.totalNpm / v.days : 0,
     }));
-  }, [historyData, viewMode]);
+  }, [mergedData, viewMode]);
 
   const formatCurrency = (value: number) =>
     `₹${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
-  const latestValue = historyData?.length
-    ? Number(historyData[historyData.length - 1].gross_profit)
+  const latestValue = mergedData?.length
+    ? Number(mergedData[mergedData.length - 1].gross_profit)
     : 0;
 
-  const previousValue = historyData && historyData.length >= 2
-    ? Number(historyData[historyData.length - 2].gross_profit)
+  const previousValue = mergedData && mergedData.length >= 2
+    ? Number(mergedData[mergedData.length - 2].gross_profit)
     : 0;
 
   const changePercent = previousValue !== 0
@@ -77,19 +169,48 @@ export function GrossProfitHistoryTab() {
 
   const isPositive = latestValue >= 0;
 
+  const latestDate = mergedData?.length
+    ? format(new Date(mergedData[mergedData.length - 1].snapshot_date), "dd MMM yyyy")
+    : "No data yet";
+
+  // Check if there's a gap
+  const hasGap = useMemo(() => {
+    if (!historyData?.length) return false;
+    const lastSnapshot = historyData[historyData.length - 1].snapshot_date;
+    const yesterday = format(new Date(Date.now() - 86400000), "yyyy-MM-dd");
+    return lastSnapshot < yesterday;
+  }, [historyData]);
+
   return (
     <div className="space-y-6">
+      {/* Sync bar if gap detected */}
+      {hasGap && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-3 flex items-center justify-between">
+            <span className="text-sm text-amber-700">
+              Missing snapshots detected. Click sync to backfill missing dates.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+              {syncMutation.isPending ? "Syncing..." : "Sync Now"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className={`${isPositive ? 'bg-gradient-to-br from-emerald-600 to-green-700' : 'bg-gradient-to-br from-red-600 to-rose-700'} text-white border-0`}>
           <CardContent className="p-6">
             <p className="text-white/80 text-sm font-medium">Latest Day's Gross Profit</p>
             <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-white/80">
-              {historyData?.length
-                ? format(new Date(historyData[historyData.length - 1].snapshot_date), "dd MMM yyyy")
-                : "No data yet"}
-            </p>
+            <p className="text-sm mt-1 text-white/80">{latestDate}</p>
           </CardContent>
         </Card>
 
@@ -106,7 +227,7 @@ export function GrossProfitHistoryTab() {
         <Card className="bg-gradient-to-br from-slate-600 to-gray-700 text-white border-0">
           <CardContent className="p-6">
             <p className="text-slate-200 text-sm font-medium">Total Snapshots</p>
-            <p className="text-2xl font-bold mt-2">{historyData?.length || 0}</p>
+            <p className="text-2xl font-bold mt-2">{mergedData?.length || 0}</p>
             <p className="text-sm mt-1 text-slate-200">Daily records</p>
           </CardContent>
         </Card>

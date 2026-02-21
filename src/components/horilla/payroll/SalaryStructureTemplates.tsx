@@ -13,10 +13,18 @@ import { Plus, Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 interface TemplateItem {
   id?: string;
   component_id: string;
-  calculation_type: "fixed" | "percentage";
+  calculation_type: "fixed" | "percentage" | "formula";
   value: number;
   percentage_of: "total_salary" | "basic_pay";
+  formula: string;
 }
+
+const FORMULA_VARIABLES = [
+  { label: "Total Salary", value: "total_salary" },
+  { label: "Basic Pay", value: "basic_pay" },
+  { label: "Total Deductions", value: "total_deductions" },
+  { label: "Total Allowances", value: "total_allowances" },
+];
 
 export default function SalaryStructureTemplates() {
   const qc = useQueryClient();
@@ -89,8 +97,9 @@ export default function SalaryStructureTemplates() {
               template_id: editId,
               component_id: i.component_id,
               calculation_type: i.calculation_type,
-              value: i.value,
+              value: i.calculation_type === "formula" ? 0 : i.value,
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
+              formula: i.calculation_type === "formula" ? i.formula : null,
             })));
           if (itemErr) throw itemErr;
         }
@@ -109,8 +118,9 @@ export default function SalaryStructureTemplates() {
               template_id: tmpl.id,
               component_id: i.component_id,
               calculation_type: i.calculation_type,
-              value: i.value,
+              value: i.calculation_type === "formula" ? 0 : i.value,
               percentage_of: i.calculation_type === "percentage" ? i.percentage_of : null,
+              formula: i.calculation_type === "formula" ? i.formula : null,
             })));
           if (itemErr) throw itemErr;
         }
@@ -160,12 +170,13 @@ export default function SalaryStructureTemplates() {
       calculation_type: i.calculation_type,
       value: Number(i.value),
       percentage_of: i.percentage_of || "total_salary",
+      formula: i.formula || "",
     })));
     setShowForm(true);
   };
 
   const addItem = () => {
-    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary" }]);
+    setItems([...items, { component_id: "", calculation_type: "percentage", value: 0, percentage_of: "total_salary", formula: "" }]);
   };
 
   const updateItem = (idx: number, field: string, val: any) => {
@@ -241,7 +252,9 @@ export default function SalaryStructureTemplates() {
                               <div key={i.id} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
                                 <span>{i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span></span>
                                 <span className="font-medium">
-                                  {i.calculation_type === "percentage"
+                                  {i.calculation_type === "formula"
+                                    ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
+                                    : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
                                     : `₹${Number(i.value).toLocaleString()} (Fixed)`}
                                 </span>
@@ -257,7 +270,9 @@ export default function SalaryStructureTemplates() {
                               <div key={i.id} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
                                 <span>{i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span></span>
                                 <span className="font-medium">
-                                  {i.calculation_type === "percentage"
+                                  {i.calculation_type === "formula"
+                                    ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
+                                    : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
                                     : `₹${Number(i.value).toLocaleString()} (Fixed)`}
                                 </span>
@@ -342,24 +357,42 @@ export default function SalaryStructureTemplates() {
                             <SelectContent>
                               <SelectItem value="percentage">Percentage</SelectItem>
                               <SelectItem value="fixed">Fixed Amount</SelectItem>
+                              <SelectItem value="formula">Formula</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="col-span-2">
-                          <Label className="text-xs">{item.calculation_type === "percentage" ? "%" : "₹ Amount"}</Label>
-                          <Input type="number" className="bg-white" value={item.value} onChange={(e) => updateItem(idx, "value", parseFloat(e.target.value) || 0)} />
-                        </div>
-                        {item.calculation_type === "percentage" && (
-                          <div className="col-span-3">
-                            <Label className="text-xs">% Of</Label>
-                            <Select value={item.percentage_of} onValueChange={(v) => updateItem(idx, "percentage_of", v)}>
-                              <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="total_salary">Total Salary</SelectItem>
-                                <SelectItem value="basic_pay">Basic Pay</SelectItem>
-                              </SelectContent>
-                            </Select>
+                        {item.calculation_type === "formula" ? (
+                          <div className="col-span-5">
+                            <Label className="text-xs">Formula</Label>
+                            <Input 
+                              className="bg-white font-mono text-xs" 
+                              value={item.formula} 
+                              onChange={(e) => updateItem(idx, "formula", e.target.value)} 
+                              placeholder="e.g. total_salary - total_deductions" 
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}. Operators: + - * /
+                            </p>
                           </div>
+                        ) : (
+                          <>
+                            <div className="col-span-2">
+                              <Label className="text-xs">{item.calculation_type === "percentage" ? "%" : "₹ Amount"}</Label>
+                              <Input type="number" className="bg-white" value={item.value} onChange={(e) => updateItem(idx, "value", parseFloat(e.target.value) || 0)} />
+                            </div>
+                            {item.calculation_type === "percentage" && (
+                              <div className="col-span-3">
+                                <Label className="text-xs">% Of</Label>
+                                <Select value={item.percentage_of} onValueChange={(v) => updateItem(idx, "percentage_of", v)}>
+                                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="total_salary">Total Salary</SelectItem>
+                                    <SelectItem value="basic_pay">Basic Pay</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </>
                         )}
                         <div className={item.calculation_type === "percentage" ? "col-span-1" : "col-span-4"}>
                           <Button size="sm" variant="ghost" className="text-red-500 mt-4" onClick={() => removeItem(idx)}>

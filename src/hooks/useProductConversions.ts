@@ -74,12 +74,19 @@ export function useCreateConversion() {
       const userId = getCurrentUserId();
       if (!userId) throw new Error("User session not found");
 
+      // Extract top-level columns from metadata
+      const meta = draft.metadata || {};
       const { data, error } = await supabase
         .from('erp_product_conversions' as any)
         .insert({
           ...draft,
           created_by: userId,
           status: 'PENDING_APPROVAL',
+          execution_rate_usdt: meta.execution_rate_usdt ?? draft.price_usd,
+          market_rate_snapshot: meta.market_rate_snapshot ?? null,
+          local_price: meta.local_price ?? null,
+          fx_rate_to_usdt: meta.fx_rate_to_usdt ?? null,
+          local_currency: meta.local_currency ?? 'INR',
         })
         .select('id, reference_no')
         .single();

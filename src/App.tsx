@@ -79,21 +79,11 @@ import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
 import HorillaDashboard from './pages/horilla/HorillaDashboard';
-import OnboardingStagesPage from './pages/horilla/OnboardingStagesPage';
 import HelpdeskFaqPage from './pages/horilla/HelpdeskFaqPage';
 import EmployeeListPage from './pages/horilla/EmployeeListPage';
 import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
 import DepartmentsPage from './pages/horilla/DepartmentsPage';
 import PositionsPage from './pages/horilla/PositionsPage';
-import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
-import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
-import CandidatesListPage from './pages/horilla/CandidatesListPage';
-import CandidateProfilePage from './pages/horilla/CandidateProfilePage';
-import InterviewListPage from './pages/horilla/InterviewListPage';
-import StagesPage from './pages/horilla/StagesPage';
-import SkillZonePage from './pages/horilla/SkillZonePage';
-import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
-import OnboardingPage from './pages/horilla/OnboardingPage';
 import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
 import ShiftsPage from './pages/horilla/ShiftsPage';
 import OvertimePage from './pages/horilla/OvertimePage';
@@ -818,17 +808,6 @@ const router = createBrowserRouter([
         { path: "employee/departments", element: <DepartmentsPage /> },
         { path: "employee/positions", element: <PositionsPage /> },
         { path: "employee/:id", element: <EmployeeProfilePage /> },
-        { path: "recruitment", element: <RecruitmentDashboardPage /> },
-        { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
-        { path: "recruitment/candidates", element: <CandidatesListPage /> },
-        { path: "recruitment/candidates/:id", element: <CandidateProfilePage /> },
-        { path: "recruitment/positions", element: <PositionsPage /> },
-        { path: "recruitment/interview", element: <InterviewListPage /> },
-        { path: "recruitment/stages", element: <StagesPage /> },
-        { path: "recruitment/skill-zone", element: <SkillZonePage /> },
-        { path: "recruitment/survey", element: <RecruitmentSurveyPage /> },
-        { path: "onboarding", element: <OnboardingPage /> },
-        { path: "onboarding/stages", element: <OnboardingStagesPage /> },
         { path: "attendance", element: <AttendanceOverviewPage /> },
         { path: "attendance/biometric-devices", element: <BiometricDevicesPage /> },
         { path: "attendance/calendar", element: <AttendanceCalendarPage /> },

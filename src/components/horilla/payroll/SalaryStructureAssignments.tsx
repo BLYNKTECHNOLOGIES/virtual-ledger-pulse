@@ -102,6 +102,9 @@ export default function SalaryStructureAssignments() {
     } catch { return 0; }
   };
 
+  // Convert component name to snake_case variable: "EPF Employee" → "epf_employee"
+  const toSnakeCase = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
   // Build a vars map that includes component codes from the template
   const buildVarsMap = (
     items: any[],
@@ -124,8 +127,11 @@ export default function SalaryStructureAssignments() {
       } else {
         amount = Number(i.value) || 0;
       }
+      // Add both code (lowercase) and name (snake_case) as variables
       const code = comp.code?.toLowerCase();
       if (code) codeAmounts[code] = amount;
+      const snakeName = toSnakeCase(comp.name || '');
+      if (snakeName && snakeName !== code) codeAmounts[snakeName] = amount;
       if (comp.component_type === "deduction") tempDeductions += amount;
       else tempAllowances += amount;
     });
@@ -147,12 +153,14 @@ export default function SalaryStructureAssignments() {
       const code = comp.code?.toLowerCase();
       if (code) {
         baseVars[code] = amount;
-        // Update totals
-        if (comp.component_type === "deduction") {
-          baseVars.total_deductions += amount;
-        } else {
-          baseVars.total_allowances += amount;
-        }
+      }
+      const snakeName = toSnakeCase(comp.name || '');
+      if (snakeName && snakeName !== code) baseVars[snakeName] = amount;
+      // Update totals
+      if (comp.component_type === "deduction") {
+        baseVars.total_deductions += amount;
+      } else {
+        baseVars.total_allowances += amount;
       }
     });
 

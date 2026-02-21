@@ -374,7 +374,7 @@ export default function SalaryStructureTemplates() {
                               placeholder="e.g. total_salary - total_deductions" 
                             />
                             <p className="text-[10px] text-gray-400 mt-1">
-                              Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}, + any component code (lowercase).
+                              Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}, + component name as snake_case (e.g. epf_employee, esi_employee, hra).
                               Operators: + - * /
                             </p>
                           </div>

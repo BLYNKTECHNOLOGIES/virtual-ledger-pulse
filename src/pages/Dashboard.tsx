@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical } from "lucide-react";
+import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { MetricCard } from "@/components/dashboard/MetricCard";
@@ -34,7 +35,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
   const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isRearrangeMode, setIsRearrangeMode] = useState(false);
+  const { isDashboardRearrangeMode: isRearrangeMode, setIsDashboardRearrangeMode: setIsRearrangeMode } = useSidebarEdit();
   const { toast } = useToast();
 
   // Default widgets with better selection
@@ -430,18 +431,7 @@ export default function Dashboard() {
                   <Settings className="h-4 w-4 mr-1 md:mr-2" />
                   <span className="whitespace-nowrap">{isEditMode ? 'Exit' : 'Edit'}</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsRearrangeMode(!isRearrangeMode)}
-                  className={`flex-shrink-0 ${isRearrangeMode ? 
-                    "bg-blue-50 border border-blue-300 text-blue-700 hover:bg-blue-100 shadow-sm" : 
-                    "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
-                  }`}
-                >
-                  <GripVertical className="h-4 w-4 mr-1 md:mr-2" />
-                  <span className="whitespace-nowrap">{isRearrangeMode ? 'Done' : 'Rearrange'}</span>
-                </Button>
+                
                 <AddWidgetDialog 
                   onAddWidget={handleAddWidget}
                   existingWidgets={dashboardWidgets.map(w => w.id)}

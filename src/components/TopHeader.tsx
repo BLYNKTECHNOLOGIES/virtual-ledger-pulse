@@ -1,7 +1,7 @@
-import { Settings, RotateCcw, Globe, Edit3, X, Search } from "lucide-react";
+import { Settings, RotateCcw, Globe, Edit3, X, Search, GripVertical, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { UserMenu } from "@/components/UserMenu";
 import { useState } from "react";
 import {
@@ -19,7 +19,8 @@ import { NotificationDropdown } from "@/components/NotificationDropdown";
 export function TopHeader() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isDragMode, setIsDragMode } = useSidebarEdit();
+  const { isDragMode, setIsDragMode, isDashboardRearrangeMode, setIsDashboardRearrangeMode } = useSidebarEdit();
+  const location = useLocation();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -50,6 +51,24 @@ export function TopHeader() {
     setIsDragMode(!isDragMode);
   };
 
+  const toggleDashboardRearrange = () => {
+    if (isDashboardRearrangeMode) {
+      toast({
+        title: "Rearrange Mode Disabled",
+        description: "Dashboard widget order has been saved.",
+      });
+    } else {
+      if (location.pathname !== '/dashboard') {
+        navigate('/dashboard');
+      }
+      toast({
+        title: "Rearrange Mode Enabled",
+        description: "Drag dashboard widgets to reorder them.",
+      });
+    }
+    setIsDashboardRearrangeMode(!isDashboardRearrangeMode);
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -77,6 +96,12 @@ export function TopHeader() {
           <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <Edit3 className="h-4 w-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-700">Sidebar Edit Mode Active</span>
+          </div>
+        )}
+        {isDashboardRearrangeMode && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <GripVertical className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">Dashboard Rearrange Active</span>
           </div>
         )}
       </div>
@@ -125,6 +150,20 @@ export function TopHeader() {
                   <>
                     <Edit3 className="mr-2 h-4 w-4" />
                     Edit Sidebar
+                  </>
+                )}
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={toggleDashboardRearrange} className="cursor-pointer">
+                {isDashboardRearrangeMode ? (
+                  <>
+                    <X className="mr-2 h-4 w-4" />
+                    Exit Dashboard Rearrange
+                  </>
+                ) : (
+                  <>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Rearrange Dashboard
                   </>
                 )}
               </DropdownMenuItem>

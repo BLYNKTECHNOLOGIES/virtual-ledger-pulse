@@ -90,6 +90,7 @@ export default function SalaryStructureAssignments() {
   const evalFormula = (formula: string, vars: Record<string, number>): number => {
     try {
       let expr = formula.trim();
+      // Replace variables longest-first to avoid partial matches
       Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
         expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
       });
@@ -101,14 +102,61 @@ export default function SalaryStructureAssignments() {
     } catch { return 0; }
   };
 
-  const calcItemAmount = (item: any, totalSalary: number, basicPay: number, totalDeductions: number, totalAllowances: number): number => {
-    if (item.calculation_type === "percentage") {
-      const base = item.percentage_of === "basic_pay" ? basicPay : totalSalary;
-      return (Number(item.value) / 100) * base;
-    } else if (item.calculation_type === "formula" && item.formula) {
-      return evalFormula(item.formula, { total_salary: totalSalary, basic_pay: basicPay, total_deductions: totalDeductions, total_allowances: totalAllowances });
-    }
-    return Number(item.value) || 0;
+  // Build a vars map that includes component codes from the template
+  const buildVarsMap = (
+    items: any[],
+    totalSalary: number,
+    basicPay: number,
+    excludeIndex?: number
+  ): Record<string, number> => {
+    // First compute all non-formula items to get their amounts by code
+    const codeAmounts: Record<string, number> = {};
+    let tempDeductions = 0;
+    let tempAllowances = 0;
+
+    items.forEach((i: any, idx: number) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type === "formula") return;
+      let amount = 0;
+      if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
+      const code = comp.code?.toLowerCase();
+      if (code) codeAmounts[code] = amount;
+      if (comp.component_type === "deduction") tempDeductions += amount;
+      else tempAllowances += amount;
+    });
+
+    const baseVars: Record<string, number> = {
+      total_salary: totalSalary,
+      basic_pay: basicPay,
+      total_deductions: tempDeductions,
+      total_allowances: tempAllowances,
+      ...codeAmounts,
+    };
+
+    // Now resolve formula items iteratively (non-circular)
+    items.forEach((i: any, idx: number) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type !== "formula" || !i.formula) return;
+      if (idx === excludeIndex) return; // skip self to avoid circular
+      const amount = evalFormula(i.formula, baseVars);
+      const code = comp.code?.toLowerCase();
+      if (code) {
+        baseVars[code] = amount;
+        // Update totals
+        if (comp.component_type === "deduction") {
+          baseVars.total_deductions += amount;
+        } else {
+          baseVars.total_allowances += amount;
+        }
+      }
+    });
+
+    return baseVars;
   };
 
   const computeBreakdown = (emp: any) => {
@@ -117,7 +165,7 @@ export default function SalaryStructureAssignments() {
     const items = (templateItemsMap as any)[tmplId] || [];
     const totalSalary = Number(emp.total_salary) || 0;
 
-    // First pass: compute basic_pay
+    // Compute basic_pay
     let basicPay = Number(emp.basic_salary) || 0;
     const basicItem = items.find((i: any) => i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic"));
     if (basicItem) {
@@ -128,25 +176,23 @@ export default function SalaryStructureAssignments() {
       }
     }
 
-    // Second pass: compute all percentage/fixed items to get totals for formulas
-    let tempDeductions = 0;
-    let tempAllowances = 0;
-    items.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp || i.calculation_type === "formula") return;
-      let amount = calcItemAmount(i, totalSalary, basicPay, 0, 0);
-      if (comp.component_type === "deduction") tempDeductions += amount;
-      else tempAllowances += amount;
-    });
+    const vars = buildVarsMap(items, totalSalary, basicPay);
 
-    // Third pass: compute formula items with actual totals
     const earnings: { name: string; code: string; amount: number }[] = [];
     const deductionsList: { name: string; code: string; amount: number }[] = [];
 
     items.forEach((i: any) => {
       const comp = i.hr_salary_components;
       if (!comp) return;
-      let amount = calcItemAmount(i, totalSalary, basicPay, tempDeductions, tempAllowances);
+      let amount: number;
+      if (i.calculation_type === "formula" && i.formula) {
+        amount = evalFormula(i.formula, vars);
+      } else if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
       const entry = { name: comp.name, code: comp.code, amount: Math.round(amount) };
       if (comp.component_type === "allowance") {
         earnings.push(entry);
@@ -158,7 +204,12 @@ export default function SalaryStructureAssignments() {
     const totalEarnings = earnings.reduce((s, e) => s + e.amount, 0);
     const totalDeductions = deductionsList.reduce((s, d) => s + d.amount, 0);
 
-    return { earnings, deductions: deductionsList, totalEarnings, totalDeductions, net: totalEarnings - totalDeductions };
+    // Net = Earnings - Employee deductions only (exclude employer contributions)
+    const employeeDeductions = deductionsList
+      .filter(d => !d.code?.toLowerCase().includes("employer"))
+      .reduce((s, d) => s + d.amount, 0);
+
+    return { earnings, deductions: deductionsList, totalEarnings, totalDeductions, net: totalEarnings - employeeDeductions };
   };
 
   const filtered = employees.filter((e: any) => {
@@ -296,15 +347,7 @@ export default function SalaryStructureAssignments() {
                 basicPay = basicItem.calculation_type === "percentage" ? (Number(basicItem.value) / 100) * totalSalary : Number(basicItem.value);
               }
 
-              // Pre-compute totals for formula items
-              let tempDed = 0, tempAllow = 0;
-              items.forEach((i: any) => {
-                const comp = i.hr_salary_components;
-                if (!comp || i.calculation_type === "formula") return;
-                const amt = calcItemAmount(i, totalSalary, basicPay, 0, 0);
-                if (comp.component_type === "deduction") tempDed += amt;
-                else tempAllow += amt;
-              });
+              const vars = buildVarsMap(items, totalSalary, basicPay);
 
               return (
                 <div className="border rounded-lg p-3 bg-gray-50">
@@ -313,7 +356,15 @@ export default function SalaryStructureAssignments() {
                     {items.map((i: any, idx: number) => {
                       const comp = i.hr_salary_components;
                       if (!comp) return null;
-                      const amount = Math.round(calcItemAmount(i, totalSalary, basicPay, tempDed, tempAllow));
+                      let amount: number;
+                      if (i.calculation_type === "formula" && i.formula) {
+                        amount = Math.round(evalFormula(i.formula, vars));
+                      } else if (i.calculation_type === "percentage") {
+                        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+                        amount = Math.round((Number(i.value) / 100) * base);
+                      } else {
+                        amount = Math.round(Number(i.value) || 0);
+                      }
                       const typeLabel = i.calculation_type === "percentage" ? `${Number(i.value)}%` : i.calculation_type === "formula" ? "Formula" : "Fixed";
                       return (
                         <div key={idx} className={`flex justify-between px-2 py-1 rounded ${comp.component_type === "deduction" ? "text-red-700" : "text-green-700"}`}>

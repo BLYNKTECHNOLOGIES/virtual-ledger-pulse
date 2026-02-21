@@ -1,0 +1,2 @@
+ALTER TABLE hr_salary_structure_template_items DROP CONSTRAINT IF EXISTS hr_salary_structure_template_items_calculation_type_check;
+ALTER TABLE hr_salary_structure_template_items ADD CONSTRAINT hr_salary_structure_template_items_calculation_type_check CHECK (calculation_type IN ('fixed', 'percentage', 'formula'));

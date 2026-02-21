@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical } from "lucide-react";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy, rectSortingStrategy } from "@dnd-kit/sortable";
+import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
@@ -39,13 +39,40 @@ export default function Dashboard() {
   const { isDashboardRearrangeMode: isRearrangeMode, setIsDashboardRearrangeMode: setIsRearrangeMode } = useSidebarEdit();
   const { toast } = useToast();
 
-  // Default section order
-  const defaultSectionOrder = ['metrics', 'action-required', 'quick-links', 'main-content', 'stock-inventory', 'dynamic-widgets'];
+  // Flat item order for free-form dashboard rearrangement
+  const defaultItemOrder = [
+    'metric-total-sales', 'metric-sales-orders', 'metric-total-clients', 'metric-total-cash',
+    'action-required', 'quick-links',
+    'heatmap', 'recent-activity',
+    'stock-inventory',
+  ];
   
-  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('dashboardSectionOrder');
-    return saved ? JSON.parse(saved) : defaultSectionOrder;
+  const [itemOrder, setItemOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('dashboardItemOrder');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Merge any new default items not in saved order
+      const merged = [...parsed];
+      defaultItemOrder.forEach(id => {
+        if (!merged.includes(id)) merged.push(id);
+      });
+      return merged;
+    }
+    return defaultItemOrder;
   });
+
+  // Item size config: how many columns each item spans in a 12-col grid
+  const itemSpanConfig: Record<string, number> = {
+    'metric-total-sales': 3,
+    'metric-sales-orders': 3,
+    'metric-total-clients': 3,
+    'metric-total-cash': 3,
+    'action-required': 12,
+    'quick-links': 12,
+    'heatmap': 8,
+    'recent-activity': 4,
+    'stock-inventory': 12,
+  };
 
   // Default widgets with better selection
   const defaultWidgets = [
@@ -77,10 +104,10 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Save section order
+  // Save item order
   useEffect(() => {
-    localStorage.setItem('dashboardSectionOrder', JSON.stringify(sectionOrder));
-  }, [sectionOrder]);
+    localStorage.setItem('dashboardItemOrder', JSON.stringify(itemOrder));
+  }, [itemOrder]);
 
   // Save dashboard layout
   useEffect(() => {
@@ -339,7 +366,9 @@ export default function Dashboard() {
 
   const handleResetDashboard = () => {
     setDashboardWidgets(defaultWidgets);
+    setItemOrder(defaultItemOrder);
     localStorage.removeItem('dashboardWidgets');
+    localStorage.removeItem('dashboardItemOrder');
     toast({
       title: "Dashboard Reset",
       description: "Dashboard has been reset to default layout.",
@@ -351,11 +380,11 @@ export default function Dashboard() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  // Unified drag handler for sections
-  const handleSectionDragEnd = (event: DragEndEvent) => {
+  // Unified drag handler for all items
+  const handleItemDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
-      setSectionOrder(prev => {
+      setItemOrder(prev => {
         const oldIndex = prev.indexOf(active.id as string);
         const newIndex = prev.indexOf(over.id as string);
         if (oldIndex === -1 || newIndex === -1) return prev;
@@ -364,7 +393,7 @@ export default function Dashboard() {
     }
   };
 
-  // Widget-only drag handler
+  // Widget-only drag handler (for dynamic widgets within their group)
   const handleWidgetDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -480,314 +509,356 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
-        <SortableContext items={sectionOrder} strategy={verticalListSortingStrategy}>
-          <div className={`space-y-4 md:space-y-8 ${isRearrangeMode ? 'pl-4' : ''}`}>
-            {/* Edit Mode Banner */}
-            {isEditMode && (
-              <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-4 md:p-6 shadow-md">
-                <div className="flex items-start md:items-center gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                    <Settings className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base md:text-lg font-bold">🎨 Edit Mode Active</h3>
-                    <p className="text-amber-700 mt-1 text-sm md:text-base">
-                      Customize your dashboard by moving or removing widgets.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Edit Mode Banner */}
+      {isEditMode && (
+        <div className="bg-amber-50 border-2 border-amber-300 text-amber-800 rounded-xl p-4 md:p-6 shadow-md mb-4">
+          <div className="flex items-start md:items-center gap-3 md:gap-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+              <Settings className="h-5 w-5 md:h-6 md:w-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base md:text-lg font-bold">🎨 Edit Mode Active</h3>
+              <p className="text-amber-700 mt-1 text-sm md:text-base">
+                Customize your dashboard by moving or removing widgets.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Rearrange Mode Banner */}
-            {isRearrangeMode && (
-              <div className="bg-blue-50 border-2 border-blue-300 text-blue-800 rounded-xl p-4 md:p-6 shadow-md">
-                <div className="flex items-start md:items-center gap-3 md:gap-4">
-                  <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                    <GripVertical className="h-5 w-5 md:h-6 md:w-6 text-white" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base md:text-lg font-bold">🔀 Rearrange Mode Active</h3>
-                    <p className="text-blue-700 mt-1 text-sm md:text-base">
-                      Drag the blue handles on the left to reorder entire dashboard sections freely.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Rearrange Mode Banner */}
+      {isRearrangeMode && (
+        <div className="bg-blue-50 border-2 border-blue-300 text-blue-800 rounded-xl p-4 md:p-6 shadow-md mb-4">
+          <div className="flex items-start md:items-center gap-3 md:gap-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+              <GripVertical className="h-5 w-5 md:h-6 md:w-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base md:text-lg font-bold">🔀 Rearrange Mode Active</h3>
+              <p className="text-blue-700 mt-1 text-sm md:text-base">
+                Drag the blue handles to freely reorder any widget anywhere on the dashboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* Render sections in user-defined order */}
-            {sectionOrder.map(sectionId => {
-              switch (sectionId) {
-                case 'metrics':
-                  return (
-                    <DraggableDashboardSection key="metrics" id="metrics" isDraggable={isRearrangeMode} label="Metrics Cards">
-                      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                        <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-                          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <CardContent className="p-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                                    ₹{(metrics?.totalSales || 0).toLocaleString()}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
-                                  </div>
-                                </div>
-                                <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                                  <DollarSign className="h-8 w-8 text-metric-sales-icon" />
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </ClickableCard>
+      {/* All items in a single flat DnD context */}
+      {(() => {
+        // Compute full item list including dynamic widgets
+        const allDraggableIds = [
+          ...itemOrder,
+          ...dashboardWidgets.map(w => `widget-${w.id}`).filter(id => !itemOrder.includes(id)),
+        ];
 
-                        <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-                          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <CardContent className="p-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
-                                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <ArrowUpIcon className="h-4 w-4 text-purple-500" />
-                                    <span className="text-sm font-medium text-slate-500">Selected Period</span>
-                                  </div>
-                                </div>
-                                <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                                  <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </ClickableCard>
+        // Add dynamic widget IDs to itemOrder if not present
+        const fullOrder = [...itemOrder];
+        dashboardWidgets.forEach(w => {
+          const wId = `widget-${w.id}`;
+          if (!fullOrder.includes(wId)) fullOrder.push(wId);
+        });
 
-                        <ClickableCard to="/clients">
-                          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <CardContent className="p-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-slate-600 text-sm font-medium">Total Clients</p>
-                                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                                    {metrics?.totalClients || 0}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <ArrowUpIcon className="h-4 w-4 text-blue-500" />
-                                    <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
-                                  </div>
-                                </div>
-                                <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-                                  <Users className="h-8 w-8 text-metric-clients-icon" />
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </ClickableCard>
+        const renderItem = (itemId: string) => {
+          // Get column span for CSS grid
+          const span = itemSpanConfig[itemId] || 12;
+          const colClass = span === 3 ? 'col-span-6 lg:col-span-3' : span === 4 ? 'col-span-12 lg:col-span-4' : span === 8 ? 'col-span-12 lg:col-span-8' : 'col-span-12';
 
-                        <ClickableCard to="/bams">
-                          <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                            <CardContent className="p-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0 relative z-10">
-                                  <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                                  <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
-                                    ₹{(metrics?.totalCash || 0).toLocaleString()}
-                                  </div>
-                                  <div className="flex items-center gap-1 mt-2">
-                                    <ArrowUpIcon className="h-4 w-4 text-amber-500" />
-                                    <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
-                                  </div>
-                                </div>
-                                <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
-                                  <Wallet className="h-8 w-8 text-metric-cash-icon" />
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </ClickableCard>
-                      </div>
-                    </DraggableDashboardSection>
-                  );
-
-                case 'action-required':
-                  return (
-                    <DraggableDashboardSection key="action-required" id="action-required" isDraggable={isRearrangeMode} label="Action Required">
-                      <ActionRequiredWidget />
-                    </DraggableDashboardSection>
-                  );
-
-                case 'quick-links':
-                  return (
-                    <DraggableDashboardSection key="quick-links" id="quick-links" isDraggable={isRearrangeMode} label="Quick Links">
-                      <QuickLinksWidget onRemove={handleRemoveWidget} />
-                    </DraggableDashboardSection>
-                  );
-
-                case 'main-content':
-                  return (
-                    <DraggableDashboardSection key="main-content" id="main-content" isDraggable={isRearrangeMode} label="Analytics & Activity">
-                      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                        <div className="xl:col-span-2 space-y-6">
-                          <InteractiveHeatmap selectedPeriod={datePreset} />
+          switch (itemId) {
+            case 'metric-total-sales':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Sales">
+                  <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
+                    <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-slate-600 text-sm font-medium">Total Sales</p>
+                            <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                              ₹{(metrics?.totalSales || 0).toLocaleString()}
+                            </div>
+                            <div className="flex items-center gap-1 mt-2">
+                              <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                              <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                            </div>
+                          </div>
+                          <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                            <DollarSign className="h-8 w-8 text-metric-sales-icon" />
+                          </div>
                         </div>
-                        <Card className="bg-card border-2 border-border shadow-xl">
-                          <CardHeader className="bg-teal-600 text-white rounded-t-lg">
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                              <div className="p-2 bg-teal-700 rounded-lg shadow-md">
-                                <Activity className="h-5 w-5" />
-                              </div>
-                              Recent Activity
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-6 space-y-4 overflow-y-auto">
-                            {recentActivity?.slice(0, 8).map((activity) => (
-                              <div key={activity.id} className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200">
-                                <div className="flex items-center gap-3">
-                                  <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-emerald-100' : 'bg-muted'}`}>
-                                    {activity.type === 'sale' ? (
-                                      <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
-                                    ) : (
-                                      <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-sm text-foreground">{activity.title}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="text-right">
-                                  <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                                    {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">{activity.reference}</p>
-                                </div>
-                              </div>
-                            ))}
-                            {(!recentActivity || recentActivity.length === 0) && (
-                              <div className="text-center py-12 text-muted-foreground">
-                                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                  <Activity className="h-8 w-8 opacity-50" />
-                                </div>
-                                <p className="font-medium">No activity in selected period</p>
-                                <p className="text-sm">Activity will appear here for the selected period</p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </DraggableDashboardSection>
-                  );
+                      </CardContent>
+                    </Card>
+                  </ClickableCard>
+                </DraggableDashboardSection>
+              );
 
-                case 'stock-inventory':
-                  return (
-                    <DraggableDashboardSection key="stock-inventory" id="stock-inventory" isDraggable={isRearrangeMode} label="Asset Inventory">
-                      <ClickableCard to="/stock-management" searchParams={{ tab: 'quickview' }}>
-                        <Card className="bg-card border-2 border-border shadow-xl">
-                          <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
-                            <CardTitle className="flex items-center gap-3 text-xl">
-                              <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
-                                <Package className="h-6 w-6" />
-                              </div>
-                              Asset Inventory
-                              <span className="ml-auto text-sm opacity-75">Click to view details →</span>
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                              {warehouseStock?.map((asset, index) => (
-                                <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
-                                  <CardHeader className="bg-secondary border-b">
-                                    <div className="flex items-center justify-between">
-                                      <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Package className="h-5 w-5 text-muted-foreground" />
-                                        {asset.name} ({asset.code})
-                                      </CardTitle>
-                                      <Badge className="bg-muted text-foreground">
-                                        {asset.total_stock} {asset.unit}
-                                      </Badge>
-                                    </div>
-                                  </CardHeader>
-                                  <CardContent className="p-6">
-                                    <div className="space-y-4">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
-                                        <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
-                                      </div>
-                                      {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
-                                        <div className="space-y-2">
-                                          <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
-                                          {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
-                                            <div key={idx} className="flex items-center justify-between text-sm">
-                                              <span className="text-muted-foreground">{dist.name}</span>
-                                              <div className="flex items-center gap-2">
-                                                <span className="font-medium">{dist.quantity.toLocaleString()}</span>
-                                                <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
-                                              </div>
-                                            </div>
-                                          ))}
-                                          {asset.wallet_distribution.length > 3 && (
-                                            <div className="text-xs text-muted-foreground text-center">
-                                              +{asset.wallet_distribution.length - 3} more wallets
-                                            </div>
-                                          )}
+            case 'metric-sales-orders':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Sales Orders">
+                  <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
+                    <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
+                            <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
+                            <div className="flex items-center gap-1 mt-2">
+                              <ArrowUpIcon className="h-4 w-4 text-purple-500" />
+                              <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                            </div>
+                          </div>
+                          <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                            <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </ClickableCard>
+                </DraggableDashboardSection>
+              );
+
+            case 'metric-total-clients':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Clients">
+                  <ClickableCard to="/clients">
+                    <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-slate-600 text-sm font-medium">Total Clients</p>
+                            <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                              {metrics?.totalClients || 0}
+                            </div>
+                            <div className="flex items-center gap-1 mt-2">
+                              <ArrowUpIcon className="h-4 w-4 text-blue-500" />
+                              <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
+                            </div>
+                          </div>
+                          <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                            <Users className="h-8 w-8 text-metric-clients-icon" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </ClickableCard>
+                </DraggableDashboardSection>
+              );
+
+            case 'metric-total-cash':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Cash">
+                  <ClickableCard to="/bams">
+                    <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0 relative z-10">
+                            <p className="text-slate-600 text-sm font-medium">Total Cash</p>
+                            <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">
+                              ₹{(metrics?.totalCash || 0).toLocaleString()}
+                            </div>
+                            <div className="flex items-center gap-1 mt-2">
+                              <ArrowUpIcon className="h-4 w-4 text-amber-500" />
+                              <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
+                            </div>
+                          </div>
+                          <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
+                            <Wallet className="h-8 w-8 text-metric-cash-icon" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </ClickableCard>
+                </DraggableDashboardSection>
+              );
+
+            case 'action-required':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Action Required">
+                  <ActionRequiredWidget />
+                </DraggableDashboardSection>
+              );
+
+            case 'quick-links':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Quick Links">
+                  <QuickLinksWidget onRemove={handleRemoveWidget} />
+                </DraggableDashboardSection>
+              );
+
+            case 'heatmap':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Heatmap">
+                  <InteractiveHeatmap selectedPeriod={datePreset} />
+                </DraggableDashboardSection>
+              );
+
+            case 'recent-activity':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Recent Activity">
+                  <Card className="bg-card border-2 border-border shadow-xl h-full">
+                    <CardHeader className="bg-teal-600 text-white rounded-t-lg">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <div className="p-2 bg-teal-700 rounded-lg shadow-md">
+                          <Activity className="h-5 w-5" />
+                        </div>
+                        Recent Activity
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4 overflow-y-auto max-h-[500px]">
+                      {recentActivity?.slice(0, 8).map((activity) => (
+                        <div key={activity.id} className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-emerald-100' : 'bg-muted'}`}>
+                              {activity.type === 'sale' ? (
+                                <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-sm text-foreground">{activity.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                              {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{activity.reference}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {(!recentActivity || recentActivity.length === 0) && (
+                        <div className="text-center py-12 text-muted-foreground">
+                          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <Activity className="h-8 w-8 opacity-50" />
+                          </div>
+                          <p className="font-medium">No activity in selected period</p>
+                          <p className="text-sm">Activity will appear here for the selected period</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </DraggableDashboardSection>
+              );
+
+            case 'stock-inventory':
+              return (
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Asset Inventory">
+                  <ClickableCard to="/stock-management" searchParams={{ tab: 'quickview' }}>
+                    <Card className="bg-card border-2 border-border shadow-xl">
+                      <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center gap-3 text-xl">
+                          <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
+                            <Package className="h-6 w-6" />
+                          </div>
+                          Asset Inventory
+                          <span className="ml-auto text-sm opacity-75">Click to view details →</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {warehouseStock?.map((asset, index) => (
+                            <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
+                              <CardHeader className="bg-secondary border-b">
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                    {asset.name} ({asset.code})
+                                  </CardTitle>
+                                  <Badge className="bg-muted text-foreground">
+                                    {asset.total_stock} {asset.unit}
+                                  </Badge>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-6">
+                                <div className="space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
+                                    <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
+                                  </div>
+                                  {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
+                                    <div className="space-y-2">
+                                      <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
+                                      {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
+                                        <div key={idx} className="flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">{dist.name}</span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">{dist.quantity.toLocaleString()}</span>
+                                            <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {asset.wallet_distribution.length > 3 && (
+                                        <div className="text-xs text-muted-foreground text-center">
+                                          +{asset.wallet_distribution.length - 3} more wallets
                                         </div>
                                       )}
                                     </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                              {(!warehouseStock || warehouseStock.length === 0) && (
-                                <div className="col-span-full text-center py-12 text-muted-foreground">
-                                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                    <Package className="h-8 w-8 opacity-50" />
-                                  </div>
-                                  <p className="font-medium">No asset data available</p>
-                                  <p className="text-sm">Asset inventory will appear here</p>
+                                  )}
                                 </div>
-                              )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                          {(!warehouseStock || warehouseStock.length === 0) && (
+                            <div className="col-span-full text-center py-12 text-muted-foreground">
+                              <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <Package className="h-8 w-8 opacity-50" />
+                              </div>
+                              <p className="font-medium">No asset data available</p>
+                              <p className="text-sm">Asset inventory will appear here</p>
                             </div>
-                          </CardContent>
-                        </Card>
-                      </ClickableCard>
-                    </DraggableDashboardSection>
-                  );
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </ClickableCard>
+                </DraggableDashboardSection>
+              );
 
-                case 'dynamic-widgets':
-                  if (dashboardWidgets.length === 0) return null;
-                  return (
-                    <DraggableDashboardSection key="dynamic-widgets" id="dynamic-widgets" isDraggable={isRearrangeMode} label="Custom Widgets">
-                      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWidgetDragEnd}>
-                        <SortableContext items={dashboardWidgets.map(w => w.id)} strategy={rectSortingStrategy}>
-                          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${isRearrangeMode ? 'ring-2 ring-blue-200 ring-dashed rounded-xl p-4 bg-blue-50/30' : ''}`}>
-                            {dashboardWidgets.map((widget) => (
-                              <DashboardWidget
-                                key={widget.id}
-                                widget={widget}
-                                onRemove={handleRemoveWidget}
-                                onMove={handleMoveWidget}
-                                metrics={metrics}
-                                isDraggable={isRearrangeMode}
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    </DraggableDashboardSection>
-                  );
-
-                default:
-                  return null;
+            default:
+              // Handle dynamic widgets
+              if (itemId.startsWith('widget-')) {
+                const widgetId = itemId.replace('widget-', '');
+                const widget = dashboardWidgets.find(w => w.id === widgetId);
+                if (!widget) return null;
+                return (
+                  <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label={widget.name}>
+                    <DashboardWidget
+                      widget={widget}
+                      onRemove={handleRemoveWidget}
+                      onMove={handleMoveWidget}
+                      metrics={metrics}
+                      isDraggable={isRearrangeMode}
+                    />
+                  </DraggableDashboardSection>
+                );
               }
-            })}
-          </div>
-        </SortableContext>
-      </DndContext>
+              return null;
+          }
+        };
+
+        return (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
+            <SortableContext items={fullOrder} strategy={rectSortingStrategy}>
+              <div className={`grid grid-cols-12 gap-3 md:gap-6 ${isRearrangeMode ? 'pl-4' : ''}`}>
+                {fullOrder.map(itemId => {
+                  const span = itemSpanConfig[itemId] || (itemId.startsWith('widget-') ? 3 : 12);
+                  const colClass = span === 3 ? 'col-span-6 lg:col-span-3' : span === 4 ? 'col-span-12 lg:col-span-4' : span === 8 ? 'col-span-12 lg:col-span-8' : 'col-span-12';
+                  const content = renderItem(itemId);
+                  if (!content) return null;
+                  return (
+                    <div key={itemId} className={colClass}>
+                      {content}
+                    </div>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
+        );
+      })()}
     </div>
   );
 }

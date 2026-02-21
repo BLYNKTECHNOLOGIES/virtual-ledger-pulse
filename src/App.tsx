@@ -53,7 +53,7 @@ import ClientDetail from './pages/ClientDetail';
 import Leads from './pages/Leads';
 import UserManagement from './pages/UserManagement';
 import HRMS from './pages/HRMS';
-import Payroll from './pages/Payroll';
+
 import Compliance from './pages/Compliance';
 import StockManagement from './pages/StockManagement';
 import Accounting from './pages/Accounting';
@@ -62,7 +62,7 @@ import KYCApprovals from './pages/KYCApprovals';
 import Statistics from './pages/Statistics';
 import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
-import EMS from './pages/EMS';
+
 import UserProfile from './pages/UserProfile';
 import Banking from './pages/Banking';
 import RiskManagement from './pages/RiskManagement';
@@ -400,20 +400,6 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/payroll",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <Payroll />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-  },
-  {
     path: "/compliance",
     element: (
       <QueryProvider>
@@ -525,20 +511,6 @@ const router = createBrowserRouter([
       </QueryProvider>
     ),
   },
-  {
-    path: "/ems",
-    element: (
-      <QueryProvider>
-        <AuthProvider>
-          <AuthCheck>
-            <Layout>
-              <EMS />
-            </Layout>
-          </AuthCheck>
-        </AuthProvider>
-      </QueryProvider>
-    ),
-   },
    {
      path: "/profile",
      element: (

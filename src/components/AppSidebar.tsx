@@ -131,24 +131,6 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-pink-600",
     bgColor: "bg-pink-100",
     permissions: ["hrms_view", "hrms_manage"]
-  },
-  {
-    id: "payroll",
-    title: "Payroll",
-    url: "/payroll",
-    icon: Calculator,
-    color: "text-blue-700",
-    bgColor: "bg-blue-100",
-    permissions: ["payroll_view", "payroll_manage"]
-  },
-  {
-    id: "ems",
-    title: "EMS",
-    url: "/ems",
-    icon: UserCheck,
-    color: "text-indigo-600",
-    bgColor: "bg-indigo-100",
-    permissions: ["hrms_view", "hrms_manage"]
   }
 ];
 

@@ -21,7 +21,9 @@ export default function EmployeeProfilePage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("About");
   const [editing, setEditing] = useState(false);
+  const [editingWorkInfo, setEditingWorkInfo] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
+  const [workInfoForm, setWorkInfoForm] = useState<any>({});
   const [noteText, setNoteText] = useState("");
 
   // ─── Core employee data ───
@@ -94,6 +96,24 @@ export default function EmployeeProfilePage() {
     enabled: !!workInfo?.reporting_manager_id,
   });
 
+  // ─── All employees (for reporting manager dropdown) ───
+  const { data: allEmployees } = useQuery({
+    queryKey: ["hr_employees_all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name");
+      return data || [];
+    },
+  });
+
+  // ─── All positions ───
+  const { data: allPositions } = useQuery({
+    queryKey: ["positions_list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("positions").select("id, title, department_id").eq("is_active", true).order("title");
+      return data || [];
+    },
+  });
+
   const { data: departments } = useQuery({
     queryKey: ["departments_list"],
     queryFn: async () => {
@@ -109,6 +129,7 @@ export default function EmployeeProfilePage() {
       return data || [];
     },
   });
+
 
   // ─── Notes ───
   const { data: notes } = useQuery({
@@ -220,6 +241,47 @@ export default function EmployeeProfilePage() {
     onError: () => toast.error("Failed to save"),
   });
 
+  // ─── Work Info Save Mutation ───
+  const saveWorkInfoMutation = useMutation({
+    mutationFn: async () => {
+      const updateData: any = {
+        reporting_manager_id: workInfoForm.reporting_manager_id || null,
+        shift_id: workInfoForm.shift_id || null,
+        department_id: workInfoForm.department_id || null,
+        job_position_id: workInfoForm.job_position_id || null,
+        job_role: workInfoForm.job_role || null,
+        work_type: workInfoForm.work_type || null,
+        employee_type: workInfoForm.employee_type || null,
+        location: workInfoForm.location || null,
+        company_name: workInfoForm.company_name || null,
+        work_email: workInfoForm.work_email || null,
+        work_phone: workInfoForm.work_phone || null,
+        basic_salary: workInfoForm.basic_salary ? parseFloat(workInfoForm.basic_salary) : null,
+        joining_date: workInfoForm.joining_date || null,
+        contract_end_date: workInfoForm.contract_end_date || null,
+        experience_years: workInfoForm.experience_years ? parseInt(workInfoForm.experience_years) : null,
+      };
+
+      if (workInfo?.id) {
+        const { error } = await supabase.from("hr_employee_work_info").update(updateData).eq("id", workInfo.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("hr_employee_work_info").insert({ ...updateData, employee_id: id! });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast.success("Work information updated");
+      setEditingWorkInfo(false);
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_info", id] });
+      queryClient.invalidateQueries({ queryKey: ["dept_for_emp"] });
+      queryClient.invalidateQueries({ queryKey: ["pos_for_emp"] });
+      queryClient.invalidateQueries({ queryKey: ["shift_for_emp"] });
+      queryClient.invalidateQueries({ queryKey: ["reporting_mgr"] });
+    },
+    onError: () => toast.error("Failed to update work info"),
+  });
+
   const addNoteMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("hr_employee_notes").insert({
@@ -261,6 +323,28 @@ export default function EmployeeProfilePage() {
     }
     setEditing(true);
   };
+
+  const startWorkInfoEdit = () => {
+    setWorkInfoForm({
+      reporting_manager_id: workInfo?.reporting_manager_id || "",
+      shift_id: workInfo?.shift_id || "",
+      department_id: workInfo?.department_id || "",
+      job_position_id: workInfo?.job_position_id || "",
+      job_role: workInfo?.job_role || "",
+      work_type: workInfo?.work_type || "",
+      employee_type: workInfo?.employee_type || "",
+      location: workInfo?.location || "",
+      company_name: workInfo?.company_name || "",
+      work_email: workInfo?.work_email || "",
+      work_phone: workInfo?.work_phone || "",
+      basic_salary: workInfo?.basic_salary?.toString() || "",
+      joining_date: workInfo?.joining_date || "",
+      contract_end_date: workInfo?.contract_end_date || "",
+      experience_years: workInfo?.experience_years?.toString() || "",
+    });
+    setEditingWorkInfo(true);
+  };
+
 
   // ─── Leave helpers ───
   const getLeaveTypeName = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.name || "Unknown";
@@ -414,40 +498,111 @@ export default function EmployeeProfilePage() {
 
             {/* Right: Work Information table */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="bg-[#00bcd4] text-white text-xs font-bold px-2 py-0.5 rounded-full">1</span>
-                <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="bg-[#00bcd4] text-white text-xs font-bold px-2 py-0.5 rounded-full">1</span>
+                  <h3 className="text-base font-semibold text-[#00bcd4]">Work Information</h3>
+                </div>
+                {editingWorkInfo ? (
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
+                    <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-white bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                      {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={startWorkInfoEdit} className="text-xs text-[#00bcd4] hover:underline font-medium">Edit</button>
+                )}
               </div>
-              <div className="border border-border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Badge Id</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Position</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Department</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Shift</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Work Type</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Employee Type</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Role</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Reporting Manager</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border/50">
-                      <td className="py-2.5 px-3 text-muted-foreground">{emp.badge_id}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{position?.title || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.work_type || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.employee_type || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">
-                        {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+
+              {editingWorkInfo ? (
+                <div className="border border-border rounded-lg p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Department</label>
+                      <select value={workInfoForm.department_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, department_id: e.target.value })} className={inputCls}>
+                        <option value="">Select Department</option>
+                        {(departments || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Job Position</label>
+                      <select value={workInfoForm.job_position_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value })} className={inputCls}>
+                        <option value="">Select Position</option>
+                        {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>
+                      <select value={workInfoForm.reporting_manager_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, reporting_manager_id: e.target.value })} className={inputCls}>
+                        <option value="">Select Manager</option>
+                        {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Shift</label>
+                      <select value={workInfoForm.shift_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, shift_id: e.target.value })} className={inputCls}>
+                        <option value="">Select Shift</option>
+                        {(shifts || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Work Type</label>
+                      <select value={workInfoForm.work_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_type: e.target.value })} className={inputCls}>
+                        <option value="">Select</option>
+                        <option value="On-site">On-site</option>
+                        <option value="Remote">Remote</option>
+                        <option value="Hybrid">Hybrid</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Employee Type</label>
+                      <select value={workInfoForm.employee_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
+                        <option value="">Select</option>
+                        <option value="Full-time">Full-time</option>
+                        <option value="Part-time">Part-time</option>
+                        <option value="Contract">Contract</option>
+                        <option value="Intern">Intern</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Job Role</label>
+                      <input type="text" value={workInfoForm.job_role || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_role: e.target.value })} className={inputCls} />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border">
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Badge Id</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Position</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Department</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Shift</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Work Type</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Employee Type</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Role</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Reporting Manager</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/50">
+                        <td className="py-2.5 px-3 text-muted-foreground">{emp.badge_id}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{position?.title || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{dept?.name || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.work_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.employee_type || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -455,40 +610,131 @@ export default function EmployeeProfilePage() {
         {/* ── WORK TYPE & SHIFT TAB ── */}
         {activeTab === "Work Type & Shift" && (
           <div className="space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">
                 Current Shift : <span className="text-foreground">{shift?.name || "None"}</span>
               </h3>
+              {editingWorkInfo ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setEditingWorkInfo(false)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted">Cancel</button>
+                  <button onClick={() => saveWorkInfoMutation.mutate()} disabled={saveWorkInfoMutation.isPending} className="text-xs text-white bg-[#00bcd4] px-3 py-1 rounded hover:bg-[#00a5bb] disabled:opacity-50">
+                    {saveWorkInfoMutation.isPending ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={startWorkInfoEdit} className="text-xs text-[#00bcd4] hover:underline font-medium">Edit</button>
+              )}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="border border-border rounded-lg p-4">
-                <p className="text-xs text-muted-foreground">Work Type</p>
-                <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
+
+            {editingWorkInfo ? (
+              <div className="border border-border rounded-lg p-4 space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Shift</label>
+                    <select value={workInfoForm.shift_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, shift_id: e.target.value })} className={inputCls}>
+                      <option value="">Select Shift</option>
+                      {(shifts || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Work Type</label>
+                    <select value={workInfoForm.work_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_type: e.target.value })} className={inputCls}>
+                      <option value="">Select</option>
+                      <option value="On-site">On-site</option>
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Employee Type</label>
+                    <select value={workInfoForm.employee_type || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, employee_type: e.target.value })} className={inputCls}>
+                      <option value="">Select</option>
+                      <option value="Full-time">Full-time</option>
+                      <option value="Part-time">Part-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Intern">Intern</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Reporting Manager</label>
+                    <select value={workInfoForm.reporting_manager_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, reporting_manager_id: e.target.value })} className={inputCls}>
+                      <option value="">Select Manager</option>
+                      {(allEmployees || []).filter((e: any) => e.id !== id).map((e: any) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name} ({e.badge_id})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Joining Date</label>
+                    <input type="date" value={workInfoForm.joining_date || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, joining_date: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Contract End Date</label>
+                    <input type="date" value={workInfoForm.contract_end_date || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, contract_end_date: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Location</label>
+                    <input type="text" value={workInfoForm.location || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, location: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Company</label>
+                    <input type="text" value={workInfoForm.company_name || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, company_name: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Work Email</label>
+                    <input type="email" value={workInfoForm.work_email || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_email: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Work Phone</label>
+                    <input type="text" value={workInfoForm.work_phone || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_phone: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Basic Salary</label>
+                    <input type="number" value={workInfoForm.basic_salary || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, basic_salary: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Experience (years)</label>
+                    <input type="number" value={workInfoForm.experience_years || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, experience_years: e.target.value })} className={inputCls} />
+                  </div>
+                </div>
               </div>
-              <div className="border border-border rounded-lg p-4">
-                <p className="text-xs text-muted-foreground">Employee Type</p>
-                <p className="text-sm font-medium text-foreground mt-1">{workInfo?.employee_type || "None"}</p>
-              </div>
-              <div className="border border-border rounded-lg p-4">
-                <p className="text-xs text-muted-foreground">Joining Date</p>
-                <p className="text-sm font-medium text-foreground mt-1">{workInfo?.joining_date || "None"}</p>
-              </div>
-              <div className="border border-border rounded-lg p-4">
-                <p className="text-xs text-muted-foreground">Contract End</p>
-                <p className="text-sm font-medium text-foreground mt-1">{workInfo?.contract_end_date || "None"}</p>
-              </div>
-            </div>
-            <div className="border border-border rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm text-foreground">{workInfo?.location || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString()}` : "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="border border-border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Work Type</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.work_type || "None"}</p>
+                  </div>
+                  <div className="border border-border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Employee Type</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.employee_type || "None"}</p>
+                  </div>
+                  <div className="border border-border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Joining Date</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.joining_date || "None"}</p>
+                  </div>
+                  <div className="border border-border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Contract End</p>
+                    <p className="text-sm font-medium text-foreground mt-1">{workInfo?.contract_end_date || "None"}</p>
+                  </div>
+                  <div className="border border-border rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground">Reporting Manager</p>
+                    <p className="text-sm font-medium text-foreground mt-1">
+                      {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
+                    </p>
+                  </div>
+                </div>
+                <div className="border border-border rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div><p className="text-xs text-muted-foreground">Location</p><p className="text-sm text-foreground">{workInfo?.location || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString()}` : "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

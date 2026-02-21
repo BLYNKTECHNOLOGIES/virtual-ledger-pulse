@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, Settings, Plus, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
+import { LeaveTab } from "@/components/hrms/LeaveTab";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -800,85 +801,13 @@ export default function EmployeeProfilePage() {
 
         {/* ── LEAVE TAB ── */}
         {activeTab === "Leave" && (
-          <div className="space-y-6">
-            {/* Leave allocation cards */}
-            <div className="flex flex-wrap gap-6">
-              {(leaveAllocations || []).map(alloc => {
-                const lt = leaveTypes?.find(t => t.id === alloc.leave_type_id);
-                const available = alloc.allocated_days - alloc.used_days;
-                const carry = alloc.carry_forward_days || 0;
-                const total = alloc.allocated_days;
-                return (
-                  <div key={alloc.id} className="min-w-[200px] border-r border-border last:border-r-0 pr-6 last:pr-0">
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm mb-2"
-                      style={{ backgroundColor: lt?.color || "#666" }}
-                    >
-                      {lt?.code || "??"}
-                    </div>
-                    <p className="text-sm font-semibold text-foreground">{lt?.name || "Unknown"}</p>
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">Available Leave Days</span><span className="font-medium text-foreground">{available}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Carryforward Leave Days</span><span className="font-medium text-foreground">{carry}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Total Leave Days</span><span className="font-medium text-foreground">{total}</span></div>
-                      <div className="flex justify-between"><span className="text-muted-foreground">Total Leave Taken</span><span className="font-medium text-foreground">{alloc.used_days}</span></div>
-                    </div>
-                  </div>
-                );
-              })}
-              {(leaveAllocations || []).length === 0 && (
-                <p className="text-sm text-muted-foreground">No leave allocations found</p>
-              )}
-            </div>
-
-            {/* Leave requests table */}
-            {(leaveRequests || []).length > 0 && (
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-2 bg-muted/50 border-b border-border">
-                  <span className="text-xs font-medium text-muted-foreground">Leave Requests</span>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Rejected</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-400" /> Cancelled</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Approved</span>
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" /> Requested</span>
-                  </div>
-                </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Leave Type</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Start Date</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">End Date</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Requested Days</th>
-                      <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(leaveRequests || []).map(req => {
-                      const lt = leaveTypes?.find(t => t.id === req.leave_type_id);
-                      const statusColor = req.status === "Approved" ? "text-green-600" : req.status === "Rejected" ? "text-red-600" : req.status === "Cancelled" ? "text-gray-500" : "text-yellow-600";
-                      return (
-                        <tr key={req.id} className="border-b border-border/50">
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center" style={{ backgroundColor: lt?.color || "#666" }}>
-                                {lt?.code?.substring(0, 2) || "??"}
-                              </span>
-                              <span className="text-foreground">{lt?.name || "Unknown"}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-muted-foreground">{req.start_date}</td>
-                          <td className="py-2.5 px-3 text-muted-foreground">{req.end_date}</td>
-                          <td className="py-2.5 px-3 text-muted-foreground">{req.total_days}</td>
-                          <td className={`py-2.5 px-3 font-medium ${statusColor}`}>{req.status}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <LeaveTab
+            employeeId={id!}
+            leaveAllocations={leaveAllocations || []}
+            leaveRequests={leaveRequests || []}
+            leaveTypes={leaveTypes || []}
+            queryClient={queryClient}
+          />
         )}
 
         {/* ── ASSET TAB ── */}

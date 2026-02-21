@@ -1,0 +1,1 @@
+DELETE FROM hr_salary_components WHERE component_type IN ('earning', 'employer_contrib');

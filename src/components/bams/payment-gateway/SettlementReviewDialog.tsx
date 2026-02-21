@@ -21,6 +21,10 @@ interface SettlementDetails {
   settlement_date: string;
   status: string;
   created_at: string;
+  settled_by: string | null;
+  reversed_by: string | null;
+  settled_by_user?: { username: string } | null;
+  reversed_by_user?: { username: string } | null;
   bank_accounts: {
     account_name: string;
     bank_name: string;
@@ -73,6 +77,12 @@ export function SettlementReviewDialog({
             account_name,
             bank_name,
             account_number
+          ),
+          settled_by_user:users!payment_gateway_settlements_settled_by_fkey (
+            username
+          ),
+          reversed_by_user:users!payment_gateway_settlements_reversed_by_fkey (
+            username
           ),
           payment_gateway_settlement_items (
             id,
@@ -257,17 +267,35 @@ export function SettlementReviewDialog({
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Account Name</p>
+                  <p className="text-sm font-medium text-muted-foreground">Account Name</p>
                   <p className="font-medium">{settlement.bank_accounts.account_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Bank Name</p>
+                  <p className="text-sm font-medium text-muted-foreground">Bank Name</p>
                   <p className="font-medium">{settlement.bank_accounts.bank_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Account Number</p>
+                  <p className="text-sm font-medium text-muted-foreground">Account Number</p>
                   <p className="font-medium">{settlement.bank_accounts.account_number}</p>
                 </div>
+              </div>
+
+              {/* Settled By / Reversed By */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Settled By</p>
+                  <p className="font-medium">
+                    {settlement.settled_by_user?.username || '—'}
+                  </p>
+                </div>
+                {settlement.status === 'REVERSED' && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Reversed By</p>
+                    <p className="font-medium text-orange-600">
+                      {settlement.reversed_by_user?.username || '—'}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

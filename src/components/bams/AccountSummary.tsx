@@ -114,13 +114,19 @@ export function AccountSummary() {
         data.map(async (account) => {
           const { data: transactions, error: txError } = await supabase
             .from('bank_transactions')
-            .select('transaction_type, amount')
+            .select('transaction_type, amount, category')
             .eq('bank_account_id', account.id);
           
           if (txError) throw txError;
+
+          const EXCLUDED_INCOME_CATEGORIES = ['Settlement', 'Payment Gateway Settlement'];
+          const isExcludedIncome = (t: any) => {
+            if (t.transaction_type !== 'INCOME' && t.transaction_type !== 'CREDIT') return false;
+            return EXCLUDED_INCOME_CATEGORIES.some(ex => t.category?.includes(ex));
+          };
           
           const total_income = transactions
-            .filter(t => t.transaction_type === 'INCOME' || t.transaction_type === 'CREDIT')
+            .filter(t => (t.transaction_type === 'INCOME' || t.transaction_type === 'CREDIT') && !isExcludedIncome(t))
             .reduce((sum, t) => sum + t.amount, 0);
           
           const total_expense = transactions

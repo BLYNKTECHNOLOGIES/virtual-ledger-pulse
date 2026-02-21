@@ -8,8 +8,12 @@ interface TransactionSummaryProps {
 }
 
 export function TransactionSummary({ transactions }: TransactionSummaryProps) {
+  const EXCLUDED_INCOME_CATEGORIES = ['Settlement', 'Payment Gateway Settlement'];
+  const isExcludedIncome = (t: any) =>
+    EXCLUDED_INCOME_CATEGORIES.some(ex => t.category?.includes(ex));
+
   const totalIncomes = transactions
-    ?.filter(t => t.transaction_type === "INCOME")
+    ?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t))
     .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0;
 
   const totalExpenses = transactions
@@ -46,7 +50,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
           <CardContent>
             <div className="text-2xl font-bold text-green-700">₹{totalIncomes.toLocaleString()}</div>
             <p className="text-xs text-green-600">
-              {transactions?.filter(t => t.transaction_type === "INCOME").length || 0} transactions
+              {transactions?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t)).length || 0} transactions
             </p>
           </CardContent>
         </Card>

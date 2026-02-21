@@ -69,10 +69,10 @@ function useBinanceUsdtTransfers(conversionDate?: string) {
     queryKey: ["binance_spot_to_funding_usdt", conversionDate],
     queryFn: async () => {
       if (!conversionDate) return [];
-      // Look ±4 hours around the conversion
+      // Look ±12 hours around the conversion
       const dt = new Date(conversionDate);
-      const from = new Date(dt.getTime() - 4 * 60 * 60 * 1000);
-      const to = new Date(dt.getTime() + 4 * 60 * 60 * 1000);
+      const from = new Date(dt.getTime() - 12 * 60 * 60 * 1000);
+      const to = new Date(dt.getTime() + 12 * 60 * 60 * 1000);
       const fromMs = from.getTime();
       const toMs = to.getTime();
 
@@ -442,7 +442,7 @@ export function BinanceConversionReconcile() {
               {/* Binance transfers (auto-suggested) */}
               <div>
                 <Label className="text-xs font-semibold mb-2 block">
-                  Binance Spot→Funding USDT Transfers (±4h around conversion)
+                  Binance Spot→Funding USDT Transfers (±12h around conversion)
                 </Label>
                 {transfersLoading ? (
                   <p className="text-xs text-muted-foreground py-2">Fetching Binance transfers...</p>

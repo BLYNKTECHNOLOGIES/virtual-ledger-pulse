@@ -53,8 +53,10 @@
        { value: "loan_interest", label: "Loan interest" },
        { value: "emi_payments", label: "EMI payments" },
        { value: "processing_fees", label: "Processing fees" },
-       { value: "overdraft_interest", label: "Overdraft interest" },
-     ],
+        { value: "overdraft_interest", label: "Overdraft interest" },
+        { value: "reversal", label: "Reversal" },
+        { value: "lien", label: "Lien" },
+      ],
    },
    {
      value: "technology_software",
@@ -129,7 +131,8 @@
        { value: "refunds_received", label: "Refunds received" },
        { value: "insurance_claims", label: "Insurance claims" },
        { value: "fx_gain", label: "FX gain" },
-       { value: "other_income_misc", label: "Other income" },
+        { value: "other_income_misc", label: "Other income" },
+        { value: "lien_released", label: "Lien Released" },
      ],
    },
  ];

@@ -385,10 +385,16 @@ export default function Dashboard() {
     const { active, over } = event;
     if (over && active.id !== over.id) {
       setItemOrder(prev => {
-        const oldIndex = prev.indexOf(active.id as string);
-        const newIndex = prev.indexOf(over.id as string);
+        // Build full order including widget items
+        const full = [...prev];
+        dashboardWidgets.forEach(w => {
+          const wId = `widget-${w.id}`;
+          if (!full.includes(wId)) full.push(wId);
+        });
+        const oldIndex = full.indexOf(active.id as string);
+        const newIndex = full.indexOf(over.id as string);
         if (oldIndex === -1 || newIndex === -1) return prev;
-        return arrayMove(prev, oldIndex, newIndex);
+        return arrayMove(full, oldIndex, newIndex);
       });
     }
   };
@@ -560,13 +566,13 @@ export default function Dashboard() {
 
         const renderItem = (itemId: string) => {
           // Get column span for CSS grid
-          const span = itemSpanConfig[itemId] || 12;
+          const span = itemSpanConfig[itemId] || (itemId.startsWith('widget-') ? 3 : 12);
           const colClass = span === 3 ? 'col-span-6 lg:col-span-3' : span === 4 ? 'col-span-12 lg:col-span-4' : span === 8 ? 'col-span-12 lg:col-span-8' : 'col-span-12';
 
           switch (itemId) {
             case 'metric-total-sales':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Sales">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Sales" className={colClass}>
                   <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
                     <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
                       <CardContent className="p-6">
@@ -593,7 +599,7 @@ export default function Dashboard() {
 
             case 'metric-sales-orders':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Sales Orders">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Sales Orders" className={colClass}>
                   <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
                     <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
                       <CardContent className="p-6">
@@ -618,7 +624,7 @@ export default function Dashboard() {
 
             case 'metric-total-clients':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Clients">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Clients" className={colClass}>
                   <ClickableCard to="/clients">
                     <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
                       <CardContent className="p-6">
@@ -645,7 +651,7 @@ export default function Dashboard() {
 
             case 'metric-total-cash':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Cash">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Total Cash" className={colClass}>
                   <ClickableCard to="/bams">
                     <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
                       <CardContent className="p-6">
@@ -672,28 +678,28 @@ export default function Dashboard() {
 
             case 'action-required':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Action Required">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Action Required" className={colClass}>
                   <ActionRequiredWidget />
                 </DraggableDashboardSection>
               );
 
             case 'quick-links':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Quick Links">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Quick Links" className={colClass}>
                   <QuickLinksWidget onRemove={handleRemoveWidget} />
                 </DraggableDashboardSection>
               );
 
             case 'heatmap':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Heatmap">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Heatmap" className={colClass}>
                   <InteractiveHeatmap selectedPeriod={datePreset} />
                 </DraggableDashboardSection>
               );
 
             case 'recent-activity':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Recent Activity">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Recent Activity" className={colClass}>
                   <Card className="bg-card border-2 border-border shadow-xl h-full">
                     <CardHeader className="bg-teal-600 text-white rounded-t-lg">
                       <CardTitle className="flex items-center gap-2 text-lg">
@@ -745,7 +751,7 @@ export default function Dashboard() {
 
             case 'stock-inventory':
               return (
-                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Asset Inventory">
+                <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label="Asset Inventory" className={colClass}>
                   <ClickableCard to="/stock-management" searchParams={{ tab: 'quickview' }}>
                     <Card className="bg-card border-2 border-border shadow-xl">
                       <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
@@ -824,7 +830,7 @@ export default function Dashboard() {
                 const widget = dashboardWidgets.find(w => w.id === widgetId);
                 if (!widget) return null;
                 return (
-                  <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label={widget.name}>
+                  <DraggableDashboardSection key={itemId} id={itemId} isDraggable={isRearrangeMode} label={widget.name} className={colClass}>
                     <DashboardWidget
                       widget={widget}
                       onRemove={handleRemoveWidget}
@@ -839,21 +845,26 @@ export default function Dashboard() {
           }
         };
 
+        // Build colClass map for each item
+        const getColClass = (itemId: string) => {
+          const span = itemSpanConfig[itemId] || (itemId.startsWith('widget-') ? 3 : 12);
+          return span === 3 ? 'col-span-6 lg:col-span-3' : span === 4 ? 'col-span-12 lg:col-span-4' : span === 8 ? 'col-span-12 lg:col-span-8' : 'col-span-12';
+        };
+
+        // Filter to only items that will render
+        const renderableOrder = fullOrder.filter(itemId => {
+          if (itemId.startsWith('widget-')) {
+            const widgetId = itemId.replace('widget-', '');
+            return dashboardWidgets.some(w => w.id === widgetId);
+          }
+          return defaultItemOrder.includes(itemId);
+        });
+
         return (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
-            <SortableContext items={fullOrder} strategy={rectSortingStrategy}>
+            <SortableContext items={renderableOrder} strategy={rectSortingStrategy}>
               <div className={`grid grid-cols-12 gap-3 md:gap-6 ${isRearrangeMode ? 'pl-4' : ''}`}>
-                {fullOrder.map(itemId => {
-                  const span = itemSpanConfig[itemId] || (itemId.startsWith('widget-') ? 3 : 12);
-                  const colClass = span === 3 ? 'col-span-6 lg:col-span-3' : span === 4 ? 'col-span-12 lg:col-span-4' : span === 8 ? 'col-span-12 lg:col-span-8' : 'col-span-12';
-                  const content = renderItem(itemId);
-                  if (!content) return null;
-                  return (
-                    <div key={itemId} className={colClass}>
-                      {content}
-                    </div>
-                  );
-                })}
+                {renderableOrder.map(itemId => renderItem(itemId))}
               </div>
             </SortableContext>
           </DndContext>

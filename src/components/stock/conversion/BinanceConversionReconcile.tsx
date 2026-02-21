@@ -26,9 +26,20 @@ interface UnreconciledConversion {
   actual_usdt_received: number | null;
   rate_variance_usdt: number | null;
   binance_transfer_id: string | null;
+  spot_trade_id: string | null;
   created_at: string;
   status: string;
   wallets?: { wallet_name: string } | null;
+}
+
+interface SpotTradeData {
+  id: string;
+  quantity: number;
+  executed_price: number;
+  quote_quantity: number;
+  commission: number | null;
+  commission_asset: string | null;
+  trade_time: number | null;
 }
 
 interface BinanceTransfer {
@@ -63,7 +74,25 @@ function useUnreconciledConversions() {
   });
 }
 
-// Fetch Binance Spot→Funding USDT transfers (candidates for reconciliation)
+// Fetch linked spot trade data for a conversion
+function useLinkedSpotTrade(spotTradeId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["linked_spot_trade", spotTradeId],
+    queryFn: async () => {
+      if (!spotTradeId) return null;
+      const { data, error } = await supabase
+        .from("spot_trade_history")
+        .select("id, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time")
+        .eq("id", spotTradeId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as SpotTradeData | null;
+    },
+    enabled: !!spotTradeId,
+  });
+}
+
+
 function useBinanceUsdtTransfers(conversionDate?: string) {
   return useQuery({
     queryKey: ["binance_spot_to_funding_usdt", conversionDate],
@@ -276,23 +305,41 @@ export function BinanceConversionReconcile() {
   const selectedConvDate = dialog?.conversion.created_at;
   const { data: rawTransfers = [], isLoading: transfersLoading } = useBinanceUsdtTransfers(selectedConvDate);
 
+  // Fetch linked spot trade data
+  const { data: linkedSpotTrade } = useLinkedSpotTrade(dialog?.conversion.spot_trade_id);
+
+  // Compute spot trade net USDT (quote_quantity - commission)
+  const spotTradeNetUsdt = linkedSpotTrade
+    ? Number(linkedSpotTrade.quote_quantity || 0) - Number(linkedSpotTrade.commission || 0)
+    : null;
+
   // Sort transfers by closest match to booked amount
   const bookedAmount = dialog ? Math.abs(Number(dialog.conversion.net_usdt_change)) : 0;
   const transfers = [...rawTransfers].sort((a, b) => {
     return Math.abs(a.amount - bookedAmount) - Math.abs(b.amount - bookedAmount);
   });
 
-  // Auto-select closest match when transfers load
+  // Auto-populate from spot trade first, then fallback to transfer matching
   const [autoSelected, setAutoSelected] = useState(false);
   useEffect(() => {
-    if (!autoSelected && transfers.length > 0 && dialog && !manualTransferId) {
-      const best = transfers[0];
-      setManualUsdt(String(best.amount));
-      setManualTransferId(best.id);
-      setDialog((prev) => prev ? { ...prev, suggestedTransfer: best } : prev);
-      setAutoSelected(true);
+    if (!autoSelected && dialog) {
+      // Priority 1: Use linked spot trade data
+      if (spotTradeNetUsdt !== null && spotTradeNetUsdt > 0) {
+        setManualUsdt(String(spotTradeNetUsdt));
+        setManualTransferId(`spot-trade-${linkedSpotTrade?.id || ""}`);
+        setAutoSelected(true);
+        return;
+      }
+      // Priority 2: Closest transfer match (only if no spot trade)
+      if (transfers.length > 0 && !manualTransferId) {
+        const best = transfers[0];
+        setManualUsdt(String(best.amount));
+        setManualTransferId(best.id);
+        setDialog((prev) => prev ? { ...prev, suggestedTransfer: best } : prev);
+        setAutoSelected(true);
+      }
     }
-  }, [transfers, dialog, autoSelected, manualTransferId]);
+  }, [transfers, dialog, autoSelected, manualTransferId, spotTradeNetUsdt, linkedSpotTrade]);
 
   function openDialog(conv: UnreconciledConversion) {
     setManualUsdt(String(Math.abs(conv.net_usdt_change)));
@@ -333,12 +380,12 @@ export function BinanceConversionReconcile() {
       <Alert className="border-primary/30 bg-primary/5">
         <Info className="h-4 w-4 text-primary" />
         <AlertDescription className="text-sm space-y-1">
-          <p><strong>How conversion delay is handled:</strong></p>
+          <p><strong>How conversion reconciliation works:</strong></p>
           <p>
-            When you book a SELL conversion, ERP uses your entered rate. Binance executes at the live market rate,
-            which may differ by seconds. This panel matches each unreconciled SELL conversion to the actual
-            <strong> Spot→Funding USDT transfer</strong> from Binance to compute the real received amount and corrects:
-            the conversion record, journal entries, wallet ledger, and all cascade balances.
+            When a conversion has a <strong>linked spot trade</strong>, the system uses the actual trade data (price, quantity, commission) 
+            from Binance as the source of truth. The net USDT (gross - commission) is pre-filled automatically.
+            Spot→Funding transfers are shown as reference only — they may be <strong>aggregated across multiple trades</strong> and 
+            should not be used as the primary reconciliation source.
           </p>
           <p className="text-xs mt-1 text-muted-foreground">
             ✓ Always reconcile within 24h of the conversion for accurate P&L and balance reporting.
@@ -458,10 +505,51 @@ export function BinanceConversionReconcile() {
                 </div>
               </div>
 
-              {/* Binance transfers (auto-suggested) */}
+              {/* Linked Spot Trade Data (Primary source of truth) */}
+              {linkedSpotTrade && (
+                <div className="rounded-lg border-2 border-green-400 bg-green-50 dark:bg-green-900/20 dark:border-green-600 p-3 text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300">
+                      ✅ Linked Spot Trade
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">Actual trade data from Binance</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Trade Qty</p>
+                      <p className="font-mono font-medium text-sm">{formatSmartDecimal(linkedSpotTrade.quantity, 8)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Execution Price</p>
+                      <p className="font-mono font-medium text-sm">${formatSmartDecimal(linkedSpotTrade.executed_price, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gross USDT</p>
+                      <p className="font-mono font-medium text-sm">{formatSmartDecimal(linkedSpotTrade.quote_quantity, 8)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Commission</p>
+                      <p className="font-mono font-medium text-sm text-red-500">
+                        -{formatSmartDecimal(linkedSpotTrade.commission || 0, 8)} {linkedSpotTrade.commission_asset || ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-green-300 dark:border-green-700 flex justify-between items-center">
+                    <span className="text-xs font-semibold">Net USDT (Gross - Fee)</span>
+                    <span className="font-mono font-bold text-green-700 dark:text-green-400">
+                      {spotTradeNetUsdt?.toFixed(8)} USDT
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Binance transfers (secondary reference) */}
               <div>
                 <Label className="text-xs font-semibold mb-2 block">
-                  Binance Spot→Funding USDT Transfers (±12h around conversion)
+                  {linkedSpotTrade 
+                    ? "Binance Spot→Funding Transfers (reference only — amounts may be aggregated)"
+                    : "Binance Spot→Funding USDT Transfers (±12h around conversion)"
+                  }
                 </Label>
                 {transfersLoading ? (
                   <p className="text-xs text-muted-foreground py-2">Fetching Binance transfers...</p>

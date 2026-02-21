@@ -104,6 +104,12 @@ export function SettlementSummary() {
             bank_name,
             account_number
           ),
+          settled_by_user:users!payment_gateway_settlements_settled_by_fkey (
+            username
+          ),
+          reversed_by_user:users!payment_gateway_settlements_reversed_by_fkey (
+            username
+          ),
           payment_gateway_settlement_items (
             id,
             amount,
@@ -191,8 +197,14 @@ export function SettlementSummary() {
     if (!selectedReverseSettlement || isReversing) return;
     setIsReversing(true);
     try {
+      // Get current user ID from localStorage session
+      const sessionStr = localStorage.getItem('userSession');
+      const currentUserId = sessionStr ? JSON.parse(sessionStr)?.id : null;
+      const isValidUuid = currentUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUserId);
+
       const { data, error } = await supabase.rpc('reverse_payment_gateway_settlement', {
         p_settlement_id: selectedReverseSettlement.id,
+        p_reversed_by: isValidUuid ? currentUserId : null,
       });
       if (error) throw error;
       const result = data as any;

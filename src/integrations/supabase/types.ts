@@ -6133,6 +6133,8 @@ export type Database = {
           mdr_amount: number
           mdr_rate: number
           net_amount: number
+          reversed_by: string | null
+          settled_by: string | null
           settlement_batch_id: string
           settlement_date: string
           status: string
@@ -6146,6 +6148,8 @@ export type Database = {
           mdr_amount?: number
           mdr_rate?: number
           net_amount?: number
+          reversed_by?: string | null
+          settled_by?: string | null
           settlement_batch_id: string
           settlement_date?: string
           status?: string
@@ -6159,6 +6163,8 @@ export type Database = {
           mdr_amount?: number
           mdr_rate?: number
           net_amount?: number
+          reversed_by?: string | null
+          settled_by?: string | null
           settlement_batch_id?: string
           settlement_date?: string
           status?: string
@@ -6178,6 +6184,20 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_gateway_settlements_reversed_by_fkey"
+            columns: ["reversed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_gateway_settlements_settled_by_fkey"
+            columns: ["settled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -10362,10 +10382,12 @@ export type Database = {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
       }
-      reverse_payment_gateway_settlement: {
-        Args: { p_settlement_id: string }
-        Returns: Json
-      }
+      reverse_payment_gateway_settlement:
+        | { Args: { p_settlement_id: string }; Returns: Json }
+        | {
+            Args: { p_reversed_by?: string; p_settlement_id: string }
+            Returns: Json
+          }
       save_terminal_role: {
         Args: {
           p_description?: string

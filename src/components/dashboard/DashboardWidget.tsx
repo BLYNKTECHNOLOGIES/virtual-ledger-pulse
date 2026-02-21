@@ -59,7 +59,7 @@ interface DashboardWidgetProps {
   isDraggable?: boolean;
 }
 
-const iconMap = {
+const iconMap: Record<string, any> = {
   'revenue-chart': BarChart3,
   'total-clients': Users,
   'inventory-status': Package,
@@ -85,7 +85,20 @@ const iconMap = {
   'payment-methods': CreditCard,
   'cash-flow': ArrowUpRight,
   'expense-trends': TrendingDown,
-  'bank-balance-filter': Building
+  'bank-balance-filter': Building,
+  // New widget icons
+  'sales-orders-count': ShoppingCart,
+  'total-purchases': DollarSign,
+  'purchase-orders-count': FileText,
+  'pending-settlements': Clock,
+  'verified-clients': UserCheck,
+  'stock-value': Package,
+  'bank-balance-total': Building,
+  'total-cash': Wallet,
+  'gross-profit': TrendingUp,
+  'compliance-alerts': Bell,
+  'kyc-overview': UserCheck,
+  'payroll-summary': CreditCard,
 };
 
 function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = false }: DashboardWidgetProps) {
@@ -117,15 +130,25 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
   };
 
   const getCategoryGradient = (category: string) => {
-    const gradients = {
+    const gradients: Record<string, string> = {
       'Analytics': 'from-blue-500 to-cyan-500',
       'Metrics': 'from-green-500 to-emerald-500',
       'Operations': 'from-orange-500 to-red-500',
       'Activity': 'from-purple-500 to-pink-500',
       'Productivity': 'from-indigo-500 to-blue-500',
-      'Financial': 'from-emerald-500 to-teal-500'
+      'Financial': 'from-emerald-500 to-teal-500',
+      'Sales': 'from-green-500 to-emerald-500',
+      'Purchase': 'from-orange-500 to-amber-500',
+      'Clients': 'from-blue-500 to-indigo-500',
+      'Stock': 'from-amber-500 to-yellow-500',
+      'Banking': 'from-emerald-500 to-green-500',
+      'PNL': 'from-purple-500 to-violet-500',
+      'Statistics': 'from-indigo-500 to-blue-500',
+      'Compliance': 'from-red-500 to-rose-500',
+      'HRMS': 'from-pink-500 to-rose-500',
+      'Payroll': 'from-teal-500 to-cyan-500',
     };
-    return gradients[category as keyof typeof gradients] || 'from-gray-500 to-gray-600';
+    return gradients[category] || 'from-gray-500 to-gray-600';
   };
 
   const renderWidgetContent = () => {
@@ -384,6 +407,158 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
       
       case 'bank-balance-filter':
         return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;
+
+      // ── New widget renderers ──
+      case 'sales-orders-count':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShoppingCart className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{metrics?.totalSalesOrders || 0}</div>
+            <p className="text-sm text-gray-600 mt-1">Sales Orders</p>
+            <Badge className="mt-3 bg-purple-100 text-purple-800 border-purple-200">Selected Period</Badge>
+          </div>
+        );
+
+      case 'total-purchases':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <DollarSign className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
+            <p className="text-sm text-gray-600 mt-1">Total Purchases</p>
+          </div>
+        );
+
+      case 'purchase-orders-count':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{metrics?.totalPurchases || 0}</div>
+            <p className="text-sm text-gray-600 mt-1">Purchase Orders</p>
+            <Badge className="mt-3 bg-orange-100 text-orange-800 border-orange-200">Selected Period</Badge>
+          </div>
+        );
+
+      case 'pending-settlements':
+        return (
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900">Pending Settlements</h4>
+              <Clock className="h-5 w-5 text-amber-500" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
+                <span className="text-sm text-gray-700">Awaiting Payment</span>
+                <Badge className="bg-amber-100 text-amber-800">Check Purchase Tab</Badge>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'verified-clients':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserCheck className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{metrics?.verifiedClients || 0}</div>
+            <p className="text-sm text-gray-600 mt-1">Verified Clients</p>
+            <p className="text-xs text-gray-500 mt-1">out of {metrics?.totalClients || 0} total</p>
+          </div>
+        );
+
+      case 'stock-value':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Package className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-gray-600 mt-1">Stock Value (INR)</p>
+          </div>
+        );
+
+      case 'bank-balance-total':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Building className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-gray-600 mt-1">Bank Balance</p>
+            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">Active Accounts</Badge>
+          </div>
+        );
+
+      case 'total-cash':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Wallet className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-gray-600 mt-1">Total Cash (Banks + Stock)</p>
+          </div>
+        );
+
+      case 'gross-profit':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-2xl font-bold text-green-600">View P&L Tab</div>
+            <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
+            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">See Accounting</Badge>
+          </div>
+        );
+
+      case 'compliance-alerts':
+        return (
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900">Compliance Alerts</h4>
+              <Bell className="h-5 w-5 text-red-500" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <span className="text-sm text-gray-700">All compliance items up to date</span>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'kyc-overview':
+        return (
+          <div className="text-center p-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <UserCheck className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900">{metrics?.verifiedClients || 0}</div>
+            <p className="text-sm text-gray-600 mt-1">KYC Verified</p>
+          </div>
+        );
+
+      case 'payroll-summary':
+        return (
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900">Payroll Summary</h4>
+              <CreditCard className="h-5 w-5 text-teal-500" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-teal-50 rounded-lg">
+                <span className="text-sm text-gray-700">View payroll details in HRMS → Payroll tab</span>
+              </div>
+            </div>
+          </div>
+        );
       
       default:
         return (

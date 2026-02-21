@@ -5,11 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { UserCheck, Link2 } from "lucide-react";
 
 const TERMINAL_ROLES = {
   ADMIN: "1b88841c-bced-47e4-b09d-9b442f4bcdd7",
@@ -23,6 +25,13 @@ interface Role {
   description: string;
 }
 
+interface LinkedEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  badge_id: string;
+}
+
 interface EditUserDialogProps {
   user: DatabaseUser;
   onSave: (userId: string, userData: any) => Promise<any>;
@@ -30,7 +39,6 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
-  // Get the role_id from either user.role_id or from user.role.id (from user_roles junction table)
   const initialRoleId = user.role_id || user.role?.id || "no_role";
   
   const [formData, setFormData] = useState({
@@ -41,12 +49,15 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     phone: user.phone || "",
     status: user.status,
     role_id: initialRoleId,
+    badge_id: user.badge_id || "",
   });
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [terminalAccess, setTerminalAccess] = useState(false);
   const [currentTerminalRoleId, setCurrentTerminalRoleId] = useState<string | null>(null);
   const [terminalRoleId, setTerminalRoleId] = useState<string>(TERMINAL_ROLES.OPERATOR);
+  const [linkedEmployee, setLinkedEmployee] = useState<LinkedEmployee | null>(null);
+  const [isCheckingBadge, setIsCheckingBadge] = useState(false);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
 
@@ -56,12 +67,10 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         .from('roles')
         .select('id, name, description')
         .order('name');
-
       if (error) {
         console.error('Error fetching roles:', error);
         return;
       }
-
       setRoles(data || []);
     };
 
@@ -78,30 +87,67 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
     fetchTerminalAccess();
   }, [user.id]);
 
+  // Look up linked employee whenever badge_id changes
+  useEffect(() => {
+    const lookupEmployee = async () => {
+      const badgeId = formData.badge_id.trim();
+      if (!badgeId) {
+        setLinkedEmployee(null);
+        return;
+      }
+      setIsCheckingBadge(true);
+      try {
+        const { data, error } = await (supabase as any)
+          .from('hr_employees')
+          .select('id, first_name, last_name, badge_id')
+          .eq('badge_id', badgeId)
+          .maybeSingle();
+        if (!error && data) {
+          setLinkedEmployee(data);
+        } else {
+          setLinkedEmployee(null);
+        }
+      } catch {
+        setLinkedEmployee(null);
+      } finally {
+        setIsCheckingBadge(false);
+      }
+    };
+
+    const timeout = setTimeout(lookupEmployee, 400);
+    return () => clearTimeout(timeout);
+  }, [formData.badge_id]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Convert "no_role" back to empty string for the database
       const submitData = {
         ...formData,
         role_id: formData.role_id === "no_role" ? "" : formData.role_id,
+        badge_id: formData.badge_id.trim() || null,
       };
       
       const result = await onSave(user.id, submitData);
       
       if (result?.success !== false) {
-        // Log the action
+        // If badge matches an hr_employee, update user_id on hr_employees
+        if (linkedEmployee) {
+          await (supabase as any)
+            .from('hr_employees')
+            .update({ user_id: user.id })
+            .eq('id', linkedEmployee.id);
+        }
+
         logActionWithCurrentUser({
           actionType: ActionTypes.USER_UPDATED,
           entityType: EntityTypes.USER,
           entityId: user.id,
           module: Modules.USER_MANAGEMENT,
-          metadata: { username: formData.username, email: formData.email, role_id: formData.role_id }
+          metadata: { username: formData.username, email: formData.email, role_id: formData.role_id, badge_id: formData.badge_id }
         });
         
-        // If role was changed, log that separately
         if (formData.role_id !== initialRoleId) {
           logActionWithCurrentUser({
             actionType: ActionTypes.USER_ROLE_ASSIGNED,
@@ -115,7 +161,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         // Handle terminal access changes
         const hadAccess = !!currentTerminalRoleId;
         if (terminalAccess && !hadAccess) {
-          // Determine terminal role: if ERP role is Admin, auto-assign terminal Admin
           const selectedErpRole = roles.find(r => r.id === formData.role_id);
           const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin'
             ? TERMINAL_ROLES.ADMIN
@@ -133,7 +178,6 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             p_role_id: currentTerminalRoleId!,
           });
         } else if (terminalAccess && hadAccess && terminalRoleId !== currentTerminalRoleId) {
-          // Role changed: remove old, assign new
           await supabase.rpc("remove_terminal_role", {
             p_user_id: user.id,
             p_role_id: currentTerminalRoleId!,
@@ -152,13 +196,11 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
           description: "User updated successfully",
         });
 
-        // If the current user's role was changed, trigger a page reload to refresh permissions
         if (currentUser?.id === user.id && formData.role_id !== user.role_id) {
           toast({
             title: "Role Updated",
             description: "Your role has been updated. The page will refresh to apply new permissions.",
           });
-          
           setTimeout(() => {
             window.location.reload();
           }, 1500);
@@ -186,7 +228,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
         </DialogHeader>
@@ -243,6 +285,39 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="Phone number"
             />
+          </div>
+
+          {/* Badge ID with HRMS Employee Linking */}
+          <div className="space-y-2">
+            <Label htmlFor="badge_id" className="flex items-center gap-1.5">
+              <Link2 className="h-3.5 w-3.5" />
+              Badge ID (HRMS Link)
+            </Label>
+            <Input
+              id="badge_id"
+              value={formData.badge_id}
+              onChange={(e) => setFormData({ ...formData, badge_id: e.target.value })}
+              placeholder="e.g. EMP001"
+            />
+            {isCheckingBadge && (
+              <p className="text-xs text-muted-foreground">Looking up employee...</p>
+            )}
+            {formData.badge_id.trim() && !isCheckingBadge && linkedEmployee && (
+              <div className="flex items-center gap-2 p-2 rounded-md border border-green-200" style={{ backgroundColor: 'hsl(var(--accent))' }}>
+                <UserCheck className="h-4 w-4 text-green-600 shrink-0" />
+                <div className="text-xs">
+                  <p className="font-medium">
+                    Linked: {linkedEmployee.first_name} {linkedEmployee.last_name}
+                  </p>
+                </div>
+              </div>
+            )}
+            {formData.badge_id.trim() && !isCheckingBadge && !linkedEmployee && (
+              <p className="text-xs text-amber-600">No HRMS employee found with this Badge ID</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Enter the employee Badge ID to link this user to their HRMS profile.
+            </p>
           </div>
 
           <div className="space-y-2">

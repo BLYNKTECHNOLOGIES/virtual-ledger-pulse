@@ -57,6 +57,7 @@ export interface DatabaseUser {
   // Purchase function flags
   is_purchase_creator?: boolean;
   is_payer?: boolean;
+  badge_id?: string | null;
 }
 
 export interface AuthContextType {

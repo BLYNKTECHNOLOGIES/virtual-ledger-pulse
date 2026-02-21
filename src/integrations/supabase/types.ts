@@ -2906,6 +2906,7 @@ export type Database = {
           state: string | null
           total_salary: number | null
           updated_at: string
+          user_id: string | null
           zip: string | null
         }
         Insert: {
@@ -2936,6 +2937,7 @@ export type Database = {
           state?: string | null
           total_salary?: number | null
           updated_at?: string
+          user_id?: string | null
           zip?: string | null
         }
         Update: {
@@ -2966,6 +2968,7 @@ export type Database = {
           state?: string | null
           total_salary?: number | null
           updated_at?: string
+          user_id?: string | null
           zip?: string | null
         }
         Relationships: [
@@ -2974,6 +2977,13 @@ export type Database = {
             columns: ["salary_structure_template_id"]
             isOneToOne: false
             referencedRelation: "hr_salary_structure_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employees_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -9552,6 +9562,7 @@ export type Database = {
         Row: {
           account_locked_until: string | null
           avatar_url: string | null
+          badge_id: string | null
           created_at: string | null
           email: string
           email_verified: boolean | null
@@ -9574,6 +9585,7 @@ export type Database = {
         Insert: {
           account_locked_until?: string | null
           avatar_url?: string | null
+          badge_id?: string | null
           created_at?: string | null
           email: string
           email_verified?: boolean | null
@@ -9596,6 +9608,7 @@ export type Database = {
         Update: {
           account_locked_until?: string | null
           avatar_url?: string | null
+          badge_id?: string | null
           created_at?: string | null
           email?: string
           email_verified?: boolean | null

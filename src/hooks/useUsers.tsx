@@ -48,6 +48,7 @@ export function useUsers() {
           role_id,
           is_purchase_creator,
           is_payer,
+          badge_id,
           user_roles(
             roles(
               id,
@@ -253,6 +254,7 @@ export function useUsers() {
     role_id?: string;
     is_purchase_creator?: boolean;
     is_payer?: boolean;
+    badge_id?: string | null;
   }) => {
     try {
       // Check if user is authenticated
@@ -266,9 +268,7 @@ export function useUsers() {
       }
 
       // Update user basic info
-      const { error: userError } = await supabase
-        .from('users')
-        .update({
+      const updatePayload: any = {
           username: userData.username,
           email: userData.email,
           first_name: userData.first_name,
@@ -279,7 +279,13 @@ export function useUsers() {
           is_purchase_creator: userData.is_purchase_creator,
           is_payer: userData.is_payer,
           updated_at: new Date().toISOString()
-        })
+        };
+      if (userData.badge_id !== undefined) {
+        updatePayload.badge_id = userData.badge_id || null;
+      }
+      const { error: userError } = await supabase
+        .from('users')
+        .update(updatePayload)
         .eq('id', userId);
 
       if (userError) {

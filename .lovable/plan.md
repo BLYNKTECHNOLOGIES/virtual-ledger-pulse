@@ -21,11 +21,12 @@ Managing Director (can be multiple)
         │       ├── Field Compliance Officer
         │       └── Compliance Filing Executive
         │
-        ├── Operations Manager
-        │   └── Assistant Manager (covers all shifts)
-        │       └── Team Lead
-        │           ├── Sales Executive
-        │           └── Purchase Executive
+        ├── Chief Executive Officer (CEO)
+        │   └── Operations Manager
+        │       └── Assistant Manager (covers all shifts)
+        │           └── Team Lead
+        │               ├── Sales Executive
+        │               └── Purchase Executive
         │
         ├── Relationship / Marketing Head
         │   └── Relationship Manager
@@ -59,6 +60,7 @@ Managing Director (can be multiple)
 - Managing Director (L10) -- top
 - Deputy Managing Director (L9) -- reports to MD
 - General Manager (L8) -- reports to Deputy MD
+- Chief Executive Officer (L9) -- reports to GM
 
 **Compliance (COMP):**
 - CCO (L8) -- reports to GM
@@ -70,7 +72,7 @@ Managing Director (can be multiple)
 - Compliance Filing Executive (L5) -- reports to Head External
 
 **Operations (OPS):**
-- Operations Manager (L8) -- reports to GM
+- Operations Manager (L8) -- reports to CEO
 - Assistant Manager (L7) -- reports to Ops Manager
 - Team Lead (L6) -- reports to Assistant Manager
 - Sales Executive (L5) -- reports to Team Lead

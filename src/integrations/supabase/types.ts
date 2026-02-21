@@ -6656,6 +6656,7 @@ export type Database = {
           hierarchy_level: number | null
           id: string
           is_active: boolean | null
+          reports_to_position_id: string | null
           title: string
           updated_at: string | null
         }
@@ -6666,6 +6667,7 @@ export type Database = {
           hierarchy_level?: number | null
           id?: string
           is_active?: boolean | null
+          reports_to_position_id?: string | null
           title: string
           updated_at?: string | null
         }
@@ -6676,6 +6678,7 @@ export type Database = {
           hierarchy_level?: number | null
           id?: string
           is_active?: boolean | null
+          reports_to_position_id?: string | null
           title?: string
           updated_at?: string | null
         }
@@ -6685,6 +6688,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "positions_reports_to_position_id_fkey"
+            columns: ["reports_to_position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
             referencedColumns: ["id"]
           },
         ]

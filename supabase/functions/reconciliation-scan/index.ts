@@ -483,9 +483,11 @@ serve(async (req) => {
     // ============================================================
     if (scopeAll || scope.includes("conversions")) {
       try {
+        // Use correct column names from spot_trade_history table
         const { data: spotTrades } = await supabase
           .from("spot_trade_history")
-          .select("id, symbol, side, qty, price, commission, commission_asset, time, order_id");
+          .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, binance_order_id, status")
+          .eq("status", "FILLED");
 
         if (spotTrades?.length) {
           const tradeIds = spotTrades.map(t => t.id);
@@ -498,18 +500,20 @@ serve(async (req) => {
 
           for (const trade of spotTrades) {
             if (!linkedSet.has(trade.id)) {
+              const qty = parseFloat(String(trade.quantity || 0));
+              const price = parseFloat(String(trade.executed_price || 0));
               findings.push({
                 scan_id: scanId,
                 finding_type: "conversion_gap",
                 severity: "review",
                 category: "conversions",
                 asset: trade.symbol,
-                terminal_ref: trade.order_id || trade.id,
-                terminal_amount: parseFloat(String(trade.qty || 0)) * parseFloat(String(trade.price || 0)),
+                terminal_ref: trade.binance_order_id || trade.id,
+                terminal_amount: qty * price,
                 suggested_action: "record_conversion",
                 confidence: 0.80,
-                ai_reasoning: `Spot trade ${trade.symbol} (${trade.side}) for qty ${trade.qty} @ ${trade.price} has no linked ERP conversion entry. This trade's P&L and inventory impact is not reflected in the WAC system.`,
-                details: { side: trade.side, qty: trade.qty, price: trade.price, commission: trade.commission, commission_asset: trade.commission_asset, time: trade.time },
+                ai_reasoning: `Spot trade ${trade.symbol} (${trade.side}) for qty ${qty} @ $${price} has no linked ERP conversion entry. This trade's P&L and inventory impact is not reflected in the WAC system.`,
+                details: { side: trade.side, qty: qty, price: price, commission: trade.commission, commission_asset: trade.commission_asset, trade_time: trade.trade_time },
               });
             }
           }
@@ -655,6 +659,69 @@ serve(async (req) => {
           }
         }
       } catch (e) { console.error("Module 14 error:", e); }
+    }
+
+    // ============================================================
+    // MODULE 15: Unreconciled Conversions (APPROVED SELL, no actual USDT)
+    // ============================================================
+    if (scopeAll || scope.includes("conversions")) {
+      try {
+        const { data: unreconciledConvs } = await supabase
+          .from("erp_product_conversions")
+          .select("id, reference_no, asset_code, side, quantity, price_usd, net_usdt_change, spot_trade_id, created_at, status")
+          .eq("status", "APPROVED")
+          .eq("side", "SELL")
+          .is("actual_usdt_received", null);
+
+        if (unreconciledConvs?.length) {
+          for (const conv of unreconciledConvs) {
+            // Check if there's a linked spot trade with actual data
+            let spotTradeInfo = "";
+            let spotNetUsdt = 0;
+            if (conv.spot_trade_id) {
+              const { data: spotTrade } = await supabase
+                .from("spot_trade_history")
+                .select("quantity, executed_price, quote_quantity, commission, commission_asset, trade_time")
+                .eq("id", conv.spot_trade_id)
+                .maybeSingle();
+
+              if (spotTrade) {
+                const gross = parseFloat(String(spotTrade.quote_quantity || 0));
+                const fee = parseFloat(String(spotTrade.commission || 0));
+                spotNetUsdt = gross - fee;
+                const tradeDate = spotTrade.trade_time ? new Date(spotTrade.trade_time).toISOString() : "unknown";
+                spotTradeInfo = ` Linked spot trade executed at $${spotTrade.executed_price} for ${spotTrade.quantity} ${conv.asset_code} (gross: ${gross.toFixed(4)} USDT, fee: ${fee.toFixed(4)} ${spotTrade.commission_asset || ""}, net: ${spotNetUsdt.toFixed(4)} USDT, time: ${tradeDate}).`;
+              }
+            }
+
+            const variance = spotNetUsdt > 0
+              ? Math.abs(spotNetUsdt - Math.abs(conv.net_usdt_change))
+              : 0;
+
+            findings.push({
+              scan_id: scanId,
+              finding_type: "unreconciled_conversion",
+              severity: variance > 10 ? "warning" : "review",
+              category: "conversions",
+              asset: conv.asset_code,
+              erp_ref: conv.reference_no || conv.id,
+              erp_amount: Math.abs(conv.net_usdt_change),
+              terminal_amount: spotNetUsdt > 0 ? spotNetUsdt : null,
+              variance: variance,
+              suggested_action: "reconcile_conversion",
+              confidence: conv.spot_trade_id ? 0.95 : 0.80,
+              ai_reasoning: `SELL conversion ${conv.reference_no || conv.id} (${conv.asset_code}) is APPROVED but has no actual USDT received recorded. Booked net: ${Math.abs(conv.net_usdt_change).toFixed(4)} USDT.${spotTradeInfo} This needs rate reconciliation to confirm actual received amount and compute P&L.`,
+              details: {
+                conversion_id: conv.id,
+                spot_trade_id: conv.spot_trade_id,
+                booked_net_usdt: conv.net_usdt_change,
+                spot_net_usdt: spotNetUsdt > 0 ? spotNetUsdt : null,
+                created_at: conv.created_at,
+              },
+            });
+          }
+        }
+      } catch (e) { console.error("Module 15 error:", e); }
     }
 
     // ============================================================

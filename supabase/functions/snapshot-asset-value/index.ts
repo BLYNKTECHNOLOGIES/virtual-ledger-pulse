@@ -36,44 +36,57 @@ serve(async (req) => {
       (sum, p) => sum + Number(p.settlement_amount || 0), 0
     ) || 0;
 
-    // 3. Stock valuation: total wallet units × weighted average purchase price
-    // Get all active wallet balances
+    // 3. Stock valuation: multi-asset (USDT from wallets, others from wallet_asset_balances)
+    // 3a. USDT from wallets
     const { data: wallets } = await supabase
       .from("wallets")
-      .select("current_balance, wallet_type")
+      .select("current_balance")
       .eq("is_active", true);
 
-    const totalStockUnits = wallets?.reduce(
+    const totalUsdtUnits = wallets?.reduce(
       (sum, w) => sum + Number(w.current_balance || 0), 0
     ) || 0;
 
-    // Calculate weighted average purchase price from completed purchase orders
-    const { data: purchaseItems } = await supabase
-      .from("purchase_order_items")
-      .select("quantity, unit_price, purchase_order_id")
-      .limit(1000);
+    // 3b. Non-USDT from wallet_asset_balances
+    const { data: assetBalances } = await supabase
+      .from("wallet_asset_balances")
+      .select("asset_code, balance")
+      .neq("asset_code", "USDT");
 
-    // Get completed purchase order IDs
-    const { data: completedPOs } = await supabase
+    const nonUsdtMap = new Map<string, number>();
+    (assetBalances || []).forEach(ab => {
+      const bal = Number(ab.balance || 0);
+      nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
+    });
+
+    // 3c. Avg costs per product from completed POs
+    const { data: purchaseOrders } = await supabase
       .from("purchase_orders")
-      .select("id")
+      .select(`*, purchase_order_items(quantity, total_price, products(code))`)
       .eq("status", "COMPLETED");
 
-    const completedIds = new Set(completedPOs?.map(po => po.id) || []);
+    const costCalc = new Map<string, { qty: number; cost: number }>();
+    (purchaseOrders || []).forEach((po: any) => {
+      (po.purchase_order_items || []).forEach((item: any) => {
+        const code = item.products?.code;
+        if (!code) return;
+        const e = costCalc.get(code) || { qty: 0, cost: 0 };
+        e.qty += Number(item.quantity || 0);
+        e.cost += Number(item.total_price || 0);
+        costCalc.set(code, e);
+      });
+    });
 
-    let totalQty = 0;
-    let totalCost = 0;
-    for (const item of purchaseItems || []) {
-      if (completedIds.has(item.purchase_order_id)) {
-        const qty = Number(item.quantity || 0);
-        const price = Number(item.unit_price || 0);
-        totalQty += qty;
-        totalCost += qty * price;
-      }
-    }
+    const getAvgCost = (code: string) => {
+      const c = costCalc.get(code);
+      return c && c.qty > 0 ? c.cost / c.qty : 0;
+    };
 
-    const weightedAvgCost = totalQty > 0 ? totalCost / totalQty : 0;
-    const stockValuation = totalStockUnits * weightedAvgCost;
+    // Calculate total stock valuation across all assets
+    let stockValuation = totalUsdtUnits * getAvgCost("USDT");
+    nonUsdtMap.forEach((units, code) => {
+      stockValuation += units * getAvgCost(code);
+    });
 
     // 4. Unpaid TDS liability
     const { data: unpaidTds } = await supabase
@@ -109,8 +122,7 @@ serve(async (req) => {
           bank_balance: totalBankBalance,
           gateway_balance: totalGatewayBalance,
           stock_valuation: stockValuation,
-          stock_units: totalStockUnits,
-          weighted_avg_cost: weightedAvgCost,
+          usdt_units: totalUsdtUnits,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

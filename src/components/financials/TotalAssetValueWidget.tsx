@@ -7,7 +7,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { TrendingUp, Layers, ChevronDown, ChevronRight } from "lucide-react";
 
 interface BankDetail { account_name: string; bank_name: string; balance: number; status: string; dormant_at: string | null }
-interface SettlementDetail { id: string; settlement_amount: number; client_name: string; order_number: string; expected_settlement_date: string | null }
+interface GatewayGroup { gateway_name: string; total: number; count: number }
+interface AssetStockDetail { asset_code: string; total_units: number; avg_cost: number; total_value: number }
 interface WalletDetail { wallet_name: string; current_balance: number }
 interface TdsDetail { id: string; tds_amount: number; pan_number: string; deduction_date: string }
 
@@ -15,7 +16,7 @@ export function useTotalAssetValue() {
   return useQuery({
     queryKey: ["total_asset_value_realtime"],
     queryFn: async () => {
-      // 1. Bank balances (Active + Dormant) with details
+      // 1. Bank balances (Active + Dormant)
       const { data: banks } = await supabase
         .from("bank_accounts")
         .select("account_name, bank_name, balance, status, dormant_at")
@@ -23,31 +24,46 @@ export function useTotalAssetValue() {
         .order("account_name");
 
       const bankDetails: BankDetail[] = (banks || []).map(b => ({
-        account_name: b.account_name,
-        bank_name: b.bank_name,
-        balance: Number(b.balance || 0),
-        status: b.status,
-        dormant_at: b.dormant_at,
+        account_name: b.account_name, bank_name: b.bank_name,
+        balance: Number(b.balance || 0), status: b.status, dormant_at: b.dormant_at,
       }));
       const totalBank = bankDetails.reduce((s, a) => s + a.balance, 0);
 
-      // 2. POS / Payment gateway with details
+      // 2. POS / Gateway — group by gateway, not individual transactions
       const { data: pendingSettlements } = await supabase
         .from("pending_settlements")
-        .select("id, settlement_amount, client_name, order_number, expected_settlement_date")
-        .eq("status", "PENDING")
-        .order("expected_settlement_date", { ascending: false });
+        .select("settlement_amount, payment_method_id")
+        .eq("status", "PENDING");
 
-      const settlementDetails: SettlementDetail[] = (pendingSettlements || []).map(p => ({
-        id: p.id,
-        settlement_amount: Number(p.settlement_amount || 0),
-        client_name: p.client_name,
-        order_number: p.order_number,
-        expected_settlement_date: p.expected_settlement_date,
-      }));
-      const totalGateway = settlementDetails.reduce((s, p) => s + p.settlement_amount, 0);
+      // Fetch payment method names for grouping
+      const pmIds = [...new Set((pendingSettlements || []).map(p => p.payment_method_id).filter(Boolean))];
+      let pmNameMap = new Map<string, string>();
+      if (pmIds.length > 0) {
+        const { data: pms } = await supabase
+          .from("sales_payment_methods")
+          .select("id, type, nickname")
+          .in("id", pmIds);
+        (pms || []).forEach(pm => {
+          pmNameMap.set(pm.id, pm.nickname || pm.type || "Unknown");
+        });
+      }
 
-      // 3. Stock valuation - wallet details
+      // Group settlements by gateway
+      const gwMap = new Map<string, { total: number; count: number }>();
+      (pendingSettlements || []).forEach(p => {
+        const name = p.payment_method_id ? (pmNameMap.get(p.payment_method_id) || "Unknown Gateway") : "Unassigned";
+        const existing = gwMap.get(name) || { total: 0, count: 0 };
+        existing.total += Number(p.settlement_amount || 0);
+        existing.count += 1;
+        gwMap.set(name, existing);
+      });
+      const gatewayGroups: GatewayGroup[] = Array.from(gwMap.entries())
+        .map(([gateway_name, v]) => ({ gateway_name, total: v.total, count: v.count }))
+        .sort((a, b) => b.total - a.total);
+      const totalGateway = gatewayGroups.reduce((s, g) => s + g.total, 0);
+
+      // 3. Stock valuation — multi-asset (USDT from wallets, others from wallet_asset_balances)
+      // 3a. USDT balances from wallets table
       const { data: wallets } = await supabase
         .from("wallets")
         .select("wallet_name, current_balance")
@@ -55,47 +71,72 @@ export function useTotalAssetValue() {
         .order("wallet_name");
 
       const walletDetails: WalletDetail[] = (wallets || []).map(w => ({
-        wallet_name: w.wallet_name,
-        current_balance: Number(w.current_balance || 0),
+        wallet_name: w.wallet_name, current_balance: Number(w.current_balance || 0),
       }));
-      const totalUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
+      const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 
-      // Get ALL completed PO items (paginated to avoid 1000-row limit)
-      const { data: completedPOs } = await supabase
+      // 3b. Non-USDT asset balances
+      const { data: assetBalances } = await supabase
+        .from("wallet_asset_balances")
+        .select("asset_code, balance")
+        .neq("asset_code", "USDT");
+
+      const nonUsdtMap = new Map<string, number>();
+      (assetBalances || []).forEach(ab => {
+        const bal = Number(ab.balance || 0);
+        nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
+      });
+
+      // 3c. Get avg costs per product from completed POs
+      const { data: purchaseOrders } = await supabase
         .from("purchase_orders")
-        .select("id")
+        .select(`*, purchase_order_items(quantity, total_price, products(code))`)
         .eq("status", "COMPLETED");
 
-      const completedIds = new Set(completedPOs?.map((p) => p.id) || []);
+      const costCalc = new Map<string, { qty: number; cost: number }>();
+      (purchaseOrders || []).forEach(po => {
+        (po.purchase_order_items || []).forEach((item: any) => {
+          const code = item.products?.code;
+          if (!code) return;
+          const e = costCalc.get(code) || { qty: 0, cost: 0 };
+          e.qty += Number(item.quantity || 0);
+          e.cost += Number(item.total_price || 0);
+          costCalc.set(code, e);
+        });
+      });
 
-      let allItems: { quantity: number; unit_price: number; purchase_order_id: string }[] = [];
-      let offset = 0;
-      const batchSize = 1000;
-      while (true) {
-        const { data: items } = await supabase
-          .from("purchase_order_items")
-          .select("quantity, unit_price, purchase_order_id")
-          .range(offset, offset + batchSize - 1);
-        if (!items || items.length === 0) break;
-        allItems = allItems.concat(items);
-        if (items.length < batchSize) break;
-        offset += batchSize;
+      const getAvgCost = (code: string) => {
+        const c = costCalc.get(code);
+        return c && c.qty > 0 ? c.cost / c.qty : 0;
+      };
+
+      // Build asset stock details
+      const assetStocks: AssetStockDetail[] = [];
+
+      // USDT
+      const usdtAvg = getAvgCost("USDT");
+      if (totalUsdtUnits > 0 || usdtAvg > 0) {
+        assetStocks.push({
+          asset_code: "USDT", total_units: totalUsdtUnits,
+          avg_cost: usdtAvg, total_value: totalUsdtUnits * usdtAvg,
+        });
       }
 
-      let totalQty = 0;
-      let totalCost = 0;
-      for (const item of allItems) {
-        if (completedIds.has(item.purchase_order_id)) {
-          const qty = Number(item.quantity || 0);
-          totalQty += qty;
-          totalCost += qty * Number(item.unit_price || 0);
+      // Other assets
+      nonUsdtMap.forEach((units, code) => {
+        const avg = getAvgCost(code);
+        if (units > 0) {
+          assetStocks.push({
+            asset_code: code, total_units: units,
+            avg_cost: avg, total_value: units * avg,
+          });
         }
-      }
+      });
 
-      const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
-      const stockVal = totalUnits * avgCost;
+      assetStocks.sort((a, b) => b.total_value - a.total_value);
+      const stockVal = assetStocks.reduce((s, a) => s + a.total_value, 0);
 
-      // 4. TDS Liability with details
+      // 4. TDS Liability
       const { data: unpaidTds } = await supabase
         .from("tds_records")
         .select("id, tds_amount, pan_number, deduction_date")
@@ -103,19 +144,17 @@ export function useTotalAssetValue() {
         .order("deduction_date", { ascending: false });
 
       const tdsDetails: TdsDetail[] = (unpaidTds || []).map(r => ({
-        id: r.id,
-        tds_amount: Number(r.tds_amount || 0),
-        pan_number: r.pan_number,
-        deduction_date: r.deduction_date,
+        id: r.id, tds_amount: Number(r.tds_amount || 0),
+        pan_number: r.pan_number, deduction_date: r.deduction_date,
       }));
       const totalUnpaidTds = tdsDetails.reduce((s, r) => s + r.tds_amount, 0);
 
-      // 5. Net Total
       const total = totalBank + totalGateway + stockVal - totalUnpaidTds;
 
       return {
-        total, totalBank, totalGateway, stockVal, totalUnits, avgCost, totalUnpaidTds,
-        bankDetails, settlementDetails, walletDetails, tdsDetails,
+        total, totalBank, totalGateway, stockVal, totalUnpaidTds,
+        bankDetails, gatewayGroups, assetStocks, walletDetails, tdsDetails,
+        pendingCount: (pendingSettlements || []).length,
       };
     },
     refetchInterval: 60000,
@@ -183,45 +222,47 @@ export function TotalAssetValueWidget() {
               ))}
             </ExpandableCategory>
 
-            {/* POS / Gateway */}
+            {/* POS / Gateway — grouped by gateway */}
             <ExpandableCategory
               label="POS / Gateway (Pending Settlements)"
               total={fmt(data?.totalGateway || 0)}
-              count={data?.settlementDetails?.length || 0}
+              count={data?.pendingCount || 0}
               positive
             >
-              {data?.settlementDetails?.length ? data.settlementDetails.map((s, i) => (
+              {data?.gatewayGroups?.length ? data.gatewayGroups.map((g, i) => (
                 <div key={i} className="flex justify-between items-center py-1.5 px-3 rounded bg-muted/50">
                   <div>
-                    <span className="font-medium">{s.client_name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">#{s.order_number}</span>
-                    {s.expected_settlement_date && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({new Date(s.expected_settlement_date).toLocaleDateString()})
-                      </span>
-                    )}
+                    <span className="font-medium">{g.gateway_name}</span>
+                    <span className="text-xs text-muted-foreground ml-2">({g.count} txns)</span>
                   </div>
-                  <span className="font-semibold text-green-600">{fmt(s.settlement_amount)}</span>
+                  <span className="font-semibold text-green-600">{fmt(g.total)}</span>
                 </div>
               )) : (
                 <p className="text-xs text-muted-foreground px-3">No pending settlements</p>
               )}
             </ExpandableCategory>
 
-            {/* Stock / Wallets */}
+            {/* Stock Valuation — multi-asset */}
             <ExpandableCategory
-              label="Stock Valuation (Units × Avg Cost)"
+              label="Stock Valuation (Multi-Asset)"
               total={fmt(data?.stockVal || 0)}
-              count={data?.walletDetails?.length || 0}
+              count={data?.assetStocks?.length || 0}
               positive
-              subtitle={`Units: ${fmtUnits(data?.totalUnits || 0)} | Avg Cost: ${fmt(data?.avgCost || 0)}`}
             >
-              {data?.walletDetails?.map((w, i) => (
+              {data?.assetStocks?.map((a, i) => (
                 <div key={i} className="flex justify-between items-center py-1.5 px-3 rounded bg-muted/50">
-                  <span className="font-medium">{w.wallet_name}</span>
-                  <span className="font-semibold">{fmtUnits(w.current_balance)} units</span>
+                  <div>
+                    <span className="font-medium">{a.asset_code}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {fmtUnits(a.total_units)} units × {fmt(a.avg_cost)}
+                    </span>
+                  </div>
+                  <span className="font-semibold text-green-600">{fmt(a.total_value)}</span>
                 </div>
               ))}
+              {(!data?.assetStocks?.length) && (
+                <p className="text-xs text-muted-foreground px-3">No stock positions</p>
+              )}
             </ExpandableCategory>
 
             {/* TDS */}
@@ -253,7 +294,7 @@ export function TotalAssetValueWidget() {
             </div>
 
             <p className="text-xs text-muted-foreground italic">
-              Formula: Banks + POS + (Stock Units × Weighted Avg Purchase Price) − Unpaid TDS
+              Formula: Banks + POS + Σ(Asset Units × Avg Cost) − Unpaid TDS
             </p>
           </div>
         </DialogContent>

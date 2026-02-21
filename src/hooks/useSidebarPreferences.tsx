@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -187,7 +187,7 @@ export function useSidebarPreferences() {
     },
   });
 
-  const applySidebarOrder = (entries: SidebarEntry[]): SidebarEntry[] => {
+  const applySidebarOrder = useCallback((entries: SidebarEntry[]): SidebarEntry[] => {
     const currentPreferences = preferences || { order: localOrder };
     const order = currentPreferences.order;
     
@@ -195,13 +195,11 @@ export function useSidebarPreferences() {
       return entries;
     }
 
-    // Create a map for quick lookup by id
     const entryMap = new Map(entries.map(entry => {
-      const id = entry.type === 'item' ? entry.data.id : entry.data.id;
+      const id = entry.data.id;
       return [id, entry];
     }));
     
-    // Order entries according to preferences
     const orderedEntries: SidebarEntry[] = [];
     const usedIds = new Set<string>();
 
@@ -213,21 +211,18 @@ export function useSidebarPreferences() {
       }
     });
 
-    // Add any remaining entries that weren't in the preferences
     entries.forEach(entry => {
-      const id = entry.type === 'item' ? entry.data.id : entry.data.id;
+      const id = entry.data.id;
       if (!usedIds.has(id)) {
         orderedEntries.push(entry);
       }
     });
 
     return orderedEntries;
-  };
+  }, [preferences, localOrder]);
 
-  const saveSidebarOrder = (orderedEntries: SidebarEntry[]) => {
-    const order = orderedEntries.map(entry => 
-      entry.type === 'item' ? entry.data.id : entry.data.id
-    );
+  const saveSidebarOrder = useCallback((orderedEntries: SidebarEntry[]) => {
+    const order = orderedEntries.map(entry => entry.data.id);
     
     const groupOrder: Record<string, string[]> = {};
     orderedEntries.forEach(entry => {
@@ -237,7 +232,7 @@ export function useSidebarPreferences() {
     });
     
     savePreferencesMutation.mutate({ order, groupOrder });
-  };
+  }, [savePreferencesMutation]);
 
   return {
     preferences: preferences || { order: localOrder },

@@ -2902,7 +2902,9 @@ export type Database = {
           phone: string | null
           profile_image_url: string | null
           qualification: string | null
+          salary_structure_template_id: string | null
           state: string | null
+          total_salary: number | null
           updated_at: string
           zip: string | null
         }
@@ -2930,7 +2932,9 @@ export type Database = {
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
+          salary_structure_template_id?: string | null
           state?: string | null
+          total_salary?: number | null
           updated_at?: string
           zip?: string | null
         }
@@ -2958,11 +2962,21 @@ export type Database = {
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
+          salary_structure_template_id?: string | null
           state?: string | null
+          total_salary?: number | null
           updated_at?: string
           zip?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hr_employees_salary_structure_template_id_fkey"
+            columns: ["salary_structure_template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_structure_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_feedback_360: {
         Row: {
@@ -4133,6 +4147,78 @@ export type Database = {
           is_taxable?: boolean | null
           name?: string
           percentage_of?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_salary_structure_template_items: {
+        Row: {
+          calculation_type: string
+          component_id: string
+          created_at: string
+          id: string
+          percentage_of: string | null
+          template_id: string
+          value: number
+        }
+        Insert: {
+          calculation_type?: string
+          component_id: string
+          created_at?: string
+          id?: string
+          percentage_of?: string | null
+          template_id: string
+          value?: number
+        }
+        Update: {
+          calculation_type?: string
+          component_id?: string
+          created_at?: string
+          id?: string
+          percentage_of?: string | null
+          template_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_salary_structure_template_items_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_salary_structure_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_structure_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_salary_structure_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
           updated_at?: string
         }
         Relationships: []

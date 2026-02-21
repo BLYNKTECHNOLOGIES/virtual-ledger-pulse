@@ -60,7 +60,27 @@ export function AvailablePaymentGateways() {
         .eq('is_active', true);
 
       if (error) throw error;
-      setGateways(data || []);
+
+      // Fetch pending settlements to calculate real current usage per gateway
+      const { data: pendingSettlements } = await supabase
+        .from('pending_settlements')
+        .select('payment_method_id, settlement_amount')
+        .eq('status', 'PENDING');
+
+      const pendingByMethod: Record<string, number> = {};
+      (pendingSettlements || []).forEach((ps: any) => {
+        if (ps.payment_method_id) {
+          pendingByMethod[ps.payment_method_id] = (pendingByMethod[ps.payment_method_id] || 0) + Number(ps.settlement_amount || 0);
+        }
+      });
+
+      // Override current_usage with actual pending settlement totals
+      const enrichedGateways = (data || []).map(gw => ({
+        ...gw,
+        current_usage: pendingByMethod[gw.id] || 0,
+      }));
+
+      setGateways(enrichedGateways);
     } catch (error) {
       console.error('Error fetching payment gateways:', error);
       toast({

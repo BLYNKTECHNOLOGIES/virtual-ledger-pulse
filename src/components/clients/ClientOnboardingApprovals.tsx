@@ -70,27 +70,15 @@ export function ClientOnboardingApprovals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch approvals - pending only for today (IST), history for all
+  // Fetch approvals - all pending, and all reviewed (history)
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['client_onboarding_approvals'],
     queryFn: async () => {
-      // Calculate today's start in IST (UTC+5:30)
-      const now = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const istNow = new Date(now.getTime() + istOffset);
-      const todayISTStart = new Date(Date.UTC(
-        istNow.getUTCFullYear(),
-        istNow.getUTCMonth(),
-        istNow.getUTCDate(),
-        0, 0, 0, 0
-      ) - istOffset); // Convert back to UTC for DB comparison
-
-      // Fetch today's PENDING approvals
-      const { data: todayPending, error: pendingError } = await supabase
+      // Fetch ALL PENDING approvals (not just today)
+      const { data: allPending, error: pendingError } = await supabase
         .from('client_onboarding_approvals')
         .select('*')
         .eq('approval_status', 'PENDING')
-        .gte('created_at', todayISTStart.toISOString())
         .order('created_at', { ascending: false });
 
       if (pendingError) throw pendingError;
@@ -104,7 +92,7 @@ export function ClientOnboardingApprovals() {
 
       if (historyError) throw historyError;
 
-      return [...(todayPending || []), ...(history || [])] as ClientOnboardingApproval[];
+      return [...(allPending || []), ...(history || [])] as ClientOnboardingApproval[];
     }
   });
 

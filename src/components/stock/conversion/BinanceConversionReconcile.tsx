@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -274,11 +274,30 @@ export function BinanceConversionReconcile() {
   const applyMutation = useApplyReconciliation();
 
   const selectedConvDate = dialog?.conversion.created_at;
-  const { data: transfers = [], isLoading: transfersLoading } = useBinanceUsdtTransfers(selectedConvDate);
+  const { data: rawTransfers = [], isLoading: transfersLoading } = useBinanceUsdtTransfers(selectedConvDate);
+
+  // Sort transfers by closest match to booked amount
+  const bookedAmount = dialog ? Math.abs(Number(dialog.conversion.net_usdt_change)) : 0;
+  const transfers = [...rawTransfers].sort((a, b) => {
+    return Math.abs(a.amount - bookedAmount) - Math.abs(b.amount - bookedAmount);
+  });
+
+  // Auto-select closest match when transfers load
+  const [autoSelected, setAutoSelected] = useState(false);
+  useEffect(() => {
+    if (!autoSelected && transfers.length > 0 && dialog && !manualTransferId) {
+      const best = transfers[0];
+      setManualUsdt(String(best.amount));
+      setManualTransferId(best.id);
+      setDialog((prev) => prev ? { ...prev, suggestedTransfer: best } : prev);
+      setAutoSelected(true);
+    }
+  }, [transfers, dialog, autoSelected, manualTransferId]);
 
   function openDialog(conv: UnreconciledConversion) {
-    setManualUsdt(String(conv.net_usdt_change));
+    setManualUsdt(String(Math.abs(conv.net_usdt_change)));
     setManualTransferId("");
+    setAutoSelected(false);
     setDialog({ conversion: conv });
   }
 
@@ -304,7 +323,7 @@ export function BinanceConversionReconcile() {
     setDialog(null);
   }
 
-  const booked = dialog ? Number(dialog.conversion.net_usdt_change) : 0;
+  const booked = dialog ? Math.abs(Number(dialog.conversion.net_usdt_change)) : 0;
   const actual = parseFloat(manualUsdt) || 0;
   const variance = actual - booked;
 
@@ -452,38 +471,38 @@ export function BinanceConversionReconcile() {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
-                    {transfers.map((t) => {
-                      const diff = t.amount - Number(dialog.conversion.net_usdt_change);
+                    {transfers.map((t, idx) => {
+                      const diff = t.amount - Math.abs(Number(dialog.conversion.net_usdt_change));
                       const isSelected = manualTransferId === t.id;
-                      const isClose = Math.abs(diff) < 5; // within $5 is likely a match
+                      const isBestMatch = idx === 0; // sorted by closest
                       return (
                         <button
                           key={t.id}
                           onClick={() => selectTransfer(t)}
-                        className={`w-full text-left rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          className={`w-full text-left rounded-lg border-2 px-3 py-2 text-sm transition-colors ${
                             isSelected
-                              ? "border-primary bg-primary/5"
-                              : isClose
-                              ? "border-green-300 bg-green-50/80 dark:border-green-600 dark:bg-green-900/20 hover:border-primary"
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : isBestMatch
+                              ? "border-green-400 bg-green-50 dark:border-green-500 dark:bg-green-900/30 hover:border-primary animate-pulse-once"
                               : "border-border hover:bg-muted/50"
                           }`}
                         >
                           <div className="flex justify-between items-center">
-                            <div>
+                            <div className="flex items-center gap-2">
+                              {isBestMatch && (
+                                <Badge className="text-[10px] bg-green-100 text-green-700 border-green-300 shrink-0">
+                                  ⭐ Most Likely
+                                </Badge>
+                              )}
                               <span className="font-mono font-medium">{t.amount.toFixed(8)} USDT</span>
-                              <span className="text-xs text-muted-foreground ml-2">
+                              <span className="text-xs text-muted-foreground">
                                 {format(new Date(t.movement_datetime), "HH:mm:ss dd MMM")}
                               </span>
-                              <span className="text-[10px] text-muted-foreground ml-2 font-mono">{t.id}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">{t.id}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {isClose && (
-                                <Badge className="text-[10px] bg-green-100 text-green-700">Best match</Badge>
-                              )}
-                              <span className={`text-xs font-mono ${diff >= 0 ? "text-green-600" : "text-red-500"}`}>
-                                {diff >= 0 ? "+" : ""}{diff.toFixed(6)}
-                              </span>
-                            </div>
+                            <span className={`text-xs font-mono font-semibold ${diff >= 0 ? "text-green-600" : "text-red-500"}`}>
+                              {diff >= 0 ? "+" : ""}{diff.toFixed(6)}
+                            </span>
                           </div>
                         </button>
                       );

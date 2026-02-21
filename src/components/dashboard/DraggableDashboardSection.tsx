@@ -8,9 +8,10 @@ interface DraggableDashboardSectionProps {
   children: ReactNode;
   isDraggable: boolean;
   label?: string;
+  className?: string;
 }
 
-export function DraggableDashboardSection({ id, children, isDraggable, label }: DraggableDashboardSectionProps) {
+export function DraggableDashboardSection({ id, children, isDraggable, label, className = '' }: DraggableDashboardSectionProps) {
   const {
     attributes,
     listeners,
@@ -21,14 +22,14 @@ export function DraggableDashboardSection({ id, children, isDraggable, label }: 
   } = useSortable({ id, disabled: !isDraggable });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 50 : 'auto' as const,
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`relative ${isDragging ? 'ring-2 ring-blue-400 rounded-xl' : ''}`}>
+    <div ref={setNodeRef} style={style} className={`relative ${className} ${isDragging ? 'ring-2 ring-blue-400 rounded-xl' : ''}`}>
       {isDraggable && (
         <div
           {...attributes}

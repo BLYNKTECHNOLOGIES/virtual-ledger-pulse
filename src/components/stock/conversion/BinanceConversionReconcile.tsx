@@ -559,10 +559,49 @@ export function BinanceConversionReconcile() {
                   </p>
                 ) : (
                   <div className="space-y-1.5">
+                    {/* Show linked spot trade as the primary selectable match */}
+                    {linkedSpotTrade && spotTradeNetUsdt && spotTradeNetUsdt > 0 && (() => {
+                      const spotId = `spot-trade-${linkedSpotTrade.id}`;
+                      const isSpotSelected = manualTransferId === spotId;
+                      const tradeTime = linkedSpotTrade.trade_time
+                        ? format(new Date(linkedSpotTrade.trade_time), "HH:mm:ss dd MMM")
+                        : "Unknown time";
+                      const diff = spotTradeNetUsdt - Math.abs(Number(dialog.conversion.net_usdt_change));
+                      return (
+                        <button
+                          key={spotId}
+                          onClick={() => {
+                            setManualUsdt(String(spotTradeNetUsdt));
+                            setManualTransferId(spotId);
+                          }}
+                          className={`w-full text-left rounded-lg border-2 px-3 py-2 text-sm transition-colors ${
+                            isSpotSelected
+                              ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                              : "border-green-500 bg-green-50 dark:border-green-400 dark:bg-green-900/30 hover:border-primary"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <Badge className="text-[10px] bg-green-200 text-green-800 border-green-400 shrink-0">
+                                ✅ Spot Trade Match
+                              </Badge>
+                              <span className="font-mono font-medium">{spotTradeNetUsdt.toFixed(8)} USDT</span>
+                              <span className="text-xs text-muted-foreground">{tradeTime}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">Net (Gross−Fee)</span>
+                            </div>
+                            <span className={`text-xs font-mono font-semibold ${diff >= 0 ? "text-green-600" : "text-red-500"}`}>
+                              {diff >= 0 ? "+" : ""}{diff.toFixed(6)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })()}
+
+                    {/* Spot→Funding transfers */}
                     {transfers.map((t, idx) => {
                       const diff = t.amount - Math.abs(Number(dialog.conversion.net_usdt_change));
                       const isSelected = manualTransferId === t.id;
-                      const isBestMatch = idx === 0; // sorted by closest
+                      const isBestMatch = idx === 0 && !linkedSpotTrade; // only mark best if no spot trade
                       return (
                         <button
                           key={t.id}

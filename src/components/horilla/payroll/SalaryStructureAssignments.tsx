@@ -214,7 +214,12 @@ export default function SalaryStructureAssignments() {
 
     // Net = Earnings - Employee deductions only (exclude employer contributions)
     const employeeDeductions = deductionsList
-      .filter(d => !d.code?.toLowerCase().includes("employer"))
+      .filter(d => {
+        const nameLower = d.name?.toLowerCase() || '';
+        const codeLower = d.code?.toLowerCase() || '';
+        const isEmployer = nameLower.includes("employer") || codeLower.includes("employer") || codeLower.includes("pfc") || codeLower.includes("esic");
+        return !isEmployer;
+      })
       .reduce((s, d) => s + d.amount, 0);
 
     return { earnings, deductions: deductionsList, totalEarnings, totalDeductions, net: totalEarnings - employeeDeductions };

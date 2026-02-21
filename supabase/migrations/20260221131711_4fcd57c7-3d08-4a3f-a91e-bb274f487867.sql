@@ -1,0 +1,1 @@
+UPDATE positions SET department_id = '8d879938-1770-4891-919e-b20a9b8fef1b' WHERE id = 'f5f9bc69-52c3-4680-816b-77f39444818d';

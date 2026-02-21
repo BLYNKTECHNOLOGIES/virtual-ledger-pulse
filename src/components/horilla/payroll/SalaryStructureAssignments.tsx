@@ -87,36 +87,66 @@ export default function SalaryStructureAssignments() {
 
   const getTemplateName = (id: string) => templates.find((t: any) => t.id === id)?.name || "—";
 
+  const evalFormula = (formula: string, vars: Record<string, number>): number => {
+    try {
+      let expr = formula.trim();
+      Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
+        expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
+      });
+      // Only allow numbers, operators, parentheses, dots, spaces
+      if (/^[\d\s+\-*/().]+$/.test(expr)) {
+        return new Function(`return (${expr})`)() as number;
+      }
+      return 0;
+    } catch { return 0; }
+  };
+
+  const calcItemAmount = (item: any, totalSalary: number, basicPay: number, totalDeductions: number, totalAllowances: number): number => {
+    if (item.calculation_type === "percentage") {
+      const base = item.percentage_of === "basic_pay" ? basicPay : totalSalary;
+      return (Number(item.value) / 100) * base;
+    } else if (item.calculation_type === "formula" && item.formula) {
+      return evalFormula(item.formula, { total_salary: totalSalary, basic_pay: basicPay, total_deductions: totalDeductions, total_allowances: totalAllowances });
+    }
+    return Number(item.value) || 0;
+  };
+
   const computeBreakdown = (emp: any) => {
     const tmplId = emp.salary_structure_template_id;
     if (!tmplId) return null;
     const items = (templateItemsMap as any)[tmplId] || [];
     const totalSalary = Number(emp.total_salary) || 0;
 
-    // We need basic_pay first - find it from items or use basic_salary
+    // First pass: compute basic_pay
     let basicPay = Number(emp.basic_salary) || 0;
     const basicItem = items.find((i: any) => i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic"));
     if (basicItem) {
       if (basicItem.calculation_type === "percentage") {
         basicPay = (Number(basicItem.value) / 100) * totalSalary;
-      } else {
+      } else if (basicItem.calculation_type === "fixed") {
         basicPay = Number(basicItem.value);
       }
     }
 
+    // Second pass: compute all percentage/fixed items to get totals for formulas
+    let tempDeductions = 0;
+    let tempAllowances = 0;
+    items.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type === "formula") return;
+      let amount = calcItemAmount(i, totalSalary, basicPay, 0, 0);
+      if (comp.component_type === "deduction") tempDeductions += amount;
+      else tempAllowances += amount;
+    });
+
+    // Third pass: compute formula items with actual totals
     const earnings: { name: string; code: string; amount: number }[] = [];
     const deductionsList: { name: string; code: string; amount: number }[] = [];
 
     items.forEach((i: any) => {
       const comp = i.hr_salary_components;
       if (!comp) return;
-      let amount = 0;
-      if (i.calculation_type === "percentage") {
-        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-        amount = (Number(i.value) / 100) * base;
-      } else {
-        amount = Number(i.value);
-      }
+      let amount = calcItemAmount(i, totalSalary, basicPay, tempDeductions, tempAllowances);
       const entry = { name: comp.name, code: comp.code, amount: Math.round(amount) };
       if (comp.component_type === "allowance") {
         earnings.push(entry);
@@ -266,6 +296,16 @@ export default function SalaryStructureAssignments() {
                 basicPay = basicItem.calculation_type === "percentage" ? (Number(basicItem.value) / 100) * totalSalary : Number(basicItem.value);
               }
 
+              // Pre-compute totals for formula items
+              let tempDed = 0, tempAllow = 0;
+              items.forEach((i: any) => {
+                const comp = i.hr_salary_components;
+                if (!comp || i.calculation_type === "formula") return;
+                const amt = calcItemAmount(i, totalSalary, basicPay, 0, 0);
+                if (comp.component_type === "deduction") tempDed += amt;
+                else tempAllow += amt;
+              });
+
               return (
                 <div className="border rounded-lg p-3 bg-gray-50">
                   <p className="text-xs font-semibold text-gray-600 mb-2">PREVIEW (for ₹{totalSalary.toLocaleString()} total salary)</p>
@@ -273,11 +313,11 @@ export default function SalaryStructureAssignments() {
                     {items.map((i: any, idx: number) => {
                       const comp = i.hr_salary_components;
                       if (!comp) return null;
-                      const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-                      const amount = i.calculation_type === "percentage" ? Math.round((Number(i.value) / 100) * base) : Number(i.value);
+                      const amount = Math.round(calcItemAmount(i, totalSalary, basicPay, tempDed, tempAllow));
+                      const typeLabel = i.calculation_type === "percentage" ? `${Number(i.value)}%` : i.calculation_type === "formula" ? "Formula" : "Fixed";
                       return (
                         <div key={idx} className={`flex justify-between px-2 py-1 rounded ${comp.component_type === "deduction" ? "text-red-700" : "text-green-700"}`}>
-                          <span>{comp.name} ({i.calculation_type === "percentage" ? `${Number(i.value)}%` : "Fixed"})</span>
+                          <span>{comp.name} ({typeLabel})</span>
                           <span className="font-medium">{comp.component_type === "deduction" ? "−" : "+"}₹{amount.toLocaleString()}</span>
                         </div>
                       );

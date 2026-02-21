@@ -90,23 +90,21 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {["Name", "Code", "Type", "Amount/Rate", "Taxable", "Status", "Actions"].map((h) => (
+                {["Name", "Code", "Taxable", "Status", "Actions"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
               ) : components.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No {label.toLowerCase()} configured</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-gray-400">No {label.toLowerCase()} configured</td></tr>
               ) : (
                 components.map((c: any) => (
                   <tr key={c.id} className={`border-b hover:bg-gray-50 ${!c.is_active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3 font-medium">{c.name}</td>
                     <td className="px-4 py-3"><span className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{c.code}</span></td>
-                    <td className="px-4 py-3 text-gray-500">Fixed</td>
-                    <td className="px-4 py-3 font-medium">₹{(c.default_amount || 0).toLocaleString()}</td>
                     <td className="px-4 py-3">
                       {c.is_taxable ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-gray-400">Non-taxable</span>}
                     </td>
@@ -134,11 +132,6 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. HRA" /></div>
               <div><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. HRA" /></div>
-            </div>
-            <div>
-              <Label>Default Amount (₹)</Label>
-              <Input type="number" value={form.default_amount} onChange={(e) => setForm({ ...form, default_amount: parseFloat(e.target.value) || 0 })} placeholder="0" />
-              <p className="text-xs text-muted-foreground mt-1">Percentage/fixed calculation is configured in the Salary Structure template</p>
             </div>
             <div className="space-y-3">
               <div className="flex items-center gap-2"><Switch checked={form.is_taxable} onCheckedChange={(v) => setForm({ ...form, is_taxable: v })} /><Label>Taxable</Label></div>

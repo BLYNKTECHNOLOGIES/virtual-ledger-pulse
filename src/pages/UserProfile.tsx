@@ -152,8 +152,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
       const { data, error } = await supabase
         .from('hr_salary_structure_template_items' as any)
         .select('*, hr_salary_components!hr_salary_structure_template_items_component_id_fkey(id, name, code, component_type)')
-        .eq('template_id', templateId)
-        .order('priority', { ascending: true });
+        .eq('template_id', templateId);
       if (error) throw error;
       return (data || []) as any[];
     },

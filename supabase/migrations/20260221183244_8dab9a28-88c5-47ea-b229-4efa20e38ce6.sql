@@ -1,0 +1,1 @@
+ALTER TABLE hr_salary_structure_template_items ADD COLUMN IF NOT EXISTS formula text;

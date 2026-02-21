@@ -4156,6 +4156,7 @@ export type Database = {
           calculation_type: string
           component_id: string
           created_at: string
+          formula: string | null
           id: string
           percentage_of: string | null
           template_id: string
@@ -4165,6 +4166,7 @@ export type Database = {
           calculation_type?: string
           component_id: string
           created_at?: string
+          formula?: string | null
           id?: string
           percentage_of?: string | null
           template_id: string
@@ -4174,6 +4176,7 @@ export type Database = {
           calculation_type?: string
           component_id?: string
           created_at?: string
+          formula?: string | null
           id?: string
           percentage_of?: string | null
           template_id?: string

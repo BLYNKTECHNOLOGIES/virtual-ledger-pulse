@@ -27,7 +27,8 @@ import {
   Wallet,
   Building,
   UserCheck,
-  Clock
+  Clock,
+  GripVertical
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,6 +39,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExchangeChart } from "./ExchangeChart";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Widget {
   id: string;
@@ -53,6 +56,7 @@ interface DashboardWidgetProps {
   onRemove: (widgetId: string) => void;
   onMove: (widgetId: string, direction: 'up' | 'down') => void;
   metrics?: any;
+  isDraggable?: boolean;
 }
 
 const iconMap = {
@@ -84,7 +88,23 @@ const iconMap = {
   'bank-balance-filter': Building
 };
 
-function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetProps) {
+function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = false }: DashboardWidgetProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: widget.id, disabled: !isDraggable });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
   const IconComponent = iconMap[widget.id as keyof typeof iconMap] || widget.icon || BarChart3;
 
   const getSizeClasses = (size: string) => {
@@ -383,10 +403,15 @@ function DashboardWidget({ widget, onRemove, onMove, metrics }: DashboardWidgetP
   };
 
   return (
-    <div className={getSizeClasses(widget.size)}>
-      <Card className="h-full bg-white shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100">
+    <div ref={setNodeRef} style={style} {...attributes} className={getSizeClasses(widget.size)}>
+      <Card className={`h-full bg-white shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100 ${isDraggable ? 'ring-2 ring-blue-200 cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-xl' : ''}`}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-gray-50 to-gray-100">
           <div className="flex items-center gap-2">
+            {isDraggable && (
+              <div {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+            )}
             <div className={`p-1.5 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-lg shadow-sm`}>
               {IconComponent && typeof IconComponent === 'function' ? (
                 <IconComponent className="h-4 w-4 text-white" />

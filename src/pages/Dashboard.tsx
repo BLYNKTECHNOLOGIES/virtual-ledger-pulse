@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
@@ -32,6 +34,7 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
   const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isRearrangeMode, setIsRearrangeMode] = useState(false);
   const { toast } = useToast();
 
   // Default widgets with better selection
@@ -328,6 +331,22 @@ export default function Dashboard() {
     });
   };
 
+  // DnD sensors for widget rearrangement
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setDashboardWidgets(prev => {
+        const oldIndex = prev.findIndex(w => w.id === active.id);
+        const newIndex = prev.findIndex(w => w.id === over.id);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefreshDashboard = async () => {
@@ -411,6 +430,18 @@ export default function Dashboard() {
                   <Settings className="h-4 w-4 mr-1 md:mr-2" />
                   <span className="whitespace-nowrap">{isEditMode ? 'Exit' : 'Edit'}</span>
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsRearrangeMode(!isRearrangeMode)}
+                  className={`flex-shrink-0 ${isRearrangeMode ? 
+                    "bg-blue-50 border border-blue-300 text-blue-700 hover:bg-blue-100 shadow-sm" : 
+                    "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
+                  }`}
+                >
+                  <GripVertical className="h-4 w-4 mr-1 md:mr-2" />
+                  <span className="whitespace-nowrap">{isRearrangeMode ? 'Done' : 'Rearrange'}</span>
+                </Button>
                 <AddWidgetDialog 
                   onAddWidget={handleAddWidget}
                   existingWidgets={dashboardWidgets.map(w => w.id)}
@@ -443,6 +474,23 @@ export default function Dashboard() {
                 <h3 className="text-base md:text-lg font-bold">🎨 Edit Mode Active</h3>
                 <p className="text-amber-700 mt-1 text-sm md:text-base">
                   Customize your dashboard by moving or removing widgets.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rearrange Mode Banner */}
+        {isRearrangeMode && (
+          <div className="bg-blue-50 border-2 border-blue-300 text-blue-800 rounded-xl p-4 md:p-6 shadow-md">
+            <div className="flex items-start md:items-center gap-3 md:gap-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                <GripVertical className="h-5 w-5 md:h-6 md:w-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base md:text-lg font-bold">🔀 Rearrange Mode Active</h3>
+                <p className="text-blue-700 mt-1 text-sm md:text-base">
+                  Drag and drop widgets to rearrange your dashboard layout. Click "Done" when finished.
                 </p>
               </div>
             </div>
@@ -694,17 +742,22 @@ export default function Dashboard() {
 
         {/* Dynamic Widgets Grid */}
         {dashboardWidgets.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {dashboardWidgets.map((widget) => (
-              <DashboardWidget
-                key={widget.id}
-                widget={widget}
-                onRemove={handleRemoveWidget}
-                onMove={handleMoveWidget}
-                metrics={metrics}
-              />
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={dashboardWidgets.map(w => w.id)} strategy={rectSortingStrategy}>
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${isRearrangeMode ? 'ring-2 ring-blue-200 ring-dashed rounded-xl p-4 bg-blue-50/30' : ''}`}>
+                {dashboardWidgets.map((widget) => (
+                  <DashboardWidget
+                    key={widget.id}
+                    widget={widget}
+                    onRemove={handleRemoveWidget}
+                    onMove={handleMoveWidget}
+                    metrics={metrics}
+                    isDraggable={isRearrangeMode}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>

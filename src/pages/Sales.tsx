@@ -28,9 +28,11 @@ import { SmallSalesSyncTab } from "@/components/sales/SmallSalesSyncTab";
 
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 
 export default function Sales() {
   const navigate = useNavigate();
+  const navigateToClient = useNavigateToClient();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
@@ -379,7 +381,12 @@ export default function Sales() {
               <TableRow key={order.id}>
                 <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                 <TableCell>
-                  <div className="font-medium">{order.client_name}</div>
+                  <div
+                    className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                    onClick={() => navigateToClient(order.client_name)}
+                  >
+                    {order.client_name}
+                  </div>
                   {order.description && (
                     <div className="text-sm text-gray-500 max-w-[200px] truncate">
                       {order.description}

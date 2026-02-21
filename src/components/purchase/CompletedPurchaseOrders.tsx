@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
+import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,6 +91,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
   });
 
   const { toast } = useToast();
+  const navigateToClient = useNavigateToClient();
   const queryClient = useQueryClient();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
@@ -323,7 +325,12 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                         <TableCell>
-                          <div className="font-medium">{order.supplier_name}</div>
+                          <div
+                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            onClick={() => navigateToClient(order.supplier_name)}
+                          >
+                            {order.supplier_name}
+                          </div>
                           {order.description && (
                             <div className="text-sm text-gray-500 max-w-[200px] truncate">
                               {order.description}

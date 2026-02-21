@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { 
-  LayoutDashboard, Users, UserPlus, Rocket, Clock, 
+  LayoutDashboard, Users, Clock, 
   CalendarDays, Wallet, Laptop, BarChart3, LogOut,
   HelpCircle, ChevronDown, Building2, FileText, Megaphone,
   ChevronLeft, ChevronRight
@@ -36,26 +36,6 @@ const navGroups: NavGroup[] = [
           { label: "Employee List", path: "/hrms/employee" },
           { label: "Departments", path: "/hrms/employee/departments" },
           { label: "Positions", path: "/hrms/employee/positions" },
-        ],
-      },
-      {
-        label: "Recruitment", icon: UserPlus, path: "/hrms/recruitment",
-        children: [
-          { label: "Dashboard", path: "/hrms/recruitment" },
-          { label: "Recruitment Pipeline", path: "/hrms/recruitment/pipeline" },
-          { label: "Recruitment Survey", path: "/hrms/recruitment/survey" },
-          { label: "Candidates", path: "/hrms/recruitment/candidates" },
-          { label: "Interview", path: "/hrms/recruitment/interview" },
-          { label: "Open Jobs", path: "/hrms/recruitment/positions" },
-          { label: "Stages", path: "/hrms/recruitment/stages" },
-          { label: "Skill Zone", path: "/hrms/recruitment/skill-zone" },
-        ],
-      },
-      {
-        label: "Onboarding", icon: Rocket, path: "/hrms/onboarding",
-        children: [
-          { label: "Overview", path: "/hrms/onboarding" },
-          { label: "Stages", path: "/hrms/onboarding/stages" },
         ],
       },
     ],

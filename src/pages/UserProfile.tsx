@@ -459,7 +459,7 @@ export default function UserProfile() {
     },
   });
 
-  // ─── HRMS Leave Allocations ───
+  // ─── HRMS Leave Allocations (ALL quarters, all years — cumulative carry forward) ───
   const { data: leaveAllocations = [] } = useQuery({
     queryKey: ['hr_leave_allocations', hrEmployee?.id],
     queryFn: async () => {
@@ -467,12 +467,56 @@ export default function UserProfile() {
       const { data, error } = await supabase
         .from('hr_leave_allocations')
         .select('*')
-        .eq('employee_id', hrEmployee.id)
-        .eq('year', new Date().getFullYear());
+        .eq('employee_id', hrEmployee.id);
       if (error) throw error;
       return data || [];
     },
     enabled: !!hrEmployee?.id,
+  });
+
+  // Compute cumulative balances per leave type
+  const cumulativeLeaveBalances = (() => {
+    const map: Record<string, { totalAllocated: number; totalUsed: number }> = {};
+    for (const a of leaveAllocations) {
+      const ltId = a.leave_type_id;
+      if (!map[ltId]) map[ltId] = { totalAllocated: 0, totalUsed: 0 };
+      map[ltId].totalAllocated += Number(a.allocated_days || 0);
+      map[ltId].totalUsed += Number(a.used_days || 0);
+    }
+    return map;
+  })();
+
+  // Cancel leave mutation
+  const cancelLeaveMutation = useMutation({
+    mutationFn: async ({ requestId, wasApproved }: { requestId: string; wasApproved: boolean }) => {
+      const { error } = await supabase
+        .from('hr_leave_requests')
+        .update({ status: 'Cancelled' })
+        .eq('id', requestId);
+      if (error) throw error;
+
+      // If was approved, restore used_days in the most recent allocation
+      if (wasApproved && hrEmployee?.id) {
+        const req = leaveRequests.find((r: any) => r.id === requestId);
+        if (req) {
+          const empAllocs = leaveAllocations
+            .filter((a: any) => a.leave_type_id === req.leave_type_id)
+            .sort((a: any, b: any) => ((b.year || 0) * 10 + (b.quarter || 0)) - ((a.year || 0) * 10 + (a.quarter || 0)));
+          if (empAllocs.length > 0) {
+            await supabase
+              .from('hr_leave_allocations')
+              .update({ used_days: Math.max(0, empAllocs[0].used_days - req.total_days) })
+              .eq('id', empAllocs[0].id);
+          }
+        }
+      }
+    },
+    onSuccess: () => {
+      sonnerToast.success('Leave request cancelled');
+      queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
+      queryClient.invalidateQueries({ queryKey: ['hr_leave_allocations', hrEmployee?.id] });
+    },
+    onError: () => sonnerToast.error('Failed to cancel leave request'),
   });
 
   // ─── HRMS Leave Requests ───
@@ -844,42 +888,130 @@ export default function UserProfile() {
           )}
         </TabsContent>
 
-        {/* ═══════ Leaves Tab (HRMS-powered) ═══════ */}
+        {/* ═══════ Leaves Tab (HRMS-powered, Quarter-based, All Carry Forward) ═══════ */}
         <TabsContent value="leaves" className="space-y-6">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
-              {/* Leave Allocation Cards */}
-              <div className="flex flex-wrap gap-6">
-                {leaveAllocations.map((alloc: any) => {
-                  const lt = getLeaveType(alloc.leave_type_id);
-                  const available = alloc.allocated_days - alloc.used_days;
-                  const carry = alloc.carry_forward_days || 0;
+              {/* ─── My Leave Requests Header ─── */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-foreground">My Leave Requests</h2>
+              </div>
+
+              {/* ─── Cumulative Leave Balance Cards ─── */}
+              <div className="flex flex-wrap gap-4">
+                {Object.entries(cumulativeLeaveBalances).map(([ltId, bal]) => {
+                  const lt = getLeaveType(ltId);
+                  const available = bal.totalAllocated - bal.totalUsed;
                   return (
-                    <div key={alloc.id} className="min-w-[240px] border border-border rounded-lg p-4">
+                    <div key={ltId} className="min-w-[240px] border border-border rounded-xl p-5 bg-card hover:shadow-sm transition-shadow">
                       <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm mb-3"
+                        className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-base mb-3"
                         style={{ backgroundColor: lt?.color || '#888' }}
                       >
                         {lt?.code || '??'}
                       </div>
-                      <p className="text-sm font-bold text-foreground">{lt?.name || 'Unknown'}</p>
-                      <div className="mt-3 space-y-1.5 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Available</span><span className="font-semibold">{available}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Carryforward</span><span className="font-semibold">{carry}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{alloc.allocated_days}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Taken</span><span className="font-semibold">{alloc.used_days}</span></div>
+                      <p className="text-sm font-bold text-foreground mb-3">{lt?.name || 'Unknown'}</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between gap-6">
+                          <span className="text-muted-foreground">Available Leave Days</span>
+                          <span className="font-semibold text-foreground">{available}</span>
+                        </div>
+                        <div className="flex justify-between gap-6">
+                          <span className="text-muted-foreground">Total Leave Days</span>
+                          <span className="font-semibold text-foreground">{bal.totalAllocated}</span>
+                        </div>
+                        <div className="flex justify-between gap-6">
+                          <span className="text-muted-foreground">Total Leave Taken</span>
+                          <span className="font-semibold text-foreground">{bal.totalUsed}</span>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-                {leaveAllocations.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-6">No leave allocations found for this year.</p>
+                {Object.keys(cumulativeLeaveBalances).length === 0 && (
+                  <p className="text-sm text-muted-foreground py-6">No leave allocations found. Contact HR to allocate leaves.</p>
                 )}
               </div>
 
-              {/* Apply for Leave */}
+              {/* ─── Leave Requests Table with Cancel Actions ─── */}
+              {leaveRequests.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">
+                      {leaveRequests.length} request(s)
+                    </span>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested</span>
+                    </div>
+                  </div>
+
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/50 border-b border-border">
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Requested Days</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Reason</th>
+                          <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Options</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaveRequests.map((req: any) => {
+                          const lt = getLeaveType(req.leave_type_id);
+                          const isCancellable = req.status === 'Requested' || req.status === 'Approved';
+                          return (
+                            <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
+                              req.status === 'Requested' ? 'border-l-4 border-l-amber-400' :
+                              req.status === 'Approved' ? 'border-l-4 border-l-green-500' :
+                              req.status === 'Rejected' ? 'border-l-4 border-l-red-500' :
+                              'border-l-4 border-l-gray-300'
+                            }`}>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
+                                    {lt?.code?.substring(0, 2) || '??'}
+                                  </span>
+                                  <span className="font-medium">{lt?.name || 'Unknown'}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
+                              <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
+                              <td className="py-3 px-4 text-muted-foreground">{req.total_days}</td>
+                              <td className={`py-3 px-4 font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>{req.status}</td>
+                              <td className="py-3 px-4 text-muted-foreground max-w-[150px] truncate">{req.reason || '—'}</td>
+                              <td className="py-3 px-4 text-center">
+                                {isCancellable ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
+                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'Approved' })}
+                                    disabled={cancelLeaveMutation.isPending}
+                                  >
+                                    Cancel
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── Apply for Leave Form ─── */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -888,7 +1020,7 @@ export default function UserProfile() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label>Leave Type *</Label>
                       <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
@@ -905,86 +1037,28 @@ export default function UserProfile() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>From Date *</Label>
-                        <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
-                      </div>
-                      <div>
-                        <Label>To Date *</Label>
-                        <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                      </div>
+                    <div>
+                      <Label>From Date *</Label>
+                      <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>To Date *</Label>
+                      <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
                     </div>
                   </div>
                   <div>
                     <Label>Reason</Label>
                     <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
                   </div>
-                  <Button onClick={() => applyLeaveMutation.mutate(leaveRequest)} disabled={applyLeaveMutation.isPending}>
+                  <Button 
+                    onClick={() => applyLeaveMutation.mutate(leaveRequest)} 
+                    disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
+                    className="bg-[#00bcd4] hover:bg-[#00a5bb]"
+                  >
                     {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit Leave Request'}
                   </Button>
                 </CardContent>
               </Card>
-
-              {/* Leave Requests History */}
-              {leaveRequests.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Leave History</CardTitle>
-                      <div className="flex items-center gap-4 text-xs">
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested</span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border border-border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-muted/50 border-b border-border">
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Days</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Reason</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {leaveRequests.map((req: any) => {
-                            const lt = getLeaveType(req.leave_type_id);
-                            return (
-                              <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 ${
-                                req.status === 'Requested' ? 'border-l-4 border-l-amber-400' :
-                                req.status === 'Approved' ? 'border-l-4 border-l-green-500' :
-                                req.status === 'Rejected' ? 'border-l-4 border-l-red-500' :
-                                'border-l-4 border-l-gray-300'
-                              }`}>
-                                <td className="py-3 px-4">
-                                  <div className="flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
-                                      {lt?.code?.substring(0, 2) || '??'}
-                                    </span>
-                                    <span className="font-medium">{lt?.name || 'Unknown'}</span>
-                                  </div>
-                                </td>
-                                <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
-                                <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
-                                <td className="py-3 px-4 text-muted-foreground">{req.total_days}</td>
-                                <td className={`py-3 px-4 font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>{req.status}</td>
-                                <td className="py-3 px-4 text-muted-foreground max-w-[200px] truncate">{req.reason || '—'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </>
           )}
         </TabsContent>

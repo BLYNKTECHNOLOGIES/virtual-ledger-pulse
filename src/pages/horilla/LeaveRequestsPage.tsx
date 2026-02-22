@@ -85,6 +85,30 @@ export default function LeaveRequestsPage() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status, request }: { id: string; status: string; request?: any }) => {
+      // Validate balance before approving
+      if (status === "approved" && request) {
+        const totalDays = Number(request.total_days || 0);
+        const year = new Date(request.start_date).getFullYear();
+        const quarter = Math.ceil((new Date(request.start_date).getMonth() + 1) / 3);
+
+        // Get all allocations for this employee+leave type (cumulative balance)
+        const { data: allocations } = await (supabase as any)
+          .from("hr_leave_allocations")
+          .select("allocated_days, used_days")
+          .eq("employee_id", request.employee_id)
+          .eq("leave_type_id", request.leave_type_id);
+
+        if (allocations && allocations.length > 0) {
+          const totalAllocated = allocations.reduce((s: number, a: any) => s + Number(a.allocated_days || 0), 0);
+          const totalUsed = allocations.reduce((s: number, a: any) => s + Number(a.used_days || 0), 0);
+          const available = totalAllocated - totalUsed;
+
+          if (totalDays > available) {
+            throw new Error(`Insufficient leave balance. Available: ${available} days, Requested: ${totalDays} days`);
+          }
+        }
+      }
+
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
         ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
@@ -99,7 +123,6 @@ export default function LeaveRequestsPage() {
           const year = new Date(request.start_date).getFullYear();
           const quarter = Math.ceil((new Date(request.start_date).getMonth() + 1) / 3);
 
-          // Find matching allocation
           const { data: allocation } = await (supabase as any)
             .from("hr_leave_allocations")
             .select("id, used_days")
@@ -113,7 +136,7 @@ export default function LeaveRequestsPage() {
             const currentUsed = Number(allocation.used_days || 0);
             const newUsed = status === "approved"
               ? currentUsed + totalDays
-              : Math.max(0, currentUsed - totalDays); // cancel restores balance
+              : Math.max(0, currentUsed - totalDays);
 
             await (supabase as any)
               .from("hr_leave_allocations")

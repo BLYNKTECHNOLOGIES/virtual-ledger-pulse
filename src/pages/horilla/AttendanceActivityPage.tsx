@@ -43,16 +43,28 @@ export default function AttendanceActivityPage() {
 
   const clockInMutation = useMutation({
     mutationFn: async () => {
+      const now = new Date().toISOString();
+      // Create activity record
       const { error } = await (supabase as any).from("hr_attendance_activity").insert({
         employee_id: selectedEmp,
         activity_date: dateFilter,
-        clock_in: new Date().toISOString(),
+        clock_in: now,
         clock_in_note: clockNote || null,
       });
       if (error) throw error;
+
+      // Sync to hr_attendance (upsert for the day)
+      await (supabase as any).from("hr_attendance").upsert({
+        employee_id: selectedEmp,
+        attendance_date: dateFilter,
+        check_in: now,
+        attendance_status: "present",
+        work_type: "office",
+      }, { onConflict: "employee_id,attendance_date" });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_attendance_activity"] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance"] });
       setShowClockIn(false);
       setSelectedEmp("");
       setClockNote("");
@@ -62,14 +74,22 @@ export default function AttendanceActivityPage() {
   });
 
   const clockOutMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, employeeId }: { id: string; employeeId: string }) => {
+      const now = new Date().toISOString();
+      // Update activity
       const { error } = await (supabase as any).from("hr_attendance_activity").update({
-        clock_out: new Date().toISOString(),
+        clock_out: now,
       }).eq("id", id);
       if (error) throw error;
+
+      // Sync clock_out to hr_attendance
+      await (supabase as any).from("hr_attendance").update({
+        check_out: now,
+      }).eq("employee_id", employeeId).eq("attendance_date", dateFilter);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_attendance_activity"] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance"] });
       toast.success("Clocked out successfully");
     },
     onError: (e: any) => toast.error(e.message),
@@ -174,7 +194,7 @@ export default function AttendanceActivityPage() {
                     <td className="px-4 py-3 text-gray-400 text-xs max-w-[150px] truncate">{a.clock_in_note || "—"}</td>
                     <td className="px-4 py-3">
                       {a.clock_in && !a.clock_out && (
-                        <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 h-7 text-xs" onClick={() => clockOutMutation.mutate(a.id)}>
+                        <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 h-7 text-xs" onClick={() => clockOutMutation.mutate({ id: a.id, employeeId: a.employee_id })}>
                           <LogOut className="h-3 w-3 mr-1" /> Clock Out
                         </Button>
                       )}

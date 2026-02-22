@@ -320,45 +320,64 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
       let inserted = 0;
       let skipped = 0;
 
-      // Batch upsert - check existing records first
-      for (const row of matchedRows) {
-        // Build check_in/check_out as full timestamps if time is available
-        const checkInTs = row.checkIn ? `${row.date}T${row.checkIn}:00` : null;
-        const checkOutTs = row.checkOut ? `${row.date}T${row.checkOut}:00` : null;
+      // Process in batches of 50 for speed
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < matchedRows.length; i += BATCH_SIZE) {
+        const batch = matchedRows.slice(i, i + BATCH_SIZE);
+        
+        // Build all payloads for this batch
+        const upsertPayloads = batch.map(row => {
+          const checkInTs = row.checkIn ? `${row.date}T${row.checkIn}:00` : null;
+          const checkOutTs = row.checkOut ? `${row.date}T${row.checkOut}:00` : null;
+          const payload: Record<string, any> = {
+            employee_id: row.employeeId,
+            attendance_date: row.date,
+            attendance_status: row.status,
+            notes: row.remarks || row.rawStatus || null,
+            work_type: "office",
+          };
+          if (checkInTs) payload.check_in = checkInTs;
+          if (checkOutTs) payload.check_out = checkOutTs;
+          return payload;
+        });
 
-        const { data: existing } = await (supabase as any)
+        // Try batch upsert first (requires unique constraint on employee_id + attendance_date)
+        const { error: upsertError } = await (supabase as any)
           .from("hr_attendance")
-          .select("id")
-          .eq("employee_id", row.employeeId)
-          .eq("attendance_date", row.date)
-          .maybeSingle();
+          .upsert(upsertPayloads, { 
+            onConflict: "employee_id,attendance_date",
+            ignoreDuplicates: false 
+          });
 
-        // Build payload - only include non-null time fields
-        const payload: Record<string, any> = {
-          attendance_status: row.status,
-          notes: row.remarks || row.rawStatus || null,
-        };
-        if (checkInTs) payload.check_in = checkInTs;
-        if (checkOutTs) payload.check_out = checkOutTs;
+        if (upsertError) {
+          // Fallback: insert individually if upsert fails (no unique constraint)
+          console.warn("[BiometricImport] Batch upsert failed, falling back to individual inserts:", upsertError.message);
+          for (const payload of upsertPayloads) {
+            const { data: existing } = await (supabase as any)
+              .from("hr_attendance")
+              .select("id")
+              .eq("employee_id", payload.employee_id)
+              .eq("attendance_date", payload.attendance_date)
+              .maybeSingle();
 
-        if (existing) {
-          const { error } = await (supabase as any)
-            .from("hr_attendance")
-            .update(payload)
-            .eq("id", existing.id);
-          if (!error) inserted++;
-          else { console.error("[BiometricImport] Update error:", error); skipped++; }
+            if (existing) {
+              const { employee_id, attendance_date, work_type, ...updatePayload } = payload;
+              const { error } = await (supabase as any)
+                .from("hr_attendance")
+                .update(updatePayload)
+                .eq("id", existing.id);
+              if (!error) inserted++;
+              else skipped++;
+            } else {
+              const { error } = await (supabase as any)
+                .from("hr_attendance")
+                .insert(payload);
+              if (!error) inserted++;
+              else skipped++;
+            }
+          }
         } else {
-          const { error } = await (supabase as any)
-            .from("hr_attendance")
-            .insert({
-              employee_id: row.employeeId,
-              attendance_date: row.date,
-              work_type: "office",
-              ...payload,
-            });
-          if (!error) inserted++;
-          else { console.error("[BiometricImport] Insert error:", error); skipped++; }
+          inserted += upsertPayloads.length;
         }
       }
 

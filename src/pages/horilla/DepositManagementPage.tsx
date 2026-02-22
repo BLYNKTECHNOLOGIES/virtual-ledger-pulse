@@ -68,12 +68,17 @@ export default function DepositManagementPage() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
+      const totalAmt = Number(form.total_deposit_amount);
+      const isAlreadyDeducted = form.deduction_mode === "already_deducted";
       const { error } = await (supabase as any).from("hr_employee_deposits").insert({
         employee_id: form.employee_id,
-        total_deposit_amount: Number(form.total_deposit_amount),
+        total_deposit_amount: totalAmt,
         deduction_mode: form.deduction_mode,
-        deduction_value: Number(form.deduction_value),
-        deduction_start_month: form.deduction_start_month,
+        deduction_value: isAlreadyDeducted ? totalAmt : Number(form.deduction_value),
+        deduction_start_month: isAlreadyDeducted ? null : form.deduction_start_month,
+        collected_amount: isAlreadyDeducted ? totalAmt : 0,
+        current_balance: isAlreadyDeducted ? totalAmt : 0,
+        is_fully_collected: isAlreadyDeducted,
       });
       if (error) throw error;
     },
@@ -157,6 +162,7 @@ export default function DepositManagementPage() {
       case "one_time": return "One-Time";
       case "percentage": return "% of Salary";
       case "fixed_installment": return "Fixed/Month";
+      case "already_deducted": return "Already Deducted";
       default: return mode;
     }
   };
@@ -208,19 +214,25 @@ export default function DepositManagementPage() {
             <SelectItem value="one_time">One-Time (Full deduction at once)</SelectItem>
             <SelectItem value="percentage">Percentage of Monthly Salary</SelectItem>
             <SelectItem value="fixed_installment">Fixed Amount per Month</SelectItem>
+            <SelectItem value="already_deducted">Already Deducted (Pre-collected)</SelectItem>
           </SelectContent>
         </Select>
+        {form.deduction_mode === "already_deducted" && <p className="text-xs text-muted-foreground mt-1">Deposit will be marked as fully collected immediately — no payroll deduction will occur</p>}
       </div>
-      <div>
-        <Label>{form.deduction_mode === "percentage" ? "Percentage (%)" : "Amount (₹)"}</Label>
-        <Input type="number" min="0" step={form.deduction_mode === "percentage" ? "1" : "100"} value={form.deduction_value} onChange={(e) => setForm({ ...form, deduction_value: e.target.value })} placeholder={form.deduction_mode === "percentage" ? "e.g. 50" : "e.g. 5000"} />
-        {form.deduction_mode === "percentage" && <p className="text-xs text-muted-foreground mt-1">% of gross salary deducted each month</p>}
-        {form.deduction_mode === "one_time" && <p className="text-xs text-muted-foreground mt-1">Full amount deducted in the first payroll</p>}
-      </div>
-      <div>
-        <Label>Deduction Start Month</Label>
-        <Input type="month" value={form.deduction_start_month} onChange={(e) => setForm({ ...form, deduction_start_month: e.target.value })} />
-      </div>
+      {form.deduction_mode !== "already_deducted" && (
+        <>
+          <div>
+            <Label>{form.deduction_mode === "percentage" ? "Percentage (%)" : "Amount (₹)"}</Label>
+            <Input type="number" min="0" step={form.deduction_mode === "percentage" ? "1" : "100"} value={form.deduction_value} onChange={(e) => setForm({ ...form, deduction_value: e.target.value })} placeholder={form.deduction_mode === "percentage" ? "e.g. 50" : "e.g. 5000"} />
+            {form.deduction_mode === "percentage" && <p className="text-xs text-muted-foreground mt-1">% of gross salary deducted each month</p>}
+            {form.deduction_mode === "one_time" && <p className="text-xs text-muted-foreground mt-1">Full amount deducted in the first payroll</p>}
+          </div>
+          <div>
+            <Label>Deduction Start Month</Label>
+            <Input type="month" value={form.deduction_start_month} onChange={(e) => setForm({ ...form, deduction_start_month: e.target.value })} />
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -345,7 +357,7 @@ export default function DepositManagementPage() {
           <DepositForm isEdit={false} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
               Add Deposit
             </Button>
           </DialogFooter>

@@ -179,10 +179,10 @@ export default function PayrollDashboardPage() {
         templateItemsMap[item.template_id].push(item);
       });
 
-      // 3. Get attendance for pay period
+      // 3. Get attendance for pay period (include date for Sunday detection)
       const { data: attendance, error: attErr } = await (supabase as any)
         .from("hr_attendance")
-        .select("employee_id, attendance_status, overtime_hours")
+        .select("employee_id, attendance_date, attendance_status, overtime_hours")
         .gte("attendance_date", run.pay_period_start)
         .lte("attendance_date", run.pay_period_end);
       if (attErr) throw attErr;
@@ -211,13 +211,18 @@ export default function PayrollDashboardPage() {
         leaveMap[l.employee_id] = (leaveMap[l.employee_id] || 0) + Number(l.total_days || 0);
       });
 
-      // Build attendance map
-      const attMap: Record<string, { present: number; total: number; ot: number }> = {};
+      // Build attendance map (track Sunday work days for overtime pay)
+      const attMap: Record<string, { present: number; total: number; ot: number; sundayWorked: number }> = {};
       (attendance || []).forEach((a: any) => {
-        if (!attMap[a.employee_id]) attMap[a.employee_id] = { present: 0, total: 0, ot: 0 };
+        if (!attMap[a.employee_id]) attMap[a.employee_id] = { present: 0, total: 0, ot: 0, sundayWorked: 0 };
         attMap[a.employee_id].total++;
         if (a.attendance_status === "present" || a.attendance_status === "late" || a.attendance_status === "half_day") {
           attMap[a.employee_id].present += a.attendance_status === "half_day" ? 0.5 : 1;
+          // Check if this attendance is on a Sunday
+          const attDate = new Date(a.attendance_date + "T00:00:00");
+          if (attDate.getDay() === 0) {
+            attMap[a.employee_id].sundayWorked += a.attendance_status === "half_day" ? 0.5 : 1;
+          }
         }
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
@@ -226,18 +231,18 @@ export default function PayrollDashboardPage() {
       const payslips = (employees || []).map((emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
-        const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0 };
+        const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0 };
         const empLeaveDays = leaveMap[emp.id] || 0;
         const totalSalary = Number(emp.total_salary) || 0;
 
-        // Calculate working days (weekdays in period, excluding holidays)
+        // Calculate working days (Mon-Sat, excluding Sundays and holidays)
         const start = new Date(run.pay_period_start);
         const end = new Date(run.pay_period_end);
         let workingDays = 0;
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const day = d.getDay();
           const dateStr = d.toISOString().slice(0, 10);
-          if (day !== 0 && day !== 6 && !holidaySet.has(dateStr)) workingDays++;
+          if (day !== 0 && !holidaySet.has(dateStr)) workingDays++;
         }
 
         // Present = attendance present + approved leave days (paid leave counts as present)
@@ -269,6 +274,17 @@ export default function PayrollDashboardPage() {
           totalEarnings = basic;
         }
 
+        // Sunday overtime pay: per-day rate × sunday days worked
+        const sundayDays = empAtt.sundayWorked;
+        if (sundayDays > 0 && workingDays > 0) {
+          const perDayPay = totalEarnings > 0
+            ? Math.round(totalEarnings / (attendanceRatio > 0 ? attendanceRatio : 1) / workingDays)
+            : Math.round(totalSalary / workingDays);
+          const sundayPay = Math.round(perDayPay * sundayDays);
+          earningsBreakdown["Sunday OT Pay"] = sundayPay;
+          totalEarnings += sundayPay;
+        }
+
         const grossSalary = totalEarnings;
         const netSalary = grossSalary - totalDeductions;
 
@@ -285,6 +301,7 @@ export default function PayrollDashboardPage() {
           present_days: presentDays,
           leave_days: workingDays - presentDays,
           overtime_hours: empAtt.ot,
+          sunday_days_worked: sundayDays,
           status: "draft",
         };
       });

@@ -441,13 +441,22 @@ export default function UserProfile() {
         .select(`
           *,
           departments(name),
-          positions:job_position_id(title),
-          hr_shifts:shift_id(name)
+          positions:job_position_id(title)
         `)
         .eq('employee_id', hrEmployee.id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      // Fetch shift name separately since there's no FK relationship
+      let shiftName: string | null = null;
+      if (data?.shift_id) {
+        const { data: shiftData } = await supabase
+          .from('hr_shifts')
+          .select('name')
+          .eq('id', data.shift_id)
+          .maybeSingle();
+        shiftName = shiftData?.name || null;
+      }
+      return data ? { ...data, shift_name: shiftName } : null;
     },
     enabled: !!hrEmployee?.id,
   });
@@ -901,7 +910,7 @@ export default function UserProfile() {
                           <td className="py-3 px-4 text-foreground">{hrEmployee.badge_id}</td>
                           <td className="py-3 px-4 text-foreground">{(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A'}</td>
                           <td className="py-3 px-4 text-foreground">{(workInfo as any)?.departments?.name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.hr_shifts?.name || 'N/A'}</td>
+                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.shift_name || 'N/A'}</td>
                           <td className="py-3 px-4 text-foreground">{(workInfo as any)?.work_type || 'N/A'}</td>
                         </tr>
                       </tbody>

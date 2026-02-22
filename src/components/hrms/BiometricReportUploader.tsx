@@ -27,6 +27,16 @@ interface MatchedRow extends ParsedAttendanceRow {
 }
 
 function parseDate(dateStr: string): string | null {
+  // Handle Excel serial date numbers
+  const num = parseFloat(dateStr);
+  if (!isNaN(num) && num > 40000 && num < 60000) {
+    // Excel serial date: days since 1900-01-01 (with the 1900 leap year bug)
+    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+    const d = new Date(excelEpoch.getTime() + num * 86400000);
+    if (!isNaN(d.getTime())) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+  }
   // Format: "01-Jan-2026" or similar
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
@@ -38,11 +48,15 @@ function parseDate(dateStr: string): string | null {
 
 function mapStatus(raw: string): string {
   const lower = raw.toLowerCase().trim();
+  // WeeklyOff variants — if also present/half, treat as present/half
+  if (lower.includes("weeklyoff") || lower.includes("weekly off")) {
+    if (lower.includes("½present") || lower.includes("halfpresent")) return "half_day";
+    if (lower.includes("present")) return "present";
+    return "weekly_off";
+  }
   if (lower === "present" || lower === "present (no outpunch)") return "present";
-  if (lower.startsWith("½present") || lower.startsWith("halfpresent") || lower === "½present" || lower.includes("½present")) return "half_day";
+  if (lower.startsWith("½present") || lower.includes("½present") || lower.startsWith("halfpresent")) return "half_day";
   if (lower === "absent") return "absent";
-  if (lower.includes("weeklyoff") || lower === "weekly off") return "weekly_off";
-  if (lower.includes("weeklyoff present")) return "present";
   if (lower === "late") return "late";
   return "present"; // fallback
 }
@@ -51,9 +65,9 @@ function parseTimeStr(val: any): string | null {
   if (!val) return null;
   const str = String(val).trim();
   if (!str || str === "00:00") return null;
-  // Could be "11:13" or Excel time serial
+  // HH:MM format
   if (/^\d{1,2}:\d{2}$/.test(str)) return str;
-  // If it's a number (Excel serial time), convert
+  // Excel serial time (0-1 range)
   const num = parseFloat(str);
   if (!isNaN(num) && num >= 0 && num < 1) {
     const totalMinutes = Math.round(num * 24 * 60);
@@ -78,41 +92,37 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
     if (!row || row.length === 0) continue;
 
     const cellA = String(row[0] || "").trim();
-    const cellC = String(row[2] || "").trim();
 
-    // Detect employee header: "Employee Code:" in col 0, code in col 2, name later
-    if (cellA === "Employee Code:" || cellA.toLowerCase().includes("employee code")) {
-      currentCode = cellC;
-      // Find name - usually col 5 or 6 after "Employee Name :"
-      for (let c = 3; c < row.length; c++) {
-        const v = String(row[c] || "").trim();
-        if (v && v !== "Employee Name :" && v !== "Employee Name:" && !v.toLowerCase().includes("employee name")) {
-          // Check if previous cell was "Employee Name"
-          const prev = String(row[c - 1] || "").trim();
-          if (prev.toLowerCase().includes("employee name")) {
-            currentName = v;
-            break;
+    // Detect employee header: "Employee Code:" in col 0 (or anywhere in the row)
+    if (cellA.toLowerCase().includes("employee code")) {
+      // Code is typically in col 2
+      currentCode = String(row[2] || "").trim();
+      currentName = "";
+      // Find name — scan for "Employee Name" label then take the next non-empty cell
+      for (let c = 0; c < row.length; c++) {
+        const v = String(row[c] || "").trim().toLowerCase();
+        if (v.includes("employee name")) {
+          // Name is in one of the next cells
+          for (let n = c + 1; n < row.length && n <= c + 3; n++) {
+            const name = String(row[n] || "").trim();
+            if (name && !name.includes(":")) {
+              currentName = name;
+              break;
+            }
           }
-        }
-      }
-      // Fallback: find the name by looking for a non-empty cell after the name label
-      if (!currentName) {
-        for (let c = 3; c < row.length; c++) {
-          const v = String(row[c] || "").trim();
-          if (v && !v.toLowerCase().includes("employee") && !v.includes(":")) {
-            currentName = v;
-            break;
-          }
+          break;
         }
       }
       continue;
     }
 
-    // Skip header rows (Date, InTime, OutTime...)
-    if (cellA === "Date" || cellA.toLowerCase() === "date") continue;
-    // Skip summary/total rows
-    if (cellA.toLowerCase().includes("total duration") || cellA.toLowerCase().includes("total duration=")) continue;
-    if (!currentCode || !currentName) continue;
+    // Skip header rows and summary rows
+    if (cellA.toLowerCase() === "date") continue;
+    if (cellA.toLowerCase().includes("total duration")) continue;
+    if (cellA.toLowerCase().includes("daily attendance")) continue;
+    if (cellA.toLowerCase().includes("company:")) continue;
+    if (cellA.toLowerCase().includes("department:")) continue;
+    if (!currentCode) continue;
 
     // Try to parse date from cellA
     const parsedDate = parseDate(cellA);
@@ -123,7 +133,13 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
     const shift = String(row[5] || "").trim();
     const totalDuration = String(row[6] || "").trim();
     const rawStatus = String(row[7] || "").trim();
-    const remarks = String(row[9] || "").trim();
+    // Remarks can span multiple columns (8, 9, etc.)
+    const remarkParts: string[] = [];
+    for (let c = 8; c < Math.min(row.length, 18); c++) {
+      const v = String(row[c] || "").trim();
+      if (v) remarkParts.push(v);
+    }
+    const remarks = remarkParts.join(" | ");
 
     if (!rawStatus) continue;
 
@@ -131,7 +147,7 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
 
     results.push({
       employeeCode: currentCode,
-      employeeName: currentName,
+      employeeName: currentName || `Employee ${currentCode}`,
       date: parsedDate,
       checkIn: inTime,
       checkOut: outTime,

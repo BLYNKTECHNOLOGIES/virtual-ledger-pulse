@@ -9877,6 +9877,7 @@ export type Database = {
           avatar_url: string | null
           badge_id: string | null
           created_at: string | null
+          created_by: string | null
           email: string
           email_verified: boolean | null
           failed_login_attempts: number | null
@@ -9900,6 +9901,7 @@ export type Database = {
           avatar_url?: string | null
           badge_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           email: string
           email_verified?: boolean | null
           failed_login_attempts?: number | null
@@ -9923,6 +9925,7 @@ export type Database = {
           avatar_url?: string | null
           badge_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           email?: string
           email_verified?: boolean | null
           failed_login_attempts?: number | null
@@ -9942,6 +9945,13 @@ export type Database = {
           username?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "users_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "users_role_id_fkey"
             columns: ["role_id"]
@@ -10661,6 +10671,17 @@ export type Database = {
           permissions: string[]
         }[]
       }
+      log_user_activity: {
+        Args: {
+          _action: string
+          _description?: string
+          _ip_address?: string
+          _metadata?: Json
+          _user_agent?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined
@@ -10852,6 +10873,7 @@ export type Database = {
         Args: { p_order_number: string; p_performed_by: string }
         Returns: undefined
       }
+      update_last_login: { Args: { _user_id: string }; Returns: undefined }
       update_risk_flag_status: {
         Args: {
           admin_id?: string

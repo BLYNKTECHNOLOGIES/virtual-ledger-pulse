@@ -4,17 +4,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2 } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PayrollDashboardPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ title: "", pay_period_start: "", pay_period_end: "", notes: "" });
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [lockConfirm, setLockConfirm] = useState<any>(null);
+  const [rerunDialog, setRerunDialog] = useState<any>(null);
+  const [rerunReason, setRerunReason] = useState("");
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["hr_payroll_runs"],
@@ -44,15 +48,48 @@ export default function PayrollDashboardPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await (supabase as any).from("hr_payroll_runs").update({ status }).eq("id", id);
+  const lockMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("hr_payroll_runs").update({
+        status: "completed",
+        is_locked: true,
+        locked_at: new Date().toISOString(),
+      }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
-      toast.success("Status updated");
+      toast.success("Payroll locked successfully");
+      setLockConfirm(null);
     },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const rerunMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      // Get current rerun_count
+      const { data: current } = await (supabase as any).from("hr_payroll_runs").select("rerun_count").eq("id", id).single();
+      const newCount = (current?.rerun_count || 0) + 1;
+      const { error } = await (supabase as any).from("hr_payroll_runs").update({
+        status: "processing",
+        is_locked: false,
+        locked_at: null,
+        rerun_count: newCount,
+        rerun_reason: reason,
+      }).eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: async (id: string) => {
+      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
+      toast.success("Payroll unlocked — regenerating payslips...");
+      setRerunDialog(null);
+      setRerunReason("");
+      // Auto-regenerate after unlock
+      const { data: run } = await (supabase as any).from("hr_payroll_runs").select("*").eq("id", id).single();
+      if (run) generatePayslips(run);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   // --- Salary calc helpers (mirrored from SalaryStructureAssignments) ---
@@ -401,27 +438,44 @@ export default function PayrollDashboardPage() {
                     <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{r.status}</span></td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        {r.is_locked && (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full mr-1">
+                            <Lock className="h-3 w-3" /> Locked
+                          </span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(r.status)}`}>{r.status}</span>
+                        {r.rerun_count > 0 && (
+                          <span className="text-xs text-muted-foreground" title={r.rerun_reason || ""}>
+                            (Re-run #{r.rerun_count})
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
+                        {/* Draft: Generate */}
                         {r.status === "draft" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            disabled={generatingId === r.id}
-                            onClick={() => generatePayslips(r)}
-                          >
-                            {generatingId === r.id ? (
-                              <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</>
-                            ) : (
-                              <><FileText className="h-3 w-3 mr-1" /> Generate Payslips</>
-                            )}
+                          <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
+                            {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><FileText className="h-3 w-3 mr-1" /> Generate</>}
                           </Button>
                         )}
-                        {r.status === "processing" && (
-                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "completed" })}>
-                            <CheckCircle className="h-4 w-4 mr-1" /> Complete
+                        {/* Processing: Re-generate + Lock */}
+                        {r.status === "processing" && !r.is_locked && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
+                              {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-amber-700" onClick={() => setLockConfirm(r)}>
+                              <Lock className="h-3 w-3 mr-1" /> Lock & Complete
+                            </Button>
+                          </>
+                        )}
+                        {/* Completed & Locked: Re-run option */}
+                        {r.status === "completed" && r.is_locked && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setRerunDialog(r)}>
+                            <Unlock className="h-3 w-3 mr-1" /> Unlock & Re-run
                           </Button>
                         )}
                       </div>
@@ -448,6 +502,59 @@ export default function PayrollDashboardPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button onClick={() => createMutation.mutate()} disabled={!form.title || !form.pay_period_start || !form.pay_period_end} className="bg-[#E8604C] hover:bg-[#d4553f]">Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Lock Confirmation */}
+      <AlertDialog open={!!lockConfirm} onOpenChange={(open) => !open && setLockConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Lock Payroll Run?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Locking <strong>{lockConfirm?.title}</strong> will mark it as completed and prevent any further modifications or regeneration. This action can only be reversed via a controlled re-run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={() => lockMutation.mutate(lockConfirm?.id)}>
+              <Lock className="h-4 w-4 mr-1" /> Lock & Complete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Re-run Dialog */}
+      <Dialog open={!!rerunDialog} onOpenChange={(open) => { if (!open) { setRerunDialog(null); setRerunReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Unlock className="h-5 w-5 text-orange-600" /> Unlock & Re-run Payroll</DialogTitle>
+            <DialogDescription>
+              This will unlock <strong>{rerunDialog?.title}</strong>, delete existing payslips, and regenerate them with current data. This is Re-run #{(rerunDialog?.rerun_count || 0) + 1}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Reason for Re-run <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={rerunReason}
+                onChange={(e) => setRerunReason(e.target.value)}
+                placeholder="e.g. Attendance correction for 3 employees, salary revision applied..."
+                className="mt-1"
+              />
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-800">
+              <strong>Warning:</strong> All existing payslips for this run will be deleted and regenerated. Make sure any corrections are already applied before proceeding.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRerunDialog(null); setRerunReason(""); }}>Cancel</Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700"
+              disabled={!rerunReason.trim() || rerunMutation.isPending}
+              onClick={() => rerunMutation.mutate({ id: rerunDialog?.id, reason: rerunReason.trim() })}
+            >
+              {rerunMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processing...</> : <><RefreshCw className="h-4 w-4 mr-1" /> Unlock & Re-run</>}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

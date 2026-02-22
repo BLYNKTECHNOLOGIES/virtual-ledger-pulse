@@ -374,7 +374,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -454,21 +454,31 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
             {unmatchedNames.length > 0 && (
               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-2">
                   <AlertCircle className="h-4 w-4 text-destructive" />
                   <p className="text-sm font-medium text-destructive">Unmatched employees (will be skipped):</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{unmatchedNames.join(", ")}</p>
+                <div className="flex flex-wrap gap-2">
+                  {unmatchedNames.map((name, i) => (
+                    <span key={i} className="px-2 py-1 bg-destructive/10 border border-destructive/20 rounded text-xs font-medium text-destructive">
+                      {name}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="max-h-[40vh] overflow-auto rounded-lg border">
-              <table className="w-full text-xs">
-                <thead className="bg-muted sticky top-0">
+            <div className="max-h-[45vh] overflow-auto rounded-lg border">
+              <table className="w-full text-sm table-fixed">
+                <thead className="bg-muted sticky top-0 z-10">
                   <tr>
-                    {["Match", "Employee", "Date", "In", "Out", "Status", "Remarks"].map((h) => (
-                      <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
-                    ))}
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[50px]">Match</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[180px]">Employee</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[100px]">Date</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[70px]">In</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[70px]">Out</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[90px]">Status</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground">Remarks</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -481,9 +491,9 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                           <AlertCircle className="h-4 w-4 text-destructive" />
                         )}
                       </td>
-                      <td className="px-3 py-1.5 font-medium whitespace-nowrap">
+                      <td className="px-3 py-1.5 font-medium truncate">
                         {row.matchedName || row.employeeName}
-                        {!row.employeeId && <span className="text-destructive ml-1">(unmatched)</span>}
+                        {!row.employeeId && <span className="text-destructive ml-1 text-xs">(unmatched)</span>}
                       </td>
                       <td className="px-3 py-1.5">{row.date}</td>
                       <td className="px-3 py-1.5">{row.checkIn || "—"}</td>
@@ -496,7 +506,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                           "bg-muted text-muted-foreground"
                         }`}>{row.status}</span>
                       </td>
-                      <td className="px-3 py-1.5 text-muted-foreground max-w-[120px] truncate">{row.remarks || row.rawStatus}</td>
+                      <td className="px-3 py-1.5 text-muted-foreground truncate">{row.remarks || row.rawStatus}</td>
                     </tr>
                   ))}
                 </tbody>

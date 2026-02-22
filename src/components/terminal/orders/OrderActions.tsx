@@ -140,15 +140,13 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
-type AuthMethod = 'GOOGLE' | 'EMAIL' | 'MOBILE';
+type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';
 
-// Note: Binance releaseCoin API only supports GOOGLE auth type.
-// FIDO2/Passkey returns "Unsupported authentication type", YUBIKEY returns error code -1000.
-// EMAIL and MOBILE kept as options (may work if enabled on the Binance account).
-const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string }[] = [
-  { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code' },
-  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code' },
-  { value: 'MOBILE', label: 'Mobile OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter mobile verification code' },
+const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string; fieldName: string }[] = [
+  { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code', fieldName: 'googleVerifyCode' },
+  { value: 'YUBIKEY', label: 'YubiKey', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Tap your YubiKey…', fieldName: 'yubikeyVerifyCode' },
+  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code', fieldName: 'emailVerifyCode' },
+  { value: 'MOBILE', label: 'Mobile OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter mobile verification code', fieldName: 'mobileVerifyCode' },
 ];
 
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
@@ -160,12 +158,13 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
 
   const handleRelease = () => {
-    // API doc #29: releaseCoin expects { orderNumber, authType, code }
-    releaseCoin.mutate({
+    // Send the code in the correct named field per Binance API doc #29
+    const params: Record<string, any> = {
       orderNumber,
-      authType: authMethod,
-      code,
-    }, {
+      authType: authMethod === 'YUBIKEY' ? 'FIDO2' : authMethod,
+      [selectedAuth.fieldName]: code,
+    };
+    releaseCoin.mutate(params as any, {
       onSuccess: () => {
         setOpen(false);
         setCode('');
@@ -228,8 +227,8 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               placeholder={selectedAuth.placeholder}
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              maxLength={authMethod === 'GOOGLE' ? 6 : 64}
-              className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : ''}`}
+              maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 44 : 64}
+              className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
               autoFocus
             />
           </div>

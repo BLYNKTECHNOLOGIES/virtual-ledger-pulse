@@ -2892,6 +2892,7 @@ export type Database = {
           emergency_contact: string | null
           emergency_contact_name: string | null
           emergency_contact_relation: string | null
+          esi_number: string | null
           experience: string | null
           first_name: string
           gender: string | null
@@ -2899,12 +2900,15 @@ export type Database = {
           is_active: boolean
           last_name: string
           marital_status: string | null
+          pan_number: string | null
+          pf_number: string | null
           phone: string | null
           profile_image_url: string | null
           qualification: string | null
           salary_structure_template_id: string | null
           state: string | null
           total_salary: number | null
+          uan_number: string | null
           updated_at: string
           user_id: string | null
           zip: string | null
@@ -2923,6 +2927,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
+          esi_number?: string | null
           experience?: string | null
           first_name: string
           gender?: string | null
@@ -2930,12 +2935,15 @@ export type Database = {
           is_active?: boolean
           last_name: string
           marital_status?: string | null
+          pan_number?: string | null
+          pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
           salary_structure_template_id?: string | null
           state?: string | null
           total_salary?: number | null
+          uan_number?: string | null
           updated_at?: string
           user_id?: string | null
           zip?: string | null
@@ -2954,6 +2962,7 @@ export type Database = {
           emergency_contact?: string | null
           emergency_contact_name?: string | null
           emergency_contact_relation?: string | null
+          esi_number?: string | null
           experience?: string | null
           first_name?: string
           gender?: string | null
@@ -2961,12 +2970,15 @@ export type Database = {
           is_active?: boolean
           last_name?: string
           marital_status?: string | null
+          pan_number?: string | null
+          pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
           salary_structure_template_id?: string | null
           state?: string | null
           total_salary?: number | null
+          uan_number?: string | null
           updated_at?: string
           user_id?: string | null
           zip?: string | null

@@ -3300,6 +3300,7 @@ export type Database = {
           employee_id: string
           id: string
           leave_type_id: string
+          quarter: number
           updated_at: string
           used_days: number
           year: number
@@ -3311,6 +3312,7 @@ export type Database = {
           employee_id: string
           id?: string
           leave_type_id: string
+          quarter?: number
           updated_at?: string
           used_days?: number
           year?: number
@@ -3322,6 +3324,7 @@ export type Database = {
           employee_id?: string
           id?: string
           leave_type_id?: string
+          quarter?: number
           updated_at?: string
           used_days?: number
           year?: number

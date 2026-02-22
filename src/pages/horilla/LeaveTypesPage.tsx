@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-const defaultForm = { name: "", code: "", max_days_per_year: 12, is_paid: true, carry_forward: false, max_carry_forward_days: 0, requires_approval: true, color: "#E8604C" };
+const defaultForm = { name: "", code: "", max_days_per_year: 12, is_paid: true, requires_approval: true, color: "#E8604C" };
 
 export default function LeaveTypesPage() {
   const qc = useQueryClient();
@@ -29,11 +29,17 @@ export default function LeaveTypesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Always set carry_forward to true and max_carry_forward_days to null (infinite carry forward)
+      const payload = {
+        ...form,
+        carry_forward: true,
+        max_carry_forward_days: null,
+      };
       if (editId) {
-        const { error } = await supabase.from("hr_leave_types").update(form).eq("id", editId);
+        const { error } = await supabase.from("hr_leave_types").update(payload).eq("id", editId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("hr_leave_types").insert(form);
+        const { error } = await supabase.from("hr_leave_types").insert(payload);
         if (error) throw error;
       }
     },
@@ -66,7 +72,7 @@ export default function LeaveTypesPage() {
 
   const openEdit = (t: any) => {
     setEditId(t.id);
-    setForm({ name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12, is_paid: t.is_paid ?? true, carry_forward: t.carry_forward ?? false, max_carry_forward_days: t.max_carry_forward_days || 0, requires_approval: t.requires_approval ?? true, color: t.color || "#E8604C" });
+    setForm({ name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12, is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#E8604C" });
     setShowDialog(true);
   };
 
@@ -75,7 +81,7 @@ export default function LeaveTypesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Leave Types</h1>
-          <p className="text-sm text-gray-500">Configure different types of leave</p>
+          <p className="text-sm text-gray-500">Configure different types of leave (allocated per quarter, all carry forward)</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> Add Type
@@ -100,9 +106,9 @@ export default function LeaveTypesPage() {
                   <Switch checked={t.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: t.id, is_active: v })} />
                 </div>
                 <div className="space-y-1 text-sm text-gray-600">
-                  <p>📅 Max {t.max_days_per_year} days/year</p>
+                  <p>📅 Max {t.max_days_per_year} days/quarter</p>
                   <p>{t.is_paid ? "💰 Paid" : "📋 Unpaid"} • {t.requires_approval ? "✅ Needs Approval" : "🔓 Auto-Approved"}</p>
-                  {t.carry_forward && <p>🔄 Carry forward up to {t.max_carry_forward_days} days</p>}
+                  <p>🔄 All leaves carry forward</p>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" onClick={() => openEdit(t)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
@@ -123,17 +129,14 @@ export default function LeaveTypesPage() {
               <div><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. CL" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Max Days/Year</Label><Input type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} /></div>
+              <div><Label>Max Days/Quarter</Label><Input type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} /></div>
               <div><Label>Color</Label><Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="h-10" /></div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center gap-2"><Switch checked={form.is_paid} onCheckedChange={(v) => setForm({ ...form, is_paid: v })} /><Label>Paid Leave</Label></div>
               <div className="flex items-center gap-2"><Switch checked={form.requires_approval} onCheckedChange={(v) => setForm({ ...form, requires_approval: v })} /><Label>Requires Approval</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.carry_forward} onCheckedChange={(v) => setForm({ ...form, carry_forward: v })} /><Label>Carry Forward</Label></div>
-              {form.carry_forward && (
-                <div><Label>Max Carry Forward Days</Label><Input type="number" value={form.max_carry_forward_days} onChange={(e) => setForm({ ...form, max_carry_forward_days: parseInt(e.target.value) || 0 })} /></div>
-              )}
             </div>
+            <p className="text-xs text-gray-400">💡 All leaves carry forward infinitely across quarters.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>

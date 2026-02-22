@@ -18,6 +18,8 @@ export interface SpotTradeForSync {
   status: string;
   is_buyer: boolean | null;
   created_at: string;
+  binance_order_id?: string | null;
+  fill_ids?: string[];
   already_synced?: boolean;
 }
 
@@ -100,7 +102,7 @@ export function useUnsyncedSpotTrades() {
         const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
           (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
         const { _fill_ids, ...rest } = t;
-        return { ...rest, already_synced: anySynced } as SpotTradeForSync;
+        return { ...rest, fill_ids: fillIds, already_synced: anySynced } as SpotTradeForSync;
       });
     },
   });
@@ -161,6 +163,8 @@ export function useSyncSpotTradesToConversions() {
           metadata: {
             source: "SPOT_TRADE_SYNC",
             binance_symbol: t.symbol,
+            binance_order_id: t.binance_order_id || null,
+            fill_ids: t.fill_ids || [t.id],
             trade_source: t.source,
             trade_time: t.trade_time,
           },

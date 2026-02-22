@@ -131,8 +131,15 @@ export default function PayrollDashboardPage() {
           totalEarnings = Math.round(basic);
         }
 
-        // Deductions
-        const deductionComponents = empStructures.filter((s: any) => s.hr_salary_components?.component_type === "deduction");
+        // Deductions (exclude employer contributions — they don't reduce employee net pay)
+        const isEmployerComponent = (s: any) => {
+          const name = (s.hr_salary_components?.name || '').toLowerCase();
+          const code = (s.hr_salary_components?.code || '').toLowerCase();
+          return name.includes('employer') || code === 'pfc' || code === 'esic';
+        };
+        const deductionComponents = empStructures.filter((s: any) => 
+          s.hr_salary_components?.component_type === "deduction" && !isEmployerComponent(s)
+        );
         const deductionsBreakdown: Record<string, number> = {};
         let totalDeductions = 0;
         deductionComponents.forEach((s: any) => {

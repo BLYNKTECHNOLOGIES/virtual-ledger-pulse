@@ -410,7 +410,10 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
   // Summary stats for preview
   const uniqueEmployees = new Set(parsedRows.map((r) => r.employeeCode)).size;
   const matchedCount = new Set(parsedRows.filter((r) => r.employeeId).map((r) => r.employeeCode)).size;
-  const unmatchedNames = [...new Set(parsedRows.filter((r) => !r.employeeId).map((r) => r.employeeName))];
+  const unmatchedEntries = [...new Map(
+    parsedRows.filter((r) => !r.employeeId).map((r) => [r.employeeCode, { code: r.employeeCode, name: r.employeeName }])
+  ).values()];
+  const unmatchedNames = unmatchedEntries.map(e => e.name);
   const dateRange = parsedRows.length > 0
     ? `${parsedRows[0].date} to ${parsedRows[parsedRows.length - 1].date}`
     : "";
@@ -509,9 +512,9 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                   <p className="text-sm font-medium text-destructive">Unmatched employees (will be skipped):</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {unmatchedNames.map((name, i) => (
+                  {unmatchedEntries.map((entry, i) => (
                     <span key={i} className="px-2 py-1 bg-destructive/10 border border-destructive/20 rounded text-xs font-medium text-destructive">
-                      {name}
+                      Code {entry.code}: {entry.name || "Unknown"}
                     </span>
                   ))}
                 </div>
@@ -523,6 +526,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                 <thead className="bg-muted sticky top-0 z-10">
                   <tr>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[50px]">Match</th>
+                    <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[70px]">Emp Code</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[180px]">Employee</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[100px]">Date</th>
                     <th className="text-left px-3 py-2 font-medium text-muted-foreground w-[70px]">In</th>
@@ -544,6 +548,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                           <AlertCircle className="h-4 w-4 text-destructive" />
                         )}
                       </td>
+                      <td className="px-3 py-1.5 text-xs text-muted-foreground">{row.employeeCode}</td>
                       <td className="px-3 py-1.5 font-medium truncate">
                         {row.matchedName || row.employeeName}
                         {!row.employeeId && <span className="text-destructive ml-1 text-xs">(unmatched)</span>}

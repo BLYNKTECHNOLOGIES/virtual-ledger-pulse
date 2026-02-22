@@ -300,6 +300,10 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
       // Batch upsert - check existing records first
       for (const row of matchedRows) {
+        // Build check_in/check_out as full timestamps if time is available
+        const checkInTs = row.checkIn ? `${row.date}T${row.checkIn}:00` : null;
+        const checkOutTs = row.checkOut ? `${row.date}T${row.checkOut}:00` : null;
+
         const { data: existing } = await (supabase as any)
           .from("hr_attendance")
           .select("id")
@@ -307,34 +311,32 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
           .eq("attendance_date", row.date)
           .maybeSingle();
 
+        // Build payload - only include non-null time fields
+        const payload: Record<string, any> = {
+          attendance_status: row.status,
+          notes: row.remarks || row.rawStatus || null,
+        };
+        if (checkInTs) payload.check_in = checkInTs;
+        if (checkOutTs) payload.check_out = checkOutTs;
+
         if (existing) {
-          // Update existing
           const { error } = await (supabase as any)
             .from("hr_attendance")
-            .update({
-              check_in: row.checkIn,
-              check_out: row.checkOut,
-              attendance_status: row.status,
-              notes: row.remarks || row.rawStatus,
-            })
+            .update(payload)
             .eq("id", existing.id);
           if (!error) inserted++;
-          else skipped++;
+          else { console.error("[BiometricImport] Update error:", error); skipped++; }
         } else {
-          // Insert new
           const { error } = await (supabase as any)
             .from("hr_attendance")
             .insert({
               employee_id: row.employeeId,
               attendance_date: row.date,
-              check_in: row.checkIn,
-              check_out: row.checkOut,
-              attendance_status: row.status,
-              notes: row.remarks || row.rawStatus,
               work_type: "office",
+              ...payload,
             });
           if (!error) inserted++;
-          else skipped++;
+          else { console.error("[BiometricImport] Insert error:", error); skipped++; }
         }
       }
 

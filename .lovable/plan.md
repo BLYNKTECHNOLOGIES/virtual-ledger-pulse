@@ -1,124 +1,136 @@
 
 
-## Organization Structure Setup -- Updated Plan
+# Employee Deposit Management System
 
-### Corrections Applied in This Update
+## Overview
 
-1. **Removed Finance Manager and Payment Processor from Marketing/Relationship department** -- They do not belong under Relationship Manager. The Marketing/Relationship department only has the Head and Relationship Managers.
-2. **Renamed PPS to "Payment Processor"** everywhere it appears.
+A system to track employee security deposits with flexible deduction schedules, penalty-from-deposit logic, deposit replenishment via payroll, and Full & Final (F&F) settlement integration.
 
-### Corrected Hierarchy
+## Database Design
+
+### New Table: `hr_employee_deposits`
+Tracks the deposit configuration and current balance per employee.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid (PK) | |
+| employee_id | uuid (FK to hr_employees) | |
+| total_deposit_amount | numeric | Total deposit required (e.g., 15,000) |
+| collected_amount | numeric DEFAULT 0 | Amount collected so far |
+| current_balance | numeric DEFAULT 0 | Current deposit balance (collected minus penalty deductions) |
+| deduction_mode | text | `one_time`, `percentage`, `fixed_installment` |
+| deduction_value | numeric | Percentage of salary or fixed amount per month |
+| deduction_start_month | text | YYYY-MM when deductions begin |
+| is_fully_collected | boolean DEFAULT false | Whether total deposit has been collected |
+| is_settled | boolean DEFAULT false | Deposit returned during F&F |
+| settled_at | timestamptz | When F&F settlement happened |
+| settlement_notes | text | F&F notes |
+| created_at | timestamptz DEFAULT now() | |
+| updated_at | timestamptz DEFAULT now() | |
+
+### New Table: `hr_deposit_transactions`
+Ledger of all deposit movements (collections, penalty deductions, replenishments, F&F refund).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid (PK) | |
+| employee_id | uuid (FK) | |
+| deposit_id | uuid (FK to hr_employee_deposits) | |
+| transaction_type | text | `collection` / `penalty_deduction` / `replenishment` / `ff_refund` |
+| amount | numeric | Positive = credit to deposit, negative = debit |
+| balance_after | numeric | Running balance after this transaction |
+| reference_id | text | Links to penalty ID or payroll run ID |
+| description | text | Human-readable note |
+| transaction_date | date | |
+| payroll_run_id | uuid | Which payroll run triggered this |
+| created_at | timestamptz DEFAULT now() | |
+
+## Core Logic
+
+### 1. Deposit Collection via Payroll
+During payroll generation (`PayrollDashboardPage.tsx`), the system will:
+- Check if employee has an active deposit with `is_fully_collected = false`
+- Calculate the installment based on `deduction_mode`:
+  - `one_time`: deduct full remaining amount in one go
+  - `percentage`: deduct X% of gross salary
+  - `fixed_installment`: deduct a fixed amount
+- Cap the deduction so it never exceeds the remaining amount
+- Add "Security Deposit" to payslip deductions
+- Insert a `collection` transaction in `hr_deposit_transactions`
+- Update `collected_amount` and `current_balance` on the deposit record
+- Mark `is_fully_collected = true` when fully collected
+
+### 2. Penalty from Deposit
+When a penalty is configured to deduct from deposit (new field `deduct_from_deposit` on `hr_penalties`):
+- Deduct from `current_balance` instead of salary
+- If deposit balance becomes less than the total required, a replenishment deficit is tracked
+- Insert a `penalty_deduction` transaction
+
+### 3. Deposit Replenishment via Payroll
+If `current_balance < collected_amount` (due to penalty deductions):
+- Calculate replenishment needed = `collected_amount - current_balance`
+- Deduct replenishment amount from salary using same deduction_mode/value
+- Insert a `replenishment` transaction
+- Restore `current_balance`
+
+### 4. F&F Settlement
+When employee status changes to inactive/terminated:
+- Show F&F settlement UI with deposit balance
+- Refund `current_balance` as part of final payment
+- Insert `ff_refund` transaction
+- Mark deposit as `is_settled = true`
+
+## UI Changes
+
+### A. New "Deposit Management" Page (`/hrms/deposits`)
+- View all employees' deposit status (total, collected, balance, mode)
+- Add/edit deposit configuration per employee
+- View transaction history per deposit
+- Sidebar link under Payroll section
+
+### B. Employee Profile - About Tab
+- New "Deposit Information" section showing:
+  - Total Deposit Amount
+  - Collected So Far
+  - Current Balance
+  - Deduction Mode & Value
+  - Collection Status (progress bar)
+  - Recent Transactions (last 5)
+
+### C. Employee Profile - Payroll Tab
+- Payslips will show "Security Deposit" and "Deposit Replenishment" as deduction line items when applicable
+
+### D. Penalty Management Page
+- New checkbox "Deduct from Deposit" when adding manual penalties
+- Visual indicator when a penalty was deducted from deposit vs salary
+
+### E. Payroll Dashboard
+- Deposit deductions will appear in payslip generation summary
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| Migration SQL | Create `hr_employee_deposits` and `hr_deposit_transactions` tables; add `deduct_from_deposit` column to `hr_penalties` |
+| `src/pages/horilla/DepositManagementPage.tsx` | **New** - Full deposit management UI |
+| `src/pages/horilla/PayrollDashboardPage.tsx` | **Modify** - Add deposit collection + replenishment logic in `generatePayslips` |
+| `src/pages/horilla/EmployeeProfilePage.tsx` | **Modify** - Add deposit info section in About tab |
+| `src/pages/horilla/PenaltyManagementPage.tsx` | **Modify** - Add "deduct from deposit" option |
+| `src/App.tsx` | **Modify** - Add deposit route |
+| `src/components/horilla/HorillaSidebar.tsx` | **Modify** - Add sidebar link |
+
+## Payroll Generation Flow (Updated)
 
 ```text
-Managing Director (can be multiple)
-└── Deputy Managing Director (can be multiple)
-    └── General Manager (can be multiple, department-scoped)
-        ├── CCO (Chief Compliance Officer)
-        │   ├── Head Internal Compliance
-        │   │   └── Internal Compliance Officer
-        │   │       └── KYC Executive
-        │   └── Head External Compliance
-        │       ├── Field Compliance Officer
-        │       └── Compliance Filing Executive
-        │
-        ├── Chief Executive Officer (CEO)
-        │   └── Operations Manager
-        │       └── Assistant Manager (covers all shifts)
-        │           └── Team Lead
-        │               ├── Sales Executive
-        │               └── Purchase Executive
-        │
-        ├── Relationship / Marketing Head
-        │   └── Relationship Manager
-        │
-        └── CFO (Chief Financial Officer)
-            ├── Finance Head - Operations
-            │   └── Finance Manager
-            │       └── Payment Processor
-            └── Finance Head - Taxation And Banking
-                ├── Accountant
-                │   └── Operator / Data Entry
-                └── Banking Officer
+For each employee:
+1. Calculate earnings (template-based)
+2. Calculate standard deductions (EPF, ESI, etc.)
+3. Calculate penalties (salary-based)
+4. Check deposit:
+   a. If not fully collected -> deduct installment from salary
+   b. If penalty marked "deduct_from_deposit" -> deduct from deposit balance
+   c. If deposit balance < collected (deficit) -> deduct replenishment from salary
+5. Record all transactions
+6. Generate payslip with all line items
 ```
-
-### Departments (unchanged from previous plan)
-
-| Department | Code | Level | Status |
-|---|---|---|---|
-| Management | MGMT | 1 | NEW |
-| Operations | OPS | 2 | UPDATE |
-| Compliance | COMP | 2 | UPDATE |
-| Marketing / Relationship | MKT | 2 | NEW |
-| Finance | FIN | 2 | UPDATE |
-| Accounts / Taxation and Banking | ACCT | 2 | NEW |
-| Administrative | ADMIN | 3 | EXISTS |
-| Support Staff | SUPPORT | 4 | EXISTS |
-
-### Positions Per Department
-
-**Management (MGMT):**
-- Managing Director (L10) -- top
-- Deputy Managing Director (L9) -- reports to MD
-- General Manager (L8) -- reports to Deputy MD
-- Chief Executive Officer (L9) -- reports to GM
-
-**Compliance (COMP):**
-- CCO (L8) -- reports to GM
-- Head Internal Compliance (L7) -- reports to CCO
-- Head External Compliance (L7) -- reports to CCO
-- Internal Compliance Officer (L6) -- reports to Head Internal
-- Field Compliance Officer (L6) -- reports to Head External
-- KYC Executive (L5) -- reports to ICO
-- Compliance Filing Executive (L5) -- reports to Head External
-
-**Operations (OPS):**
-- Operations Manager (L8) -- reports to CEO
-- Assistant Manager (L7) -- reports to Ops Manager
-- Team Lead (L6) -- reports to Assistant Manager
-- Sales Executive (L5) -- reports to Team Lead
-- Purchase Executive (L5) -- reports to Team Lead
-
-**Marketing / Relationship (MKT):**
-- Relationship / Marketing Head (L8) -- reports to GM
-- Relationship Manager (L6) -- reports to R/M Head
-
-**Finance (FIN):**
-- CFO (L9) -- reports to GM
-- Finance Head - Operations (L8) -- reports to CFO
-- Finance Manager (L7) -- reports to Finance Head Ops
-- Payment Processor (L5) -- reports to Finance Manager
-
-**Accounts / Taxation and Banking (ACCT):**
-- Finance Head - Taxation And Banking (L8) -- reports to CFO
-- Accountant (L6) -- reports to Finance Head T&B
-- Banking Officer (L6) -- reports to Finance Head T&B
-- Operator / Data Entry (L5) -- reports to Accountant
-
-### Database Changes
-
-**Migration 1: Add reporting chain to positions table**
-```sql
-ALTER TABLE positions ADD COLUMN reports_to_position_id UUID REFERENCES positions(id);
-```
-
-**Data operations:**
-- Insert Management, Marketing/Relationship, and Accounts departments
-- Update hierarchy levels on existing departments
-- Delete the 2 existing misplaced positions (MD and Deputy MD under Administrative)
-- Insert all positions listed above with correct department and reports_to_position_id mappings
-
-### Code Changes
-
-**`src/components/hrms/OrgChartView.tsx`**
-- Rebuild Department and Position view showing positions grouped by department with visual reporting chain using `reports_to_position_id`
-- Employee Hierarchy view uses `reporting_manager_id` from employees table
-- Department badge on nodes so same-title positions across departments are distinguishable
-
-**`src/pages/horilla/OrganizationPage.tsx`**
-- Fix Add Department button flow
-
-**`src/components/hrms/DepartmentFormDialog.tsx`**
-- Verify and fix save logic
-
-No employee table schema changes needed -- `reporting_manager_id`, `department_id`, and `position_id` already exist.
 

@@ -2522,6 +2522,56 @@ export type Database = {
           },
         ]
       }
+      hr_compoff_credits: {
+        Row: {
+          allocated_at: string | null
+          created_at: string
+          credit_date: string
+          credit_days: number
+          credit_type: string
+          employee_id: string
+          expires_at: string | null
+          id: string
+          is_allocated: boolean
+          leave_allocation_id: string | null
+          notes: string | null
+        }
+        Insert: {
+          allocated_at?: string | null
+          created_at?: string
+          credit_date: string
+          credit_days?: number
+          credit_type?: string
+          employee_id: string
+          expires_at?: string | null
+          id?: string
+          is_allocated?: boolean
+          leave_allocation_id?: string | null
+          notes?: string | null
+        }
+        Update: {
+          allocated_at?: string | null
+          created_at?: string
+          credit_date?: string
+          credit_days?: number
+          credit_type?: string
+          employee_id?: string
+          expires_at?: string | null
+          id?: string
+          is_allocated?: boolean
+          leave_allocation_id?: string | null
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_compoff_credits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_disciplinary_actions: {
         Row: {
           action_type: string

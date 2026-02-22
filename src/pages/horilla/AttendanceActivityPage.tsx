@@ -101,6 +101,28 @@ export default function AttendanceActivityPage() {
         shift_id: shiftId,
         work_type: "office",
       }, { onConflict: "employee_id,attendance_date" });
+
+      // Comp-Off Auto-Credit: check if this date is a Sunday or holiday
+      const attDate = new Date(dateFilter + "T00:00:00");
+      const isSunday = attDate.getDay() === 0;
+
+      // Check if it's a declared holiday
+      const { data: holidayMatch } = await (supabase as any)
+        .from("hr_holidays")
+        .select("id")
+        .eq("date", dateFilter)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (isSunday || holidayMatch) {
+        // Auto-credit comp-off (upsert to avoid duplicates)
+        await (supabase as any).from("hr_compoff_credits").upsert({
+          employee_id: selectedEmp,
+          credit_date: dateFilter,
+          credit_type: isSunday ? "sunday" : "holiday",
+          credit_days: 1,
+        }, { onConflict: "employee_id,credit_date" });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_attendance_activity"] });

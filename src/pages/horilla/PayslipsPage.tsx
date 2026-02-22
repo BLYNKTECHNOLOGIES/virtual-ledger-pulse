@@ -298,6 +298,8 @@ export default function PayslipsPage() {
                   const d = new Date(a.attendance_date + "T00:00:00");
                   return d.getDay() === 0 && (a.attendance_status === "present" || a.attendance_status === "late" || a.attendance_status === "half_day");
                 }).length;
+                // Count holiday worked days
+                const holidayWorked = detail.holiday_days_worked || 0;
                 // Group leaves by type
                 const leaveByType: Record<string, number> = {};
                 leaveBreakdown.forEach((l: any) => {
@@ -327,6 +329,12 @@ export default function PayslipsPage() {
                         <div className="bg-orange-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-orange-700">{sundayWorked}</p>
                           <p className="text-[10px] text-gray-500">Sunday Worked (Extra Pay)</p>
+                        </div>
+                      )}
+                      {holidayWorked > 0 && (
+                        <div className="bg-teal-50 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-teal-700">{holidayWorked}</p>
+                          <p className="text-[10px] text-gray-500">Holiday Worked (Extra Pay)</p>
                         </div>
                       )}
                       {Object.entries(leaveByType).map(([name, days]) => (

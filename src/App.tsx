@@ -100,6 +100,7 @@ import PayrollDashboardPage from './pages/horilla/PayrollDashboardPage';
 import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
 import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
+import PenaltyManagementPage from './pages/horilla/PenaltyManagementPage';
 import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
@@ -797,6 +798,7 @@ const router = createBrowserRouter([
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },
         { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
+        { path: "payroll/penalties", element: <PenaltyManagementPage /> },
         { path: "asset", element: <AssetDashboardPage /> },
         { path: "asset/list", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetAssignmentsPage /> },

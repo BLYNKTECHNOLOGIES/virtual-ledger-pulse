@@ -3952,6 +3952,120 @@ export type Database = {
           },
         ]
       }
+      hr_penalties: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          is_applied: boolean
+          late_count: number | null
+          notes: string | null
+          payroll_run_id: string | null
+          penalty_amount: number
+          penalty_days: number
+          penalty_month: string
+          penalty_reason: string
+          penalty_type: string
+          rule_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          is_applied?: boolean
+          late_count?: number | null
+          notes?: string | null
+          payroll_run_id?: string | null
+          penalty_amount?: number
+          penalty_days?: number
+          penalty_month: string
+          penalty_reason: string
+          penalty_type: string
+          rule_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          is_applied?: boolean
+          late_count?: number | null
+          notes?: string | null
+          payroll_run_id?: string | null
+          penalty_amount?: number
+          penalty_days?: number
+          penalty_month?: string
+          penalty_reason?: string
+          penalty_type?: string
+          rule_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_penalties_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_penalties_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "hr_penalty_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_penalty_rules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          late_count_max: number | null
+          late_count_min: number
+          penalty_type: string
+          penalty_value: number
+          rule_name: string
+          rule_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          late_count_max?: number | null
+          late_count_min?: number
+          penalty_type?: string
+          penalty_value?: number
+          rule_name: string
+          rule_type?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          late_count_max?: number | null
+          late_count_min?: number
+          penalty_type?: string
+          penalty_value?: number
+          rule_name?: string
+          rule_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_policies: {
         Row: {
           attachments: string[] | null

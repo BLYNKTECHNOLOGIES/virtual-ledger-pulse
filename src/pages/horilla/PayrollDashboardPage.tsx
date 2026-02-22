@@ -187,20 +187,38 @@ export default function PayrollDashboardPage() {
         .lte("attendance_date", run.pay_period_end);
       if (attErr) throw attErr;
 
+      // 4. Get approved leaves for the pay period (these count as paid days)
+      const { data: approvedLeaves, error: leaveErr } = await (supabase as any)
+        .from("hr_leave_requests")
+        .select("employee_id, total_days")
+        .eq("status", "approved")
+        .lte("start_date", run.pay_period_end)
+        .gte("end_date", run.pay_period_start);
+      if (leaveErr) throw leaveErr;
+
+      // Build leave days map
+      const leaveMap: Record<string, number> = {};
+      (approvedLeaves || []).forEach((l: any) => {
+        leaveMap[l.employee_id] = (leaveMap[l.employee_id] || 0) + Number(l.total_days || 0);
+      });
+
       // Build attendance map
       const attMap: Record<string, { present: number; total: number; ot: number }> = {};
       (attendance || []).forEach((a: any) => {
         if (!attMap[a.employee_id]) attMap[a.employee_id] = { present: 0, total: 0, ot: 0 };
         attMap[a.employee_id].total++;
-        if (a.attendance_status === "present" || a.attendance_status === "late") attMap[a.employee_id].present++;
+        if (a.attendance_status === "present" || a.attendance_status === "late" || a.attendance_status === "half_day") {
+          attMap[a.employee_id].present += a.attendance_status === "half_day" ? 0.5 : 1;
+        }
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // 4. Calculate payslips
+      // 5. Calculate payslips
       const payslips = (employees || []).map((emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
         const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0 };
+        const empLeaveDays = leaveMap[emp.id] || 0;
         const totalSalary = Number(emp.total_salary) || 0;
 
         // Calculate working days (weekdays in period)
@@ -212,7 +230,11 @@ export default function PayrollDashboardPage() {
           if (day !== 0 && day !== 6) workingDays++;
         }
 
-        const presentDays = empAtt.total > 0 ? empAtt.present : workingDays;
+        // Present = attendance present + approved leave days (paid leave counts as present)
+        const attendancePresent = empAtt.total > 0 ? empAtt.present : 0;
+        const paidDays = Math.min(attendancePresent + empLeaveDays, workingDays);
+        // If no attendance records at all and no leave, assume full month (no attendance tracking yet)
+        const presentDays = empAtt.total === 0 && empLeaveDays === 0 ? workingDays : paidDays;
         const attendanceRatio = workingDays > 0 ? presentDays / workingDays : 1;
 
         // Compute earnings/deductions from template

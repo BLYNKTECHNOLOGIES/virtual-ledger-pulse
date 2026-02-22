@@ -47,12 +47,21 @@ export default function LeaveRequestsPage() {
     },
   });
 
+  // Calculate working days (exclude weekends)
+  const countWorkingDays = (startStr: string, endStr: string) => {
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    let count = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const start = new Date(form.start_date);
-      const end = new Date(form.end_date);
-      let days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-      if (form.is_half_day) days = 0.5;
+      const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date);
       const { error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
@@ -75,16 +84,48 @@ export default function LeaveRequestsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, request }: { id: string; status: string; request?: any }) => {
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
         ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
         ...(status === "rejected" ? { rejection_reason: "Rejected by admin" } : {}),
       }).eq("id", id);
       if (error) throw error;
+
+      // Update leave allocation balance
+      if (request && (status === "approved" || status === "cancelled")) {
+        const totalDays = Number(request.total_days || 0);
+        if (totalDays > 0) {
+          const year = new Date(request.start_date).getFullYear();
+          const quarter = Math.ceil((new Date(request.start_date).getMonth() + 1) / 3);
+
+          // Find matching allocation
+          const { data: allocation } = await (supabase as any)
+            .from("hr_leave_allocations")
+            .select("id, used_days")
+            .eq("employee_id", request.employee_id)
+            .eq("leave_type_id", request.leave_type_id)
+            .eq("year", year)
+            .eq("quarter", quarter)
+            .maybeSingle();
+
+          if (allocation) {
+            const currentUsed = Number(allocation.used_days || 0);
+            const newUsed = status === "approved"
+              ? currentUsed + totalDays
+              : Math.max(0, currentUsed - totalDays); // cancel restores balance
+
+            await (supabase as any)
+              .from("hr_leave_allocations")
+              .update({ used_days: newUsed })
+              .eq("id", allocation.id);
+          }
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
+      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       toast.success("Status updated");
     },
   });
@@ -164,13 +205,18 @@ export default function LeaveRequestsPage() {
                     <td className="px-4 py-3">
                       {r.status === "pending" && (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved" })}>
+                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                           <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </div>
+                      )}
+                      {r.status === "approved" && (
+                        <Button size="sm" variant="ghost" className="text-orange-600 h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
+                          Cancel
+                        </Button>
                       )}
                     </td>
                   </tr>

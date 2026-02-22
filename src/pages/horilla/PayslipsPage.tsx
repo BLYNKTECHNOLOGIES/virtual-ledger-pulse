@@ -160,6 +160,23 @@ export default function PayslipsPage() {
 
   const [payRef, setPayRef] = useState("");
 
+  // Fetch leave breakdown when detail is open
+  const { data: leaveBreakdown = [] } = useQuery({
+    queryKey: ["hr_leave_breakdown", detail?.employee_id, detail?.hr_payroll_runs?.pay_period_start, detail?.hr_payroll_runs?.pay_period_end],
+    queryFn: async () => {
+      if (!detail) return [];
+      const { data } = await (supabase as any)
+        .from("hr_leave_requests")
+        .select("total_days, hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
+        .eq("employee_id", detail.employee_id)
+        .eq("status", "approved")
+        .lte("start_date", detail.hr_payroll_runs?.pay_period_end)
+        .gte("end_date", detail.hr_payroll_runs?.pay_period_start);
+      return data || [];
+    },
+    enabled: !!detail,
+  });
+
   const filtered = payslips.filter((p: any) => {
     const q = search.toLowerCase();
     const fullName = `${p.hr_employees?.first_name || ""} ${p.hr_employees?.last_name || ""}`.toLowerCase();
@@ -248,9 +265,60 @@ export default function PayslipsPage() {
               <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
                 <div className="flex justify-between"><span className="text-gray-500">Payroll Run</span><span className="font-medium">{detail.hr_payroll_runs?.title}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">Period</span><span>{detail.hr_payroll_runs?.pay_period_start} — {detail.hr_payroll_runs?.pay_period_end}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Working Days</span><span>{detail.present_days}/{detail.working_days}</span></div>
                 {detail.overtime_hours > 0 && <div className="flex justify-between"><span className="text-gray-500">Overtime</span><span>{detail.overtime_hours}h</span></div>}
               </div>
+
+              {/* Attendance Breakdown */}
+              {(() => {
+                const workingDays = detail.working_days || 0;
+                const presentDays = detail.present_days || 0;
+                const leaveDays = detail.leave_days || 0;
+                const totalLeaveDaysFromRequests = leaveBreakdown.reduce((s: number, l: any) => s + Number(l.total_days || 0), 0);
+                const absentDays = Math.max(0, workingDays - presentDays);
+                // Group leaves by type
+                const leaveByType: Record<string, number> = {};
+                leaveBreakdown.forEach((l: any) => {
+                  const name = l.hr_leave_types?.name || "Leave";
+                  leaveByType[name] = (leaveByType[name] || 0) + Number(l.total_days || 0);
+                });
+                const actualPresentDays = Math.max(0, presentDays - totalLeaveDaysFromRequests);
+
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700 mb-2">ATTENDANCE BREAKDOWN</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-blue-50 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-blue-700">{workingDays}</p>
+                        <p className="text-[10px] text-gray-500">Total Working Days</p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-green-700">{actualPresentDays}</p>
+                        <p className="text-[10px] text-gray-500">Present Days</p>
+                      </div>
+                      {Object.entries(leaveByType).map(([name, days]) => (
+                        <div key={name} className="bg-amber-50 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-amber-700">{days}</p>
+                          <p className="text-[10px] text-gray-500">{name}</p>
+                        </div>
+                      ))}
+                      {totalLeaveDaysFromRequests === 0 && (
+                        <div className="bg-amber-50 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-amber-700">0</p>
+                          <p className="text-[10px] text-gray-500">Leave Days</p>
+                        </div>
+                      )}
+                      <div className="bg-red-50 rounded-lg px-3 py-2 text-center">
+                        <p className="text-lg font-bold text-red-600">{absentDays}</p>
+                        <p className="text-[10px] text-gray-500">Absent Days</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                      <span>Paid Days: <span className="font-semibold text-gray-700">{presentDays}</span> / {workingDays}</span>
+                      <span>Attendance: <span className="font-semibold text-gray-700">{workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0}%</span></span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Earnings */}
               <div>

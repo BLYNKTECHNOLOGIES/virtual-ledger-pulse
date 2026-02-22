@@ -396,7 +396,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-none w-screen h-screen max-h-screen rounded-none flex flex-col p-6">
+      <DialogContent className="!max-w-none !w-screen !h-screen !max-h-screen !rounded-none !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 flex flex-col p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />

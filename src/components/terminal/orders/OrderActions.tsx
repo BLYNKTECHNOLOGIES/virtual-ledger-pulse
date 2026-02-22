@@ -227,6 +227,13 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               placeholder={selectedAuth.placeholder}
               value={code}
               onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => {
+                // YubiKey appends Enter after OTP — prevent it from closing the dialog
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
               maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 44 : 64}
               className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
               autoFocus

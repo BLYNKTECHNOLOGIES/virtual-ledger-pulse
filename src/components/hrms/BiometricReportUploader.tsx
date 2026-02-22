@@ -81,61 +81,110 @@ function parseTimeStr(val: any): string | null {
 export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
   const wb = XLSX.read(data, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+  // Use raw:false to get formatted strings (especially dates)
+  const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+
+  console.log("[BiometricParser] Total rows:", rows.length);
+  // Log first 20 rows for debugging column structure
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    console.log(`[BiometricParser] Row ${i}:`, JSON.stringify(rows[i]));
+  }
 
   const results: ParsedAttendanceRow[] = [];
   let currentCode = "";
   let currentName = "";
 
+  // Column index mapping — auto-detected from header row "Date | InTime | OutTime | Shift | ..."
+  let colDate = 0, colIn = 2, colOut = 3, colShift = 5, colDuration = 6, colStatus = 7, colRemarksStart = 8;
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
+    // Join all cells to search across merged-cell positions
+    const rowStr = row.map((c: any) => String(c || "").trim()).join("|");
     const cellA = String(row[0] || "").trim();
 
-    // Detect employee header: "Employee Code:" in col 0 (or anywhere in the row)
-    if (cellA.toLowerCase().includes("employee code")) {
-      // Code is typically in col 2
-      currentCode = String(row[2] || "").trim();
+    // Detect employee header by scanning all cells for "Employee Code"
+    if (rowStr.toLowerCase().includes("employee code")) {
+      currentCode = "";
       currentName = "";
-      // Find name — scan for "Employee Name" label then take the next non-empty cell
+      // Find the code: look for a standalone number after "Employee Code"
       for (let c = 0; c < row.length; c++) {
-        const v = String(row[c] || "").trim().toLowerCase();
-        if (v.includes("employee name")) {
-          // Name is in one of the next cells
-          for (let n = c + 1; n < row.length && n <= c + 3; n++) {
-            const name = String(row[n] || "").trim();
-            if (name && !name.includes(":")) {
-              currentName = name;
-              break;
+        const v = String(row[c] || "").trim();
+        if (v.toLowerCase().includes("employee code")) {
+          // Code is in next non-empty cell(s)
+          // Could be in same cell like "Employee Code:  3" or in next cell
+          const match = v.match(/employee\s*code\s*:?\s*(\d+)/i);
+          if (match) {
+            currentCode = match[1];
+          } else {
+            for (let n = c + 1; n < row.length && n <= c + 3; n++) {
+              const nv = String(row[n] || "").trim();
+              if (nv && /^\d+$/.test(nv)) {
+                currentCode = nv;
+                break;
+              }
             }
           }
-          break;
+        }
+        if (v.toLowerCase().includes("employee name")) {
+          const nameMatch = v.match(/employee\s*name\s*:?\s*(.+)/i);
+          if (nameMatch && nameMatch[1].trim()) {
+            currentName = nameMatch[1].trim();
+          } else {
+            for (let n = c + 1; n < row.length && n <= c + 3; n++) {
+              const name = String(row[n] || "").trim();
+              if (name && !name.includes(":") && !/employee/i.test(name)) {
+                currentName = name;
+                break;
+              }
+            }
+          }
         }
       }
+      console.log(`[BiometricParser] Found employee: code=${currentCode}, name=${currentName}`);
       continue;
     }
 
-    // Skip header rows and summary rows
+    // Auto-detect column positions from header row
+    if (rowStr.toLowerCase().includes("intime") || rowStr.toLowerCase().includes("in time")) {
+      for (let c = 0; c < row.length; c++) {
+        const v = String(row[c] || "").trim().toLowerCase();
+        if (v === "date") colDate = c;
+        if (v === "intime" || v === "in time") colIn = c;
+        if (v === "outtime" || v === "out time") colOut = c;
+        if (v === "shift") colShift = c;
+        if (v.includes("total duration") || v === "duration") colDuration = c;
+        if (v === "status") colStatus = c;
+        if (v === "remarks") colRemarksStart = c;
+      }
+      console.log(`[BiometricParser] Column map: date=${colDate}, in=${colIn}, out=${colOut}, shift=${colShift}, duration=${colDuration}, status=${colStatus}`);
+      continue;
+    }
+
+    // Skip non-data rows
     if (cellA.toLowerCase() === "date") continue;
     if (cellA.toLowerCase().includes("total duration")) continue;
     if (cellA.toLowerCase().includes("daily attendance")) continue;
-    if (cellA.toLowerCase().includes("company:")) continue;
-    if (cellA.toLowerCase().includes("department:")) continue;
+    if (cellA.toLowerCase().includes("company")) continue;
+    if (cellA.toLowerCase().includes("department")) continue;
+    if (cellA.toLowerCase().includes("printed on")) continue;
     if (!currentCode) continue;
 
-    // Try to parse date from cellA
+    // Try to parse date from first cell
     const parsedDate = parseDate(cellA);
     if (!parsedDate) continue;
 
-    const inTime = parseTimeStr(row[2]);
-    const outTime = parseTimeStr(row[3]);
-    const shift = String(row[5] || "").trim();
-    const totalDuration = String(row[6] || "").trim();
-    const rawStatus = String(row[7] || "").trim();
-    // Remarks can span multiple columns (8, 9, etc.)
+    const inTime = parseTimeStr(row[colIn]);
+    const outTime = parseTimeStr(row[colOut]);
+    const shift = String(row[colShift] || "").trim();
+    const totalDuration = String(row[colDuration] || "").trim();
+    const rawStatus = String(row[colStatus] || "").trim();
+    
+    // Collect remarks from remaining columns
     const remarkParts: string[] = [];
-    for (let c = 8; c < Math.min(row.length, 18); c++) {
+    for (let c = colRemarksStart; c < Math.min(row.length, colRemarksStart + 10); c++) {
       const v = String(row[c] || "").trim();
       if (v) remarkParts.push(v);
     }
@@ -157,6 +206,11 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
       rawStatus,
       remarks,
     });
+  }
+
+  console.log(`[BiometricParser] Total parsed records: ${results.length}`);
+  if (results.length > 0) {
+    console.log("[BiometricParser] Sample:", JSON.stringify(results[0]));
   }
 
   return results;

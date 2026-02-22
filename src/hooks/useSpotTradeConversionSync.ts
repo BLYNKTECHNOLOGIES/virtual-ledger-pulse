@@ -40,17 +40,32 @@ export function useUnsyncedSpotTrades() {
 
       if (tradeErr) throw tradeErr;
 
-      // Deduplicate by binance_order_id — prefer the record with commission data (binance_app source)
+      // Aggregate fills by binance_order_id — sum qty, quote_quantity, commission
       const orderMap = new Map<string, any>();
       for (const t of (rawTrades || [])) {
         const key = t.binance_order_id || t.id; // fallback to id if no binance_order_id
         const existing = orderMap.get(key);
         if (!existing) {
-          orderMap.set(key, t);
+          orderMap.set(key, { ...t, _fill_ids: [t.id] });
         } else {
-          // Prefer the one with commission data
-          if (t.commission != null && t.commission > 0 && (!existing.commission || existing.commission === 0)) {
-            orderMap.set(key, t);
+          // Aggregate: sum quantities, quote_quantity, commission
+          existing.quantity = (Number(existing.quantity) || 0) + (Number(t.quantity) || 0);
+          existing.quote_quantity = (Number(existing.quote_quantity) || 0) + (Number(t.quote_quantity) || 0);
+          existing.commission = (Number(existing.commission) || 0) + (Number(t.commission) || 0);
+          // Keep the commission_asset from whichever has it
+          if (!existing.commission_asset && t.commission_asset) {
+            existing.commission_asset = t.commission_asset;
+          }
+          // Recalculate executed_price as weighted average
+          if (existing.quantity > 0) {
+            existing.executed_price = existing.quote_quantity / existing.quantity;
+          }
+          // Track all fill IDs for sync checking
+          existing._fill_ids.push(t.id);
+          // Prefer earlier trade_time
+          if (t.trade_time && (!existing.trade_time || t.trade_time < existing.trade_time)) {
+            existing.trade_time = t.trade_time;
+            existing.created_at = t.created_at;
           }
         }
       }
@@ -80,11 +95,13 @@ export function useUnsyncedSpotTrades() {
         }
       }
 
-      return trades.map((t: any) => ({
-        ...t,
-        already_synced: syncedTradeIds.has(t.id) || 
-          (t.binance_order_id && syncedOrderIds.has(t.binance_order_id)),
-      })) as SpotTradeForSync[];
+      return trades.map((t: any) => {
+        const fillIds: string[] = t._fill_ids || [t.id];
+        const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
+          (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+        const { _fill_ids, ...rest } = t;
+        return { ...rest, already_synced: anySynced } as SpotTradeForSync;
+      });
     },
   });
 }

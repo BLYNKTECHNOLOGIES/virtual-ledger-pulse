@@ -73,31 +73,23 @@ export function useUnsyncedSpotTrades() {
       }
       const trades = Array.from(orderMap.values());
 
-      // Get already synced trade IDs (active conversions - not rejected)
+      // Get ALL synced trade IDs (any status including REJECTED)
       const { data: synced, error: syncErr } = await supabase
         .from("erp_product_conversions" as any)
-        .select("spot_trade_id, status")
+        .select("spot_trade_id")
         .not("spot_trade_id", "is", null);
 
       if (syncErr) throw syncErr;
 
-      const activeSyncedTradeIds = new Set<string>();
-      const rejectedTradeIds = new Set<string>();
-      for (const s of (synced || []) as any[]) {
-        if (s.status === "REJECTED") {
-          rejectedTradeIds.add(s.spot_trade_id);
-        } else {
-          activeSyncedTradeIds.add(s.spot_trade_id);
-        }
-      }
+      const syncedTradeIds = new Set((synced || []).map((s: any) => s.spot_trade_id));
 
       // Also look up binance_order_ids for synced trades to catch all fills of the same order
       const syncedOrderIds = new Set<string>();
-      if (activeSyncedTradeIds.size > 0) {
+      if (syncedTradeIds.size > 0) {
         const { data: syncedTrades } = await supabase
           .from("spot_trade_history")
           .select("binance_order_id")
-          .in("id", Array.from(activeSyncedTradeIds))
+          .in("id", Array.from(syncedTradeIds))
           .not("binance_order_id", "is", null);
         
         for (const st of (syncedTrades || [])) {
@@ -105,36 +97,12 @@ export function useUnsyncedSpotTrades() {
         }
       }
 
-      // Only show trades that:
-      // 1. Have an active (non-rejected) conversion → already_synced = true (hidden)
-      // 2. Have a REJECTED conversion → already_synced = false (show for re-sync)
-      // 3. Have NO conversion at all → only show if created in last 48 hours
-      const now = Date.now();
-      const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-
       return trades.map((t: any) => {
         const fillIds: string[] = t._fill_ids || [t.id];
-        const hasActiveSync = fillIds.some((fid: string) => activeSyncedTradeIds.has(fid)) ||
+        const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
           (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
-        const hasRejectedSync = fillIds.some((fid: string) => rejectedTradeIds.has(fid));
-        
-        // If actively synced, mark as synced
-        if (hasActiveSync) {
-          const { _fill_ids, ...rest } = t;
-          return { ...rest, fill_ids: fillIds, already_synced: true } as SpotTradeForSync;
-        }
-        
-        // If rejected, show for re-sync
-        if (hasRejectedSync) {
-          const { _fill_ids, ...rest } = t;
-          return { ...rest, fill_ids: fillIds, already_synced: false } as SpotTradeForSync;
-        }
-        
-        // No conversion at all - only show if recent (last 48h)
-        const tradeTime = t.trade_time || new Date(t.created_at).getTime();
-        const isRecent = (now - tradeTime) < FORTY_EIGHT_HOURS;
         const { _fill_ids, ...rest } = t;
-        return { ...rest, fill_ids: fillIds, already_synced: !isRecent } as SpotTradeForSync;
+        return { ...rest, fill_ids: fillIds, already_synced: anySynced } as SpotTradeForSync;
       });
     },
   });

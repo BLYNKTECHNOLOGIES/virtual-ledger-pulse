@@ -196,6 +196,15 @@ export default function PayrollDashboardPage() {
         .gte("end_date", run.pay_period_start);
       if (leaveErr) throw leaveErr;
 
+      // 5. Get holidays in the pay period
+      const { data: holidays } = await (supabase as any)
+        .from("hr_holidays")
+        .select("date")
+        .eq("is_active", true)
+        .gte("date", run.pay_period_start)
+        .lte("date", run.pay_period_end);
+      const holidaySet = new Set((holidays || []).map((h: any) => h.date));
+
       // Build leave days map
       const leaveMap: Record<string, number> = {};
       (approvedLeaves || []).forEach((l: any) => {
@@ -213,7 +222,7 @@ export default function PayrollDashboardPage() {
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // 5. Calculate payslips
+      // 6. Calculate payslips
       const payslips = (employees || []).map((emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
@@ -221,13 +230,14 @@ export default function PayrollDashboardPage() {
         const empLeaveDays = leaveMap[emp.id] || 0;
         const totalSalary = Number(emp.total_salary) || 0;
 
-        // Calculate working days (weekdays in period)
+        // Calculate working days (weekdays in period, excluding holidays)
         const start = new Date(run.pay_period_start);
         const end = new Date(run.pay_period_end);
         let workingDays = 0;
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
           const day = d.getDay();
-          if (day !== 0 && day !== 6) workingDays++;
+          const dateStr = d.toISOString().slice(0, 10);
+          if (day !== 0 && day !== 6 && !holidaySet.has(dateStr)) workingDays++;
         }
 
         // Present = attendance present + approved leave days (paid leave counts as present)

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Clock, 
   CalendarDays, Wallet, Laptop, BarChart3, LogOut,
   HelpCircle, ChevronDown, Building2, FileText, Megaphone,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -78,6 +78,7 @@ const navGroups: NavGroup[] = [
           { label: "Salary Structure", path: "/hrms/payroll/salary-structure" },
           { label: "Allowances", path: "/hrms/payroll/allowances" },
           { label: "Deductions", path: "/hrms/payroll/deductions" },
+          { label: "Penalties", path: "/hrms/payroll/penalties" },
         ],
       },
     ],

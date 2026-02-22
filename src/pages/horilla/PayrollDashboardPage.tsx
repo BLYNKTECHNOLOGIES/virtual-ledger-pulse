@@ -242,34 +242,58 @@ export default function PayrollDashboardPage() {
         .lte("date", run.pay_period_end);
       const holidaySet = new Set((holidays || []).map((h: any) => h.date));
 
+      // 6. Get penalties for this pay period month
+      const payMonth = run.pay_period_start.slice(0, 7); // YYYY-MM
+      const { data: penalties } = await (supabase as any)
+        .from("hr_penalties")
+        .select("*")
+        .eq("penalty_month", payMonth)
+        .eq("is_applied", false);
+
+      // Build penalty map per employee
+      const penaltyMap: Record<string, { totalDays: number; totalFixed: number; reasons: string[] }> = {};
+      (penalties || []).forEach((p: any) => {
+        if (!penaltyMap[p.employee_id]) penaltyMap[p.employee_id] = { totalDays: 0, totalFixed: 0, reasons: [] };
+        penaltyMap[p.employee_id].totalDays += Number(p.penalty_days || 0);
+        penaltyMap[p.employee_id].totalFixed += Number(p.penalty_amount || 0);
+        penaltyMap[p.employee_id].reasons.push(p.penalty_reason);
+      });
+
       // Build leave days map
       const leaveMap: Record<string, number> = {};
       (approvedLeaves || []).forEach((l: any) => {
         leaveMap[l.employee_id] = (leaveMap[l.employee_id] || 0) + Number(l.total_days || 0);
       });
 
-      // Build attendance map (track Sunday work days for overtime pay)
-      const attMap: Record<string, { present: number; total: number; ot: number; sundayWorked: number }> = {};
+      // Build attendance map (track Sunday & holiday work days for overtime pay)
+      const attMap: Record<string, { present: number; total: number; ot: number; sundayWorked: number; holidayWorked: number }> = {};
       (attendance || []).forEach((a: any) => {
-        if (!attMap[a.employee_id]) attMap[a.employee_id] = { present: 0, total: 0, ot: 0, sundayWorked: 0 };
+        if (!attMap[a.employee_id]) attMap[a.employee_id] = { present: 0, total: 0, ot: 0, sundayWorked: 0, holidayWorked: 0 };
         attMap[a.employee_id].total++;
         if (a.attendance_status === "present" || a.attendance_status === "late" || a.attendance_status === "half_day") {
           attMap[a.employee_id].present += a.attendance_status === "half_day" ? 0.5 : 1;
-          // Check if this attendance is on a Sunday
           const attDate = new Date(a.attendance_date + "T00:00:00");
+          const dateStr = a.attendance_date;
+          // Sunday work
           if (attDate.getDay() === 0) {
             attMap[a.employee_id].sundayWorked += a.attendance_status === "half_day" ? 0.5 : 1;
+          }
+          // Holiday work (declared holiday but employee was present)
+          if (holidaySet.has(dateStr)) {
+            attMap[a.employee_id].holidayWorked += a.attendance_status === "half_day" ? 0.5 : 1;
           }
         }
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // 6. Calculate payslips
+      // 7. Calculate payslips
+      const penaltyIdsToMark: string[] = [];
       const payslips = (employees || []).map((emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
-        const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0 };
+        const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0, holidayWorked: 0 };
         const empLeaveDays = leaveMap[emp.id] || 0;
+        const empPenalty = penaltyMap[emp.id] || { totalDays: 0, totalFixed: 0, reasons: [] };
         const totalSalary = Number(emp.total_salary) || 0;
 
         // Calculate working days (Mon-Sat, excluding Sundays and holidays)
@@ -285,7 +309,6 @@ export default function PayrollDashboardPage() {
         // Present = attendance present + approved leave days (paid leave counts as present)
         const attendancePresent = empAtt.total > 0 ? empAtt.present : 0;
         const paidDays = Math.min(attendancePresent + empLeaveDays, workingDays);
-        // If no attendance records at all and no leave, assume full month (no attendance tracking yet)
         const presentDays = empAtt.total === 0 && empLeaveDays === 0 ? workingDays : paidDays;
         const attendanceRatio = workingDays > 0 ? presentDays / workingDays : 1;
 
@@ -297,7 +320,6 @@ export default function PayrollDashboardPage() {
 
         if (items.length > 0 && totalSalary > 0) {
           const computed = computeComponentAmounts(items, totalSalary);
-          // Pro-rate earnings by attendance
           Object.entries(computed.earningsBreakdown).forEach(([k, v]) => {
             earningsBreakdown[k] = Math.round(v * attendanceRatio);
           });
@@ -305,21 +327,49 @@ export default function PayrollDashboardPage() {
           deductionsBreakdown = computed.deductionsBreakdown;
           totalDeductions = computed.totalDeductions;
         } else if (emp.basic_salary && Number(emp.basic_salary) > 0) {
-          // Fallback: use basic_salary if no template
           const basic = Math.round(Number(emp.basic_salary) * attendanceRatio);
           earningsBreakdown["Basic Salary"] = basic;
           totalEarnings = basic;
         }
 
-        // Sunday overtime pay: per-day rate × sunday days worked
+        // Per-day pay rate (used for OT and penalty calculations)
+        const fullMonthEarnings = totalEarnings > 0 && attendanceRatio > 0
+          ? Math.round(totalEarnings / attendanceRatio)
+          : totalSalary;
+        const perDayPay = workingDays > 0 ? Math.round(fullMonthEarnings / workingDays) : 0;
+
+        // Sunday overtime pay
         const sundayDays = empAtt.sundayWorked;
-        if (sundayDays > 0 && workingDays > 0) {
-          const perDayPay = totalEarnings > 0
-            ? Math.round(totalEarnings / (attendanceRatio > 0 ? attendanceRatio : 1) / workingDays)
-            : Math.round(totalSalary / workingDays);
+        if (sundayDays > 0 && perDayPay > 0) {
           const sundayPay = Math.round(perDayPay * sundayDays);
           earningsBreakdown["Sunday OT Pay"] = sundayPay;
           totalEarnings += sundayPay;
+        }
+
+        // Holiday overtime pay (worked on declared holidays)
+        const holidayDays = empAtt.holidayWorked;
+        if (holidayDays > 0 && perDayPay > 0) {
+          const holidayPay = Math.round(perDayPay * holidayDays);
+          earningsBreakdown["Holiday OT Pay"] = holidayPay;
+          totalEarnings += holidayPay;
+        }
+
+        // Penalty deductions
+        let penaltyDeduction = 0;
+        if (empPenalty.totalDays > 0 && perDayPay > 0) {
+          penaltyDeduction += Math.round(perDayPay * empPenalty.totalDays);
+          deductionsBreakdown[`Late Penalty (${empPenalty.totalDays} day${empPenalty.totalDays > 1 ? 's' : ''})`] = Math.round(perDayPay * empPenalty.totalDays);
+        }
+        if (empPenalty.totalFixed > 0) {
+          penaltyDeduction += empPenalty.totalFixed;
+          deductionsBreakdown["Manual Penalty"] = empPenalty.totalFixed;
+        }
+        totalDeductions += penaltyDeduction;
+
+        // Track penalty IDs to mark as applied
+        if (empPenalty.totalDays > 0 || empPenalty.totalFixed > 0) {
+          (penalties || []).filter((p: any) => p.employee_id === emp.id && !p.is_applied)
+            .forEach((p: any) => penaltyIdsToMark.push(p.id));
         }
 
         const grossSalary = totalEarnings;
@@ -339,14 +389,25 @@ export default function PayrollDashboardPage() {
           leave_days: workingDays - presentDays,
           overtime_hours: empAtt.ot,
           sunday_days_worked: sundayDays,
+          holiday_days_worked: holidayDays,
+          penalty_amount: penaltyDeduction,
           status: "draft",
         };
       });
 
-      // 5. Delete existing payslips for this run and insert new ones
+      // 8. Delete existing payslips for this run and insert new ones
       await (supabase as any).from("hr_payslips").delete().eq("payroll_run_id", run.id);
       const { error: insertErr } = await (supabase as any).from("hr_payslips").insert(payslips);
       if (insertErr) throw insertErr;
+
+      // 9. Mark penalties as applied
+      if (penaltyIdsToMark.length > 0) {
+        await (supabase as any).from("hr_penalties").update({
+          is_applied: true,
+          applied_at: new Date().toISOString(),
+          payroll_run_id: run.id,
+        }).in("id", penaltyIdsToMark);
+      }
 
       // 6. Update run totals
       const totalGross = payslips.reduce((s, p) => s + p.gross_salary, 0);

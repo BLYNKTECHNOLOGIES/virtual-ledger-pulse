@@ -5,6 +5,7 @@ import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon, Co
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useUSDTRate } from "@/hooks/useUSDTRate";
 
 interface PlatformFeesSummaryProps {
   startDate: Date;
@@ -12,6 +13,33 @@ interface PlatformFeesSummaryProps {
 }
 
 export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryProps) {
+  const { data: usdtRateData } = useUSDTRate();
+  const fallbackRate = usdtRateData?.rate || 84.5;
+
+  // Helper: get the best INR value for a fee deduction record
+  const getFeeINR = (d: any): number => {
+    // 1. Use pre-calculated INR value if available
+    if (d.fee_inr_value_at_buying_price && Number(d.fee_inr_value_at_buying_price) > 0) {
+      return Number(d.fee_inr_value_at_buying_price);
+    }
+    // 2. Calculate from USDT * average buying price if available
+    const usdt = Number(d.fee_usdt_amount || 0);
+    const avgBuy = Number(d.average_buying_price || 0);
+    if (usdt > 0 && avgBuy > 0) {
+      return usdt * avgBuy;
+    }
+    // 3. Calculate from USDT * usdt_rate_used if available
+    const rateUsed = Number(d.usdt_rate_used || 0);
+    if (usdt > 0 && rateUsed > 0) {
+      return usdt * rateUsed;
+    }
+    // 4. Fallback: USDT * current live rate
+    if (usdt > 0) {
+      return usdt * fallbackRate;
+    }
+    return 0;
+  };
+
   // Fetch fee deductions data with new USDT columns
   const { data: feeData, isLoading } = useQuery({
     queryKey: ['wallet_fee_deductions', startDate, endDate],
@@ -85,8 +113,8 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     return sum + (Number(c.fee_amount || 0) * priceUsd);
   }, 0) || 0;
 
-  // Calculate summary statistics - now using fee_inr_value_at_buying_price for accounting
-  const totalFeesINR = feeData?.reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  // Calculate summary statistics - using getFeeINR for proper INR conversion
+  const totalFeesINR = feeData?.reduce((sum, d) => sum + getFeeINR(d), 0) || 0;
   const totalFeesUSDT = feeData?.reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
   
   // Transfer fees (already in USDT)
@@ -95,10 +123,10 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   // Combined totals (include conversion fees)
   const combinedTotalUSDT = totalFeesUSDT + transferFeesUSDT + conversionFeesUSDT;
   
-  const salesFeesINR = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  const salesFeesINR = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + getFeeINR(d), 0) || 0;
   const salesFeesUSDT = feeData?.filter(d => d.order_type === 'SALES').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
   
-  const purchaseFeesINR = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0), 0) || 0;
+  const purchaseFeesINR = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + getFeeINR(d), 0) || 0;
   const purchaseFeesUSDT = feeData?.filter(d => d.order_type === 'PURCHASE').reduce((sum, d) => sum + Number(d.fee_usdt_amount || 0), 0) || 0;
   
   // Calculate average fee rate
@@ -111,7 +139,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     if (!acc[walletName]) {
       acc[walletName] = { feesINR: 0, feesUSDT: 0, count: 0 };
     }
-    acc[walletName].feesINR += Number(d.fee_inr_value_at_buying_price || d.fee_amount || 0);
+    acc[walletName].feesINR += getFeeINR(d);
     acc[walletName].feesUSDT += Number(d.fee_usdt_amount || 0);
     acc[walletName].count += 1;
     return acc;
@@ -418,7 +446,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                       {formatUSDT(Number(deduction.fee_usdt_amount || 0))}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(Number(deduction.fee_inr_value_at_buying_price || deduction.fee_amount || 0))}
+                      {formatCurrency(getFeeINR(deduction))}
                     </TableCell>
                   </TableRow>
                 ))}

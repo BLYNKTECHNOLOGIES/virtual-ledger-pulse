@@ -3805,10 +3805,15 @@ export type Database = {
           created_at: string
           employee_count: number | null
           id: string
+          is_locked: boolean
+          locked_at: string | null
+          locked_by: string | null
           notes: string | null
           pay_period_end: string
           pay_period_start: string
           processed_by: string | null
+          rerun_count: number
+          rerun_reason: string | null
           run_date: string
           status: string
           title: string
@@ -3821,10 +3826,15 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
           notes?: string | null
           pay_period_end: string
           pay_period_start: string
           processed_by?: string | null
+          rerun_count?: number
+          rerun_reason?: string | null
           run_date?: string
           status?: string
           title: string
@@ -3837,10 +3847,15 @@ export type Database = {
           created_at?: string
           employee_count?: number | null
           id?: string
+          is_locked?: boolean
+          locked_at?: string | null
+          locked_by?: string | null
           notes?: string | null
           pay_period_end?: string
           pay_period_start?: string
           processed_by?: string | null
+          rerun_count?: number
+          rerun_reason?: string | null
           run_date?: string
           status?: string
           title?: string

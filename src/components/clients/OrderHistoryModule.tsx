@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, Search, Download, Filter, Eye, X, ShoppingCart, ShoppingBag } from "lucide-react";
+import { History, Search, Download, Filter, Eye, X, ShoppingCart, ShoppingBag, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
@@ -15,6 +15,135 @@ import { useState } from "react";
 interface OrderHistoryModuleProps {
   clientId?: string;
   showTabs?: boolean;
+}
+
+/** Sub-component so hooks are called unconditionally */
+function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
+  selectedOrder: any;
+  getStatusBadge: (status: string, paymentStatus?: string) => JSX.Element;
+  onClose: () => void;
+}) {
+  // Fetch bank account for sales (buy) orders
+  const { data: bankAccountData } = useQuery({
+    queryKey: ['client-order-bank', selectedOrder?.sales_payment_method_id],
+    queryFn: async () => {
+      if (!selectedOrder?.sales_payment_method_id) return null;
+      const { data: pm } = await supabase
+        .from('sales_payment_methods')
+        .select('bank_account_id')
+        .eq('id', selectedOrder.sales_payment_method_id)
+        .single();
+      if (!pm?.bank_account_id) return null;
+      const { data: bank } = await supabase
+        .from('bank_accounts')
+        .select('account_name, bank_name, account_number')
+        .eq('id', pm.bank_account_id)
+        .single();
+      return bank;
+    },
+    enabled: !!selectedOrder?.sales_payment_method_id && !!selectedOrder?.isBuyOrder,
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Order Number</Label>
+          <p className="text-lg font-mono text-primary">{selectedOrder.order_number}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Order Date</Label>
+          <p className="text-lg">{new Date(selectedOrder.order_date).toLocaleDateString()}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">
+            {selectedOrder.isBuyOrder ? 'Client Name' : 'Supplier Name'}
+          </Label>
+          <p className="text-lg">{selectedOrder.client_name || selectedOrder.supplier_name}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+          <p className="text-lg">{selectedOrder.client_phone || selectedOrder.contact_number}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
+          <p className="text-lg">{selectedOrder.quantity}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Rate (₹)</Label>
+          <p className="text-lg">₹{selectedOrder.rate?.toLocaleString() || selectedOrder.price_per_unit?.toLocaleString()}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
+          <p className="text-xl font-bold text-green-600">₹{selectedOrder.total_amount?.toLocaleString()}</p>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Platform</Label>
+          <p className="text-lg">{selectedOrder.platform || 'N/A'}</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+        <p className="text-base bg-muted p-3 rounded-lg">{selectedOrder.description || selectedOrder.notes || 'USDT Transaction'}</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Order Status</Label>
+          <div className="mt-1">
+            {getStatusBadge(selectedOrder.status, selectedOrder.payment_status)}
+          </div>
+        </div>
+        <div>
+          <Label className="text-sm font-medium text-muted-foreground">Order Type</Label>
+          {selectedOrder.isBuyOrder ? (
+            <Badge className="bg-green-100 text-green-800">Buy Order</Badge>
+          ) : (
+            <Badge className="bg-orange-100 text-orange-800">Sell Order</Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Bank Account Info for Sales Orders */}
+      {selectedOrder.isBuyOrder && bankAccountData && (
+        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-3 flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Payment Received In
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Account</Label>
+              <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.account_name}</p>
+            </div>
+            <div>
+              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Bank Name</Label>
+              <p className="text-sm text-blue-900 dark:text-blue-300">{bankAccountData.bank_name}</p>
+            </div>
+            <div className="col-span-2">
+              <Label className="text-sm font-medium text-blue-700 dark:text-blue-500">Account Number</Label>
+              <p className="text-sm text-blue-900 dark:text-blue-300 font-mono">
+                {bankAccountData.account_number
+                  ? `****${bankAccountData.account_number.slice(-4)}`
+                  : 'N/A'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-4 border-t">
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+        <Button className="bg-primary hover:bg-primary/90">
+          <Download className="h-4 w-4 mr-2" />
+          Download Receipt
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryModuleProps) {
@@ -334,76 +463,11 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
             </DialogTitle>
           </DialogHeader>
           {selectedOrder && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Order Number</Label>
-                  <p className="text-lg font-mono text-primary">{selectedOrder.order_number}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Order Date</Label>
-                  <p className="text-lg">{new Date(selectedOrder.order_date).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    {selectedOrder.isBuyOrder ? 'Client Name' : 'Supplier Name'}
-                  </Label>
-                  <p className="text-lg">{selectedOrder.client_name || selectedOrder.supplier_name}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
-                  <p className="text-lg">{selectedOrder.client_phone || selectedOrder.contact_number}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Quantity</Label>
-                  <p className="text-lg">{selectedOrder.quantity}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Rate (₹)</Label>
-                  <p className="text-lg">₹{selectedOrder.rate?.toLocaleString() || selectedOrder.price_per_unit?.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
-                  <p className="text-xl font-bold text-green-600">₹{selectedOrder.total_amount?.toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Platform</Label>
-                  <p className="text-lg">{selectedOrder.platform || 'N/A'}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-                <p className="text-base bg-muted p-3 rounded-lg">{selectedOrder.description || selectedOrder.notes || 'USDT Transaction'}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Order Status</Label>
-                  <div className="mt-1">
-                    {getStatusBadge(selectedOrder.status, selectedOrder.payment_status)}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Order Type</Label>
-                  {selectedOrder.isBuyOrder ? (
-                    <Badge className="bg-green-100 text-green-800">Buy Order</Badge>
-                  ) : (
-                    <Badge className="bg-orange-100 text-orange-800">Sell Order</Badge>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button className="bg-primary hover:bg-primary/90">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Receipt
-                </Button>
-              </div>
-            </div>
+            <OrderDetailsContent
+              selectedOrder={selectedOrder}
+              getStatusBadge={getStatusBadge}
+              onClose={() => setIsViewDialogOpen(false)}
+            />
           )}
         </DialogContent>
       </Dialog>

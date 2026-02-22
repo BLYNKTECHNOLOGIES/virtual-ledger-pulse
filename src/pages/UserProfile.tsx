@@ -38,8 +38,12 @@ import {
   Wallet,
   CalendarDays,
   Target,
-  Upload
+  Upload,
+  Plus,
+  Pencil,
+  Trash2
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast as sonnerToast } from 'sonner';
 
 interface BankAccount {
@@ -408,6 +412,8 @@ export default function UserProfile() {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [showLeaveCreate, setShowLeaveCreate] = useState(false);
+  const [editingLeaveId, setEditingLeaveId] = useState<string | null>(null);
 
   // ─── Fetch HRMS employee linked to this user ───
   const { data: hrEmployee, isLoading: hrLoading } = useQuery({
@@ -584,15 +590,52 @@ export default function UserProfile() {
         status: 'pending',
       });
       if (error) throw error;
+      // If editing, update instead of insert
+      if (editingLeaveId) {
+        const { error } = await (supabase as any).from('hr_leave_requests').update({
+          leave_type_id: req.leave_type_id,
+          start_date: req.from_date,
+          end_date: req.to_date,
+          total_days: totalDays,
+          reason: req.reason || null,
+        }).eq('id', editingLeaveId);
+        if (error) throw error;
+      } else {
+        const { error } = await (supabase as any).from('hr_leave_requests').insert({
+          employee_id: hrEmployee.id,
+          leave_type_id: req.leave_type_id,
+          start_date: req.from_date,
+          end_date: req.to_date,
+          total_days: totalDays,
+          reason: req.reason || null,
+          status: 'pending',
+        });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      sonnerToast.success('Leave request submitted successfully');
+      sonnerToast.success(editingLeaveId ? 'Leave request updated' : 'Leave request submitted successfully');
       setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '' });
+      setEditingLeaveId(null);
+      setShowLeaveCreate(false);
       queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
     },
     onError: (error: any) => {
       sonnerToast.error(error.message || 'Failed to submit leave request');
     },
+  });
+
+  // ─── Delete Leave Request Mutation ───
+  const deleteLeaveRequestMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await (supabase as any).from('hr_leave_requests').delete().eq('id', requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      sonnerToast.success('Leave request deleted');
+      queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
+    },
+    onError: () => sonnerToast.error('Failed to delete leave request'),
   });
 
   // ─── Add bank account mutation ───
@@ -888,177 +931,218 @@ export default function UserProfile() {
           )}
         </TabsContent>
 
-        {/* ═══════ Leaves Tab (HRMS-powered, Quarter-based, All Carry Forward) ═══════ */}
+        {/* ═══════ Leaves Tab — Horilla-style ═══════ */}
         <TabsContent value="leaves" className="space-y-6">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
-              {/* ─── My Leave Requests Header ─── */}
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">My Leave Requests</h2>
+              {/* ─── Header row ─── */}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <h2 className="text-lg font-bold text-foreground">My Leave requests</h2>
+                <div className="flex items-center gap-2">
+                  <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-[#E8604C] hover:bg-[#d4553f] text-white gap-1.5">
+                        <Plus className="h-4 w-4" /> Create
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Leave Type *</Label>
+                          <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
+                            <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
+                            <SelectContent>
+                              {leaveTypes.map((lt: any) => (
+                                <SelectItem key={lt.id} value={lt.id}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: lt.color || '#888' }} />
+                                    {lt.name}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label>Start Date *</Label>
+                            <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
+                          </div>
+                          <div>
+                            <Label>End Date *</Label>
+                            <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Reason</Label>
+                          <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
+                        <Button
+                          onClick={() => applyLeaveMutation.mutate(leaveRequest)}
+                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
+                          className="bg-[#E8604C] hover:bg-[#d4553f]"
+                        >
+                          {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
-              {/* ─── Cumulative Leave Balance Cards ─── */}
-              <div className="flex flex-wrap gap-4">
-                {Object.entries(cumulativeLeaveBalances).map(([ltId, bal]) => {
-                  const lt = getLeaveType(ltId);
-                  const available = bal.totalAllocated - bal.totalUsed;
+              {/* ─── Leave Balance Cards ─── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {leaveTypes.map((lt: any) => {
+                  const bal = cumulativeLeaveBalances[lt.id];
+                  const allocated = bal?.totalAllocated || 0;
+                  const used = bal?.totalUsed || 0;
+                  const available = allocated - used;
                   return (
-                    <div key={ltId} className="min-w-[240px] border border-border rounded-xl p-5 bg-card hover:shadow-sm transition-shadow">
+                    <div key={lt.id} className="border border-border rounded-lg p-5 bg-card">
                       <div
-                        className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-base mb-3"
-                        style={{ backgroundColor: lt?.color || '#888' }}
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm mb-3"
+                        style={{ backgroundColor: lt.color || '#888' }}
                       >
-                        {lt?.code || '??'}
+                        {lt.code || '??'}
                       </div>
-                      <p className="text-sm font-bold text-foreground mb-3">{lt?.name || 'Unknown'}</p>
-                      <div className="space-y-1.5 text-sm">
-                        <div className="flex justify-between gap-6">
+                      <p className="text-sm font-bold text-foreground mb-3">{lt.name}</p>
+                      <div className="space-y-1 text-[13px]">
+                        <div className="flex justify-between">
                           <span className="text-muted-foreground">Available Leave Days</span>
-                          <span className="font-semibold text-foreground">{available}</span>
+                          <span className="font-semibold text-foreground">{available.toFixed(1)}</span>
                         </div>
-                        <div className="flex justify-between gap-6">
+                        <div className="flex justify-between">
                           <span className="text-muted-foreground">Total Leave Days</span>
-                          <span className="font-semibold text-foreground">{bal.totalAllocated}</span>
+                          <span className="font-semibold text-foreground">{allocated.toFixed(1)}</span>
                         </div>
-                        <div className="flex justify-between gap-6">
+                        <div className="flex justify-between">
                           <span className="text-muted-foreground">Total Leave Taken</span>
-                          <span className="font-semibold text-foreground">{bal.totalUsed}</span>
+                          <span className="font-semibold text-foreground">{used}</span>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                {Object.keys(cumulativeLeaveBalances).length === 0 && (
-                  <p className="text-sm text-muted-foreground py-6">No leave allocations found. Contact HR to allocate leaves.</p>
+                {leaveTypes.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 col-span-full">No leave types configured. Contact HR.</p>
                 )}
               </div>
 
-              {/* ─── Leave Requests Table with Cancel Actions ─── */}
-              {leaveRequests.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {leaveRequests.length} request(s)
-                    </span>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Pending</span>
-                    </div>
-                  </div>
-
-                  <div className="border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/50 border-b border-border">
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Requested Days</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Reason</th>
-                          <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Options</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leaveRequests.map((req: any) => {
-                          const lt = getLeaveType(req.leave_type_id);
-                          const isCancellable = req.status === 'pending' || req.status === 'approved';
-                          return (
-                            <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                              req.status === 'pending' ? 'border-l-4 border-l-amber-400' :
-                              req.status === 'approved' ? 'border-l-4 border-l-green-500' :
-                              req.status === 'rejected' ? 'border-l-4 border-l-red-500' :
-                              'border-l-4 border-l-gray-300'
-                            }`}>
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
-                                    {lt?.code?.substring(0, 2) || '??'}
-                                  </span>
-                                  <span className="font-medium">{lt?.name || 'Unknown'}</span>
-                                </div>
-                              </td>
-                              <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
-                              <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
-                              <td className="py-3 px-4 text-muted-foreground">{req.total_days}</td>
-                              <td className={`py-3 px-4 font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>{req.status}</td>
-                              <td className="py-3 px-4 text-muted-foreground max-w-[150px] truncate">{req.reason || '—'}</td>
-                              <td className="py-3 px-4 text-center">
-                                {isCancellable ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
-                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
-                                    disabled={cancelLeaveMutation.isPending}
-                                  >
-                                    Cancel
-                                  </Button>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">—</span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+              {/* ─── Status Legend + Count ─── */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs text-muted-foreground font-medium">
+                  {leaveRequests.length > 0 ? `${leaveRequests.length} request(s)` : ''}
+                </span>
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested</span>
                 </div>
-              )}
+              </div>
 
-              {/* ─── Apply for Leave Form ─── */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Apply for Leave
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Leave Type *</Label>
-                      <Select value={leaveRequest.leave_type_id} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, leave_type_id: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
-                        <SelectContent>
-                          {leaveTypes.map((lt: any) => (
-                            <SelectItem key={lt.id} value={lt.id}>
+              {/* ─── Leave Requests Table ─── */}
+              <div className="border border-border rounded-lg overflow-hidden bg-card">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Requested Days</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
+                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Comment</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Options</th>
+                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveRequests.length === 0 ? (
+                      <tr><td colSpan={8} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
+                    ) : (
+                      leaveRequests.map((req: any) => {
+                        const lt = getLeaveType(req.leave_type_id);
+                        const isCancellable = req.status === 'pending' || req.status === 'approved';
+                        const isEditable = req.status === 'pending';
+                        return (
+                          <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
+                            req.status === 'pending' ? 'border-l-4 border-l-amber-400' :
+                            req.status === 'approved' ? 'border-l-4 border-l-green-500' :
+                            req.status === 'rejected' ? 'border-l-4 border-l-red-500' :
+                            'border-l-4 border-l-gray-300'
+                          }`}>
+                            <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: lt.color || '#888' }} />
-                                {lt.name}
+                                <span className="w-7 h-7 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
+                                  {lt?.code?.substring(0, 2) || '??'}
+                                </span>
+                                <span className="font-medium text-foreground">{lt?.name || 'Unknown'}</span>
                               </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>From Date *</Label>
-                      <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
-                    </div>
-                    <div>
-                      <Label>To Date *</Label>
-                      <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Reason</Label>
-                    <Textarea value={leaveRequest.reason} onChange={(e) => setLeaveRequest(prev => ({ ...prev, reason: e.target.value }))} placeholder="Enter reason for leave" />
-                  </div>
-                  <Button 
-                    onClick={() => applyLeaveMutation.mutate(leaveRequest)} 
-                    disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
-                    className="bg-[#00bcd4] hover:bg-[#00a5bb]"
-                  >
-                    {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit Leave Request'}
-                  </Button>
-                </CardContent>
-              </Card>
+                            </td>
+                            <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
+                            <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
+                            <td className="py-3 px-4 text-foreground font-medium">{req.total_days}</td>
+                            <td className="py-3 px-4">
+                              <span className={`capitalize font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>
+                                {req.status === 'pending' ? 'Requested' : req.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-muted-foreground max-w-[150px] truncate">{req.reason || '—'}</td>
+                            <td className="py-3 px-4 text-center">
+                              {isCancellable ? (
+                                <Button
+                                  size="sm"
+                                  className="bg-gray-400 hover:bg-gray-500 text-white text-xs px-5"
+                                  onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
+                                  disabled={cancelLeaveMutation.isPending}
+                                >
+                                  Cancel
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                {isEditable && (
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                      setLeaveRequest({
+                                        leave_type_id: req.leave_type_id,
+                                        from_date: req.start_date,
+                                        to_date: req.end_date,
+                                        reason: req.reason || '',
+                                      });
+                                      setEditingLeaveId(req.id);
+                                      setShowLeaveCreate(true);
+                                    }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {isEditable && (
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-600"
+                                    onClick={() => deleteLeaveRequestMutation.mutate(req.id)}
+                                    disabled={deleteLeaveRequestMutation.isPending}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </TabsContent>

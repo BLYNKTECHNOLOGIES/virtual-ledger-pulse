@@ -177,6 +177,22 @@ export default function PayslipsPage() {
     enabled: !!detail,
   });
 
+  // Fetch attendance details for half-day count
+  const { data: attendanceDetail = [] } = useQuery({
+    queryKey: ["hr_attendance_detail", detail?.employee_id, detail?.hr_payroll_runs?.pay_period_start, detail?.hr_payroll_runs?.pay_period_end],
+    queryFn: async () => {
+      if (!detail) return [];
+      const { data } = await (supabase as any)
+        .from("hr_attendance")
+        .select("attendance_status")
+        .eq("employee_id", detail.employee_id)
+        .gte("attendance_date", detail.hr_payroll_runs?.pay_period_start)
+        .lte("attendance_date", detail.hr_payroll_runs?.pay_period_end);
+      return data || [];
+    },
+    enabled: !!detail,
+  });
+
   const filtered = payslips.filter((p: any) => {
     const q = search.toLowerCase();
     const fullName = `${p.hr_employees?.first_name || ""} ${p.hr_employees?.last_name || ""}`.toLowerCase();
@@ -272,8 +288,9 @@ export default function PayslipsPage() {
               {(() => {
                 const workingDays = detail.working_days || 0;
                 const presentDays = detail.present_days || 0;
-                const leaveDays = detail.leave_days || 0;
                 const totalLeaveDaysFromRequests = leaveBreakdown.reduce((s: number, l: any) => s + Number(l.total_days || 0), 0);
+                const halfDayCount = attendanceDetail.filter((a: any) => a.attendance_status === "half_day").length;
+                const fullPresentCount = attendanceDetail.filter((a: any) => a.attendance_status === "present" || a.attendance_status === "late").length;
                 const absentDays = Math.max(0, workingDays - presentDays);
                 // Group leaves by type
                 const leaveByType: Record<string, number> = {};
@@ -281,7 +298,6 @@ export default function PayslipsPage() {
                   const name = l.hr_leave_types?.name || "Leave";
                   leaveByType[name] = (leaveByType[name] || 0) + Number(l.total_days || 0);
                 });
-                const actualPresentDays = Math.max(0, presentDays - totalLeaveDaysFromRequests);
 
                 return (
                   <div>
@@ -292,9 +308,15 @@ export default function PayslipsPage() {
                         <p className="text-[10px] text-gray-500">Total Working Days</p>
                       </div>
                       <div className="bg-green-50 rounded-lg px-3 py-2 text-center">
-                        <p className="text-lg font-bold text-green-700">{actualPresentDays}</p>
+                        <p className="text-lg font-bold text-green-700">{fullPresentCount}</p>
                         <p className="text-[10px] text-gray-500">Present Days</p>
                       </div>
+                      {halfDayCount > 0 && (
+                        <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-purple-700">{halfDayCount}</p>
+                          <p className="text-[10px] text-gray-500">Half Days ({halfDayCount * 0.5}d paid)</p>
+                        </div>
+                      )}
                       {Object.entries(leaveByType).map(([name, days]) => (
                         <div key={name} className="bg-amber-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-amber-700">{days}</p>

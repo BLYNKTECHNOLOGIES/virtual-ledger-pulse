@@ -373,11 +373,14 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
     onError: (e: any) => toast.error(e.message),
   });
 
+  const [tableFilter, setTableFilter] = useState<"all" | "matched" | "unmatched">("all");
+
   const reset = () => {
     setParsedRows([]);
     setFileName(null);
     setStep("upload");
     setUploadStats({ inserted: 0, skipped: 0, unmatched: 0 });
+    setTableFilter("all");
   };
 
   const handleClose = () => {
@@ -454,13 +457,19 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                   <p className="text-xs text-muted-foreground">Employees Found</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card 
+                className={`cursor-pointer transition-all ${tableFilter === "matched" ? "ring-2 ring-green-500" : "hover:bg-muted/50"}`}
+                onClick={() => setTableFilter(tableFilter === "matched" ? "all" : "matched")}
+              >
                 <CardContent className="p-3 text-center">
                   <p className="text-2xl font-bold text-green-600">{matchedCount}</p>
                   <p className="text-xs text-muted-foreground">Matched</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card 
+                className={`cursor-pointer transition-all ${tableFilter === "unmatched" ? "ring-2 ring-destructive" : "hover:bg-muted/50"}`}
+                onClick={() => setTableFilter(tableFilter === "unmatched" ? "all" : "unmatched")}
+              >
                 <CardContent className="p-3 text-center">
                   <p className="text-2xl font-bold text-red-600">{unmatchedNames.length}</p>
                   <p className="text-xs text-muted-foreground">Unmatched</p>
@@ -504,7 +513,10 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
                   </tr>
                 </thead>
                 <tbody>
-                  {parsedRows.filter(r => r.status !== "weekly_off").slice(0, 200).map((row, i) => (
+                  {parsedRows
+                    .filter(r => r.status !== "weekly_off")
+                    .filter(r => tableFilter === "unmatched" ? !r.employeeId : tableFilter === "matched" ? !!r.employeeId : true)
+                    .slice(0, 200).map((row, i) => (
                     <tr key={i} className={`border-b ${!row.employeeId ? "bg-destructive/5" : ""}`}>
                       <td className="px-3 py-1.5">
                         {row.employeeId ? (

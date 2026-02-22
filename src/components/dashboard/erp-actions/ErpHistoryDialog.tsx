@@ -125,7 +125,7 @@ export function ErpHistoryDialog({ open, onOpenChange }: ErpHistoryDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-12rem)] max-w-none h-[calc(100vh-4rem)] max-h-none flex flex-col p-0 gap-0 top-[calc(50%+1rem)] left-[calc(50%+6rem)] -translate-x-1/2 -translate-y-1/2">
+      <DialogContent className="!fixed !inset-auto !left-[calc(87px+((100vw-87px)/2))] !top-[calc(56px+((100vh-56px)/2))] !-translate-x-1/2 !-translate-y-1/2 !w-[calc(100vw-87px-2rem)] !max-w-none !h-[calc(100vh-56px-2rem)] !max-h-none flex flex-col p-0 gap-0 rounded-lg">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/60 rounded-t-lg flex-shrink-0">
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             ERP Action Queue — Full History

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, ReactNode } from "react";
+import { useState, useEffect, useCallback, ReactNode, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical } from "lucide-react";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
+import { useAuth } from "@/hooks/useAuth";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
@@ -32,12 +33,20 @@ interface Widget {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const userId = user?.id || 'default';
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last7days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
   const [dashboardWidgets, setDashboardWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const { isDashboardRearrangeMode: isRearrangeMode, setIsDashboardRearrangeMode: setIsRearrangeMode } = useSidebarEdit();
   const { toast } = useToast();
+
+  // Per-user localStorage keys
+  const storageKeys = useMemo(() => ({
+    itemOrder: `dashboardItemOrder_${userId}`,
+    widgets: `dashboardWidgets_${userId}`,
+  }), [userId]);
 
   // Flat item order for free-form dashboard rearrangement
   const defaultItemOrder = [
@@ -48,7 +57,7 @@ export default function Dashboard() {
   ];
   
   const [itemOrder, setItemOrder] = useState<string[]>(() => {
-    const saved = localStorage.getItem('dashboardItemOrder');
+    const saved = localStorage.getItem(`dashboardItemOrder_${userId}`);
     if (saved) {
       const parsed = JSON.parse(saved);
       // Merge any new default items not in saved order
@@ -96,25 +105,40 @@ export default function Dashboard() {
 
   // Load saved dashboard layout
   useEffect(() => {
-    const savedWidgets = localStorage.getItem('dashboardWidgets');
+    const savedWidgets = localStorage.getItem(storageKeys.widgets);
     if (savedWidgets) {
       setDashboardWidgets(JSON.parse(savedWidgets));
     } else {
       setDashboardWidgets(defaultWidgets);
     }
-  }, []);
+  }, [storageKeys.widgets]);
+
+  // Reload item order when user changes
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKeys.itemOrder);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const merged = [...parsed];
+      defaultItemOrder.forEach(id => {
+        if (!merged.includes(id)) merged.push(id);
+      });
+      setItemOrder(merged);
+    } else {
+      setItemOrder(defaultItemOrder);
+    }
+  }, [storageKeys.itemOrder]);
 
   // Save item order
   useEffect(() => {
-    localStorage.setItem('dashboardItemOrder', JSON.stringify(itemOrder));
-  }, [itemOrder]);
+    localStorage.setItem(storageKeys.itemOrder, JSON.stringify(itemOrder));
+  }, [itemOrder, storageKeys.itemOrder]);
 
   // Save dashboard layout
   useEffect(() => {
     if (dashboardWidgets.length > 0) {
-      localStorage.setItem('dashboardWidgets', JSON.stringify(dashboardWidgets));
+      localStorage.setItem(storageKeys.widgets, JSON.stringify(dashboardWidgets));
     }
-  }, [dashboardWidgets]);
+  }, [dashboardWidgets, storageKeys.widgets]);
 
   // Calculate date range based on selected range
   const getDateRangeValues = () => {
@@ -367,8 +391,8 @@ export default function Dashboard() {
   const handleResetDashboard = () => {
     setDashboardWidgets(defaultWidgets);
     setItemOrder(defaultItemOrder);
-    localStorage.removeItem('dashboardWidgets');
-    localStorage.removeItem('dashboardItemOrder');
+    localStorage.removeItem(storageKeys.widgets);
+    localStorage.removeItem(storageKeys.itemOrder);
     toast({
       title: "Dashboard Reset",
       description: "Dashboard has been reset to default layout.",

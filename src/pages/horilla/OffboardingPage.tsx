@@ -73,11 +73,23 @@ export default function OffboardingPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, employeeId }: { id: string; status: string; employeeId?: string }) => {
       const { error } = await (supabase as any).from("employee_offboarding").update({ status }).eq("id", id);
       if (error) throw error;
+
+      // When offboarding is completed, deactivate the employee
+      if (status === "completed" && employeeId) {
+        // Try hr_employees first
+        await (supabase as any).from("hr_employees").update({ is_active: false }).eq("id", employeeId);
+        // Also try legacy employees table
+        await (supabase as any).from("employees").update({ status: "inactive" }).eq("id", employeeId);
+      }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["employee_offboarding"] }); toast.success("Updated"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employee_offboarding"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_active"] });
+      toast.success("Updated");
+    },
   });
 
   const filtered = offboardings.filter((o: any) => {
@@ -144,7 +156,7 @@ export default function OffboardingPage() {
                           </Button>
                         )}
                         {o.status === "in_progress" && (
-                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: o.id, status: "completed" })}>
+                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: o.id, status: "completed", employeeId: o.employee_id })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
                         )}

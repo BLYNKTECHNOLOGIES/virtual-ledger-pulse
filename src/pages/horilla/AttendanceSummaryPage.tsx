@@ -71,12 +71,12 @@ export default function AttendanceSummaryPage() {
     return name.includes(q) || s.employee?.badge_id?.toLowerCase().includes(q);
   });
 
-  // Overall stats
-  const overallPresent = attendance.filter((a: any) => a.attendance_status === "present").length;
+  // Overall stats — "late" counts as present (they showed up, just late)
+  const overallPresent = attendance.filter((a: any) => a.attendance_status === "present" || a.attendance_status === "late").length;
   const overallAbsent = attendance.filter((a: any) => a.attendance_status === "absent").length;
   const overallLate = attendance.filter((a: any) => a.attendance_status === "late").length;
   const overallHalfDay = attendance.filter((a: any) => a.attendance_status === "half_day").length;
-  const attendanceRate = attendance.length > 0 ? ((overallPresent / attendance.length) * 100).toFixed(1) : "0";
+  const attendanceRate = attendance.length > 0 ? (((overallPresent + overallHalfDay * 0.5) / attendance.length) * 100).toFixed(1) : "0";
 
   const pieData = [
     { name: "Present", value: overallPresent },
@@ -172,7 +172,9 @@ export default function AttendanceSummaryPage() {
                 <tr><td colSpan={10} className="text-center py-8 text-gray-400">No records</td></tr>
               ) : (
                 (filtered as any[]).map((s: any) => {
-                  const rate = s.total > 0 ? ((s.present / s.total) * 100).toFixed(0) : "0";
+                  // Rate: present + late = showed up
+                  const showedUp = s.present + s.late + s.half_day * 0.5;
+                  const rate = s.total > 0 ? ((showedUp / s.total) * 100).toFixed(0) : "0";
                   return (
                     <tr key={s.employee?.id} className="border-b hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{s.employee?.first_name} {s.employee?.last_name}</td>

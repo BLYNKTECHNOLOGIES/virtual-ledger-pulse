@@ -93,7 +93,7 @@ export default function HorillaDashboard() {
   const totalVacancies = (recruitments || []).reduce((sum, r) => sum + (r.vacancy || 0), 0);
 
   // Attendance
-  const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present").length;
+  const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
   const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
 

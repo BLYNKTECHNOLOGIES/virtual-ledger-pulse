@@ -491,7 +491,7 @@ export default function UserProfile() {
     mutationFn: async ({ requestId, wasApproved }: { requestId: string; wasApproved: boolean }) => {
       const { error } = await supabase
         .from('hr_leave_requests')
-        .update({ status: 'Cancelled' })
+        .update({ status: 'cancelled' })
         .eq('id', requestId);
       if (error) throw error;
 
@@ -581,7 +581,7 @@ export default function UserProfile() {
         end_date: req.to_date,
         total_days: totalDays,
         reason: req.reason || null,
-        status: 'Requested',
+        status: 'pending',
       });
       if (error) throw error;
     },
@@ -728,10 +728,10 @@ export default function UserProfile() {
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
   const statusColors: Record<string, string> = {
-    Approved: "text-green-600",
-    Rejected: "text-red-600",
-    Cancelled: "text-muted-foreground",
-    Requested: "text-amber-600",
+    approved: "text-green-600",
+    rejected: "text-red-600",
+    cancelled: "text-muted-foreground",
+    pending: "text-amber-600",
   };
 
   const displayName = hrEmployee
@@ -946,7 +946,7 @@ export default function UserProfile() {
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Rejected</span>
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-gray-400" /> Cancelled</span>
                       <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> Approved</span>
-                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Requested</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Pending</span>
                     </div>
                   </div>
 
@@ -966,12 +966,12 @@ export default function UserProfile() {
                       <tbody>
                         {leaveRequests.map((req: any) => {
                           const lt = getLeaveType(req.leave_type_id);
-                          const isCancellable = req.status === 'Requested' || req.status === 'Approved';
+                          const isCancellable = req.status === 'pending' || req.status === 'approved';
                           return (
                             <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                              req.status === 'Requested' ? 'border-l-4 border-l-amber-400' :
-                              req.status === 'Approved' ? 'border-l-4 border-l-green-500' :
-                              req.status === 'Rejected' ? 'border-l-4 border-l-red-500' :
+                              req.status === 'pending' ? 'border-l-4 border-l-amber-400' :
+                              req.status === 'approved' ? 'border-l-4 border-l-green-500' :
+                              req.status === 'rejected' ? 'border-l-4 border-l-red-500' :
                               'border-l-4 border-l-gray-300'
                             }`}>
                               <td className="py-3 px-4">
@@ -993,7 +993,7 @@ export default function UserProfile() {
                                     variant="outline"
                                     size="sm"
                                     className="text-red-600 border-red-200 hover:bg-red-50 text-xs"
-                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'Approved' })}
+                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
                                     disabled={cancelLeaveMutation.isPending}
                                   >
                                     Cancel

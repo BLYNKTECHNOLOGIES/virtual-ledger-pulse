@@ -83,7 +83,10 @@ export function TerminalSyncTab() {
 
   // Manual sync trigger
   const syncMutation = useMutation({
-    mutationFn: syncCompletedBuyOrders,
+    mutationFn: async () => {
+      toast({ title: "Syncing...", description: "Fetching completed BUY orders from Binance history. This may take a moment..." });
+      return syncCompletedBuyOrders();
+    },
     onSuccess: ({ synced, duplicates }) => {
       toast({
         title: "Sync Complete",
@@ -92,7 +95,8 @@ export function TerminalSyncTab() {
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
     },
     onError: (err: any) => {
-      toast({ title: "Sync Error", description: err.message, variant: "destructive" });
+      console.error('[TerminalSync] Sync error:', err);
+      toast({ title: "Sync Error", description: err.message || "Unknown error occurred", variant: "destructive" });
     },
   });
 

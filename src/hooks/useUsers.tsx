@@ -211,18 +211,61 @@ export function useUsers() {
         throw error;
       }
 
+      const newUserId = data;
+
+      // Set created_by on the new user
+      if (newUserId && user?.id) {
+        await supabase
+          .from('users')
+          .update({ created_by: user.id })
+          .eq('id', newUserId);
+      }
+
       // If a role_id was specified, assign the role
-      if (userData.role_id && data) {
+      if (userData.role_id && newUserId) {
         const { error: roleError } = await supabase
           .from('user_roles')
           .insert({
-            user_id: data,
+            user_id: newUserId,
             role_id: userData.role_id
           });
 
         if (roleError) {
           console.warn('Role assignment failed:', roleError);
-          // Don't throw here, user was created successfully
+        }
+      }
+
+      // Audit log: user creation
+      if (newUserId && user?.id) {
+        const { logActionWithCurrentUser } = await import('@/lib/system-action-logger');
+        const { ActionTypes, EntityTypes, Modules } = await import('@/lib/system-action-logger');
+
+        await logActionWithCurrentUser({
+          actionType: ActionTypes.USER_CREATED,
+          entityType: EntityTypes.USER,
+          entityId: newUserId,
+          module: Modules.USER_MANAGEMENT,
+          metadata: {
+            username: userData.username,
+            email: userData.email,
+            role_id: userData.role_id || 'no_role',
+            created_by: user.id,
+          }
+        });
+
+        // Also log role assignment if a role was assigned
+        if (userData.role_id) {
+          await logActionWithCurrentUser({
+            actionType: ActionTypes.USER_ROLE_ASSIGNED,
+            entityType: EntityTypes.USER,
+            entityId: newUserId,
+            module: Modules.USER_MANAGEMENT,
+            metadata: {
+              new_role_id: userData.role_id,
+              old_role_id: 'no_role',
+              assigned_during: 'user_creation',
+            }
+          });
         }
       }
 
@@ -231,7 +274,7 @@ export function useUsers() {
         description: "User created successfully",
       });
 
-      fetchUsers(); // Refresh the users list
+      fetchUsers();
       return { success: true, data };
     } catch (error: any) {
       console.error('Error creating user:', error);

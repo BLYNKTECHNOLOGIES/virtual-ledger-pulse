@@ -193,6 +193,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
         localStorage.setItem('userEmail', authenticatedUser.email);
         localStorage.setItem('userRole', authenticatedUser.roles?.includes('admin') ? 'admin' : 'user');
         
+        // Log login activity with IP
+        try {
+          // Fetch IP address
+          let ipAddress: string | null = null;
+          try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipRes.json();
+            ipAddress = ipData.ip || null;
+          } catch { /* IP fetch is best-effort */ }
+
+          await supabase.rpc('log_user_activity', {
+            _user_id: authenticatedUser.id,
+            _action: 'login',
+            _description: `User logged in as ${authenticatedUser.roles?.join(', ') || 'User'}`,
+            _ip_address: ipAddress,
+            _user_agent: navigator.userAgent,
+            _metadata: { roles: authenticatedUser.roles || [] }
+          });
+
+          // Update last_login timestamp
+          await supabase.rpc('update_last_login', { _user_id: authenticatedUser.id });
+        } catch (logErr) {
+          console.warn('[useAuth] Failed to log login activity:', logErr);
+        }
+
         toast({
           title: "Success",
           description: `Logged in successfully as ${authenticatedUser.roles?.join(', ') || 'User'}`,
@@ -226,6 +251,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = async () => {
+    // Log logout activity before clearing session
+    try {
+      const sessionStr = localStorage.getItem('userSession');
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        const userId = session?.user?.id;
+        if (userId) {
+          await supabase.rpc('log_user_activity', {
+            _user_id: userId,
+            _action: 'logout',
+            _description: 'User logged out',
+            _ip_address: null,
+            _user_agent: navigator.userAgent,
+            _metadata: {}
+          });
+        }
+      }
+    } catch (logErr) {
+      console.warn('[useAuth] Failed to log logout activity:', logErr);
+    }
+
     setUser(null);
     localStorage.removeItem('userSession');
     localStorage.removeItem('isLoggedIn');

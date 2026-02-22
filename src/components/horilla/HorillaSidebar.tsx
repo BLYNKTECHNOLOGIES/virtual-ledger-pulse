@@ -63,6 +63,7 @@ const navGroups: NavGroup[] = [
           { label: "Allocations", path: "/hrms/leave/allocations" },
           { label: "Leave Types", path: "/hrms/leave/types" },
           { label: "Holidays", path: "/hrms/leave/holidays" },
+          { label: "Comp-Off", path: "/hrms/leave/comp-off" },
         ],
       },
     ],

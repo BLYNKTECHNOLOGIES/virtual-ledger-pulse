@@ -101,6 +101,7 @@ import PayslipsPage from './pages/horilla/PayslipsPage';
 import SalaryComponentsPage from './pages/horilla/SalaryComponentsPage';
 import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
 import PenaltyManagementPage from './pages/horilla/PenaltyManagementPage';
+import CompOffPage from './pages/horilla/CompOffPage';
 import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
@@ -793,6 +794,7 @@ const router = createBrowserRouter([
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
+        { path: "leave/comp-off", element: <CompOffPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },

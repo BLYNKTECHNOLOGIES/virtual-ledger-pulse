@@ -44,6 +44,8 @@ export default function AttendanceActivityPage() {
   const clockInMutation = useMutation({
     mutationFn: async () => {
       const now = new Date().toISOString();
+      const clockInTime = new Date(now);
+
       // Create activity record
       const { error } = await (supabase as any).from("hr_attendance_activity").insert({
         employee_id: selectedEmp,
@@ -53,12 +55,50 @@ export default function AttendanceActivityPage() {
       });
       if (error) throw error;
 
+      // Shift-based late detection: look up employee's shift
+      let attendanceStatus = "present";
+      let lateMinutes = 0;
+      let shiftId: string | null = null;
+
+      const { data: empData } = await (supabase as any)
+        .from("hr_employees")
+        .select("shift_id")
+        .eq("id", selectedEmp)
+        .maybeSingle();
+
+      if (empData?.shift_id) {
+        shiftId = empData.shift_id;
+        const { data: shift } = await (supabase as any)
+          .from("hr_shifts")
+          .select("start_time, grace_period_minutes")
+          .eq("id", empData.shift_id)
+          .maybeSingle();
+
+        if (shift?.start_time) {
+          // Parse shift start time (HH:MM or HH:MM:SS format)
+          const [sh, sm] = shift.start_time.split(":").map(Number);
+          const grace = Number(shift.grace_period_minutes) || 0;
+
+          // Build shift start datetime for the attendance date
+          const shiftStart = new Date(dateFilter + "T00:00:00");
+          shiftStart.setHours(sh, sm + grace, 0, 0);
+
+          if (clockInTime > shiftStart) {
+            const diffMs = clockInTime.getTime() - shiftStart.getTime();
+            lateMinutes = Math.ceil(diffMs / 60000);
+            attendanceStatus = "late";
+          }
+        }
+      }
+
       // Sync to hr_attendance (upsert for the day)
       await (supabase as any).from("hr_attendance").upsert({
         employee_id: selectedEmp,
         attendance_date: dateFilter,
         check_in: now,
-        attendance_status: "present",
+        attendance_status: attendanceStatus,
+        late_minutes: lateMinutes,
+        shift_id: shiftId,
         work_type: "office",
       }, { onConflict: "employee_id,attendance_date" });
     },

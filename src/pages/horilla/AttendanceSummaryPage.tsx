@@ -40,6 +40,22 @@ export default function AttendanceSummaryPage() {
     },
   });
 
+  // Fetch holidays for the month to exclude from working days
+  const { data: holidays = [] } = useQuery({
+    queryKey: ["hr_holidays_month", month],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_holidays")
+        .select("date")
+        .eq("is_active", true)
+        .gte("date", startDate)
+        .lte("date", endDate);
+      return data || [];
+    },
+  });
+
+  const holidaySet = useMemo(() => new Set((holidays as any[]).map((h: any) => h.date)), [holidays]);
+
   // Per-employee summary
   const empSummary = useMemo(() => {
     const map: Record<string, any> = {};

@@ -73,11 +73,12 @@ export function useUnsyncedSpotTrades() {
       }
       const trades = Array.from(orderMap.values());
 
-      // Get already synced trade IDs and their binance_order_ids
+      // Get already synced trade IDs (exclude REJECTED conversions)
       const { data: synced, error: syncErr } = await supabase
         .from("erp_product_conversions" as any)
         .select("spot_trade_id")
-        .not("spot_trade_id", "is", null);
+        .not("spot_trade_id", "is", null)
+        .not("status", "eq", "REJECTED");
 
       if (syncErr) throw syncErr;
 

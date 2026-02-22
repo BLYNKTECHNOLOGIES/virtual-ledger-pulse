@@ -54,7 +54,8 @@ export default function LeaveRequestsPage() {
     let count = 0;
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const day = d.getDay();
-      if (day !== 0 && day !== 6) count++;
+      // Only Sunday (0) is a weekly off
+      if (day !== 0) count++;
     }
     return count;
   };

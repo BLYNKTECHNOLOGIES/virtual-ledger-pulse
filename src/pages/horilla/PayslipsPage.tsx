@@ -184,7 +184,7 @@ export default function PayslipsPage() {
       if (!detail) return [];
       const { data } = await (supabase as any)
         .from("hr_attendance")
-        .select("attendance_status")
+        .select("attendance_status, attendance_date")
         .eq("employee_id", detail.employee_id)
         .gte("attendance_date", detail.hr_payroll_runs?.pay_period_start)
         .lte("attendance_date", detail.hr_payroll_runs?.pay_period_end);
@@ -292,6 +292,12 @@ export default function PayslipsPage() {
                 const halfDayCount = attendanceDetail.filter((a: any) => a.attendance_status === "half_day").length;
                 const fullPresentCount = attendanceDetail.filter((a: any) => a.attendance_status === "present" || a.attendance_status === "late").length;
                 const absentDays = Math.max(0, workingDays - presentDays);
+                // Count Sunday worked days from attendance
+                const sundayWorked = attendanceDetail.filter((a: any) => {
+                  if (!a.attendance_date) return false;
+                  const d = new Date(a.attendance_date + "T00:00:00");
+                  return d.getDay() === 0 && (a.attendance_status === "present" || a.attendance_status === "late" || a.attendance_status === "half_day");
+                }).length;
                 // Group leaves by type
                 const leaveByType: Record<string, number> = {};
                 leaveBreakdown.forEach((l: any) => {
@@ -305,7 +311,7 @@ export default function PayslipsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-blue-50 rounded-lg px-3 py-2 text-center">
                         <p className="text-lg font-bold text-blue-700">{workingDays}</p>
-                        <p className="text-[10px] text-gray-500">Total Working Days</p>
+                        <p className="text-[10px] text-gray-500">Total Working Days (Mon-Sat)</p>
                       </div>
                       <div className="bg-green-50 rounded-lg px-3 py-2 text-center">
                         <p className="text-lg font-bold text-green-700">{fullPresentCount}</p>
@@ -315,6 +321,12 @@ export default function PayslipsPage() {
                         <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-purple-700">{halfDayCount}</p>
                           <p className="text-[10px] text-gray-500">Half Days ({halfDayCount * 0.5}d paid)</p>
+                        </div>
+                      )}
+                      {sundayWorked > 0 && (
+                        <div className="bg-orange-50 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-orange-700">{sundayWorked}</p>
+                          <p className="text-[10px] text-gray-500">Sunday Worked (Extra Pay)</p>
                         </div>
                       )}
                       {Object.entries(leaveByType).map(([name, days]) => (

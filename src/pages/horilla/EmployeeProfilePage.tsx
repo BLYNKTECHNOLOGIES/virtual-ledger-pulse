@@ -216,7 +216,7 @@ export default function EmployeeProfilePage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (activeTab === "About") {
-        const { error } = await supabase.from("hr_employees").update({
+        const { error } = await (supabase as any).from("hr_employees").update({
           phone: editForm.phone || null,
           gender: editForm.gender || null,
           dob: editForm.dob || null,
@@ -230,6 +230,10 @@ export default function EmployeeProfilePage() {
           emergency_contact_name: editForm.emergency_contact_name || null,
           emergency_contact: editForm.emergency_contact || null,
           emergency_contact_relation: editForm.emergency_contact_relation || null,
+          pan_number: editForm.pan_number || null,
+          pf_number: editForm.pf_number || null,
+          uan_number: editForm.uan_number || null,
+          esi_number: editForm.esi_number || null,
         }).eq("id", id!);
         if (error) throw error;
       }
@@ -320,6 +324,10 @@ export default function EmployeeProfilePage() {
         emergency_contact_name: emp.emergency_contact_name || "",
         emergency_contact: emp.emergency_contact || "",
         emergency_contact_relation: emp.emergency_contact_relation || "",
+        pan_number: (emp as any).pan_number || "",
+        pf_number: (emp as any).pf_number || "",
+        uan_number: (emp as any).uan_number || "",
+        esi_number: (emp as any).esi_number || "",
       });
     }
     setEditing(true);
@@ -494,6 +502,13 @@ export default function EmployeeProfilePage() {
                 <InfoRow label="Emergency Contact Name" value={emp.emergency_contact_name} editKey="emergency_contact_name" />
                 <InfoRow label="Emergency Contact Relation" value={emp.emergency_contact_relation} editKey="emergency_contact_relation" />
                 <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }]} />
+                <div className="border-t border-border mt-3 pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Statutory Information</p>
+                </div>
+                <InfoRow label="PAN Number" value={(emp as any).pan_number} editKey="pan_number" />
+                <InfoRow label="PF Number" value={(emp as any).pf_number} editKey="pf_number" />
+                <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
+                <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
               </div>
             </div>
 

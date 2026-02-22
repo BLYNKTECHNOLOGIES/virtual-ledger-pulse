@@ -396,7 +396,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-none w-screen h-screen max-h-screen rounded-none flex flex-col p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -436,7 +436,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
         )}
 
         {step === "preview" && (
-          <div className="space-y-4">
+          <div className="space-y-4 flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-foreground">{fileName}</p>
@@ -490,7 +490,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
               </div>
             )}
 
-            <div className="max-h-[45vh] overflow-auto rounded-lg border">
+            <div className="flex-1 overflow-auto rounded-lg border min-h-0">
               <table className="w-full text-sm table-fixed">
                 <thead className="bg-muted sticky top-0 z-10">
                   <tr>

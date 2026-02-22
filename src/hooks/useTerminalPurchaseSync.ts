@@ -49,60 +49,61 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   let synced = 0;
   let duplicates = 0;
 
-  try {
-    // 1. Get the active terminal wallet link
-    const { data: activeLink } = await supabase
-      .from('terminal_wallet_links')
-      .select('id, wallet_id, fee_treatment')
-      .eq('status', 'active')
-      .eq('platform_source', 'terminal')
-      .limit(1)
-      .maybeSingle();
+  // 1. Get the active terminal wallet link
+  const { data: activeLink } = await supabase
+    .from('terminal_wallet_links')
+    .select('id, wallet_id, fee_treatment')
+    .eq('status', 'active')
+    .eq('platform_source', 'terminal')
+    .limit(1)
+    .maybeSingle();
 
-    if (!activeLink) {
-      console.log('[PurchaseSync] No active terminal wallet link found, skipping.');
-      return { synced: 0, duplicates: 0 };
-    }
+  if (!activeLink) {
+    throw new Error('No active terminal wallet link found. Please configure one in Stock Management → Wallet Linking.');
+  }
 
-    // Get wallet name
-    const { data: walletInfo } = await supabase
-      .from('wallets')
-      .select('wallet_name')
-      .eq('id', activeLink.wallet_id)
-      .single();
+  // Get wallet name
+  const { data: walletInfo } = await supabase
+    .from('wallets')
+    .select('wallet_name')
+    .eq('id', activeLink.wallet_id)
+    .single();
 
-    // 2. Look back 7 days to catch cross-day and appeal-resolved orders
-    const LOOKBACK_DAYS = 7;
-    const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
-    console.log('[PurchaseSync] Cutoff (7-day lookback):', new Date(cutoffTime).toISOString());
+  // 2. Look back 7 days to catch cross-day and appeal-resolved orders
+  const LOOKBACK_DAYS = 7;
+  const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+  console.log('[PurchaseSync] Cutoff (7-day lookback):', new Date(cutoffTime).toISOString());
 
-    // 2a. Fetch COMPLETED BUY orders
-    const { data: completedBuys, error: fetchErr } = await supabase
-      .from('binance_order_history')
-      .select('*')
-      .eq('trade_type', 'BUY')
-      .eq('order_status', 'COMPLETED')
-      .gte('create_time', cutoffTime);
+  // 2a. Fetch COMPLETED BUY orders
+  const { data: completedBuys, error: fetchErr } = await supabase
+    .from('binance_order_history')
+    .select('*')
+    .eq('trade_type', 'BUY')
+    .eq('order_status', 'COMPLETED')
+    .gte('create_time', cutoffTime);
 
-    // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync
-    const { data: appealBuys } = await supabase
-      .from('binance_order_history')
-      .select('*')
-      .eq('trade_type', 'BUY')
-      .eq('order_status', 'IN_APPEAL')
-      .gte('create_time', cutoffTime);
+  if (fetchErr) {
+    throw new Error(`Failed to fetch completed orders: ${fetchErr.message}`);
+  }
 
-    console.log(`[PurchaseSync] COMPLETED: ${completedBuys?.length || 0}, IN_APPEAL to recheck: ${appealBuys?.length || 0}`);
+  // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync
+  const { data: appealBuys } = await supabase
+    .from('binance_order_history')
+    .select('*')
+    .eq('trade_type', 'BUY')
+    .eq('order_status', 'IN_APPEAL')
+    .gte('create_time', cutoffTime);
 
-    // 2c. For each IN_APPEAL order, check live status from Binance API
-    //     If now COMPLETED, update binance_order_history and include in sync
-    const resolvedAppealOrders: any[] = [];
-    for (const order of (appealBuys || [])) {
+  console.log(`[PurchaseSync] COMPLETED: ${completedBuys?.length || 0}, IN_APPEAL to recheck: ${appealBuys?.length || 0}`);
+
+  // 2c. For each IN_APPEAL order, check live status from Binance API
+  const resolvedAppealOrders: any[] = [];
+  for (const order of (appealBuys || [])) {
+    try {
       const { status, sellerName } = await fetchOrderDetail(order.order_number);
       console.log(`[PurchaseSync] IN_APPEAL order ${order.order_number} live status: ${status}`);
 
       if (status === 'COMPLETED') {
-        // Update DB status so future syncs don't re-check
         const updatePayload: any = { order_status: 'COMPLETED' };
         if (sellerName && !order.verified_name) updatePayload.verified_name = sellerName;
 
@@ -118,60 +119,69 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         });
         console.log(`[PurchaseSync] Order ${order.order_number} resolved from IN_APPEAL → COMPLETED`);
       }
-      // Rate limit protection
-      await new Promise(r => setTimeout(r, 300));
+    } catch (e) {
+      console.warn(`[PurchaseSync] Failed to check appeal order ${order.order_number}:`, e);
     }
+    // Rate limit protection
+    await new Promise(r => setTimeout(r, 300));
+  }
 
-    // Combine all orders eligible for syncing
-    const allEligible = [...(completedBuys || []), ...resolvedAppealOrders];
+  // Combine all orders eligible for syncing
+  const allEligible = [...(completedBuys || []), ...resolvedAppealOrders];
 
-    if (allEligible.length === 0) {
-      console.log('[PurchaseSync] No eligible completed BUY orders found.');
-      return { synced: 0, duplicates: 0 };
-    }
+  if (allEligible.length === 0) {
+    console.log('[PurchaseSync] No eligible completed BUY orders found.');
+    return { synced: 0, duplicates: 0 };
+  }
 
-    // 3. Get existing sync records to avoid duplicates (including rejected — never re-sync)
-    const orderNumbers = allEligible.map(o => o.order_number);
-    const { data: existingSyncs } = await supabase
-      .from('terminal_purchase_sync')
-      .select('binance_order_number, sync_status')
-      .in('binance_order_number', orderNumbers);
+  // 3. Get existing sync records to avoid duplicates (including rejected — never re-sync)
+  const orderNumbers = allEligible.map(o => o.order_number);
+  const { data: existingSyncs, error: existingSyncsErr } = await supabase
+    .from('terminal_purchase_sync')
+    .select('binance_order_number, sync_status')
+    .in('binance_order_number', orderNumbers);
 
-    const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
+  if (existingSyncsErr) {
+    throw new Error(`Failed to check existing syncs: ${existingSyncsErr.message}`);
+  }
 
-    // 4. Get PAN records
-    const nicknames = [...new Set(allEligible.map(o => o.counter_part_nick_name).filter(Boolean))];
-    const { data: panRecords } = await supabase
-      .from('counterparty_pan_records')
-      .select('counterparty_nickname, pan_number')
-      .in('counterparty_nickname', nicknames.length > 0 ? nicknames : ['__none__']);
+  const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
-    const panMap = new Map((panRecords || []).map(p => [p.counterparty_nickname, p.pan_number]));
+  // 4. Get PAN records
+  const nicknames = [...new Set(allEligible.map(o => o.counter_part_nick_name).filter(Boolean))];
+  const { data: panRecords } = await supabase
+    .from('counterparty_pan_records')
+    .select('counterparty_nickname, pan_number')
+    .in('counterparty_nickname', nicknames.length > 0 ? nicknames : ['__none__']);
 
-    // 5. Cross-reference existing client mappings from sales sync
-    const { data: existingSalesMappings } = await supabase
-      .from('terminal_sales_sync')
-      .select('counterparty_name, client_id')
-      .in('counterparty_name', nicknames.length > 0 ? nicknames : ['__none__'])
-      .not('client_id', 'is', null);
+  const panMap = new Map((panRecords || []).map(p => [p.counterparty_nickname, p.pan_number]));
 
-    const salesClientMap = new Map(
-      (existingSalesMappings || []).map(s => [s.counterparty_name?.toLowerCase(), s.client_id])
-    );
+  // 5. Cross-reference existing client mappings from sales sync
+  const { data: existingSalesMappings } = await supabase
+    .from('terminal_sales_sync')
+    .select('counterparty_name, client_id')
+    .in('counterparty_name', nicknames.length > 0 ? nicknames : ['__none__'])
+    .not('client_id', 'is', null);
 
-    const userId = getCurrentUserId();
+  const salesClientMap = new Map(
+    (existingSalesMappings || []).map(s => [s.counterparty_name?.toLowerCase(), s.client_id])
+  );
 
-    // 6. Process each order — enrich verified names from Binance API
-    const toInsert: any[] = [];
-    for (const order of allEligible) {
-      if (existingSet.has(order.order_number)) {
-        duplicates++;
-        continue;
-      }
+  const userId = getCurrentUserId();
 
-      // Enrich: fetch verified seller name if not already available
-      let verifiedName = order.verified_name || null;
-      if (!verifiedName || verifiedName === order.counter_part_nick_name) {
+  // 6. Process each order — enrich verified names from Binance API
+  //    Limit concurrent API calls to avoid hanging
+  const toInsert: any[] = [];
+  const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
+  duplicates = allEligible.length - newOrders.length;
+
+  console.log(`[PurchaseSync] ${newOrders.length} new orders to process, ${duplicates} duplicates skipped`);
+
+  for (const order of newOrders) {
+    // Enrich: fetch verified seller name if not already available
+    let verifiedName = order.verified_name || null;
+    if (!verifiedName || verifiedName === order.counter_part_nick_name) {
+      try {
         const { sellerName } = await fetchOrderDetail(order.order_number);
         if (sellerName) {
           verifiedName = sellerName;
@@ -180,80 +190,73 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
             .update({ verified_name: sellerName })
             .eq('order_number', order.order_number);
         }
-        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        console.warn(`[PurchaseSync] Failed to enrich order ${order.order_number}:`, e);
       }
+      await new Promise(r => setTimeout(r, 200));
+    }
 
-      const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
-      const pan = panMap.get(order.counter_part_nick_name || '') || null;
+    const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
+    const pan = panMap.get(order.counter_part_nick_name || '') || null;
 
-      // Try to match client
-      let clientId: string | null = null;
-      if (verifiedName) {
-        const { data: clientMatch } = await supabase
-          .from('clients')
-          .select('id')
-          .ilike('name', verifiedName)
-          .limit(1)
-          .maybeSingle();
-        if (clientMatch) clientId = clientMatch.id;
-      }
-      if (!clientId && verifiedName) {
-        clientId = salesClientMap.get(verifiedName.toLowerCase()) || null;
-      }
-      if (!clientId) {
-        clientId = salesClientMap.get((order.counter_part_nick_name || '').toLowerCase()) || null;
-      }
+    // Try to match client
+    let clientId: string | null = null;
+    if (verifiedName) {
+      const { data: clientMatch } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', verifiedName)
+        .limit(1)
+        .maybeSingle();
+      if (clientMatch) clientId = clientMatch.id;
+    }
+    if (!clientId && verifiedName) {
+      clientId = salesClientMap.get(verifiedName.toLowerCase()) || null;
+    }
+    if (!clientId) {
+      clientId = salesClientMap.get((order.counter_part_nick_name || '').toLowerCase()) || null;
+    }
 
-      const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
+    const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 
-      toInsert.push({
-        binance_order_number: order.order_number,
-        sync_status: syncStatus,
-        order_data: {
-          order_number: order.order_number,
-          asset: order.asset || 'USDT',
-          amount: order.amount,
-          total_price: order.total_price,
-          unit_price: order.unit_price,
-          commission: order.commission,
-          counterparty_name: counterpartyName,
-          counterparty_nickname: order.counter_part_nick_name,
-          verified_name: verifiedName,
-          create_time: order.create_time,
-          pay_method: order.pay_method_name,
-          wallet_id: activeLink.wallet_id,
-          wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
-          fee_treatment: activeLink.fee_treatment,
-        },
-        client_id: clientId,
+    toInsert.push({
+      binance_order_number: order.order_number,
+      sync_status: syncStatus,
+      order_data: {
+        order_number: order.order_number,
+        asset: order.asset || 'USDT',
+        amount: order.amount,
+        total_price: order.total_price,
+        unit_price: order.unit_price,
+        commission: order.commission,
         counterparty_name: counterpartyName,
-        pan_number: pan,
-        synced_by: userId || null,
-        synced_at: new Date().toISOString(),
-      });
-    }
-
-    if (toInsert.length > 0) {
-      const { error: insertErr } = await supabase
-        .from('terminal_purchase_sync')
-        .insert(toInsert);
-      if (insertErr) {
-        console.error('[PurchaseSync] Insert error:', insertErr);
-        throw insertErr;
-      }
-      synced = toInsert.length;
-    }
-
-    console.log(`[PurchaseSync] Synced: ${synced}, Duplicates: ${duplicates}`);
-  } catch (err) {
-    console.error('[PurchaseSync] Error:', err);
+        counterparty_nickname: order.counter_part_nick_name,
+        verified_name: verifiedName,
+        create_time: order.create_time,
+        pay_method: order.pay_method_name,
+        wallet_id: activeLink.wallet_id,
+        wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
+        fee_treatment: activeLink.fee_treatment,
+      },
+      client_id: clientId,
+      counterparty_name: counterpartyName,
+      pan_number: pan,
+      synced_by: userId || null,
+      synced_at: new Date().toISOString(),
+    });
   }
 
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await supabase
+      .from('terminal_purchase_sync')
+      .insert(toInsert);
+    if (insertErr) {
+      console.error('[PurchaseSync] Insert error:', insertErr);
+      throw new Error(`Failed to insert sync records: ${insertErr.message}`);
+    }
+    synced = toInsert.length;
+  }
+
+  console.log(`[PurchaseSync] Synced: ${synced}, Duplicates: ${duplicates}`);
   return { synced, duplicates };
 }
-
-
-/**
- * Syncs completed BUY orders from binance_order_history to terminal_purchase_sync.
- * Called after the order sync completes.
- */

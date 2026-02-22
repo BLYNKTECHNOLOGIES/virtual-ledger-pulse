@@ -55,23 +55,129 @@ export default function PayrollDashboardPage() {
     },
   });
 
+  // --- Salary calc helpers (mirrored from SalaryStructureAssignments) ---
+  const toSnakeCase = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+  const evalFormula = (formula: string, vars: Record<string, number>): number => {
+    try {
+      let expr = formula.trim();
+      Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
+        expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
+      });
+      if (/^[\d\s+\-*/().]+$/.test(expr)) return new Function(`return (${expr})`)() as number;
+      return 0;
+    } catch { return 0; }
+  };
+
+  const isEmployerComponent = (comp: any) => {
+    const name = (comp?.name || '').toLowerCase();
+    const code = (comp?.code || '').toLowerCase();
+    return name.includes('employer') || code === 'pfc' || code === 'esic';
+  };
+
+  const computeComponentAmounts = (items: any[], totalSalary: number) => {
+    // Resolve basic_pay first
+    let basicPay = 0;
+    const basicItem = items.find((i: any) => i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic"));
+    if (basicItem) {
+      basicPay = basicItem.calculation_type === "percentage"
+        ? (Number(basicItem.value) / 100) * totalSalary
+        : Number(basicItem.value) || 0;
+    }
+
+    // Build vars map for formulas
+    const codeAmounts: Record<string, number> = {};
+    let tempDeductions = 0, tempAllowances = 0;
+
+    items.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type === "formula" || i.is_variable) return;
+      let amount = 0;
+      if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
+      const code = comp.code?.toLowerCase();
+      if (code) codeAmounts[code] = amount;
+      const sn = toSnakeCase(comp.name || '');
+      if (sn && sn !== code) codeAmounts[sn] = amount;
+      if (comp.component_type === "deduction") tempDeductions += amount;
+      else tempAllowances += amount;
+    });
+
+    const vars: Record<string, number> = { total_salary: totalSalary, basic_pay: basicPay, total_deductions: tempDeductions, total_allowances: tempAllowances, ...codeAmounts };
+
+    // Resolve formula items
+    items.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp || i.calculation_type !== "formula" || !i.formula) return;
+      const amount = evalFormula(i.formula, vars);
+      const code = comp.code?.toLowerCase();
+      if (code) vars[code] = amount;
+      const sn = toSnakeCase(comp.name || '');
+      if (sn && sn !== code) vars[sn] = amount;
+      if (comp.component_type === "deduction") vars.total_deductions += amount;
+      else vars.total_allowances += amount;
+    });
+
+    // Compute final breakdown
+    const earningsBreakdown: Record<string, number> = {};
+    const deductionsBreakdown: Record<string, number> = {};
+    let totalEarnings = 0, totalDeductionsAmt = 0;
+
+    items.forEach((i: any) => {
+      const comp = i.hr_salary_components;
+      if (!comp) return;
+      if (i.is_variable) return; // Variable components are ₹0 unless overridden
+
+      let amount: number;
+      if (i.calculation_type === "formula" && i.formula) {
+        amount = evalFormula(i.formula, vars);
+      } else if (i.calculation_type === "percentage") {
+        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
+        amount = (Number(i.value) / 100) * base;
+      } else {
+        amount = Number(i.value) || 0;
+      }
+      amount = Math.round(amount);
+
+      if (comp.component_type === "allowance") {
+        earningsBreakdown[comp.name] = amount;
+        totalEarnings += amount;
+      } else if (comp.component_type === "deduction" && !isEmployerComponent(comp)) {
+        deductionsBreakdown[comp.name] = amount;
+        totalDeductionsAmt += amount;
+      }
+    });
+
+    return { earningsBreakdown, deductionsBreakdown, totalEarnings, totalDeductions: totalDeductionsAmt };
+  };
+
   // Generate payslips for a payroll run
   const generatePayslips = async (run: any) => {
     setGeneratingId(run.id);
     try {
-      // 1. Get all active employees
+      // 1. Get all active employees with their template assignment
       const { data: employees, error: empErr } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, basic_salary")
+        .select("id, first_name, last_name, basic_salary, total_salary, salary_structure_template_id")
         .eq("is_active", true);
       if (empErr) throw empErr;
 
-      // 2. Get salary structures for all employees
-      const { data: structures, error: strErr } = await (supabase as any)
-        .from("hr_employee_salary_structures")
-        .select("*, hr_salary_components!hr_employee_salary_structures_component_id_fkey(id, name, code, component_type, calculation_type)")
-        .eq("is_active", true);
-      if (strErr) throw strErr;
+      // 2. Get all template items with component details
+      const { data: templateItems, error: tiErr } = await (supabase as any)
+        .from("hr_salary_structure_template_items")
+        .select("*, hr_salary_components!hr_salary_structure_template_items_component_id_fkey(id, name, code, component_type)");
+      if (tiErr) throw tiErr;
+
+      // Build template items map
+      const templateItemsMap: Record<string, any[]> = {};
+      (templateItems || []).forEach((item: any) => {
+        if (!templateItemsMap[item.template_id]) templateItemsMap[item.template_id] = [];
+        templateItemsMap[item.template_id].push(item);
+      });
 
       // 3. Get attendance for pay period
       const { data: attendance, error: attErr } = await (supabase as any)
@@ -90,17 +196,12 @@ export default function PayrollDashboardPage() {
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // Build structure map
-      const structMap: Record<string, any[]> = {};
-      (structures || []).forEach((s: any) => {
-        if (!structMap[s.employee_id]) structMap[s.employee_id] = [];
-        structMap[s.employee_id].push(s);
-      });
-
       // 4. Calculate payslips
       const payslips = (employees || []).map((emp: any) => {
-        const empStructures = structMap[emp.id] || [];
+        const tmplId = emp.salary_structure_template_id;
+        const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
         const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0 };
+        const totalSalary = Number(emp.total_salary) || 0;
 
         // Calculate working days (weekdays in period)
         const start = new Date(run.pay_period_start);
@@ -111,42 +212,30 @@ export default function PayrollDashboardPage() {
           if (day !== 0 && day !== 6) workingDays++;
         }
 
-        const presentDays = empAtt.present || workingDays;
+        const presentDays = empAtt.total > 0 ? empAtt.present : workingDays;
         const attendanceRatio = workingDays > 0 ? presentDays / workingDays : 1;
 
-        // Earnings
-        const earningsComponents = empStructures.filter((s: any) => s.hr_salary_components?.component_type === "allowance");
-        const earningsBreakdown: Record<string, number> = {};
+        // Compute earnings/deductions from template
+        let earningsBreakdown: Record<string, number> = {};
+        let deductionsBreakdown: Record<string, number> = {};
         let totalEarnings = 0;
-        earningsComponents.forEach((s: any) => {
-          const amount = Number(s.amount || 0) * attendanceRatio;
-          earningsBreakdown[s.hr_salary_components?.name || "Unknown"] = Math.round(amount);
-          totalEarnings += Math.round(amount);
-        });
-
-        // If no structure, use basic_salary
-        if (earningsComponents.length === 0 && emp.basic_salary) {
-          const basic = Number(emp.basic_salary) * attendanceRatio;
-          earningsBreakdown["Basic Salary"] = Math.round(basic);
-          totalEarnings = Math.round(basic);
-        }
-
-        // Deductions (exclude employer contributions — they don't reduce employee net pay)
-        const isEmployerComponent = (s: any) => {
-          const name = (s.hr_salary_components?.name || '').toLowerCase();
-          const code = (s.hr_salary_components?.code || '').toLowerCase();
-          return name.includes('employer') || code === 'pfc' || code === 'esic';
-        };
-        const deductionComponents = empStructures.filter((s: any) => 
-          s.hr_salary_components?.component_type === "deduction" && !isEmployerComponent(s)
-        );
-        const deductionsBreakdown: Record<string, number> = {};
         let totalDeductions = 0;
-        deductionComponents.forEach((s: any) => {
-          const amount = Number(s.amount || 0);
-          deductionsBreakdown[s.hr_salary_components?.name || "Unknown"] = Math.round(amount);
-          totalDeductions += Math.round(amount);
-        });
+
+        if (items.length > 0 && totalSalary > 0) {
+          const computed = computeComponentAmounts(items, totalSalary);
+          // Pro-rate earnings by attendance
+          Object.entries(computed.earningsBreakdown).forEach(([k, v]) => {
+            earningsBreakdown[k] = Math.round(v * attendanceRatio);
+          });
+          totalEarnings = Object.values(earningsBreakdown).reduce((s, v) => s + v, 0);
+          deductionsBreakdown = computed.deductionsBreakdown;
+          totalDeductions = computed.totalDeductions;
+        } else if (emp.basic_salary && Number(emp.basic_salary) > 0) {
+          // Fallback: use basic_salary if no template
+          const basic = Math.round(Number(emp.basic_salary) * attendanceRatio);
+          earningsBreakdown["Basic Salary"] = basic;
+          totalEarnings = basic;
+        }
 
         const grossSalary = totalEarnings;
         const netSalary = grossSalary - totalDeductions;

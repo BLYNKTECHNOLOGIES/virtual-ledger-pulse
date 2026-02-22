@@ -109,17 +109,17 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
     if (rowStr.toLowerCase().includes("employee code")) {
       currentCode = "";
       currentName = "";
-      // Find the code: look for a standalone number after "Employee Code"
+      // Find the code and name by scanning all cells
       for (let c = 0; c < row.length; c++) {
         const v = String(row[c] || "").trim();
-        if (v.toLowerCase().includes("employee code")) {
-          // Code is in next non-empty cell(s)
-          // Could be in same cell like "Employee Code:  3" or in next cell
+        const vl = v.toLowerCase();
+        if (vl.includes("employee code")) {
+          // Code might be embedded: "Employee Code:  3" or in next cell
           const match = v.match(/employee\s*code\s*:?\s*(\d+)/i);
           if (match) {
             currentCode = match[1];
           } else {
-            for (let n = c + 1; n < row.length && n <= c + 3; n++) {
+            for (let n = c + 1; n < row.length && n <= c + 4; n++) {
               const nv = String(row[n] || "").trim();
               if (nv && /^\d+$/.test(nv)) {
                 currentCode = nv;
@@ -128,20 +128,29 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
             }
           }
         }
-        if (v.toLowerCase().includes("employee name")) {
+        if (vl.includes("employee name")) {
+          // Name might be embedded: "Employee Name : PRIYASAXENA" or in next cell
           const nameMatch = v.match(/employee\s*name\s*:?\s*(.+)/i);
           if (nameMatch && nameMatch[1].trim()) {
             currentName = nameMatch[1].trim();
           } else {
-            for (let n = c + 1; n < row.length && n <= c + 3; n++) {
+            // Scan forward for the name value
+            for (let n = c + 1; n < row.length && n <= c + 5; n++) {
               const name = String(row[n] || "").trim();
-              if (name && !name.includes(":") && !/employee/i.test(name)) {
+              if (name && !name.includes(":") && !/employee/i.test(name) && name.length > 1) {
                 currentName = name;
                 break;
               }
             }
           }
         }
+      }
+      // If name still empty, try to find any non-empty cell that's not the code or a label
+      if (!currentName) {
+        const allVals = row.map((c: any) => String(c || "").trim()).filter((v: string) => 
+          v && v !== currentCode && !v.toLowerCase().includes("employee") && !v.includes(":")
+        );
+        if (allVals.length > 0) currentName = allVals[allVals.length - 1]; // Take last non-label value
       }
       console.log(`[BiometricParser] Found employee: code=${currentCode}, name=${currentName}`);
       continue;
@@ -163,17 +172,21 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
       continue;
     }
 
-    // Skip non-data rows
-    if (cellA.toLowerCase() === "date") continue;
-    if (cellA.toLowerCase().includes("total duration")) continue;
-    if (cellA.toLowerCase().includes("daily attendance")) continue;
-    if (cellA.toLowerCase().includes("company")) continue;
-    if (cellA.toLowerCase().includes("department")) continue;
-    if (cellA.toLowerCase().includes("printed on")) continue;
+    // Skip non-data rows using rowStr to handle merged cells
+    const rowLower = rowStr.toLowerCase();
+    if (rowLower.includes("total duration=") || rowLower.includes("total duration =")) continue;
+    if (rowLower.includes("daily attendance")) continue;
+    if (rowLower.includes("company:")) continue;
+    if (rowLower.includes("department:")) continue;
+    if (rowLower.includes("printed on")) continue;
     if (!currentCode) continue;
 
-    // Try to parse date from first cell
-    const parsedDate = parseDate(cellA);
+    // Use auto-detected colDate position (not always column 0)
+    const dateCell = String(row[colDate] || "").trim();
+    if (!dateCell) continue;
+    if (dateCell.toLowerCase() === "date") continue;
+
+    const parsedDate = parseDate(dateCell);
     if (!parsedDate) continue;
 
     const inTime = parseTimeStr(row[colIn]);

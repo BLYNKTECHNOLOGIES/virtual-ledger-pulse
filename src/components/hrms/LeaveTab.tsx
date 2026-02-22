@@ -25,6 +25,20 @@ export function LeaveTab({
 
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
 
+  // Compute cumulative balance per leave type (all allocations carry forward)
+  const cumulativeByType: Record<string, { totalAllocated: number; totalUsed: number }> = {};
+  for (const alloc of leaveAllocations) {
+    const ltId = alloc.leave_type_id;
+    if (!cumulativeByType[ltId]) {
+      cumulativeByType[ltId] = { totalAllocated: 0, totalUsed: 0 };
+    }
+    cumulativeByType[ltId].totalAllocated += Number(alloc.allocated_days || 0);
+    cumulativeByType[ltId].totalUsed += Number(alloc.used_days || 0);
+  }
+
+  // Get unique leave types from allocations
+  const uniqueLeaveTypeIds = [...new Set(leaveAllocations.map((a: any) => a.leave_type_id))];
+
   // ─── Mutations ───
   const updateStatusMutation = useMutation({
     mutationFn: async ({ requestId, status }: { requestId: string; status: string }) => {
@@ -42,7 +56,14 @@ export function LeaveTab({
       if (status === "Approved") {
         const req = leaveRequests.find((r: any) => r.id === requestId);
         if (req) {
-          const alloc = leaveAllocations.find((a: any) => a.leave_type_id === req.leave_type_id);
+          // Find the most recent allocation for this leave type to increment used_days
+          const alloc = leaveAllocations
+            .filter((a: any) => a.leave_type_id === req.leave_type_id)
+            .sort((a: any, b: any) => {
+              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
+              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
+              return bKey - aKey;
+            })[0];
           if (alloc) {
             await supabase
               .from("hr_leave_allocations")
@@ -56,7 +77,13 @@ export function LeaveTab({
       if (status === "Cancelled") {
         const req = leaveRequests.find((r: any) => r.id === requestId);
         if (req && req.status === "Approved") {
-          const alloc = leaveAllocations.find((a: any) => a.leave_type_id === req.leave_type_id);
+          const alloc = leaveAllocations
+            .filter((a: any) => a.leave_type_id === req.leave_type_id)
+            .sort((a: any, b: any) => {
+              const aKey = (a.year || 0) * 10 + (a.quarter || 0);
+              const bKey = (b.year || 0) * 10 + (b.quarter || 0);
+              return bKey - aKey;
+            })[0];
           if (alloc) {
             await supabase
               .from("hr_leave_allocations")
@@ -141,15 +168,14 @@ export function LeaveTab({
 
   return (
     <div className="space-y-6">
-      {/* ─── Leave Allocation Cards ─── */}
+      {/* ─── Cumulative Leave Balance Cards ─── */}
       <div className="flex flex-wrap">
-        {leaveAllocations.map((alloc: any) => {
-          const lt = getLeaveType(alloc.leave_type_id);
-          const available = alloc.allocated_days - alloc.used_days;
-          const carry = alloc.carry_forward_days || 0;
-          const total = alloc.allocated_days;
+        {uniqueLeaveTypeIds.map((ltId: string) => {
+          const lt = getLeaveType(ltId);
+          const cum = cumulativeByType[ltId] || { totalAllocated: 0, totalUsed: 0 };
+          const available = cum.totalAllocated - cum.totalUsed;
           return (
-            <div key={alloc.id} className="min-w-[240px] border-r border-border last:border-r-0 pr-8 mr-8 last:pr-0 last:mr-0 py-4">
+            <div key={ltId} className="min-w-[240px] border-r border-border last:border-r-0 pr-8 mr-8 last:pr-0 last:mr-0 py-4">
               <div
                 className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-base mb-3"
                 style={{ backgroundColor: lt?.color || "#888" }}
@@ -159,26 +185,22 @@ export function LeaveTab({
               <p className="text-sm font-bold text-foreground">{lt?.name || "Unknown"}</p>
               <div className="mt-3 space-y-1.5 text-sm">
                 <div className="flex justify-between gap-6">
-                  <span className="text-muted-foreground">Available Leave Days</span>
+                  <span className="text-muted-foreground">Available Balance</span>
                   <span className="font-semibold text-foreground">{available}</span>
                 </div>
                 <div className="flex justify-between gap-6">
-                  <span className="text-muted-foreground">Carryforward Leave Days</span>
-                  <span className="font-semibold text-foreground">{carry}</span>
-                </div>
-                <div className="flex justify-between gap-6">
-                  <span className="text-muted-foreground">Total Leave Days</span>
-                  <span className="font-semibold text-foreground">{total}</span>
+                  <span className="text-muted-foreground">Total Allocated (All Qtrs)</span>
+                  <span className="font-semibold text-foreground">{cum.totalAllocated}</span>
                 </div>
                 <div className="flex justify-between gap-6">
                   <span className="text-muted-foreground">Total Leave Taken</span>
-                  <span className="font-semibold text-foreground">{alloc.used_days}</span>
+                  <span className="font-semibold text-foreground">{cum.totalUsed}</span>
                 </div>
               </div>
             </div>
           );
         })}
-        {leaveAllocations.length === 0 && (
+        {uniqueLeaveTypeIds.length === 0 && (
           <p className="text-sm text-muted-foreground py-6">No leave allocations found</p>
         )}
       </div>
@@ -186,7 +208,6 @@ export function LeaveTab({
       {/* ─── Leave Requests Table ─── */}
       {leaveRequests.length > 0 && (
         <div className="space-y-3">
-          {/* Status legend + select count */}
           <div className="flex items-center justify-between">
             <div>
               {selectedIds.size > 0 && (
@@ -273,7 +294,6 @@ export function LeaveTab({
                       <td className={`py-3 px-4 font-medium ${statusColors[req.status] || "text-muted-foreground"}`}>
                         {req.status}
                       </td>
-                      {/* Cancel button */}
                       <td className="py-3 px-4 text-center">
                         {isCancellable ? (
                           <button
@@ -287,7 +307,6 @@ export function LeaveTab({
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
-                      {/* Approve / Reject buttons */}
                       <td className="py-3 px-4">
                         {isPending ? (
                           <div className="flex items-center justify-center gap-1">

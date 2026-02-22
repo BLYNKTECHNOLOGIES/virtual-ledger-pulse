@@ -47,18 +47,24 @@ function parseDate(dateStr: string): string | null {
 }
 
 function mapStatus(raw: string): string {
-  const lower = raw.toLowerCase().trim();
+  const lower = raw.toLowerCase().trim()
+    .replace(/½/g, "half")   // normalize ½ character
+    .replace(/1\/2/g, "half"); // normalize 1/2
+  
   // WeeklyOff variants — if also present/half, treat as present/half
   if (lower.includes("weeklyoff") || lower.includes("weekly off")) {
-    if (lower.includes("½present") || lower.includes("halfpresent")) return "half_day";
+    if (lower.includes("halfpresent") || lower.includes("half present")) return "half_day";
     if (lower.includes("present")) return "present";
     return "weekly_off";
   }
-  if (lower === "present" || lower === "present (no outpunch)") return "present";
-  if (lower.startsWith("½present") || lower.includes("½present") || lower.startsWith("halfpresent")) return "half_day";
+  // Half day variants: "½Present", "½Present (No OutPunch)", "HalfPresent"
+  if (lower.includes("halfpresent") || lower.includes("half present")) return "half_day";
+  // Present variants: "Present", "Present (No OutPunch)"
+  if (lower.includes("present")) return "present";
   if (lower === "absent") return "absent";
   if (lower === "late") return "late";
-  return "present"; // fallback
+  // If it has a check-in time, it's at least present — but let the caller handle that
+  return "absent"; // unknown statuses default to absent, not present
 }
 
 function parseTimeStr(val: any): string | null {
@@ -193,7 +199,18 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
     const outTime = parseTimeStr(row[colOut]);
     const shift = String(row[colShift] || "").trim();
     const totalDuration = String(row[colDuration] || "").trim();
-    const rawStatus = String(row[colStatus] || "").trim();
+    let rawStatus = String(row[colStatus] || "").trim();
+    
+    // If rawStatus is empty, scan nearby columns for a status keyword
+    if (!rawStatus) {
+      for (let c = Math.max(0, colStatus - 2); c <= Math.min(row.length - 1, colStatus + 2); c++) {
+        const v = String(row[c] || "").trim();
+        if (v && /present|absent|weeklyoff|weekly off|late|½present|halfpresent/i.test(v)) {
+          rawStatus = v;
+          break;
+        }
+      }
+    }
     
     // Collect remarks from remaining columns
     const remarkParts: string[] = [];
@@ -206,6 +223,11 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
     if (!rawStatus) continue;
 
     const status = mapStatus(rawStatus);
+    
+    // Log first few rows per employee for debugging
+    if (results.filter(r => r.employeeCode === currentCode).length < 3) {
+      console.log(`[BiometricParser] Row: code=${currentCode}, date=${parsedDate}, in=${inTime}, out=${outTime}, rawStatus="${rawStatus}", mapped="${status}"`);
+    }
 
     results.push({
       employeeCode: currentCode,

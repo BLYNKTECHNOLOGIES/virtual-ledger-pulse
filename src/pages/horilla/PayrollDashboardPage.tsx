@@ -250,12 +250,26 @@ export default function PayrollDashboardPage() {
         .eq("penalty_month", payMonth)
         .eq("is_applied", false);
 
-      // Build penalty map per employee
-      const penaltyMap: Record<string, { totalDays: number; totalFixed: number; reasons: string[] }> = {};
+      // 6b. Get active deposits
+      const { data: activeDeposits } = await (supabase as any)
+        .from("hr_employee_deposits")
+        .select("*")
+        .eq("is_settled", false);
+
+      const depositMap: Record<string, any> = {};
+      (activeDeposits || []).forEach((d: any) => { depositMap[d.employee_id] = d; });
+
+      // Build penalty map per employee (separate salary vs deposit penalties)
+      const penaltyMap: Record<string, { totalDays: number; totalFixed: number; depositFixed: number; reasons: string[]; depositPenaltyIds: string[] }> = {};
       (penalties || []).forEach((p: any) => {
-        if (!penaltyMap[p.employee_id]) penaltyMap[p.employee_id] = { totalDays: 0, totalFixed: 0, reasons: [] };
-        penaltyMap[p.employee_id].totalDays += Number(p.penalty_days || 0);
-        penaltyMap[p.employee_id].totalFixed += Number(p.penalty_amount || 0);
+        if (!penaltyMap[p.employee_id]) penaltyMap[p.employee_id] = { totalDays: 0, totalFixed: 0, depositFixed: 0, reasons: [], depositPenaltyIds: [] };
+        if (p.deduct_from_deposit && depositMap[p.employee_id]) {
+          penaltyMap[p.employee_id].depositFixed += Number(p.penalty_amount || 0);
+          penaltyMap[p.employee_id].depositPenaltyIds.push(p.id);
+        } else {
+          penaltyMap[p.employee_id].totalDays += Number(p.penalty_days || 0);
+          penaltyMap[p.employee_id].totalFixed += Number(p.penalty_amount || 0);
+        }
         penaltyMap[p.employee_id].reasons.push(p.penalty_reason);
       });
 
@@ -293,7 +307,7 @@ export default function PayrollDashboardPage() {
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
         const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0, holidayWorked: 0 };
         const empLeaveDays = leaveMap[emp.id] || 0;
-        const empPenalty = penaltyMap[emp.id] || { totalDays: 0, totalFixed: 0, reasons: [] };
+        const empPenalty = penaltyMap[emp.id] || { totalDays: 0, totalFixed: 0, depositFixed: 0, reasons: [], depositPenaltyIds: [] };
         const totalSalary = Number(emp.total_salary) || 0;
 
         // Calculate working days (Mon-Sat, excluding Sundays and holidays)
@@ -354,7 +368,7 @@ export default function PayrollDashboardPage() {
           totalEarnings += holidayPay;
         }
 
-        // Penalty deductions
+        // Penalty deductions (salary-based only)
         let penaltyDeduction = 0;
         if (empPenalty.totalDays > 0 && perDayPay > 0) {
           penaltyDeduction += Math.round(perDayPay * empPenalty.totalDays);
@@ -367,13 +381,76 @@ export default function PayrollDashboardPage() {
         totalDeductions += penaltyDeduction;
 
         // Track penalty IDs to mark as applied
-        if (empPenalty.totalDays > 0 || empPenalty.totalFixed > 0) {
+        if (empPenalty.totalDays > 0 || empPenalty.totalFixed > 0 || empPenalty.depositFixed > 0) {
           (penalties || []).filter((p: any) => p.employee_id === emp.id && !p.is_applied)
             .forEach((p: any) => penaltyIdsToMark.push(p.id));
         }
 
+        // --- Deposit logic ---
         const grossSalary = totalEarnings;
-        const netSalary = grossSalary - totalDeductions;
+        const empDeposit = depositMap[emp.id];
+        let depositDeduction = 0;
+        let depositReplenishment = 0;
+
+        if (empDeposit) {
+          // a. Penalty deducted from deposit
+          if (empPenalty.depositFixed > 0 && empDeposit.current_balance > 0) {
+            const penaltyFromDeposit = Math.min(empPenalty.depositFixed, Number(empDeposit.current_balance));
+            empDeposit.current_balance = Number(empDeposit.current_balance) - penaltyFromDeposit;
+            // We'll record this transaction after insert
+            empDeposit._penaltyDeducted = penaltyFromDeposit;
+          }
+
+          // b. Collection if not fully collected
+          if (!empDeposit.is_fully_collected) {
+            const remaining = Number(empDeposit.total_deposit_amount) - Number(empDeposit.collected_amount);
+            if (remaining > 0) {
+              let installment = 0;
+              if (empDeposit.deduction_mode === "one_time") {
+                installment = remaining;
+              } else if (empDeposit.deduction_mode === "percentage") {
+                installment = Math.round((Number(empDeposit.deduction_value) / 100) * grossSalary);
+              } else {
+                installment = Number(empDeposit.deduction_value);
+              }
+              installment = Math.min(installment, remaining);
+              if (installment > 0) {
+                depositDeduction = installment;
+                deductionsBreakdown["Security Deposit"] = installment;
+                totalDeductions += installment;
+                empDeposit.collected_amount = Number(empDeposit.collected_amount) + installment;
+                empDeposit.current_balance = Number(empDeposit.current_balance) + installment;
+                if (empDeposit.collected_amount >= Number(empDeposit.total_deposit_amount)) {
+                  empDeposit.is_fully_collected = true;
+                }
+                empDeposit._collectionAmount = installment;
+              }
+            }
+          }
+
+          // c. Replenishment if balance dropped below collected (due to penalty)
+          if (empDeposit.is_fully_collected && Number(empDeposit.current_balance) < Number(empDeposit.collected_amount)) {
+            const deficit = Number(empDeposit.collected_amount) - Number(empDeposit.current_balance);
+            let replenishAmt = 0;
+            if (empDeposit.deduction_mode === "percentage") {
+              replenishAmt = Math.round((Number(empDeposit.deduction_value) / 100) * grossSalary);
+            } else {
+              replenishAmt = Number(empDeposit.deduction_value);
+            }
+            replenishAmt = Math.min(replenishAmt, deficit);
+            if (replenishAmt > 0) {
+              depositReplenishment = replenishAmt;
+              deductionsBreakdown["Deposit Replenishment"] = replenishAmt;
+              totalDeductions += replenishAmt;
+              empDeposit.current_balance = Number(empDeposit.current_balance) + replenishAmt;
+              empDeposit._replenishAmount = replenishAmt;
+            }
+          }
+
+          empDeposit._updated = true;
+        }
+
+        const netSalary = totalEarnings - totalDeductions;
 
         return {
           payroll_run_id: run.id,
@@ -407,6 +484,51 @@ export default function PayrollDashboardPage() {
           applied_at: new Date().toISOString(),
           payroll_run_id: run.id,
         }).in("id", penaltyIdsToMark);
+      }
+
+      // 10. Update deposits and insert deposit transactions
+      for (const dep of (activeDeposits || [])) {
+        if (!dep._updated) continue;
+        const txns: any[] = [];
+
+        if (dep._penaltyDeducted > 0) {
+          txns.push({
+            employee_id: dep.employee_id, deposit_id: dep.id,
+            transaction_type: "penalty_deduction", amount: -dep._penaltyDeducted,
+            balance_after: Number(dep.current_balance) + (dep._collectionAmount || 0) + (dep._replenishAmount || 0) - dep._penaltyDeducted,
+            description: "Penalty deducted from deposit",
+            transaction_date: new Date().toISOString().slice(0, 10), payroll_run_id: run.id,
+          });
+        }
+        if (dep._collectionAmount > 0) {
+          txns.push({
+            employee_id: dep.employee_id, deposit_id: dep.id,
+            transaction_type: "collection", amount: dep._collectionAmount,
+            balance_after: Number(dep.current_balance),
+            description: `Deposit collection via payroll`,
+            transaction_date: new Date().toISOString().slice(0, 10), payroll_run_id: run.id,
+          });
+        }
+        if (dep._replenishAmount > 0) {
+          txns.push({
+            employee_id: dep.employee_id, deposit_id: dep.id,
+            transaction_type: "replenishment", amount: dep._replenishAmount,
+            balance_after: Number(dep.current_balance),
+            description: "Deposit replenishment after penalty",
+            transaction_date: new Date().toISOString().slice(0, 10), payroll_run_id: run.id,
+          });
+        }
+
+        if (txns.length > 0) {
+          await (supabase as any).from("hr_deposit_transactions").insert(txns);
+        }
+
+        await (supabase as any).from("hr_employee_deposits").update({
+          collected_amount: dep.collected_amount,
+          current_balance: dep.current_balance,
+          is_fully_collected: dep.is_fully_collected,
+          updated_at: new Date().toISOString(),
+        }).eq("id", dep.id);
       }
 
       // 6. Update run totals

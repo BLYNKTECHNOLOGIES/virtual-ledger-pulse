@@ -9,12 +9,104 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
   "About", "Work Type & Shift", "Note", "Documents",
   "Leave", "Asset", "Attendance", "Payroll",
 ];
+
+// ─── Deposit Info Sub-Component ───
+function DepositInfoSection({ employeeId }: { employeeId: string }) {
+  const { data: deposit } = useQuery({
+    queryKey: ["hr_employee_deposit_profile", employeeId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_employee_deposits").select("*").eq("employee_id", employeeId).eq("is_settled", false).maybeSingle();
+      return data;
+    },
+    enabled: !!employeeId,
+  });
+
+  const { data: recentTxns = [] } = useQuery({
+    queryKey: ["hr_deposit_txns_profile", employeeId],
+    queryFn: async () => {
+      if (!deposit?.id) return [];
+      const { data } = await (supabase as any).from("hr_deposit_transactions").select("*").eq("deposit_id", deposit.id).order("transaction_date", { ascending: false }).limit(5);
+      return data || [];
+    },
+    enabled: !!deposit?.id,
+  });
+
+  if (!deposit) return null;
+
+  const progress = deposit.total_deposit_amount > 0 ? Math.round((deposit.collected_amount / deposit.total_deposit_amount) * 100) : 0;
+  const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : `₹${Number(deposit.deduction_value).toLocaleString()}/month`;
+
+  const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund" };
+  const txTypeColor: Record<string, string> = { collection: "text-green-600", penalty_deduction: "text-red-600", replenishment: "text-blue-600", ff_refund: "text-purple-600" };
+
+  return (
+    <div className="mt-6">
+      <div className="border-t border-border mt-3 pt-3">
+        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Security Deposit</p>
+      </div>
+      <div className="border border-border rounded-lg p-4 space-y-3">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Total Deposit</p>
+            <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Collected</p>
+            <p className="text-sm font-semibold text-green-600">₹{Number(deposit.collected_amount).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Current Balance</p>
+            <p className="text-sm font-semibold text-purple-600">₹{Number(deposit.current_balance).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Deduction Mode</p>
+            <p className="text-sm font-medium">{modeLabel}</p>
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-muted-foreground">Collection Progress</p>
+            <p className="text-xs font-medium">{progress}%</p>
+          </div>
+          <Progress value={progress} className="h-2" />
+        </div>
+        <div>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${deposit.is_fully_collected ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+            {deposit.is_fully_collected ? "Fully Collected" : "Collecting"}
+          </span>
+        </div>
+
+        {recentTxns.length > 0 && (
+          <div className="mt-2">
+            <p className="text-xs font-semibold text-muted-foreground mb-1">Recent Transactions</p>
+            <div className="space-y-1">
+              {recentTxns.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between text-xs border-b border-border/50 py-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-medium ${txTypeColor[t.transaction_type] || "text-foreground"}`}>
+                      {txTypeLabel[t.transaction_type] || t.transaction_type}
+                    </span>
+                    <span className="text-muted-foreground">{t.transaction_date}</span>
+                  </div>
+                  <span className={`font-medium ${Number(t.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function EmployeeProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -510,6 +602,9 @@ export default function EmployeeProfilePage() {
                 <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
                 <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
               </div>
+
+              {/* Deposit Information */}
+              <DepositInfoSection employeeId={id!} />
             </div>
 
             {/* Right: Work Information table */}

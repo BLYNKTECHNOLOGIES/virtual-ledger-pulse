@@ -29,6 +29,7 @@ export default function PenaltyManagementPage() {
     penalty_amount: "",
     penalty_days: "",
     notes: "",
+    deduct_from_deposit: false,
   });
   const [ruleForm, setRuleForm] = useState({
     rule_name: "",
@@ -155,13 +156,14 @@ export default function PenaltyManagementPage() {
         penalty_amount: Number(penaltyForm.penalty_amount) || 0,
         penalty_days: Number(penaltyForm.penalty_days) || 0,
         notes: penaltyForm.notes || null,
+        deduct_from_deposit: penaltyForm.deduct_from_deposit,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_penalties"] });
       setShowAddPenalty(false);
-      setPenaltyForm({ employee_id: "", penalty_type: "manual", penalty_reason: "", penalty_amount: "", penalty_days: "", notes: "" });
+      setPenaltyForm({ employee_id: "", penalty_type: "manual", penalty_reason: "", penalty_amount: "", penalty_days: "", notes: "", deduct_from_deposit: false });
       toast.success("Penalty added");
     },
     onError: (e: any) => toast.error(e.message),
@@ -327,6 +329,9 @@ export default function PenaltyManagementPage() {
                           ) : (
                             <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Pending</span>
                           )}
+                          {p.deduct_from_deposit && (
+                            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">From Deposit</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {!p.is_applied && (
@@ -465,6 +470,19 @@ export default function PenaltyManagementPage() {
             <div>
               <Label>Notes</Label>
               <Textarea value={penaltyForm.notes} onChange={(e) => setPenaltyForm({ ...penaltyForm, notes: e.target.value })} placeholder="Optional notes..." />
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border">
+              <input
+                type="checkbox"
+                id="deduct_from_deposit"
+                checked={penaltyForm.deduct_from_deposit}
+                onChange={(e) => setPenaltyForm({ ...penaltyForm, deduct_from_deposit: e.target.checked })}
+                className="h-4 w-4 rounded border-border"
+              />
+              <label htmlFor="deduct_from_deposit" className="text-sm font-medium cursor-pointer">
+                Deduct from Security Deposit
+              </label>
+              <p className="text-xs text-muted-foreground ml-auto">Instead of salary, deduct from employee's deposit balance</p>
             </div>
           </div>
           <DialogFooter>

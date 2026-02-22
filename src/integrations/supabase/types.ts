@@ -2572,6 +2572,63 @@ export type Database = {
           },
         ]
       }
+      hr_deposit_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          deposit_id: string
+          description: string | null
+          employee_id: string
+          id: string
+          payroll_run_id: string | null
+          reference_id: string | null
+          transaction_date: string
+          transaction_type: string
+        }
+        Insert: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          deposit_id: string
+          description?: string | null
+          employee_id: string
+          id?: string
+          payroll_run_id?: string | null
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          deposit_id?: string
+          description?: string | null
+          employee_id?: string
+          id?: string
+          payroll_run_id?: string | null
+          reference_id?: string | null
+          transaction_date?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_deposit_transactions_deposit_id_fkey"
+            columns: ["deposit_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_deposits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_deposit_transactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_disciplinary_actions: {
         Row: {
           action_type: string
@@ -2660,6 +2717,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "hr_employee_bank_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_employee_deposits: {
+        Row: {
+          collected_amount: number
+          created_at: string
+          current_balance: number
+          deduction_mode: string
+          deduction_start_month: string | null
+          deduction_value: number
+          employee_id: string
+          id: string
+          is_fully_collected: boolean
+          is_settled: boolean
+          settled_at: string | null
+          settlement_notes: string | null
+          total_deposit_amount: number
+          updated_at: string
+        }
+        Insert: {
+          collected_amount?: number
+          created_at?: string
+          current_balance?: number
+          deduction_mode?: string
+          deduction_start_month?: string | null
+          deduction_value?: number
+          employee_id: string
+          id?: string
+          is_fully_collected?: boolean
+          is_settled?: boolean
+          settled_at?: string | null
+          settlement_notes?: string | null
+          total_deposit_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          collected_amount?: number
+          created_at?: string
+          current_balance?: number
+          deduction_mode?: string
+          deduction_start_month?: string | null
+          deduction_value?: number
+          employee_id?: string
+          id?: string
+          is_fully_collected?: boolean
+          is_settled?: boolean
+          settled_at?: string | null
+          settlement_notes?: string | null
+          total_deposit_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_deposits_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
@@ -4019,6 +4135,7 @@ export type Database = {
           applied_at: string | null
           created_at: string
           created_by: string | null
+          deduct_from_deposit: boolean
           employee_id: string
           id: string
           is_applied: boolean
@@ -4037,6 +4154,7 @@ export type Database = {
           applied_at?: string | null
           created_at?: string
           created_by?: string | null
+          deduct_from_deposit?: boolean
           employee_id: string
           id?: string
           is_applied?: boolean
@@ -4055,6 +4173,7 @@ export type Database = {
           applied_at?: string | null
           created_at?: string
           created_by?: string | null
+          deduct_from_deposit?: boolean
           employee_id?: string
           id?: string
           is_applied?: boolean

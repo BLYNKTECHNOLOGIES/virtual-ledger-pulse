@@ -80,6 +80,7 @@ const navGroups: NavGroup[] = [
           { label: "Allowances", path: "/hrms/payroll/allowances" },
           { label: "Deductions", path: "/hrms/payroll/deductions" },
           { label: "Penalties", path: "/hrms/payroll/penalties" },
+          { label: "Deposits", path: "/hrms/payroll/deposits" },
         ],
       },
     ],

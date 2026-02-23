@@ -52,7 +52,7 @@ export async function registerBiometric(userId: string, username: string, device
       challenge: base64urlToBuffer(challengeData.challenge),
       rp: {
         name: challengeData.rpName || 'P2P Trading Terminal',
-        id: challengeData.rpId || window.location.hostname,
+        id: window.location.hostname,
       },
       user: {
         id: new TextEncoder().encode(userId),
@@ -107,7 +107,7 @@ export async function authenticateBiometric(userId: string): Promise<string> {
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge: base64urlToBuffer(challengeData.challenge),
-      rpId: challengeData.rpId || window.location.hostname,
+      rpId: window.location.hostname,
       allowCredentials,
       userVerification: 'required',
       timeout: 60000,

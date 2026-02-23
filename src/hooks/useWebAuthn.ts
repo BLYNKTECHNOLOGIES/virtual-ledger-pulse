@@ -31,8 +31,8 @@ export async function checkPlatformAuthenticator(): Promise<boolean> {
 }
 
 async function callWebAuthn(action: string, body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke('terminal-webauthn/' + action, {
-    body,
+  const { data, error } = await supabase.functions.invoke('terminal-webauthn', {
+    body: { action, ...body },
   });
   if (error) throw new Error(error.message || 'WebAuthn request failed');
   if (data?.error) throw new Error(data.error);

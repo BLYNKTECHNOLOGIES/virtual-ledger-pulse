@@ -78,9 +78,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const path = url.pathname.split('/').pop();
     const body = await req.json();
+    const url = new URL(req.url);
+    const path = body.action || url.pathname.split('/').pop();
     const supabase = getSupabase();
 
     // === SECURITY: Validate user_id is a valid UUID ===

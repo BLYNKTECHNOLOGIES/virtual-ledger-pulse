@@ -1,136 +1,134 @@
 
 
-# Employee Deposit Management System
+# Biometric (Fingerprint) Authentication for Terminal Access
 
 ## Overview
 
-A system to track employee security deposits with flexible deduction schedules, penalty-from-deposit logic, deposit replenishment via payroll, and Full & Final (F&F) settlement integration.
+This plan implements **WebAuthn-based biometric authentication** (fingerprint, Face ID, Windows Hello) as a mandatory second factor for accessing the P2P Trading Terminal. It also adds an **automatic session timeout** after inactivity.
 
-## Database Design
+## How It Works (Non-Technical)
 
-### New Table: `hr_employee_deposits`
-Tracks the deposit configuration and current balance per employee.
+1. **One-time setup**: When a user first tries to access the Terminal, they will be prompted to register their fingerprint (or Face ID / Windows Hello depending on their device). This is a one-time process per device.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | |
-| employee_id | uuid (FK to hr_employees) | |
-| total_deposit_amount | numeric | Total deposit required (e.g., 15,000) |
-| collected_amount | numeric DEFAULT 0 | Amount collected so far |
-| current_balance | numeric DEFAULT 0 | Current deposit balance (collected minus penalty deductions) |
-| deduction_mode | text | `one_time`, `percentage`, `fixed_installment` |
-| deduction_value | numeric | Percentage of salary or fixed amount per month |
-| deduction_start_month | text | YYYY-MM when deductions begin |
-| is_fully_collected | boolean DEFAULT false | Whether total deposit has been collected |
-| is_settled | boolean DEFAULT false | Deposit returned during F&F |
-| settled_at | timestamptz | When F&F settlement happened |
-| settlement_notes | text | F&F notes |
-| created_at | timestamptz DEFAULT now() | |
-| updated_at | timestamptz DEFAULT now() | |
+2. **Every Terminal access**: After logging into the ERP normally (email + password), whenever the user navigates to the Terminal, a biometric prompt appears. They must verify their fingerprint to enter.
 
-### New Table: `hr_deposit_transactions`
-Ledger of all deposit movements (collections, penalty deductions, replenishments, F&F refund).
+3. **Auto-lockout**: If the user is inactive in the Terminal for 12 minutes, the Terminal session locks automatically. They must re-authenticate with their fingerprint to continue.
+
+4. **Device support**: Works on laptops with fingerprint readers, phones with fingerprint/Face ID, and Windows Hello. If a device has no biometric hardware, a security key (USB) can be used as fallback.
+
+---
+
+## Technical Implementation
+
+### 1. Database Changes
+
+**New table: `terminal_webauthn_credentials`**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| id | uuid (PK) | |
-| employee_id | uuid (FK) | |
-| deposit_id | uuid (FK to hr_employee_deposits) | |
-| transaction_type | text | `collection` / `penalty_deduction` / `replenishment` / `ff_refund` |
-| amount | numeric | Positive = credit to deposit, negative = debit |
-| balance_after | numeric | Running balance after this transaction |
-| reference_id | text | Links to penalty ID or payroll run ID |
-| description | text | Human-readable note |
-| transaction_date | date | |
-| payroll_run_id | uuid | Which payroll run triggered this |
-| created_at | timestamptz DEFAULT now() | |
+| id | uuid (PK) | Credential record ID |
+| user_id | uuid (FK -> users) | The user who owns this credential |
+| credential_id | text | WebAuthn credential ID (base64url) |
+| public_key | text | Stored public key (base64url) |
+| sign_count | integer | Replay attack counter |
+| device_name | text | Friendly name (e.g. "MacBook Pro") |
+| created_at | timestamptz | When registered |
+| last_used_at | timestamptz | Last successful auth |
 
-## Core Logic
+**New table: `terminal_biometric_sessions`**
 
-### 1. Deposit Collection via Payroll
-During payroll generation (`PayrollDashboardPage.tsx`), the system will:
-- Check if employee has an active deposit with `is_fully_collected = false`
-- Calculate the installment based on `deduction_mode`:
-  - `one_time`: deduct full remaining amount in one go
-  - `percentage`: deduct X% of gross salary
-  - `fixed_installment`: deduct a fixed amount
-- Cap the deduction so it never exceeds the remaining amount
-- Add "Security Deposit" to payslip deductions
-- Insert a `collection` transaction in `hr_deposit_transactions`
-- Update `collected_amount` and `current_balance` on the deposit record
-- Mark `is_fully_collected = true` when fully collected
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid (PK) | Session ID |
+| user_id | uuid (FK -> users) | User |
+| session_token | text (unique) | Random token stored in sessionStorage |
+| authenticated_at | timestamptz | When fingerprint was verified |
+| expires_at | timestamptz | Auto-expiry (authenticated_at + 12 min) |
+| is_active | boolean | Whether session is still valid |
 
-### 2. Penalty from Deposit
-When a penalty is configured to deduct from deposit (new field `deduct_from_deposit` on `hr_penalties`):
-- Deduct from `current_balance` instead of salary
-- If deposit balance becomes less than the total required, a replenishment deficit is tracked
-- Insert a `penalty_deduction` transaction
+**New RPC functions:**
+- `store_webauthn_credential(...)` -- saves credential after registration
+- `get_webauthn_credentials(p_user_id)` -- retrieves user's credentials for verification
+- `create_terminal_biometric_session(p_user_id)` -- creates session after successful biometric auth
+- `validate_terminal_biometric_session(p_user_id, p_token)` -- checks if session is still valid
+- `extend_terminal_biometric_session(p_user_id, p_token)` -- resets the 12-min timer on activity
+- `revoke_terminal_biometric_session(p_user_id)` -- invalidates session (logout)
 
-### 3. Deposit Replenishment via Payroll
-If `current_balance < collected_amount` (due to penalty deductions):
-- Calculate replenishment needed = `collected_amount - current_balance`
-- Deduct replenishment amount from salary using same deduction_mode/value
-- Insert a `replenishment` transaction
-- Restore `current_balance`
+### 2. Edge Function: `terminal-webauthn`
 
-### 4. F&F Settlement
-When employee status changes to inactive/terminated:
-- Show F&F settlement UI with deposit balance
-- Refund `current_balance` as part of final payment
-- Insert `ff_refund` transaction
-- Mark deposit as `is_settled = true`
+Handles the server-side WebAuthn ceremony:
+- **POST /challenge** -- generates a random challenge for registration or authentication
+- **POST /register** -- verifies and stores the credential after fingerprint enrollment
+- **POST /verify** -- verifies the biometric assertion and creates a biometric session
 
-## UI Changes
+### 3. Frontend Components
 
-### A. New "Deposit Management" Page (`/hrms/deposits`)
-- View all employees' deposit status (total, collected, balance, mode)
-- Add/edit deposit configuration per employee
-- View transaction history per deposit
-- Sidebar link under Payroll section
+**`src/hooks/useWebAuthn.ts`**
+- Wraps the browser's `navigator.credentials.create()` and `navigator.credentials.get()` APIs
+- Handles base64url encoding/decoding of WebAuthn data
+- Functions: `registerBiometric()`, `authenticateBiometric()`, `isBiometricAvailable()`
 
-### B. Employee Profile - About Tab
-- New "Deposit Information" section showing:
-  - Total Deposit Amount
-  - Collected So Far
-  - Current Balance
-  - Deduction Mode & Value
-  - Collection Status (progress bar)
-  - Recent Transactions (last 5)
+**`src/hooks/useTerminalBiometricSession.ts`**
+- Manages the biometric session lifecycle
+- Stores session token in `sessionStorage` (not localStorage -- clears on tab close)
+- Provides `isAuthenticated`, `authenticate()`, `logout()`
+- Runs an inactivity timer that auto-locks after 12 minutes of no mouse/keyboard activity
+- On activity, extends the session expiry
 
-### C. Employee Profile - Payroll Tab
-- Payslips will show "Security Deposit" and "Deposit Replenishment" as deduction line items when applicable
+**`src/components/terminal/BiometricRegistrationDialog.tsx`**
+- Shown when user has no registered credentials
+- Guides user through fingerprint enrollment
+- Shows device compatibility info
 
-### D. Penalty Management Page
-- New checkbox "Deduct from Deposit" when adding manual penalties
-- Visual indicator when a penalty was deducted from deposit vs salary
+**`src/components/terminal/BiometricAuthGate.tsx`**
+- Inserted into `TerminalLayout` between `TerminalAccessGate` and the actual Terminal content
+- If no valid biometric session exists, shows a lock screen with a "Verify Fingerprint" button
+- If no credentials registered, shows registration flow first
 
-### E. Payroll Dashboard
-- Deposit deductions will appear in payslip generation summary
+**`src/components/terminal/TerminalInactivityMonitor.tsx`**
+- Listens for mouse, keyboard, scroll, and touch events
+- After 12 minutes of inactivity, revokes the biometric session and shows the lock screen
+- Shows a warning toast at 10 minutes
 
-## Files to Create/Modify
+### 4. Modified Files
 
-| File | Action |
-|------|--------|
-| Migration SQL | Create `hr_employee_deposits` and `hr_deposit_transactions` tables; add `deduct_from_deposit` column to `hr_penalties` |
-| `src/pages/horilla/DepositManagementPage.tsx` | **New** - Full deposit management UI |
-| `src/pages/horilla/PayrollDashboardPage.tsx` | **Modify** - Add deposit collection + replenishment logic in `generatePayslips` |
-| `src/pages/horilla/EmployeeProfilePage.tsx` | **Modify** - Add deposit info section in About tab |
-| `src/pages/horilla/PenaltyManagementPage.tsx` | **Modify** - Add "deduct from deposit" option |
-| `src/App.tsx` | **Modify** - Add deposit route |
-| `src/components/horilla/HorillaSidebar.tsx` | **Modify** - Add sidebar link |
+**`src/components/terminal/TerminalLayout.tsx`**
+- Add `BiometricAuthGate` wrapper inside `TerminalAccessGate`
+- Add `TerminalInactivityMonitor` inside the authenticated terminal view
 
-## Payroll Generation Flow (Updated)
-
+The flow becomes:
 ```text
-For each employee:
-1. Calculate earnings (template-based)
-2. Calculate standard deductions (EPF, ESI, etc.)
-3. Calculate penalties (salary-based)
-4. Check deposit:
-   a. If not fully collected -> deduct installment from salary
-   b. If penalty marked "deduct_from_deposit" -> deduct from deposit balance
-   c. If deposit balance < collected (deficit) -> deduct replenishment from salary
-5. Record all transactions
-6. Generate payslip with all line items
+TerminalAuthProvider
+  -> TerminalAccessGate (checks terminal roles)
+    -> BiometricAuthGate (checks fingerprint session)
+      -> SidebarProvider + Terminal content
+      -> TerminalInactivityMonitor
 ```
+
+### 5. Admin Management
+
+**`src/pages/terminal/TerminalUsers.tsx`** (existing)
+- Add ability for admins to view registered biometric devices per user
+- Add ability to revoke/reset a user's biometric credentials (e.g., if they get a new device)
+
+### 6. Security Considerations
+
+- WebAuthn credentials never leave the device -- only a signed challenge is sent to the server
+- The biometric session token is stored in `sessionStorage` (cleared on tab/browser close)
+- Server validates challenges with a nonce to prevent replay attacks
+- `sign_count` is tracked to detect cloned authenticators
+- All biometric events (registration, auth, timeout, revocation) are logged to `system_action_logs`
+
+### 7. Implementation Order
+
+1. Database migration (tables + RPCs)
+2. Edge function `terminal-webauthn`
+3. `useWebAuthn` hook
+4. `useTerminalBiometricSession` hook
+5. `BiometricRegistrationDialog` component
+6. `BiometricAuthGate` component
+7. `TerminalInactivityMonitor` component
+8. Update `TerminalLayout` to integrate all pieces
+9. Admin credential management in Terminal Users page
+10. Audit logging for all biometric events
 

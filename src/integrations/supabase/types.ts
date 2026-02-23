@@ -9222,24 +9222,30 @@ export type Database = {
         Row: {
           authenticated_at: string
           expires_at: string
+          extend_count: number
           id: string
           is_active: boolean
+          max_expires_at: string | null
           session_token: string
           user_id: string
         }
         Insert: {
           authenticated_at?: string
           expires_at?: string
+          extend_count?: number
           id?: string
           is_active?: boolean
+          max_expires_at?: string | null
           session_token: string
           user_id: string
         }
         Update: {
           authenticated_at?: string
           expires_at?: string
+          extend_count?: number
           id?: string
           is_active?: boolean
+          max_expires_at?: string | null
           session_token?: string
           user_id?: string
         }
@@ -10813,6 +10819,15 @@ export type Database = {
           permissions: string[]
         }[]
       }
+      log_biometric_event: {
+        Args: {
+          p_action_type: string
+          p_description: string
+          p_metadata?: Json
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       log_user_activity: {
         Args: {
           _action: string
@@ -11197,6 +11212,7 @@ export type Database = {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: boolean
       }
+      verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
     }
     Enums: {
       app_permission:

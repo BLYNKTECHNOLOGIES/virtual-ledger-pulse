@@ -9218,6 +9218,41 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_biometric_sessions: {
+        Row: {
+          authenticated_at: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          session_token: string
+          user_id: string
+        }
+        Insert: {
+          authenticated_at?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          session_token: string
+          user_id: string
+        }
+        Update: {
+          authenticated_at?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          session_token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_biometric_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_exchange_accounts: {
         Row: {
           account_identifier: string
@@ -9719,6 +9754,85 @@ export type Database = {
             columns: ["wallet_id"]
             isOneToOne: false
             referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_webauthn_challenges: {
+        Row: {
+          challenge: string
+          created_at: string
+          expires_at: string
+          id: string
+          type: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          challenge: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          challenge?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          type?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_webauthn_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_webauthn_credentials: {
+        Row: {
+          created_at: string
+          credential_id: string
+          device_name: string | null
+          id: string
+          last_used_at: string | null
+          public_key: string
+          sign_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credential_id: string
+          device_name?: string | null
+          id?: string
+          last_used_at?: string | null
+          public_key: string
+          sign_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credential_id?: string
+          device_name?: string | null
+          id?: string
+          last_used_at?: string | null
+          public_key?: string
+          sign_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_webauthn_credentials_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -10488,6 +10602,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_terminal_biometric_session: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       create_user_with_password: {
         Args: {
           _email: string
@@ -10498,6 +10616,10 @@ export type Database = {
           _username: string
         }
         Returns: string
+      }
+      delete_all_user_webauthn_credentials: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       delete_contra_entry: {
         Args: { p_transfer_out_id: string }
@@ -10518,6 +10640,14 @@ export type Database = {
       delete_wallet_transaction_with_reversal: {
         Args: { p_deleted_by?: string; p_transaction_id: string }
         Returns: Json
+      }
+      delete_webauthn_credential: {
+        Args: { p_credential_id: string }
+        Returns: undefined
+      }
+      extend_terminal_biometric_session: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: boolean
       }
       generate_employee_id: {
         Args: { dept: string; designation: string }
@@ -10632,6 +10762,18 @@ export type Database = {
           status: string
           user_id: string
           username: string
+        }[]
+      }
+      get_webauthn_credentials: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          credential_id: string
+          device_name: string
+          id: string
+          last_used_at: string
+          public_key: string
+          sign_count: number
         }[]
       }
       handle_sales_order_payment_method_change: {
@@ -10837,12 +10979,29 @@ export type Database = {
             Args: { p_reversed_by?: string; p_settlement_id: string }
             Returns: Json
           }
+      revoke_terminal_biometric_session: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       save_terminal_role: {
         Args: {
           p_description?: string
           p_name?: string
           p_permissions?: string[]
           p_role_id?: string
+        }
+        Returns: string
+      }
+      store_webauthn_challenge: {
+        Args: { p_challenge: string; p_type: string; p_user_id: string }
+        Returns: string
+      }
+      store_webauthn_credential: {
+        Args: {
+          p_credential_id: string
+          p_device_name?: string
+          p_public_key: string
+          p_user_id: string
         }
         Returns: string
       }
@@ -10987,6 +11146,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_webauthn_sign_count: {
+        Args: { p_credential_id: string; p_sign_count: number }
+        Returns: undefined
+      }
       upsert_p2p_counterparty: {
         Args: { p_nickname: string; p_trade_type: string; p_volume: number }
         Returns: string
@@ -11014,6 +11177,10 @@ export type Database = {
         Args: { p_role_id: string }
         Returns: boolean
       }
+      validate_terminal_biometric_session: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: boolean
+      }
       validate_user_credentials: {
         Args: { input_password: string; input_username: string }
         Returns: {
@@ -11025,6 +11192,10 @@ export type Database = {
           user_id: string
           username: string
         }[]
+      }
+      verify_and_consume_challenge: {
+        Args: { p_challenge: string; p_type: string; p_user_id: string }
+        Returns: boolean
       }
     }
     Enums: {

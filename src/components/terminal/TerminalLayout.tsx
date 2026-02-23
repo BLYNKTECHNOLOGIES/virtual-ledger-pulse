@@ -2,6 +2,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { TerminalSidebar } from './TerminalSidebar';
 import { TerminalHeader } from './TerminalHeader';
 import { TerminalAuthProvider, useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { BiometricAuthGate } from './BiometricAuthGate';
 import { ShieldOff, Loader2 } from 'lucide-react';
 
 interface TerminalLayoutProps {
@@ -39,19 +40,21 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
     <div className="terminal">
       <TerminalAuthProvider>
         <TerminalAccessGate>
-          <SidebarProvider>
-            <div className="flex w-full min-h-screen bg-background">
-              <div className="hidden md:block">
-                <TerminalSidebar />
+          <BiometricAuthGate>
+            <SidebarProvider>
+              <div className="flex w-full min-h-screen bg-background">
+                <div className="hidden md:block">
+                  <TerminalSidebar />
+                </div>
+                <SidebarInset className="flex flex-col flex-1 min-w-0">
+                  <TerminalHeader />
+                  <main className="flex-1 overflow-auto">
+                    {children}
+                  </main>
+                </SidebarInset>
               </div>
-              <SidebarInset className="flex flex-col flex-1 min-w-0">
-                <TerminalHeader />
-                <main className="flex-1 overflow-auto">
-                  {children}
-                </main>
-              </SidebarInset>
-            </div>
-          </SidebarProvider>
+            </SidebarProvider>
+          </BiometricAuthGate>
         </TerminalAccessGate>
       </TerminalAuthProvider>
     </div>

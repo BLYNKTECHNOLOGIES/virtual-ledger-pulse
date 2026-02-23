@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.biometric-webhook]
 verify_jwt = false
+
+[functions.terminal-webauthn]
+verify_jwt = false

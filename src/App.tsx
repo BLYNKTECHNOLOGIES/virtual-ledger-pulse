@@ -5,45 +5,9 @@ import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
 import TerminalMPI from './pages/terminal/TerminalMPI';
 import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
-import { HomePage } from './components/website/pages/HomePage';
-import { AboutPage } from './components/website/pages/AboutPage';
-import { ContactPage } from './components/website/pages/ContactPage';
 import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
-import { WebDevelopmentPage } from './components/website/pages/WebDevelopmentPage';
-import { SEOServicesPage } from './components/website/pages/SEOServicesPage';
-import { AppDevelopmentPage } from './components/website/pages/AppDevelopmentPage';
-import { PrivacyPolicyPage } from './components/website/pages/PrivacyPolicyPage';
-import { TermsOfServicePage } from './components/website/pages/TermsOfServicePage';
-import { AMLPolicyPage } from './components/website/pages/AMLPolicyPage';
 import { LoginPage } from './components/website/pages/LoginPage';
-import { WebsiteLayout } from './components/website/WebsiteLayout';
-import { ModernHomePage } from './components/website/pages/ModernHomePage';
-import { VASPPage } from './components/website/pages/VASPPage';
-import { P2PTradingPage } from './components/website/pages/P2PTradingPage';
-import { KYCServicesPage } from './components/website/pages/KYCServicesPage';
-import { VASPCompliancePage } from './components/website/pages/VASPCompliancePage';
-import { CompliancePage } from './components/website/pages/CompliancePage';
-import { VASPHomePage } from './components/website/pages/VASPHomePage';
-import { VASPSecurityPage } from './components/website/pages/VASPSecurityPage';
-import { KYCFormPage } from './components/website/pages/KYCFormPage';
-import { HelpCentrePage } from './components/website/pages/HelpCentrePage';
-import { BulkTradingPage } from './components/website/pages/BulkTradingPage';
-import { CorporateKYCPage } from './components/website/pages/CorporateKYCPage';
-import { RelationshipManagerPage } from './components/website/pages/RelationshipManagerPage';
-import { SellUSDTPage } from './components/website/pages/SellUSDTPage';
-import { WhatsAppSupportPage } from './components/website/pages/WhatsAppSupportPage';
-import { PaymentMethodsPage } from './components/website/pages/PaymentMethodsPage';
-import { GettingStartedPage } from './components/website/pages/GettingStartedPage';
-import { CareersPage } from './components/website/pages/CareersPage';
-import { CareersApplyPage } from './components/website/pages/CareersApplyPage';
-import { INRSettlementPage } from './components/website/pages/INRSettlementPage';
-import { BuyUSDTPage } from './components/website/pages/BuyUSDTPage';
-import { SellCryptoPage } from './components/website/pages/SellCryptoPage';
-import { SafetyTipsPage } from './components/website/pages/SafetyTipsPage';
-import { CryptoFeesPage } from './components/website/pages/CryptoFeesPage';
-import { OTCDeskPage } from './components/website/pages/OTCDeskPage';
-import { KYCVerificationSupportPage } from './components/website/pages/KYCVerificationSupportPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
 import Purchase from './pages/Purchase';
@@ -121,173 +85,14 @@ import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 
 const router = createBrowserRouter([
+  // Login — the only public route
   {
     path: "/",
-    element: <WebsiteLayout><LoginPage /></WebsiteLayout>,
+    element: <LoginPage />,
   },
   {
-    path: "/website",
-    element: <WebsiteLayout><HomePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/home",
-    element: <WebsiteLayout><ModernHomePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/about",
-    element: <WebsiteLayout><AboutPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/contact",
-    element: <WebsiteLayout><ContactPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/web-development",
-    element: <WebsiteLayout><WebDevelopmentPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/seo-services",
-    element: <WebsiteLayout><SEOServicesPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/app-development",
-    element: <WebsiteLayout><AppDevelopmentPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/privacy",
-    element: <WebsiteLayout><PrivacyPolicyPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/terms",
-    element: <WebsiteLayout><TermsOfServicePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/aml-policy",
-    element: <WebsiteLayout><AMLPolicyPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/login",
-    element: <WebsiteLayout><LoginPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/careers/apply",
-    element: <WebsiteLayout><CareersApplyPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp",
-    element: <WebsiteLayout><VASPPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp-home",
-    element: <WebsiteLayout><VASPHomePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp/p2p-trading",
-    element: <WebsiteLayout><P2PTradingPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp/kyc",
-    element: <WebsiteLayout><KYCServicesPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp/kyc-form",
-    element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp/compliance",
-    element: <WebsiteLayout><VASPCompliancePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/compliance",
-    element: <WebsiteLayout><CompliancePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/vasp/security",
-    element: <WebsiteLayout><VASPSecurityPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/buy-usdt",
-    element: <WebsiteLayout><BuyUSDTPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/fees",
-    element: <WebsiteLayout><CryptoFeesPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/kyc",
-    element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/individual-kyc",
-    element: <WebsiteLayout><KYCFormPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/help",
-    element: <WebsiteLayout><HelpCentrePage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/bulk-trading",
-    element: <WebsiteLayout><BulkTradingPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/corporate-kyc",
-    element: <WebsiteLayout><CorporateKYCPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/relationship-manager",
-    element: <WebsiteLayout><RelationshipManagerPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/sell-crypto",
-    element: <WebsiteLayout><SellCryptoPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/sell-usdt",
-    element: <WebsiteLayout><SellUSDTPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/support",
-    element: <WebsiteLayout><WhatsAppSupportPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/whatsapp-support",
-    element: <WebsiteLayout><WhatsAppSupportPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/p2p-trading",
-    element: <WebsiteLayout><P2PTradingPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/payment-methods",
-    element: <WebsiteLayout><PaymentMethodsPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/getting-started",
-    element: <WebsiteLayout><GettingStartedPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/careers",
-    element: <WebsiteLayout><CareersPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/inr-settlement",
-    element: <WebsiteLayout><INRSettlementPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/institutional-settlement",
-    element: <WebsiteLayout><INRSettlementPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/safety-tips",
-    element: <WebsiteLayout><SafetyTipsPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/otc-desk",
-    element: <WebsiteLayout><OTCDeskPage /></WebsiteLayout>,
-  },
-  {
-    path: "/website/kyc-support",
-    element: <WebsiteLayout><KYCVerificationSupportPage /></WebsiteLayout>,
+    path: "/login",
+    element: <LoginPage />,
   },
   // ERP System Routes - All protected with authentication
   {

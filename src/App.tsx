@@ -123,7 +123,7 @@ import { AuthCheck } from './components/AuthCheck';
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <WebsiteLayout><HomePage /></WebsiteLayout>,
+    element: <WebsiteLayout><LoginPage /></WebsiteLayout>,
   },
   {
     path: "/website",

@@ -1,134 +1,54 @@
 
 
-# Biometric (Fingerprint) Authentication for Terminal Access
+## Updated: Small Buys Approval Dialog -- Split Payment + Client Label
 
-## Overview
+Two refinements to the previously approved Small Buys plan:
 
-This plan implements **WebAuthn-based biometric authentication** (fingerprint, Face ID, Windows Hello) as a mandatory second factor for accessing the P2P Trading Terminal. It also adds an **automatic session timeout** after inactivity.
+### 1. Split Payment Support in SmallBuysApprovalDialog
 
-## How It Works (Non-Technical)
+The Small Buys approval dialog will include the same split payment functionality that exists in `TerminalPurchaseApprovalDialog`:
 
-1. **One-time setup**: When a user first tries to access the Terminal, they will be prompted to register their fingerprint (or Face ID / Windows Hello depending on their device). This is a one-time process per device.
+- A "Split Payment" checkbox toggle next to the bank account selector
+- When enabled, shows a payment distribution panel with:
+  - Multiple bank account + amount rows
+  - Add/remove split rows
+  - Net Payable / Allocated / Remaining status bar with validation
+  - Auto-fill first split amount
+  - Duplicate bank account check
+- When split payment is active, the approval will call `create_manual_purchase_with_split_payments` RPC (same as terminal purchase)
+- When single payment, uses the standard single bank account flow
 
-2. **Every Terminal access**: After logging into the ERP normally (email + password), whenever the user navigates to the Terminal, a biometric prompt appears. They must verify their fingerprint to enter.
+### 2. Client Handling with "Small Buys" Label
 
-3. **Auto-lockout**: If the user is inactive in the Terminal for 12 minutes, the Terminal session locks automatically. They must re-authenticate with their fingerprint to continue.
+Instead of "no client created," the Small Buys approval will create/link a client labeled **"Small Buys"** -- mirroring how Small Sales uses the "Small Sales" client label:
 
-4. **Device support**: Works on laptops with fingerprint readers, phones with fingerprint/Face ID, and Windows Hello. If a device has no biometric hardware, a security key (USB) can be used as fallback.
+- `client_name` / `supplier_name` will be set to `"Small Buys"`
+- This keeps purchase records traceable and consistent with the Small Sales pattern
 
----
+### Technical Details
 
-## Technical Implementation
+**New file: `src/components/purchase/SmallBuysApprovalDialog.tsx`**
 
-### 1. Database Changes
+This component will combine:
+- The summary display from `SmallSalesApprovalDialog` (asset, orders clubbed, qty, avg price, amount, fee, wallet, time window)
+- USDT equivalent section for non-USDT assets
+- TDS option (none / 1% / 20%) with PAN field
+- Bank account selector with split payment toggle and distribution panel (from `TerminalPurchaseApprovalDialog`)
+- Settlement date field
+- On approval:
+  - Generates SB-prefixed order number (SB00001, SB00002...)
+  - Sets `supplier_name = "Small Buys"`
+  - If split payment: calls `create_manual_purchase_with_split_payments` RPC with `p_payment_splits`
+  - If single payment: calls `create_manual_purchase` RPC
+  - Processes wallet addition for inventory
+  - Updates `small_buys_sync` record status to `approved`
+- Reject flow with optional reason (same as Small Sales)
 
-**New table: `terminal_webauthn_credentials`**
+**Data queries needed in dialog:**
+- `bank_accounts` (status = ACTIVE) -- for split payment bank selectors
+- `products` -- to match asset to product ID
+- Live CoinUSDT rate for non-USDT assets
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | Credential record ID |
-| user_id | uuid (FK -> users) | The user who owns this credential |
-| credential_id | text | WebAuthn credential ID (base64url) |
-| public_key | text | Stored public key (base64url) |
-| sign_count | integer | Replay attack counter |
-| device_name | text | Friendly name (e.g. "MacBook Pro") |
-| created_at | timestamptz | When registered |
-| last_used_at | timestamptz | Last successful auth |
+**No additional database changes** beyond the previously planned 4 tables + sequence. The split payment records are handled by the existing `purchase_order_splits` table used by the RPC.
 
-**New table: `terminal_biometric_sessions`**
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid (PK) | Session ID |
-| user_id | uuid (FK -> users) | User |
-| session_token | text (unique) | Random token stored in sessionStorage |
-| authenticated_at | timestamptz | When fingerprint was verified |
-| expires_at | timestamptz | Auto-expiry (authenticated_at + 12 min) |
-| is_active | boolean | Whether session is still valid |
-
-**New RPC functions:**
-- `store_webauthn_credential(...)` -- saves credential after registration
-- `get_webauthn_credentials(p_user_id)` -- retrieves user's credentials for verification
-- `create_terminal_biometric_session(p_user_id)` -- creates session after successful biometric auth
-- `validate_terminal_biometric_session(p_user_id, p_token)` -- checks if session is still valid
-- `extend_terminal_biometric_session(p_user_id, p_token)` -- resets the 12-min timer on activity
-- `revoke_terminal_biometric_session(p_user_id)` -- invalidates session (logout)
-
-### 2. Edge Function: `terminal-webauthn`
-
-Handles the server-side WebAuthn ceremony:
-- **POST /challenge** -- generates a random challenge for registration or authentication
-- **POST /register** -- verifies and stores the credential after fingerprint enrollment
-- **POST /verify** -- verifies the biometric assertion and creates a biometric session
-
-### 3. Frontend Components
-
-**`src/hooks/useWebAuthn.ts`**
-- Wraps the browser's `navigator.credentials.create()` and `navigator.credentials.get()` APIs
-- Handles base64url encoding/decoding of WebAuthn data
-- Functions: `registerBiometric()`, `authenticateBiometric()`, `isBiometricAvailable()`
-
-**`src/hooks/useTerminalBiometricSession.ts`**
-- Manages the biometric session lifecycle
-- Stores session token in `sessionStorage` (not localStorage -- clears on tab close)
-- Provides `isAuthenticated`, `authenticate()`, `logout()`
-- Runs an inactivity timer that auto-locks after 12 minutes of no mouse/keyboard activity
-- On activity, extends the session expiry
-
-**`src/components/terminal/BiometricRegistrationDialog.tsx`**
-- Shown when user has no registered credentials
-- Guides user through fingerprint enrollment
-- Shows device compatibility info
-
-**`src/components/terminal/BiometricAuthGate.tsx`**
-- Inserted into `TerminalLayout` between `TerminalAccessGate` and the actual Terminal content
-- If no valid biometric session exists, shows a lock screen with a "Verify Fingerprint" button
-- If no credentials registered, shows registration flow first
-
-**`src/components/terminal/TerminalInactivityMonitor.tsx`**
-- Listens for mouse, keyboard, scroll, and touch events
-- After 12 minutes of inactivity, revokes the biometric session and shows the lock screen
-- Shows a warning toast at 10 minutes
-
-### 4. Modified Files
-
-**`src/components/terminal/TerminalLayout.tsx`**
-- Add `BiometricAuthGate` wrapper inside `TerminalAccessGate`
-- Add `TerminalInactivityMonitor` inside the authenticated terminal view
-
-The flow becomes:
-```text
-TerminalAuthProvider
-  -> TerminalAccessGate (checks terminal roles)
-    -> BiometricAuthGate (checks fingerprint session)
-      -> SidebarProvider + Terminal content
-      -> TerminalInactivityMonitor
-```
-
-### 5. Admin Management
-
-**`src/pages/terminal/TerminalUsers.tsx`** (existing)
-- Add ability for admins to view registered biometric devices per user
-- Add ability to revoke/reset a user's biometric credentials (e.g., if they get a new device)
-
-### 6. Security Considerations
-
-- WebAuthn credentials never leave the device -- only a signed challenge is sent to the server
-- The biometric session token is stored in `sessionStorage` (cleared on tab/browser close)
-- Server validates challenges with a nonce to prevent replay attacks
-- `sign_count` is tracked to detect cloned authenticators
-- All biometric events (registration, auth, timeout, revocation) are logged to `system_action_logs`
-
-### 7. Implementation Order
-
-1. Database migration (tables + RPCs)
-2. Edge function `terminal-webauthn`
-3. `useWebAuthn` hook
-4. `useTerminalBiometricSession` hook
-5. `BiometricRegistrationDialog` component
-6. `BiometricAuthGate` component
-7. `TerminalInactivityMonitor` component
-8. Update `TerminalLayout` to integrate all pieces
-9. Admin credential management in Terminal Users page
-10. Audit logging for all biometric events
-
+All other aspects of the previously approved plan remain unchanged.

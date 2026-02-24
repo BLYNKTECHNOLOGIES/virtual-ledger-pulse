@@ -53,11 +53,24 @@ export function TerminalSyncTab() {
       const { data, error } = await query;
       if (error) throw error;
 
+      // Fetch small buys config to exclude small buys range orders
+      const { getSmallBuysConfig } = await import('@/hooks/useSmallBuysSync');
+      const sbConfig = await getSmallBuysConfig();
+
       // Filter client-side by order create_time (from order_data JSONB) — last 7 days
+      // Also exclude orders that fall within the small buys range (they belong in Small Buys tab)
       const filtered = (data || []).filter(record => {
         const od = record.order_data as any;
         const createTime = od?.create_time ? Number(od.create_time) : 0;
-        return createTime === 0 || createTime >= cutoffTime;
+        const timeOk = createTime === 0 || createTime >= cutoffTime;
+        if (!timeOk) return false;
+
+        // Exclude orders in small buys range
+        if (sbConfig?.is_enabled) {
+          const tp = parseFloat(od?.total_price || '0');
+          if (tp >= sbConfig.min_amount && tp <= sbConfig.max_amount) return false;
+        }
+        return true;
       });
 
       // Fetch reviewer usernames for records that have reviewed_by

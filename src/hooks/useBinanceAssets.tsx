@@ -171,6 +171,17 @@ export function useExecuteTrade() {
         const avgPrice = order?.ratio ? parseFloat(order.ratio) : (executedQty > 0 ? cummQuoteQty / executedQty : 0);
         const orderStatus = order?.status || order?.orderStatus || "FILLED";
 
+        // Extract commission from fills array (Binance returns an array of partial fills)
+        const fills = order?.fills || [];
+        let totalCommission = 0;
+        let commissionAsset: string | null = null;
+        for (const fill of fills) {
+          totalCommission += parseFloat(fill.commission || "0");
+          if (!commissionAsset && fill.commissionAsset) {
+            commissionAsset = fill.commissionAsset;
+          }
+        }
+
         await supabase
           .from("spot_trade_history")
           .update({
@@ -179,6 +190,8 @@ export function useExecuteTrade() {
             executed_price: avgPrice,
             quantity: executedQty,
             quote_quantity: cummQuoteQty,
+            commission: totalCommission > 0 ? totalCommission : undefined,
+            commission_asset: commissionAsset || undefined,
             funding_transfer_done: data.data.fundingTransferred,
           })
           .eq("id", tradeId);

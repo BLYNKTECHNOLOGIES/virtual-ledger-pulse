@@ -74,16 +74,21 @@ export function useSpotTradeSync() {
       );
 
       for (const tt of terminalTrades || []) {
-        const matchingRow = rows.find((r) => r.binance_order_id === tt.binance_order_id);
-        if (matchingRow && tt.binance_trade_id !== matchingRow.binance_trade_id) {
+        // Aggregate ALL fills for this order to get total commission
+        const matchingRows = rows.filter((r) => r.binance_order_id === tt.binance_order_id);
+        if (matchingRows.length > 0) {
+          const totalCommission = matchingRows.reduce((sum, r) => sum + (r.commission || 0), 0);
+          const commissionAsset = matchingRows.find((r) => r.commission_asset)?.commission_asset || null;
+          const firstRow = matchingRows[0];
+          
           await supabase
             .from("spot_trade_history")
             .update({
-              binance_trade_id: matchingRow.binance_trade_id,
-              commission: matchingRow.commission,
-              commission_asset: matchingRow.commission_asset,
-              is_buyer: matchingRow.is_buyer,
-              is_maker: matchingRow.is_maker,
+              binance_trade_id: firstRow.binance_trade_id,
+              commission: totalCommission,
+              commission_asset: commissionAsset,
+              is_buyer: firstRow.is_buyer,
+              is_maker: firstRow.is_maker,
             })
             .eq("binance_order_id", tt.binance_order_id)
             .eq("source", "terminal");

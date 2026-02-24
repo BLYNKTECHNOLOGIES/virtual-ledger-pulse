@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown, Link2 } from "lucide-react";
+import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown, Link2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
+import { SmallBuysSyncTab } from "@/components/purchase/SmallBuysSyncTab";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -343,7 +344,7 @@ export default function Purchase() {
         <Card className="w-full">
         <CardContent className="p-3 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4 md:mb-6 h-auto">
+            <TabsList className="grid w-full grid-cols-6 mb-4 md:mb-6 h-auto">
               <TabsTrigger value="buy_orders" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
                 <span className="truncate">Buy Orders</span>
@@ -375,6 +376,10 @@ export default function Purchase() {
                 {terminalSyncCount > 0 ? (
                   <Badge variant="default" className="text-xs">{terminalSyncCount}</Badge>
                 ) : null}
+              </TabsTrigger>
+              <TabsTrigger value="small_buys" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
+                <Package className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="truncate">Small Buys</span>
               </TabsTrigger>
             </TabsList>
 
@@ -412,6 +417,10 @@ export default function Purchase() {
 
             <TabsContent value="terminal_sync">
               <TerminalSyncTab />
+            </TabsContent>
+
+            <TabsContent value="small_buys">
+              <SmallBuysSyncTab />
             </TabsContent>
           </Tabs>
         </CardContent>

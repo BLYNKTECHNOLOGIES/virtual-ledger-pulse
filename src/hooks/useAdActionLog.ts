@@ -22,6 +22,8 @@ export const AdActionTypes = {
   AUTO_PAY_MINUTES_CHANGED: 'automation.auto_pay_minutes_changed',
   SMALL_SALES_TOGGLED: 'automation.small_sales_toggled',
   SMALL_SALES_RANGE_CHANGED: 'automation.small_sales_range_changed',
+  SMALL_BUYS_TOGGLED: 'automation.small_buys_toggled',
+  SMALL_BUYS_RANGE_CHANGED: 'automation.small_buys_range_changed',
   AUTO_REPLY_RULE_CREATED: 'automation.auto_reply_rule_created',
   AUTO_REPLY_RULE_UPDATED: 'automation.auto_reply_rule_updated',
   AUTO_REPLY_RULE_TOGGLED: 'automation.auto_reply_rule_toggled',
@@ -53,6 +55,7 @@ export const ACTION_CATEGORIES: Record<ActionCategory, string[]> = {
   automations: [
     AdActionTypes.AUTO_PAY_TOGGLED, AdActionTypes.AUTO_PAY_MINUTES_CHANGED,
     AdActionTypes.SMALL_SALES_TOGGLED, AdActionTypes.SMALL_SALES_RANGE_CHANGED,
+    AdActionTypes.SMALL_BUYS_TOGGLED, AdActionTypes.SMALL_BUYS_RANGE_CHANGED,
     AdActionTypes.AUTO_REPLY_RULE_CREATED, AdActionTypes.AUTO_REPLY_RULE_UPDATED,
     AdActionTypes.AUTO_REPLY_RULE_TOGGLED, AdActionTypes.AUTO_REPLY_RULE_DELETED,
     AdActionTypes.SCHEDULE_CREATED, AdActionTypes.SCHEDULE_UPDATED,
@@ -145,6 +148,8 @@ export function getAdActionLabel(actionType: string): string {
     case AdActionTypes.AUTO_PAY_MINUTES_CHANGED: return 'Auto-Pay Minutes Changed';
     case AdActionTypes.SMALL_SALES_TOGGLED: return 'Small Sales Toggled';
     case AdActionTypes.SMALL_SALES_RANGE_CHANGED: return 'Small Sales Range Changed';
+    case AdActionTypes.SMALL_BUYS_TOGGLED: return 'Small Buys Toggled';
+    case AdActionTypes.SMALL_BUYS_RANGE_CHANGED: return 'Small Buys Range Changed';
     case AdActionTypes.AUTO_REPLY_RULE_CREATED: return 'Auto-Reply Rule Created';
     case AdActionTypes.AUTO_REPLY_RULE_UPDATED: return 'Auto-Reply Rule Updated';
     case AdActionTypes.AUTO_REPLY_RULE_TOGGLED: return 'Auto-Reply Rule Toggled';

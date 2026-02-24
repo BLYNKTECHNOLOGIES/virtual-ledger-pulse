@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
+import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
 
 /**
  * Fetch order detail from Binance API.
@@ -127,7 +128,21 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   }
 
   // Combine all orders eligible for syncing
-  const allEligible = [...(completedBuys || []), ...resolvedAppealOrders];
+  let allEligible = [...(completedBuys || []), ...resolvedAppealOrders];
+
+  // Exclude orders that fall within the small buys range
+  const smallBuysConfig = await getSmallBuysConfig();
+  if (smallBuysConfig?.is_enabled) {
+    const before = allEligible.length;
+    allEligible = allEligible.filter(o => {
+      const tp = parseFloat(o.total_price || '0');
+      return tp < smallBuysConfig.min_amount || tp > smallBuysConfig.max_amount;
+    });
+    const excluded = before - allEligible.length;
+    if (excluded > 0) {
+      console.log(`[PurchaseSync] Excluded ${excluded} orders in small buys range (₹${smallBuysConfig.min_amount}-₹${smallBuysConfig.max_amount})`);
+    }
+  }
 
   if (allEligible.length === 0) {
     console.log('[PurchaseSync] No eligible completed BUY orders found.');

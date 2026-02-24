@@ -51,6 +51,8 @@ import { format } from 'date-fns';
 import { CompletedOrdersExport } from '@/components/terminal/automation/CompletedOrdersExport';
 import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySettings';
 import { SmallSalesConfig } from '@/components/terminal/automation/SmallSalesConfig';
+import { SmallBuysConfig } from '@/components/terminal/automation/SmallBuysConfig';
+import { ShoppingCart } from 'lucide-react';
 
 const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
@@ -142,6 +144,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="small-sales" className="gap-1.5">
             <Package className="h-3.5 w-3.5" />
             Small Sales
+          </TabsTrigger>
+          <TabsTrigger value="small-buys" className="gap-1.5">
+            <ShoppingCart className="h-3.5 w-3.5" />
+            Small Buys
           </TabsTrigger>
         </TabsList>
 
@@ -378,6 +384,11 @@ export default function TerminalAutomation() {
         {/* ═══ SMALL SALES CONFIG ═══ */}
         <TabsContent value="small-sales" className="mt-4">
           <SmallSalesConfig />
+        </TabsContent>
+
+        {/* ═══ SMALL BUYS CONFIG ═══ */}
+        <TabsContent value="small-buys" className="mt-4">
+          <SmallBuysConfig />
         </TabsContent>
       </Tabs>
 

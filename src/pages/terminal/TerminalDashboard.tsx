@@ -14,6 +14,7 @@ import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncM
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
+import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -35,7 +36,7 @@ export default function TerminalDashboard() {
 
     try {
       // Run all syncs in parallel
-      const [orderResult, purchaseResult, salesResult, smallSalesResult, assetResult] = await Promise.allSettled([
+      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult] = await Promise.allSettled([
         // 1. Order history sync
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate(
@@ -52,14 +53,16 @@ export default function TerminalDashboard() {
         syncCompletedSellOrders().then(r => `Sales: ${r.synced} synced, ${r.duplicates} skipped`),
         // 4. Small sales sync
         syncSmallSales().then(r => `Small Sales: ${r.synced} synced`).catch(() => 'Small Sales: skipped (not configured)'),
-        // 5. Asset movement sync
+        // 5. Small buys sync
+        syncSmallBuys().then(r => `Small Buys: ${r.synced} synced`).catch(() => 'Small Buys: skipped (not configured)'),
+        // 6. Asset movement sync
         supabase.functions.invoke('binance-assets', {
           body: { action: 'syncAssetMovements', force: false },
         }).then(() => 'Asset movements synced'),
       ]);
 
       // Collect results
-      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, assetResult]) {
+      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult]) {
         if (r.status === 'fulfilled') {
           results.push(r.value);
         } else {

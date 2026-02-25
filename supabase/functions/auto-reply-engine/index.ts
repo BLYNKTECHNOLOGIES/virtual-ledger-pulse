@@ -148,13 +148,13 @@ serve(async (req) => {
     const activeData = await activeRes.json();
     const activeOrders: BinanceOrder[] = activeData?.data || [];
 
-    // 4. Also check recent history for completed/cancelled events
+    // 4. Also check recent history for completed/cancelled events (fetch more to catch small buys)
     const historyRes = await fetch(
       `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`,
       {
         method: "POST",
         headers: proxyHeaders,
-        body: JSON.stringify({ page: 1, rows: 20 }),
+        body: JSON.stringify({ page: 1, rows: 50 }),
       }
     );
     const historyData = await historyRes.json();
@@ -282,17 +282,19 @@ serve(async (req) => {
         .select("order_number");
       const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
 
-      // Fetch small buys and small sales config for range-based filtering
+      // Fetch small buys and small sales config for range-based filtering (fetch first row, not by id)
       const { data: sbConfig } = await supabase
         .from("small_buys_config")
         .select("is_enabled, min_amount, max_amount")
-        .eq("id", "default")
+        .eq("is_enabled", true)
+        .limit(1)
         .maybeSingle();
 
       const { data: ssConfig } = await supabase
         .from("small_sales_config")
         .select("is_enabled, min_amount, max_amount")
-        .eq("id", "default")
+        .eq("is_enabled", true)
+        .limit(1)
         .maybeSingle();
 
       // Pre-fetch verified names from binance_order_history for all orders in batch

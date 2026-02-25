@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
-import { OperatorDetailDialog } from '@/components/terminal/mpi/OperatorDetailDialog';
+// Detail dialog removed — now navigates to full page
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend,
@@ -36,6 +37,7 @@ interface OperatorMetric {
 }
 
 export default function TerminalMPI() {
+  const navigate = useNavigate();
   const { isTerminalAdmin, terminalRoles } = useTerminalAuth();
   const { visibleUserIds } = useTerminalJurisdiction();
   const [timeRange, setTimeRange] = useState('today');
@@ -43,10 +45,6 @@ export default function TerminalMPI() {
   const [metrics, setMetrics] = useState<OperatorMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOperator, setSelectedOperator] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailMetric, setDetailMetric] = useState<OperatorMetric | null>(null);
-  const [detailProfile, setDetailProfile] = useState<any>(null);
-  const [detailAssignments, setDetailAssignments] = useState<any[]>([]);
   const [allAssignments, setAllAssignments] = useState<any[]>([]);
   const [profilesMap, setProfilesMap] = useState<Map<string, any>>(new Map());
 
@@ -330,12 +328,7 @@ export default function TerminalMPI() {
               const completionRate = m.ordersHandled > 0 ? Math.round((m.ordersCompleted / m.ordersHandled) * 100) : 0;
               return (
                 <Card key={m.userId} className="border-border bg-card hover:border-primary/30 transition-colors cursor-pointer"
-                  onClick={() => {
-                    setDetailMetric(m);
-                    setDetailProfile(profilesMap.get(m.userId) || null);
-                    setDetailAssignments(allAssignments.filter(a => a.assigned_to === m.userId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-                    setDetailOpen(true);
-                  }}
+                  onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
@@ -400,16 +393,6 @@ export default function TerminalMPI() {
         </div>
       </div>
 
-      {/* Operator Detail Dialog */}
-      {detailMetric && (
-        <OperatorDetailDialog
-          open={detailOpen}
-          onOpenChange={setDetailOpen}
-          metric={detailMetric}
-          profile={detailProfile}
-          recentAssignments={detailAssignments}
-        />
-      )}
     </div>
   );
 }

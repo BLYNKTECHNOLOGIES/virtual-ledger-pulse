@@ -108,15 +108,20 @@ Deno.serve(async (req) => {
 
     // =================== CHALLENGE ===================
     if (path === 'challenge') {
-      const { type } = body;
+      const { type, admin_user_id } = body;
       if (!type || !['registration', 'authentication'].includes(type)) {
         return errorResponse('Invalid challenge type', 400);
       }
 
       const challenge = generateChallenge();
 
+      // For admin override: store challenge against admin's user_id
+      const challengeUserId = (type === 'authentication' && admin_user_id && UUID_REGEX.test(admin_user_id))
+        ? admin_user_id
+        : userId;
+
       const { error } = await supabase.rpc('store_webauthn_challenge', {
-        p_user_id: userId,
+        p_user_id: challengeUserId,
         p_challenge: challenge,
         p_type: type,
       });
@@ -125,8 +130,13 @@ Deno.serve(async (req) => {
 
       let allowCredentials: { id: string }[] = [];
       if (type === 'authentication') {
+        // For admin override: get admin's credentials instead of target user's
+        const credUserId = (admin_user_id && UUID_REGEX.test(admin_user_id))
+          ? admin_user_id
+          : userId;
+
         const { data: creds } = await supabase.rpc('get_webauthn_credentials', {
-          p_user_id: userId,
+          p_user_id: credUserId,
         });
 
         if (!creds || creds.length === 0) {
@@ -188,15 +198,19 @@ Deno.serve(async (req) => {
 
     // =================== VERIFY ===================
     if (path === 'verify') {
-      const { credential_id, challenge, sign_count } = body;
+      const { credential_id, challenge, sign_count, admin_user_id } = body;
 
       if (!credential_id || !challenge) {
         return errorResponse('Missing required fields', 400);
       }
 
+      // Determine if this is an admin override attempt
+      const isAdminOverride = admin_user_id && UUID_REGEX.test(admin_user_id);
+      const challengeOwner = isAdminOverride ? admin_user_id : userId;
+
       // Verify and consume the challenge
       const { data: challengeValid } = await supabase.rpc('verify_and_consume_challenge', {
-        p_user_id: userId,
+        p_user_id: challengeOwner,
         p_challenge: challenge,
         p_type: 'authentication',
       });
@@ -207,7 +221,61 @@ Deno.serve(async (req) => {
         return errorResponse('Invalid or expired challenge', 403);
       }
 
-      // Verify credential exists for user
+      if (isAdminOverride) {
+        // Admin override: verify credential belongs to admin_user_id
+        const { data: adminCreds } = await supabase.rpc('get_webauthn_credentials', {
+          p_user_id: admin_user_id,
+        });
+
+        const matchedCred = (adminCreds || []).find(
+          (c: { credential_id: string }) => c.credential_id === credential_id
+        );
+        if (!matchedCred) {
+          await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_FAILED',
+            'Admin credential not found for override', { credential_id, admin_user_id });
+          return errorResponse('Admin credential not found', 403);
+        }
+
+        // Verify admin_user_id is actually a terminal admin
+        const { data: adminRoles } = await supabase.rpc('get_terminal_user_roles', {
+          p_user_id: admin_user_id,
+        });
+        const isAdmin = (adminRoles || []).some(
+          (r: { role_name: string }) => r.role_name.toLowerCase() === 'admin'
+        );
+        if (!isAdmin) {
+          await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_FAILED',
+            'Non-admin user attempted admin override', { admin_user_id });
+          return errorResponse('Only admins can unlock other users terminals', 403);
+        }
+
+        // Update sign count for admin's credential
+        if (sign_count !== undefined && sign_count !== null && sign_count <= matchedCred.sign_count) {
+          await logBiometricEvent(supabase, admin_user_id, 'BIOMETRIC_CLONE_DETECTED',
+            'Possible authenticator cloning detected during admin override');
+          return errorResponse('Possible credential cloning detected', 403);
+        }
+        await supabase.rpc('update_webauthn_sign_count', {
+          p_credential_id: credential_id,
+          p_sign_count: sign_count ?? matchedCred.sign_count + 1,
+        });
+
+        // Create session for the TARGET user (not admin)
+        const { data: sessionToken, error } = await supabase.rpc('create_terminal_biometric_session', {
+          p_user_id: userId,
+        });
+        if (error) throw error;
+
+        await logBiometricEvent(supabase, userId, 'BIOMETRIC_ADMIN_OVERRIDE',
+          `Admin ${admin_user_id} unlocked terminal for user ${userId}`, {
+            admin_user_id,
+            device_name: matchedCred.device_name,
+          });
+
+        return jsonResponse({ success: true, session_token: sessionToken });
+      }
+
+      // Normal flow: verify credential belongs to target user
       const { data: creds } = await supabase.rpc('get_webauthn_credentials', {
         p_user_id: userId,
       });

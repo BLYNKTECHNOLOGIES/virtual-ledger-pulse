@@ -89,12 +89,18 @@ export async function registerBiometric(userId: string, username: string, device
   return result;
 }
 
-export async function authenticateBiometric(userId: string): Promise<string> {
-  // 1. Get challenge
-  const challengeData = await callWebAuthn('challenge', {
-    user_id: userId,
+export async function authenticateBiometric(userId: string, adminUserId?: string): Promise<string> {
+  // 1. Get challenge (with admin override if applicable)
+  const challengeBody: Record<string, unknown> = {
+    user_id: adminUserId || userId,
     type: 'authentication',
-  });
+  };
+  if (adminUserId) {
+    challengeBody.user_id = userId; // target user
+    challengeBody.admin_user_id = adminUserId; // admin doing the unlock
+  }
+
+  const challengeData = await callWebAuthn('challenge', challengeBody);
 
   const allowCredentials = (challengeData.allowCredentials || []).map(
     (c: { id: string }) => ({
@@ -123,12 +129,17 @@ export async function authenticateBiometric(userId: string): Promise<string> {
   const signCount = new DataView(authData.buffer).getUint32(33, false);
 
   // 3. Verify on server
-  const result = await callWebAuthn('verify', {
+  const verifyBody: Record<string, unknown> = {
     user_id: userId,
     credential_id: bufferToBase64url(assertion.rawId),
     challenge: challengeData.challenge,
     sign_count: signCount,
-  });
+  };
+  if (adminUserId) {
+    verifyBody.admin_user_id = adminUserId;
+  }
+
+  const result = await callWebAuthn('verify', verifyBody);
 
   return result.session_token;
 }

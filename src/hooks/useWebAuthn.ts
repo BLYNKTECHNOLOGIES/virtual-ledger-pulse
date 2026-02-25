@@ -115,7 +115,6 @@ export async function authenticateBiometric(
     (c: { id: string }) => ({
       id: base64urlToBuffer(c.id),
       type: 'public-key' as const,
-      ...(attachment === 'platform' ? { transports: ['internal' as AuthenticatorTransport] } : {}),
     })
   );
 

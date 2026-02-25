@@ -664,10 +664,10 @@ serve(async (req) => {
 
       case "searchP2PMerchant": {
         // Public Binance P2P search — no proxy auth needed
-        // Fetch up to 100 listings (5 pages of 20) to find merchants placed lower
+        // Fetch up to 200 listings (10 pages of 20) to find merchants placed lower
         const binanceTradeType = payload.tradeType === "BUY" ? "SELL" : "BUY";
         const allItems: any[] = [];
-        for (let pg = 1; pg <= 5; pg++) {
+        for (let pg = 1; pg <= 10; pg++) {
           const searchResp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

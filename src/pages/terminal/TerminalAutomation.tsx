@@ -202,7 +202,9 @@ export default function TerminalAutomation() {
                         </TableCell>
                         <TableCell>
                           {rule.trade_type ? (
-                            <Badge variant="outline">{rule.trade_type}</Badge>
+                            <Badge variant="outline">
+                              {rule.trade_type === 'SMALL_BUY' ? 'Small Buy' : rule.trade_type === 'SMALL_SELL' ? 'Small Sale' : rule.trade_type}
+                            </Badge>
                           ) : (
                             <span className="text-xs text-muted-foreground">All</span>
                           )}

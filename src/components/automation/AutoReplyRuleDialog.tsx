@@ -29,7 +29,7 @@ export function AutoReplyRuleDialog({ open, onOpenChange, editingRule }: Props) 
   const [form, setForm] = useState({
     name: editingRule?.name || '',
     trigger_event: (editingRule?.trigger_event || 'order_received') as AutoReplyRule['trigger_event'],
-    trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | '',
+    trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '',
     message_template: editingRule?.message_template || '',
     delay_seconds: editingRule?.delay_seconds || 0,
     is_active: editingRule?.is_active ?? true,
@@ -42,7 +42,7 @@ export function AutoReplyRuleDialog({ open, onOpenChange, editingRule }: Props) 
       setForm({
         name: editingRule?.name || '',
         trigger_event: (editingRule?.trigger_event || 'order_received') as AutoReplyRule['trigger_event'],
-        trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | '',
+        trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '',
         message_template: editingRule?.message_template || '',
         delay_seconds: editingRule?.delay_seconds || 0,
         is_active: editingRule?.is_active ?? true,
@@ -102,12 +102,14 @@ export function AutoReplyRuleDialog({ open, onOpenChange, editingRule }: Props) 
             </div>
             <div>
               <Label>Trade Type (optional)</Label>
-              <Select value={form.trade_type || 'ALL'} onValueChange={v => setForm({ ...form, trade_type: (v === 'ALL' ? '' : v) as 'BUY' | 'SELL' | '' })}>
+              <Select value={form.trade_type || 'ALL'} onValueChange={v => setForm({ ...form, trade_type: (v === 'ALL' ? '' : v) as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '' })}>
                 <SelectTrigger><SelectValue placeholder="All types" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Types</SelectItem>
                   <SelectItem value="BUY">Buy Orders</SelectItem>
                   <SelectItem value="SELL">Sell Orders</SelectItem>
+                  <SelectItem value="SMALL_BUY">Small Buy</SelectItem>
+                  <SelectItem value="SMALL_SELL">Small Sale</SelectItem>
                 </SelectContent>
               </Select>
             </div>

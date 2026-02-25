@@ -7,7 +7,7 @@ export interface AutoReplyRule {
   id: string;
   name: string;
   trigger_event: 'order_received' | 'payment_marked' | 'order_completed' | 'timer_breach' | 'order_cancelled' | 'order_appealed' | 'payment_pending';
-  trade_type: 'BUY' | 'SELL' | null;
+  trade_type: 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | null;
   message_template: string;
   delay_seconds: number;
   is_active: boolean;

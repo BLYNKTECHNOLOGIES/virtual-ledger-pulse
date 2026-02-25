@@ -13,6 +13,7 @@ export type TerminalPermission =
   | 'terminal_automation_manage'
   | 'terminal_analytics_view'
   | 'terminal_assets_view'
+  | 'terminal_assets_manage'
   | 'terminal_mpi_view'
   | 'terminal_audit_logs_view'
   | 'terminal_kyc_view'
@@ -146,7 +147,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     'terminal_dashboard_view', 'terminal_ads_view', 'terminal_ads_manage',
     'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
     'terminal_automation_view', 'terminal_automation_manage',
-    'terminal_analytics_view', 'terminal_assets_view', 'terminal_mpi_view',
+    'terminal_analytics_view', 'terminal_assets_view', 'terminal_assets_manage', 'terminal_mpi_view',
     'terminal_audit_logs_view', 'terminal_kyc_view', 'terminal_kyc_manage',
     'terminal_logs_view', 'terminal_settings_view', 'terminal_settings_manage',
     'terminal_users_view', 'terminal_users_manage',

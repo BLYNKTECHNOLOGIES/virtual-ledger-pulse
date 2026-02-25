@@ -4,10 +4,13 @@ import { AssetOverview } from "@/components/terminal/assets/AssetOverview";
 import { SpotTradingPanel } from "@/components/terminal/assets/SpotTradingPanel";
 import { TradeHistory } from "@/components/terminal/assets/TradeHistory";
 import { AssetMovementHistory } from "@/components/terminal/assets/AssetMovementHistory";
-import { Wallet, ArrowLeftRight, History, ScrollText } from "lucide-react";
+import { Wallet, ArrowLeftRight, History, ScrollText, Lock } from "lucide-react";
+import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 
 export default function TerminalAssets() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canManageAssets = isTerminalAdmin || hasPermission("terminal_assets_manage");
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -21,7 +24,12 @@ export default function TerminalAssets() {
             <Wallet className="h-3.5 w-3.5" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="spot" className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+          <TabsTrigger
+            value="spot"
+            className="text-xs gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+            disabled={!canManageAssets}
+          >
+            {!canManageAssets && <Lock className="h-3 w-3" />}
             <ArrowLeftRight className="h-3.5 w-3.5" />
             Spot Trading
           </TabsTrigger>
@@ -40,7 +48,14 @@ export default function TerminalAssets() {
         </TabsContent>
 
         <TabsContent value="spot" className="mt-0">
-          <SpotTradingPanel />
+          {canManageAssets ? (
+            <SpotTradingPanel />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              <Lock className="h-8 w-8 mx-auto opacity-30 mb-2" />
+              You need the "Manage Assets (Spot Trade)" permission to access this section.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="history" className="mt-0">

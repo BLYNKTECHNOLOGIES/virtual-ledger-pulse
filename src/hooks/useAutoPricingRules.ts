@@ -110,6 +110,16 @@ export function getRuleAlertState(rule: AutoPricingRule): {
   return { hasAlert: false, alertType: null, alertMessage: null };
 }
 
+export interface AssetAlertInfo {
+  asset: string;
+  status: string;
+  reason: string | null;
+  error: string | null;
+  competitor_merchant: string | null;
+  applied_price: number | null;
+  applied_ratio: number | null;
+}
+
 export function useAutoPricingRules() {
   return useQuery({
     queryKey: ['auto-pricing-rules'],
@@ -121,6 +131,45 @@ export function useAutoPricingRules() {
       if (error) throw error;
       return data as unknown as AutoPricingRule[];
     },
+  });
+}
+
+/** Fetch the latest log per asset per rule for per-asset status display */
+export function useLatestAssetLogs(ruleIds: string[]) {
+  return useQuery({
+    queryKey: ['auto-pricing-asset-logs', ruleIds],
+    enabled: ruleIds.length > 0,
+    queryFn: async () => {
+      // Fetch recent logs for all active rules (last cycle only, ~1 per asset)
+      const { data, error } = await supabase
+        .from('ad_pricing_logs')
+        .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, applied_price, applied_ratio, created_at')
+        .in('rule_id', ruleIds)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      // Group by rule_id, keeping only the latest log per asset per rule
+      const byRule: Record<string, AssetAlertInfo[]> = {};
+      const seen = new Set<string>();
+      for (const log of data || []) {
+        const key = `${log.rule_id}:${log.asset}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!byRule[log.rule_id]) byRule[log.rule_id] = [];
+        byRule[log.rule_id].push({
+          asset: log.asset || '',
+          status: log.status,
+          reason: log.skipped_reason,
+          error: log.error_message,
+          competitor_merchant: log.competitor_merchant,
+          applied_price: log.applied_price,
+          applied_ratio: log.applied_ratio,
+        });
+      }
+      return byRule;
+    },
+    refetchInterval: 30000,
   });
 }
 

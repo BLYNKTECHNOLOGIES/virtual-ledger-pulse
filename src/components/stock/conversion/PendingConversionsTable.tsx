@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {} from "@/components/ui/select";
 import { CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 import { usePendingConversions, useApproveConversion } from "@/hooks/useProductConversions";
 import { useUnsyncedSpotTrades, useSyncSpotTradesToConversions } from "@/hooks/useSpotTradeConversionSync";
@@ -19,36 +19,38 @@ export function PendingConversionsTable() {
   const approveMutation = useApproveConversion();
   const [rejectRecord, setRejectRecord] = useState<any>(null);
 
-  // Sync from Terminal
-  const [syncWalletId, setSyncWalletId] = useState("");
+  // Sync from Terminal — auto-resolve wallet from terminal_wallet_links
   const { data: unsyncedTrades = [] } = useUnsyncedSpotTrades();
   const syncMutation = useSyncSpotTradesToConversions();
 
-  const { data: wallets = [] } = useQuery({
-    queryKey: ['wallets-active'],
+  const { data: activeWalletLink } = useQuery({
+    queryKey: ['terminal-wallet-link-for-sync'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name')
-        .eq('is_active', true)
-        .order('wallet_name');
+        .from('terminal_wallet_links')
+        .select('wallet_id')
+        .eq('status', 'active')
+        .eq('platform_source', 'terminal')
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
-      return data || [];
+      return data;
     },
   });
 
+  const apiLinkedWalletId = activeWalletLink?.wallet_id || '';
   const unsyncedCount = unsyncedTrades.filter(t => !t.already_synced).length;
+
+  const handleSync = () => {
+    if (!apiLinkedWalletId) return;
+    syncMutation.mutate({
+      walletId: apiLinkedWalletId,
+      trades: unsyncedTrades,
+    });
+  };
 
   const handleApprove = (id: string) => {
     approveMutation.mutate(id);
-  };
-
-  const handleSync = () => {
-    if (!syncWalletId) return;
-    syncMutation.mutate({
-      walletId: syncWalletId,
-      trades: unsyncedTrades,
-    });
   };
 
   if (isLoading) {
@@ -57,27 +59,17 @@ export function PendingConversionsTable() {
 
   return (
     <>
-      {/* Sync from Terminal */}
+      {/* Sync from Terminal — auto-linked to API wallet */}
       <Card className="mb-4">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Sync Spot Trades from Terminal</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3 flex-wrap">
-            <Select value={syncWalletId} onValueChange={setSyncWalletId}>
-              <SelectTrigger className="w-[250px]">
-                <SelectValue placeholder="Select target wallet" />
-              </SelectTrigger>
-              <SelectContent>
-                {wallets.map((w: any) => (
-                  <SelectItem key={w.id} value={w.id}>{w.wallet_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Button
               size="sm"
               onClick={handleSync}
-              disabled={!syncWalletId || unsyncedCount === 0 || syncMutation.isPending}
+              disabled={!apiLinkedWalletId || unsyncedCount === 0 || syncMutation.isPending}
               className="gap-1.5"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
@@ -85,6 +77,7 @@ export function PendingConversionsTable() {
             </Button>
             <span className="text-xs text-muted-foreground">
               {unsyncedCount} unsynced filled trade(s) found
+              {apiLinkedWalletId ? '' : ' — No API wallet linked'}
             </span>
           </div>
         </CardContent>

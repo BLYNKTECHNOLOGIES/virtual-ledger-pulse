@@ -24,8 +24,10 @@ import {
   useManualTriggerRule,
   useResetRuleState,
   useDismissRuleAlert,
+  useLatestAssetLogs,
   getRuleAlertState,
   AutoPricingRule,
+  AssetAlertInfo,
 } from '@/hooks/useAutoPricingRules';
 import { AutoPricingRuleDialog } from './AutoPricingRuleDialog';
 import { AutoPricingLogs } from './AutoPricingLogs';
@@ -52,6 +54,8 @@ export function AutoPricingRules() {
   const triggerRule = useManualTriggerRule();
   const resetRule = useResetRuleState();
   const dismissAlert = useDismissRuleAlert();
+  const ruleIds = rules.map(r => r.id);
+  const { data: assetLogsMap = {} } = useLatestAssetLogs(ruleIds);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutoPricingRule | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -130,6 +134,9 @@ export function AutoPricingRules() {
             const alertState = getRuleAlertState(rule);
             const alertStyle = alertState.hasAlert && alertState.alertType ? ALERT_STYLES[alertState.alertType] : '';
             const alertBadgeStyle = alertState.hasAlert && alertState.alertType ? ALERT_BADGE_STYLES[alertState.alertType] : '';
+            const assetLogs: AssetAlertInfo[] = assetLogsMap[rule.id] || [];
+            const assetsInRule = rule.assets?.length > 0 ? rule.assets : [rule.asset];
+            const hasAssetIssues = assetLogs.some(l => l.status === 'skipped' || l.status === 'error');
 
             return (
               <Card key={rule.id} className={`transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
@@ -165,9 +172,6 @@ export function AutoPricingRules() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-sm">{rule.name}</span>
-                          {(rule.assets?.length > 0 ? rule.assets : [rule.asset]).map(a => (
-                            <Badge key={a} variant="outline" className="text-[10px]">{a}</Badge>
-                          ))}
                           <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
                             {rule.trade_type}
                           </Badge>
@@ -176,7 +180,51 @@ export function AutoPricingRules() {
                             {rule.offset_direction}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+
+                        {/* Per-Asset Status Badges */}
+                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                          {assetsInRule.map(asset => {
+                            const log = assetLogs.find(l => l.asset === asset);
+                            const isError = log?.status === 'error';
+                            const isSkipped = log?.status === 'skipped';
+                            const isApplied = log?.status === 'applied';
+                            const isIssue = isError || isSkipped;
+
+                            let statusClass = 'bg-muted text-muted-foreground border-border'; // unknown/no data
+                            let tooltipText = `${asset}: No recent data`;
+
+                            if (isApplied) {
+                              statusClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                              tooltipText = `${asset}: ✓ Applied${log?.applied_price ? ` @ ₹${Number(log.applied_price).toLocaleString('en-IN')}` : ''}${log?.competitor_merchant ? ` (vs ${log.competitor_merchant})` : ''}`;
+                            } else if (isSkipped) {
+                              const reason = log?.reason === 'no_merchant' ? 'Merchant not found' : log?.reason === 'no_listings' ? 'No listings' : log?.reason || 'Skipped';
+                              statusClass = 'bg-amber-500/15 text-amber-400 border-amber-500/40 animate-pulse';
+                              tooltipText = `${asset}: ⚠ ${reason}`;
+                            } else if (isError) {
+                              statusClass = 'bg-destructive/15 text-destructive border-destructive/40 animate-pulse';
+                              tooltipText = `${asset}: ✕ ${log?.error || 'Error'}`;
+                            }
+
+                            return (
+                              <TooltipProvider key={asset}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${statusClass}`}>
+                                      {isIssue && <AlertTriangle className="h-2.5 w-2.5" />}
+                                      {isApplied && <CheckCircle className="h-2.5 w-2.5" />}
+                                      {asset}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom" className="max-w-xs">
+                                    <p className="text-xs">{tooltipText}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })}
+                        </div>
+
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
                           <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
                           {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
                           <span>{rule.ad_numbers?.length || 0} ad(s)</span>

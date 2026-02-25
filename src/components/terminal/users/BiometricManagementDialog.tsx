@@ -18,6 +18,9 @@ import {
   RefreshCw,
   Smartphone,
   AlertTriangle,
+  KeyRound,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -27,6 +30,7 @@ import {
   registerBiometric,
 } from '@/hooks/useWebAuthn';
 import { format } from 'date-fns';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
 interface Credential {
   id: string;
@@ -52,6 +56,7 @@ export function BiometricManagementDialog({
   username,
   displayName,
 }: BiometricManagementDialogProps) {
+  const { isTerminalAdmin } = useTerminalAuth();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -59,6 +64,9 @@ export function BiometricManagementDialog({
   const [showAddForm, setShowAddForm] = useState(false);
   const [deviceName, setDeviceName] = useState('');
   const [hasPlatformAuth, setHasPlatformAuth] = useState<boolean | null>(null);
+  const [bypassCode, setBypassCode] = useState<string | null>(null);
+  const [isGeneratingBypass, setIsGeneratingBypass] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fetchCredentials = useCallback(async () => {
     setIsLoading(true);
@@ -82,6 +90,8 @@ export function BiometricManagementDialog({
       checkPlatformAuthenticator().then(setHasPlatformAuth);
       setShowAddForm(false);
       setDeviceName('');
+      setBypassCode(null);
+      setCopied(false);
     }
   }, [open, fetchCredentials]);
 
@@ -153,6 +163,41 @@ export function BiometricManagementDialog({
       toast.error('Failed to remove credentials');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateBypassCode = async () => {
+    setIsGeneratingBypass(true);
+    setCopied(false);
+    try {
+      const session = localStorage.getItem('userSession');
+      const generatedBy = session ? JSON.parse(session).id : null;
+      if (!generatedBy) {
+        toast.error('Session not found');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('terminal-webauthn', {
+        body: { action: 'generate_bypass', user_id: userId, generated_by: generatedBy },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed');
+
+      setBypassCode(data.code);
+      toast.success('Bypass code generated! Valid for 5 minutes.');
+    } catch (err: any) {
+      console.error('Bypass code error:', err);
+      toast.error(err.message || 'Failed to generate bypass code');
+    } finally {
+      setIsGeneratingBypass(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    if (bypassCode) {
+      navigator.clipboard.writeText(bypassCode);
+      setCopied(true);
+      toast.success('Code copied to clipboard');
+      setTimeout(() => setCopied(false), 3000);
     }
   };
 
@@ -321,6 +366,55 @@ export function BiometricManagementDialog({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Remove All
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Bypass Code Section - Super Admin Only */}
+          {isTerminalAdmin && (
+            <div className="space-y-2 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" />
+                <h4 className="text-xs font-medium">One-Time Bypass Code</h4>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Generate a temporary code to access the terminal on a new device without biometric. 
+                Use this to log in on iPhone/iPad and then register Face ID. Code expires in 5 minutes.
+              </p>
+              {bypassCode ? (
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-center text-2xl font-mono font-bold tracking-[0.5em] bg-background border border-border rounded-md py-2">
+                    {bypassCode}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-10 w-10 shrink-0"
+                    onClick={handleCopyCode}
+                  >
+                    {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 w-full"
+                  onClick={handleGenerateBypassCode}
+                  disabled={isGeneratingBypass}
+                >
+                  {isGeneratingBypass ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="h-3 w-3" />
+                      Generate Bypass Code
+                    </>
+                  )}
                 </Button>
               )}
             </div>

@@ -10,7 +10,7 @@ interface TerminalLayoutProps {
 }
 
 function TerminalAccessGate({ children }: { children: React.ReactNode }) {
-  const { terminalRoles, isLoading, userId } = useTerminalAuth();
+  const { terminalRoles, isLoading, userId, isTerminalAdmin } = useTerminalAuth();
 
   if (isLoading) {
     return (
@@ -20,7 +20,8 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!userId || terminalRoles.length === 0) {
+  // Allow access if user has terminal roles OR is a Super Admin (isTerminalAdmin covers that)
+  if (!userId || (terminalRoles.length === 0 && !isTerminalAdmin)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-4 text-center">
         <ShieldOff className="h-16 w-16 text-muted-foreground/40" />

@@ -11,11 +11,12 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2 } from "lucide-react";
+import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { UserConfigDialog } from "./UserConfigDialog";
+import { BiometricManagementDialog } from "./BiometricManagementDialog";
 
 interface TerminalRole {
   id: string;
@@ -54,6 +55,9 @@ export function TerminalUsersList() {
   const [configUserId, setConfigUserId] = useState<string | null>(null);
   const [configUsername, setConfigUsername] = useState("");
   const [configDisplayName, setConfigDisplayName] = useState("");
+  const [bioUserId, setBioUserId] = useState<string | null>(null);
+  const [bioUsername, setBioUsername] = useState("");
+  const [bioDisplayName, setBioDisplayName] = useState("");
 
   const fetchData = useCallback(async () => {
     try {
@@ -347,6 +351,18 @@ export function TerminalUsersList() {
                           size="sm"
                           className="h-7 text-xs"
                           onClick={() => {
+                            setBioUserId(a.userId);
+                            setBioUsername(a.username);
+                            setBioDisplayName(displayName(a.firstName, a.lastName, a.username));
+                          }}
+                        >
+                          <Fingerprint className="h-3 w-3 mr-1" /> Bio
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
                             setConfigUserId(a.userId);
                             setConfigUsername(a.username);
                             setConfigDisplayName(displayName(a.firstName, a.lastName, a.username));
@@ -384,6 +400,17 @@ export function TerminalUsersList() {
           username={configUsername}
           displayName={configDisplayName}
           onSaved={fetchData}
+        />
+      )}
+
+      {/* Biometric Management Dialog */}
+      {bioUserId && (
+        <BiometricManagementDialog
+          open={!!bioUserId}
+          onOpenChange={(open) => { if (!open) setBioUserId(null); }}
+          userId={bioUserId}
+          username={bioUsername}
+          displayName={bioDisplayName}
         />
       )}
     </div>

@@ -295,7 +295,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
   };
 
-  const isAdmin = hasRole('admin');
+  const isAdmin = hasRole('admin') || hasRole('super admin');
 
   const refreshUser = async () => {
     try {

@@ -15,6 +15,7 @@ import { PendingRegistrationsTab } from "@/components/user-management/PendingReg
 import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordDialog";
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
+import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -381,7 +382,7 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="pending" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Pending Approvals
@@ -401,6 +402,10 @@ export default function UserManagement() {
             <TabsTrigger value="terminal" className="flex items-center gap-2">
               <Terminal className="h-4 w-4" />
               Terminal Access
+            </TabsTrigger>
+            <TabsTrigger value="password-requests" className="flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              Password Requests
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -683,15 +688,14 @@ export default function UserManagement() {
                                     <p><strong>Last Seen:</strong> {formatTime(user.last_seen)}</p>
                                   </div>
                                   
-                                  <PermissionGate permissions={['user_management_manage']}>
+                                  <PermissionGate permissions={['super_admin_access']}>
                                     <div className="pt-2 border-t">
                                       <Button
                                         variant="outline"
                                         size="sm"
                                         className="w-full"
                                         onClick={() => {
-                                          // Add password reset functionality here
-                                          alert(`Reset password for ${user.username}`);
+                                          setResetPasswordUser(user as any);
                                         }}
                                       >
                                         Reset Password
@@ -730,6 +734,13 @@ export default function UserManagement() {
           <TabsContent value="terminal" className="space-y-4">
             <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
               <TerminalAccessTab />
+            </PermissionGate>
+          </TabsContent>
+
+          {/* Password Reset Requests Tab - Super Admin only */}
+          <TabsContent value="password-requests" className="space-y-4">
+            <PermissionGate permissions={['super_admin_access']}>
+              <PasswordResetRequestsTab />
             </PermissionGate>
           </TabsContent>
         </Tabs>

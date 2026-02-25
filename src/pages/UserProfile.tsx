@@ -408,7 +408,7 @@ export default function UserProfile() {
     current_salary: '', requested_salary: '', reason: '', justification: ''
   });
   const [settingsData, setSettingsData] = useState({
-    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
+    newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '', passwordResetReason: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -1308,22 +1308,39 @@ export default function UserProfile() {
               </CardContent>
             </Card>
 
-            {/* Change Password */}
+            {/* Request New Password */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Change Password</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Request New Password</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div><Label htmlFor="currentPassword">Current Password</Label><Input id="currentPassword" type="password" value={settingsData.currentPassword} onChange={(e) => setSettingsData(prev => ({ ...prev, currentPassword: e.target.value }))} placeholder="Enter current password" /></div>
-                <div><Label htmlFor="newPassword">New Password</Label><Input id="newPassword" type="password" value={settingsData.newPassword} onChange={(e) => setSettingsData(prev => ({ ...prev, newPassword: e.target.value }))} placeholder="Enter new password" /></div>
-                <div><Label htmlFor="confirmPassword">Confirm New Password</Label><Input id="confirmPassword" type="password" value={settingsData.confirmPassword} onChange={(e) => setSettingsData(prev => ({ ...prev, confirmPassword: e.target.value }))} placeholder="Confirm new password" /></div>
-                <Button onClick={() => {
-                  if (!settingsData.currentPassword || !settingsData.newPassword || !settingsData.confirmPassword) { toast({ title: "Error", description: "Please fill in all password fields", variant: "destructive" }); return; }
-                  if (settingsData.newPassword !== settingsData.confirmPassword) { toast({ title: "Error", description: "New passwords do not match", variant: "destructive" }); return; }
-                  if (settingsData.newPassword.length < 6) { toast({ title: "Error", description: "Password must be at least 6 characters long", variant: "destructive" }); return; }
-                  updatePasswordMutation.mutate({ currentPassword: settingsData.currentPassword, newPassword: settingsData.newPassword });
-                }} disabled={updatePasswordMutation.isPending} className="w-full">
-                  {updatePasswordMutation.isPending ? 'Updating...' : 'Update Password'}
+                <p className="text-sm text-muted-foreground">
+                  For security reasons, password changes are handled by the Super Admin. Submit a request and the Super Admin will reset your password.
+                </p>
+                <div>
+                  <Label htmlFor="passwordResetReason">Reason (optional)</Label>
+                  <Input
+                    id="passwordResetReason"
+                    value={settingsData.passwordResetReason || ''}
+                    onChange={(e) => setSettingsData(prev => ({ ...prev, passwordResetReason: e.target.value }))}
+                    placeholder="e.g. Forgot my password"
+                  />
+                </div>
+                <Button onClick={async () => {
+                  try {
+                    const { error } = await supabase.from('password_reset_requests').insert({
+                      user_id: user?.id,
+                      reason: settingsData.passwordResetReason || null,
+                      status: 'pending',
+                    });
+                    if (error) throw error;
+                    toast({ title: "✅ Request Submitted", description: "Your password reset request has been sent to the Super Admin." });
+                    setSettingsData(prev => ({ ...prev, passwordResetReason: '' }));
+                  } catch (error: any) {
+                    toast({ title: "Error", description: error.message || "Failed to submit request", variant: "destructive" });
+                  }
+                }} className="w-full">
+                  Request New Password
                 </Button>
               </CardContent>
             </Card>

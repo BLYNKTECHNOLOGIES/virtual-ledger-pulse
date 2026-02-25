@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, CheckCircle, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -12,36 +12,53 @@ interface ForgotPasswordDialogProps {
   onClose: () => void;
 }
 
-type Step = 'email' | 'success';
+type Step = 'form' | 'success';
 
 export function ForgotPasswordDialog({ open, onClose }: ForgotPasswordDialogProps) {
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<Step>('form');
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [reason, setReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSendResetEmail = async (e: React.FormEvent) => {
+  const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // Look up user by email or username
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .or(`email.eq.${emailOrUsername.trim()},username.eq.${emailOrUsername.trim()}`)
+        .single();
+
+      if (userError || !userData) {
+        toast.error('No account found with that email or username.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Insert password reset request
+      const { error } = await supabase.from('password_reset_requests').insert({
+        user_id: userData.id,
+        reason: reason || 'Requested from login page',
+        status: 'pending',
       });
 
       if (error) throw error;
 
-      toast.success('Password reset email sent! Check your inbox.');
       setStep('success');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send reset email');
+      toast.error(error.message || 'Failed to submit request');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleClose = () => {
-    setStep('email');
-    setEmail('');
+    setStep('form');
+    setEmailOrUsername('');
+    setReason('');
     onClose();
   };
 
@@ -50,43 +67,44 @@ export function ForgotPasswordDialog({ open, onClose }: ForgotPasswordDialogProp
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            {step === 'success' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setStep('email')}
-                className="p-1 h-auto"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            Reset Password
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Request New Password
           </DialogTitle>
           <DialogDescription>
-            {step === 'email' && 'Enter your email to receive a password reset link'}
-            {step === 'success' && 'Check your email for the password reset link'}
+            {step === 'form' && 'Submit a request to the Super Admin to reset your password.'}
+            {step === 'success' && 'Your request has been submitted successfully.'}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'email' && (
-          <form onSubmit={handleSendResetEmail} className="space-y-4">
+        {step === 'form' && (
+          <form onSubmit={handleSubmitRequest} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="reset-email">Email Address</Label>
+              <Label htmlFor="reset-email">Email or Username</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="reset-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  placeholder="Enter your email or username"
+                  value={emailOrUsername}
+                  onChange={(e) => setEmailOrUsername(e.target.value)}
                   className="pl-10"
                   required
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="reset-reason">Reason (optional)</Label>
+              <Input
+                id="reset-reason"
+                type="text"
+                placeholder="e.g. Forgot my password"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
+              {isLoading ? 'Submitting...' : 'Submit Request'}
             </Button>
           </form>
         )}
@@ -98,23 +116,15 @@ export function ForgotPasswordDialog({ open, onClose }: ForgotPasswordDialogProp
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div className="space-y-2">
-                <h3 className="font-semibold">Email Sent!</h3>
+                <h3 className="font-semibold">Request Submitted!</h3>
                 <p className="text-sm text-muted-foreground">
-                  We've sent a password reset link to <strong>{email}</strong>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Click the link in your email to reset your password.
+                  Your password reset request has been sent to the Super Admin. 
+                  They will reset your password shortly.
                 </p>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => handleSendResetEmail({ preventDefault: () => {} } as React.FormEvent)}
-              disabled={isLoading}
-            >
-              Resend Email
+            <Button type="button" variant="outline" className="w-full" onClick={handleClose}>
+              Close
             </Button>
           </div>
         )}

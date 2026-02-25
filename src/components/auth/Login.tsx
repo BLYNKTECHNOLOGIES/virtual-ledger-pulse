@@ -112,7 +112,7 @@ export function Login({ onLogin }: LoginProps) {
               onClick={() => setShowForgotPassword(true)}
               className="text-sm text-muted-foreground hover:text-primary"
             >
-              Forgot your password?
+              Request New Password
             </Button>
             
             <div className="flex items-center justify-center gap-2">

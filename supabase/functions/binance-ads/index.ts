@@ -678,7 +678,7 @@ serve(async (req) => {
               tradeType: binanceTradeType,
               page: pg,
               rows: 20,
-              publisherType: null,
+              publisherType: "merchant",
               payTypes: [],
             }),
           });

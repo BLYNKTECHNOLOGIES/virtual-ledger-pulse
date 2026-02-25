@@ -55,7 +55,10 @@ const PERMISSION_GROUPS: Record<string, { label: string; permissions: { key: Ter
   },
   assets: {
     label: "Assets",
-    permissions: [{ key: "terminal_assets_view", label: "View Assets & Balances" }],
+    permissions: [
+      { key: "terminal_assets_view", label: "View Assets & Balances" },
+      { key: "terminal_assets_manage", label: "Manage Assets (Spot Trade)" },
+    ],
   },
   analytics: {
     label: "Analytics",

@@ -1,0 +1,1 @@
+ALTER TYPE public.terminal_permission ADD VALUE IF NOT EXISTS 'terminal_assets_manage';

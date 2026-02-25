@@ -11715,6 +11715,7 @@ export type Database = {
         | "terminal_kyc_view"
         | "terminal_kyc_manage"
         | "terminal_logs_view"
+        | "terminal_assets_manage"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -11947,6 +11948,7 @@ export const Constants = {
         "terminal_kyc_view",
         "terminal_kyc_manage",
         "terminal_logs_view",
+        "terminal_assets_manage",
       ],
     },
   },

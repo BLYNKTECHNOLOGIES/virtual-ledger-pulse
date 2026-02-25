@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   BarChart3, Users, Activity, TrendingUp, Clock, Zap,
   ArrowUpRight, ArrowDownRight, ChevronRight, RefreshCw,
-  Target, Timer, Package, AlertTriangle,
+  Target, Timer, Package, AlertTriangle, ShieldAlert,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -173,7 +173,14 @@ export default function TerminalMPI() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-foreground">Management Performance Interface</h1>
-            <p className="text-xs text-muted-foreground">Real-time operational intelligence & team analytics</p>
+            <p className="text-xs text-muted-foreground">
+              Real-time operational intelligence & team analytics
+              {!isTerminalAdmin && (
+                <span className="inline-flex items-center gap-1 ml-2 text-amber-500">
+                  <ShieldAlert className="h-3 w-3" /> Your branch only
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">

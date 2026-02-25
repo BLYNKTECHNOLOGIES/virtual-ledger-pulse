@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,36 +21,28 @@ const TEMPLATE_VARS = [
   { label: 'Counterparty', value: '{{counterparty}}' },
 ];
 
+const getDefaultForm = (rule?: AutoReplyRule | null) => ({
+  name: rule?.name || '',
+  trigger_event: (rule?.trigger_event || 'order_received') as AutoReplyRule['trigger_event'],
+  trade_type: (rule?.trade_type || '') as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '',
+  message_template: rule?.message_template || '',
+  delay_seconds: rule?.delay_seconds || 0,
+  is_active: rule?.is_active ?? true,
+  priority: rule?.priority || 0,
+});
+
 export function AutoReplyRuleDialog({ open, onOpenChange, editingRule }: Props) {
   const createRule = useCreateAutoReplyRule();
   const updateRule = useUpdateAutoReplyRule();
   const isEditing = !!editingRule;
 
-  const [form, setForm] = useState({
-    name: editingRule?.name || '',
-    trigger_event: (editingRule?.trigger_event || 'order_received') as AutoReplyRule['trigger_event'],
-    trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '',
-    message_template: editingRule?.message_template || '',
-    delay_seconds: editingRule?.delay_seconds || 0,
-    is_active: editingRule?.is_active ?? true,
-    priority: editingRule?.priority || 0,
-  });
+  const [form, setForm] = useState(getDefaultForm(editingRule));
 
-  // Reset form when dialog opens with new data
-  useState(() => {
+  useEffect(() => {
     if (open) {
-      setForm({
-        name: editingRule?.name || '',
-        trigger_event: (editingRule?.trigger_event || 'order_received') as AutoReplyRule['trigger_event'],
-        trade_type: (editingRule?.trade_type || '') as 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | '',
-        message_template: editingRule?.message_template || '',
-        delay_seconds: editingRule?.delay_seconds || 0,
-        is_active: editingRule?.is_active ?? true,
-        priority: editingRule?.priority || 0,
-      });
+      setForm(getDefaultForm(editingRule));
     }
-  });
-
+  }, [open, editingRule]);
   const handleSubmit = () => {
     if (!form.name || !form.message_template) return;
 

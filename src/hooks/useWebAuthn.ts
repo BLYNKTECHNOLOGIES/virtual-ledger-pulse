@@ -118,43 +118,35 @@ export async function authenticateBiometric(
     })
   );
 
-  // 2. Try authentication - first with specific credentials, fallback to discoverable
-  const publicKeyBase: Omit<PublicKeyCredentialRequestOptions, 'allowCredentials'> = {
+  // 2. Get assertion via browser API
+  const publicKeyOptions: PublicKeyCredentialRequestOptions = {
     challenge: base64urlToBuffer(challengeData.challenge),
     rpId: window.location.hostname,
     userVerification: 'required',
     timeout: 60000,
+    // Pass server credentials if available; browser will check all providers
+    // (Windows Hello, Google Password Manager, etc.) for matching IDs
+    allowCredentials: serverCredentials.length > 0 ? serverCredentials : [],
   };
 
   let assertion: PublicKeyCredential | null = null;
-
-  // Try with specific allowCredentials first
-  if (serverCredentials.length > 0) {
-    try {
-      assertion = await navigator.credentials.get({
-        publicKey: { ...publicKeyBase, allowCredentials: serverCredentials },
-      }) as PublicKeyCredential;
-    } catch (firstErr: any) {
-      console.warn('Auth with specific credentials failed, trying discoverable:', firstErr.name);
-      // If user cancelled, don't retry
-      if (firstErr.name === 'NotAllowedError') {
-        // Try once more without allowCredentials to show all options (QR, etc.)
-        try {
-          assertion = await navigator.credentials.get({
-            publicKey: { ...publicKeyBase, allowCredentials: [] },
-          }) as PublicKeyCredential;
-        } catch (retryErr) {
-          throw retryErr; // throw the retry error
-        }
-      } else {
-        throw firstErr;
-      }
-    }
-  } else {
-    // No server credentials - use discoverable mode
+  
+  try {
     assertion = await navigator.credentials.get({
-      publicKey: { ...publicKeyBase, allowCredentials: [] },
+      publicKey: publicKeyOptions,
     }) as PublicKeyCredential;
+  } catch (err: any) {
+    // If specific credentials failed, it means the credential doesn't exist
+    // on this device/browser anymore. Don't fallback to discoverable mode
+    // (which shows irrelevant Google Password Manager passkeys).
+    if (err.name === 'NotAllowedError' && serverCredentials.length > 0) {
+      throw new Error(
+        'Your registered fingerprint was not found on this device. ' +
+        'It may have been deleted from Windows Hello or registered on another device. ' +
+        'Please ask a Super Admin to generate a bypass code, then re-register your fingerprint.'
+      );
+    }
+    throw err;
   }
 
   if (!assertion) throw new Error('Authentication cancelled');

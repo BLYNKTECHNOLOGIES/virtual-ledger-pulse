@@ -127,8 +127,8 @@ export function AutoPricingRules() {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                        <span>Target: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
-                        {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} fallback(s)</span>}
+                        <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
+                        {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
                         <span>{rule.ad_numbers?.length || 0} ad(s)</span>
                         {rule.active_hours_start && (
                           <span>⏰ {rule.active_hours_start?.slice(0,5)}–{rule.active_hours_end?.slice(0,5)}</span>

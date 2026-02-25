@@ -141,24 +141,48 @@ export function AutoPricingRules() {
             return (
               <Card key={rule.id} className={`transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
                 <CardContent className="p-4">
-                  {/* Alert Banner */}
+                  {/* Alert Banner with per-asset breakdown */}
                   {alertState.hasAlert && (
-                    <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                        <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
-                        <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
-                          {alertState.alertType?.replace('_', ' ')}
-                        </Badge>
+                    <div className="mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
+                          <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
+                            {alertState.alertType?.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => dismissAlert.mutate({ id: rule.id, ruleName: rule.name, alertMessage: alertState.alertMessage || '' })}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Dismiss
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => dismissAlert.mutate({ id: rule.id, ruleName: rule.name, alertMessage: alertState.alertMessage || '' })}
-                      >
-                        <XCircle className="h-3.5 w-3.5 mr-1" /> Dismiss
-                      </Button>
+                      {/* Per-asset issue details inside the alert */}
+                      {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').length > 0 && (
+                        <div className="flex flex-col gap-1 pl-6">
+                          {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').map(l => (
+                            <div key={l.asset} className="flex items-center gap-2 text-[11px]">
+                              <span className={`font-semibold ${l.status === 'error' ? 'text-destructive' : 'text-amber-400'}`}>
+                                {l.asset}
+                              </span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="text-muted-foreground">
+                                {l.status === 'skipped'
+                                  ? (l.reason === 'no_merchant' ? `Merchant not found in top listings` : l.reason === 'no_listings' ? 'No P2P listings available' : l.reason === 'deviation' ? `Price deviation exceeded limit` : l.reason || 'Skipped')
+                                  : (l.error || 'Unknown error')
+                                }
+                              </span>
+                              {l.competitor_merchant && (
+                                <span className="text-muted-foreground/60">({l.competitor_merchant})</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 

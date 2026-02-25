@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Megaphone, RefreshCw } from 'lucide-react';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
-import { AdTable } from '@/components/ad-manager/AdTable';
+import { CategorizedAdTable } from '@/components/ad-manager/CategorizedAdTable';
 import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
@@ -142,7 +142,7 @@ export default function AdManager() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               ) : (
-                <AdTable
+                <CategorizedAdTable
                   ads={ads}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}

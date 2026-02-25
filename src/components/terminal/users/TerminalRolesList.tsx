@@ -117,8 +117,14 @@ export function TerminalRolesList() {
   /** Can the current user edit this role? Admin (level 0) can edit everything including itself. Others can only edit roles strictly below them. */
   const canEditRole = (role: Role): boolean => {
     if (!canManage) return false;
-    // Admin (level 0) has full rights to edit any role including itself
-    if (myHierarchyLevel === 0) return true;
+    // Super Admin (< 0) has full rights to edit any role including itself
+    if (myHierarchyLevel !== null && myHierarchyLevel < 0) return true;
+
+    // Admin (0) can edit roles with level >= 0 (cannot edit Super Admin role)
+    if (myHierarchyLevel === 0) {
+      return (role.hierarchy_level ?? 999) >= 0;
+    }
+
     const targetLevel = role.hierarchy_level ?? 999;
     return targetLevel > myHierarchyLevel;
   };

@@ -168,6 +168,7 @@ export type Database = {
           ad_number: string | null
           applied_price: number | null
           applied_ratio: number | null
+          asset: string | null
           calculated_price: number | null
           calculated_ratio: number | null
           competitor_merchant: string | null
@@ -187,6 +188,7 @@ export type Database = {
           ad_number?: string | null
           applied_price?: number | null
           applied_ratio?: number | null
+          asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_merchant?: string | null
@@ -206,6 +208,7 @@ export type Database = {
           ad_number?: string | null
           applied_price?: number | null
           applied_ratio?: number | null
+          asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_merchant?: string | null
@@ -237,6 +240,8 @@ export type Database = {
           active_hours_start: string | null
           ad_numbers: string[]
           asset: string
+          asset_config: Json | null
+          assets: string[] | null
           auto_pause_after_deviations: number | null
           check_interval_seconds: number | null
           consecutive_deviations: number | null
@@ -279,6 +284,8 @@ export type Database = {
           active_hours_start?: string | null
           ad_numbers?: string[]
           asset?: string
+          asset_config?: Json | null
+          assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
           consecutive_deviations?: number | null
@@ -321,6 +328,8 @@ export type Database = {
           active_hours_start?: string | null
           ad_numbers?: string[]
           asset?: string
+          asset_config?: Json | null
+          assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
           consecutive_deviations?: number | null

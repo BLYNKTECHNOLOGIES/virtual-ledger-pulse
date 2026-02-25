@@ -2,11 +2,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface AssetConfig {
+  ad_numbers: string[];
+  offset_amount: number;
+  offset_pct: number;
+  max_ceiling: number | null;
+  min_floor: number | null;
+  max_ratio_ceiling: number | null;
+  min_ratio_floor: number | null;
+}
+
 export interface AutoPricingRule {
   id: string;
   name: string;
   is_active: boolean;
   asset: string;
+  assets: string[];
+  asset_config: Record<string, AssetConfig>;
   fiat: string;
   trade_type: string;
   price_type: string;
@@ -49,6 +61,7 @@ export interface AutoPricingLog {
   id: string;
   rule_id: string;
   ad_number: string | null;
+  asset: string | null;
   competitor_merchant: string | null;
   competitor_price: number | null;
   market_reference_price: number | null;
@@ -74,7 +87,7 @@ export function useAutoPricingRules() {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as AutoPricingRule[];
+      return data as unknown as AutoPricingRule[];
     },
   });
 }

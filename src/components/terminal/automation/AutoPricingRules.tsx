@@ -115,13 +115,15 @@ export function AutoPricingRules() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm">{rule.name}</span>
-                        <Badge variant="outline" className="text-[10px]">{rule.asset}</Badge>
+                        {(rule.assets?.length > 0 ? rule.assets : [rule.asset]).map(a => (
+                          <Badge key={a} variant="outline" className="text-[10px]">{a}</Badge>
+                        ))}
                         <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
                           {rule.trade_type}
                         </Badge>
                         <Badge variant="outline" className="text-[10px]">{rule.price_type}</Badge>
                         <Badge variant="outline" className="text-[10px]">
-                          {rule.offset_direction} {rule.price_type === 'FIXED' ? `₹${rule.offset_amount}` : `${rule.offset_pct}%`}
+                          {rule.offset_direction}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">

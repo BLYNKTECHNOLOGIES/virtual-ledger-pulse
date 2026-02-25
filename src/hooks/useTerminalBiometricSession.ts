@@ -126,6 +126,15 @@ export function useTerminalBiometricSession(userId: string | null) {
     };
   }, [state.isAuthenticated, state.sessionToken, validateServerSession]);
 
+  // Clear session on page refresh/close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      sessionStorage.removeItem(SESSION_KEY);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Inactivity monitoring
   useEffect(() => {
     if (!state.isAuthenticated) return;

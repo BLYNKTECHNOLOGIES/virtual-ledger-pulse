@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollText, RefreshCw, Search, Filter } from 'lucide-react';
+import { ScrollText, RefreshCw, Search, Filter, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 
 interface AuditLog {
   id: string;
@@ -30,8 +32,10 @@ export default function TerminalAuditLogs() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const { isTerminalAdmin } = useTerminalAuth();
+  const { visibleUserIds } = useTerminalJurisdiction();
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data } = await supabase
@@ -42,23 +46,34 @@ export default function TerminalAuditLogs() {
 
       if (!data) { setLogs([]); return; }
 
+      // Filter by jurisdiction: only show logs where performed_by or target_user_id 
+      // is within the current user's visible users (their branch)
+      const jurisdictionFiltered = isTerminalAdmin
+        ? data
+        : data.filter(d => 
+            visibleUserIds.has(d.performed_by) || 
+            (d.target_user_id && visibleUserIds.has(d.target_user_id))
+          );
+
       const userIds = new Set<string>();
-      data.forEach(d => {
+      jurisdictionFiltered.forEach(d => {
         if (d.performed_by) userIds.add(d.performed_by);
         if (d.target_user_id) userIds.add(d.target_user_id);
       });
 
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, username, first_name, last_name')
-        .in('id', Array.from(userIds));
+      const { data: users } = userIds.size > 0
+        ? await supabase
+            .from('users')
+            .select('id, username, first_name, last_name')
+            .in('id', Array.from(userIds))
+        : { data: [] };
 
       const usersMap = new Map<string, string>();
       (users || []).forEach(u => {
         usersMap.set(u.id, u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username);
       });
 
-      setLogs(data.map(d => ({
+      setLogs(jurisdictionFiltered.map(d => ({
         ...d,
         performed_by_name: usersMap.get(d.performed_by) || d.performed_by,
         target_user_name: d.target_user_id ? usersMap.get(d.target_user_id) || d.target_user_id : undefined,
@@ -68,9 +83,9 @@ export default function TerminalAuditLogs() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isTerminalAdmin, visibleUserIds]);
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
   const filteredLogs = logs.filter(log => {
     if (actionFilter !== 'all' && log.action_type !== actionFilter) return false;
@@ -96,7 +111,7 @@ export default function TerminalAuditLogs() {
   };
 
   return (
-    <TerminalPermissionGate permissions={['terminal_orders_view']}>
+    <TerminalPermissionGate permissions={['terminal_audit_logs_view']}>
       <div className="p-4 md:p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
@@ -105,7 +120,14 @@ export default function TerminalAuditLogs() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-foreground">Assignment Audit Logs</h1>
-              <p className="text-xs text-muted-foreground">Track all order assignment and reassignment actions</p>
+              <p className="text-xs text-muted-foreground">
+                Track order assignment actions
+                {!isTerminalAdmin && (
+                  <span className="inline-flex items-center gap-1 ml-2 text-amber-500">
+                    <ShieldAlert className="h-3 w-3" /> Showing your branch only
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={fetchLogs}>

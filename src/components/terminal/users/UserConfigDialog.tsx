@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler } from "lucide-react";
+import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield } from "lucide-react";
 
 interface UserProfile {
   user_id: string;
@@ -32,6 +32,12 @@ interface SizeRange {
   name: string;
   min_amount: number;
   max_amount: number | null;
+}
+
+interface TerminalRole {
+  id: string;
+  name: string;
+  hierarchy_level: number | null;
 }
 
 interface Props {
@@ -60,10 +66,20 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Role management
+  const [allRoles, setAllRoles] = useState<TerminalRole[]>([]);
+  const [currentRoleIds, setCurrentRoleIds] = useState<string[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [myHierarchyLevel, setMyHierarchyLevel] = useState<number | null>(null);
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes, supervisorMapRes] = await Promise.all([
+      // Get current user's session for hierarchy check
+      const sessionStr = localStorage.getItem("userSession");
+      const myUserId = sessionStr ? JSON.parse(sessionStr).id : null;
+
+      const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes, supervisorMapRes, rolesRes, userRolesRes, myRolesRes] = await Promise.all([
         supabase.from("terminal_user_profiles").select("*").eq("user_id", userId).maybeSingle(),
         supabase.from("users").select("id, username, first_name, last_name").eq("status", "ACTIVE"),
         supabase.from("terminal_exchange_accounts").select("id, account_name").eq("is_active", true),
@@ -71,6 +87,9 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         supabase.from("terminal_user_exchange_mappings").select("exchange_account_id").eq("user_id", userId),
         supabase.from("terminal_user_size_range_mappings").select("size_range_id").eq("user_id", userId),
         supabase.from("terminal_user_supervisor_mappings").select("supervisor_id").eq("user_id", userId),
+        supabase.rpc("list_terminal_roles"),
+        supabase.from("p2p_terminal_user_roles").select("role_id").eq("user_id", userId),
+        myUserId ? supabase.from("p2p_terminal_user_roles").select("role_id").eq("user_id", myUserId) : Promise.resolve({ data: [] }),
       ]);
 
       if (profileRes.data) {
@@ -82,6 +101,23 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           automation_included: profileRes.data.automation_included,
         });
       }
+
+      const roles: TerminalRole[] = (rolesRes.data || []).map((r: any) => ({
+        id: r.id, name: r.name, hierarchy_level: r.hierarchy_level ?? null,
+      }));
+      setAllRoles(roles);
+
+      // Determine current user's roles for this target user
+      const targetRoleIds = (userRolesRes.data || []).map((r: any) => r.role_id);
+      setCurrentRoleIds(targetRoleIds);
+      setSelectedRoleId(targetRoleIds[0] || "");
+
+      // Determine my hierarchy level (lowest number = highest rank)
+      const myRoleIds = ((myRolesRes as any).data || []).map((r: any) => r.role_id);
+      const myLevels = myRoleIds
+        .map((rid: string) => roles.find(r => r.id === rid)?.hierarchy_level)
+        .filter((l: number | null | undefined) => l !== null && l !== undefined) as number[];
+      setMyHierarchyLevel(myLevels.length > 0 ? Math.min(...myLevels) : null);
 
       setAllUsers((usersRes.data || []).filter(u => u.id !== userId));
       setExchangeAccounts(exchangeRes.data || []);
@@ -115,6 +151,23 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
         }, { onConflict: "user_id" });
 
       if (profileErr) throw profileErr;
+
+      // Update role if changed
+      if (selectedRoleId && !currentRoleIds.includes(selectedRoleId)) {
+        const sessionStr = localStorage.getItem("userSession");
+        const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+        // Remove old roles
+        for (const oldRoleId of currentRoleIds) {
+          await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: oldRoleId });
+        }
+        // Assign new role
+        const { error: roleErr } = await supabase.rpc("assign_terminal_role", {
+          p_user_id: userId,
+          p_role_id: selectedRoleId,
+          p_assigned_by: assignedBy,
+        });
+        if (roleErr) throw roleErr;
+      }
 
       // Sync supervisor mappings
       await supabase.from("terminal_user_supervisor_mappings").delete().eq("user_id", userId);
@@ -179,6 +232,30 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const getUserLabel = (u: { first_name: string | null; last_name: string | null; username: string }) =>
     u.first_name && u.last_name ? `${u.first_name} ${u.last_name} (@${u.username})` : `@${u.username}`;
 
+  // Filter roles: only show roles with hierarchy_level strictly greater than my level (lower rank)
+  const assignableRoles = allRoles.filter(r => {
+    if (myHierarchyLevel === null) return false; // can't assign if no hierarchy
+    if (myHierarchyLevel === 0) return true; // Admin can assign all
+    if (r.hierarchy_level === null) return true; // roles without level (like Viewer)
+    return r.hierarchy_level > myHierarchyLevel; // can only assign roles below
+  });
+
+  // Get target user's current hierarchy level
+  const targetHierarchyLevel = (() => {
+    const levels = currentRoleIds
+      .map(rid => allRoles.find(r => r.id === rid)?.hierarchy_level)
+      .filter((l): l is number => l !== null && l !== undefined);
+    return levels.length > 0 ? Math.min(...levels) : null;
+  })();
+
+  // Can current user change this user's role?
+  const canChangeRole = (() => {
+    if (myHierarchyLevel === null) return false;
+    if (myHierarchyLevel === 0) return true; // Admin can change anyone
+    if (targetHierarchyLevel === null) return true; // target has no hierarchy role
+    return myHierarchyLevel < targetHierarchyLevel; // can only change users below in hierarchy
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
@@ -196,6 +273,40 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           </div>
         ) : (
           <div className="space-y-5 py-2">
+            {/* Role */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5" /> Terminal Role
+              </label>
+              {canChangeRole ? (
+                <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectContent>
+                    {assignableRoles.map(r => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                        {r.hierarchy_level !== null && (
+                          <span className="text-muted-foreground ml-1">(L{r.hierarchy_level})</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {currentRoleIds.map(rid => {
+                    const role = allRoles.find(r => r.id === rid);
+                    return role ? (
+                      <Badge key={rid} variant="outline" className="text-xs bg-primary/20 text-primary border-primary/30">
+                        {role.name}
+                      </Badge>
+                    ) : null;
+                  })}
+                  <span className="text-[10px] text-muted-foreground italic">Cannot change — higher or equal rank</span>
+                </div>
+              )}
+            </div>
+
             {/* Supervisors (multi-select) */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">

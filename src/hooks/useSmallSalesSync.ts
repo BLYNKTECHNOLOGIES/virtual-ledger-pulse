@@ -89,7 +89,15 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
+  // Get rejected sync IDs so their orders can be re-synced
+  const { data: rejectedSyncs } = await supabase
+    .from('small_sales_sync')
+    .select('id')
+    .eq('sync_status', 'rejected');
+  const rejectedSyncIds = new Set((rejectedSyncs || []).map((s: any) => s.id));
+
   // Check for already-synced order numbers (batch the IN query to avoid limits)
+  // Exclude orders belonging to rejected batches — they should be re-synced
   const orderNumbers = smallOrders.map(o => o.order_number);
   const existingSet = new Set<string>();
 
@@ -97,10 +105,12 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     const batch = orderNumbers.slice(i, i + 500);
     const { data: existingMaps } = await supabase
       .from('small_sales_order_map')
-      .select('binance_order_number')
+      .select('binance_order_number, small_sales_sync_id')
       .in('binance_order_number', batch);
 
     for (const m of (existingMaps || [])) {
+      // Skip orders from rejected batches — allow them to be re-synced
+      if (rejectedSyncIds.has(m.small_sales_sync_id)) continue;
       existingSet.add(m.binance_order_number);
     }
   }

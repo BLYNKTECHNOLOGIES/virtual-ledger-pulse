@@ -109,7 +109,8 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   }
 
   // 4. FETCH COMPETITOR DATA
-  // Map terminal trade type to Binance search trade type (reversed)
+  // Map terminal trade type to Binance search trade type
+  // BUY rule → search SELL page (show buyers), SELL rule → search BUY page (show sellers)
   const binanceTradeType = rule.trade_type === "BUY" ? "SELL" : "BUY";
   const searchResult = await searchP2P(rule.asset, rule.fiat, binanceTradeType);
 
@@ -396,9 +397,9 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
 }
 
 async function searchP2P(asset: string, fiat: string, tradeType: string) {
-  // Fetch up to 200 listings to find merchants placed lower in the order book
+  // Fetch up to 500 listings (25 pages) — raw API includes many small accounts the website filters out
   const allData: any[] = [];
-  for (let page = 1; page <= 10; page++) {
+  for (let page = 1; page <= 25; page++) {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -408,6 +409,8 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
         tradeType,
         page,
         rows: 20,
+        publisherType: null,
+        payTypes: [],
       }),
     });
     const pageData = await resp.json();

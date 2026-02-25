@@ -32,23 +32,10 @@ export async function getSmallBuysConfig(): Promise<SmallBuysConfig | null> {
 }
 
 /**
- * Get the last sync timestamp from small_buys_sync_log.
- */
-async function getLastSyncTimestamp(): Promise<number | null> {
-  const { data } = await supabase
-    .from('small_buys_sync_log' as any)
-    .select('time_window_end')
-    .order('sync_started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!(data as any)?.time_window_end) return null;
-  return new Date((data as any).time_window_end).getTime();
-}
-
-/**
  * Sync small buys orders from binance_order_history.
- * Clubs BUY orders by asset and creates pending_approval records.
+ * Uses deduplication-based approach (NOT time-window) to catch late-arriving orders.
+ * Looks back LOOKBACK_DAYS and picks up any COMPLETED BUY order in the small range
+ * that hasn't already been mapped in small_buys_order_map.
  */
 export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   const config = await getSmallBuysConfig();
@@ -58,37 +45,41 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   }
 
   const now = new Date();
-  const nowMs = now.getTime();
-  const lastSyncMs = await getLastSyncTimestamp();
+  const LOOKBACK_DAYS = 7;
+  const cutoffMs = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 
-  // If never synced, default to start of today IST (UTC+5:30)
-  let windowStartMs: number;
-  if (lastSyncMs) {
-    windowStartMs = lastSyncMs;
-  } else {
-    const todayIST = new Date();
-    todayIST.setUTCHours(todayIST.getUTCHours() + 5, todayIST.getUTCMinutes() + 30);
-    todayIST.setUTCHours(0, 0, 0, 0);
-    todayIST.setUTCHours(todayIST.getUTCHours() - 5, todayIST.getUTCMinutes() - 30);
-    windowStartMs = todayIST.getTime();
+  // Fetch ALL completed BUY orders in the lookback window with pagination
+  const PAGE_SIZE = 1000;
+  let allOrders: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('binance_order_history')
+      .select('*')
+      .eq('trade_type', 'BUY')
+      .eq('order_status', 'COMPLETED')
+      .gte('create_time', cutoffMs)
+      .order('create_time', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('[SmallBuysSync] Fetch error:', error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    allOrders.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
 
-  // Fetch completed BUY orders in the time window
-  const { data: orders, error: fetchErr } = await supabase
-    .from('binance_order_history')
-    .select('*')
-    .eq('trade_type', 'BUY')
-    .eq('order_status', 'COMPLETED')
-    .gte('create_time', windowStartMs)
-    .lte('create_time', nowMs);
-
-  if (fetchErr || !orders || orders.length === 0) {
-    console.log('[SmallBuysSync] No orders in window.');
+  if (allOrders.length === 0) {
+    console.log('[SmallBuysSync] No BUY orders in lookback window.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
   // Filter by amount range
-  const smallOrders = orders.filter(o => {
+  const smallOrders = allOrders.filter(o => {
     const tp = parseFloat(o.total_price || '0');
     return tp >= config.min_amount && tp <= config.max_amount;
   });
@@ -98,14 +89,22 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
-  // Check for already-synced order numbers
+  // Check for already-synced order numbers (batch the IN query to avoid limits)
   const orderNumbers = smallOrders.map(o => o.order_number);
-  const { data: existingMaps } = await supabase
-    .from('small_buys_order_map' as any)
-    .select('binance_order_number')
-    .in('binance_order_number', orderNumbers);
+  const existingSet = new Set<string>();
 
-  const existingSet = new Set((existingMaps || []).map((m: any) => m.binance_order_number));
+  for (let i = 0; i < orderNumbers.length; i += 500) {
+    const batch = orderNumbers.slice(i, i + 500);
+    const { data: existingMaps } = await supabase
+      .from('small_buys_order_map' as any)
+      .select('binance_order_number')
+      .in('binance_order_number', batch);
+
+    for (const m of (existingMaps || [])) {
+      existingSet.add((m as any).binance_order_number);
+    }
+  }
+
   const newOrders = smallOrders.filter(o => !existingSet.has(o.order_number));
   const duplicates = smallOrders.length - newOrders.length;
 
@@ -113,6 +112,8 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     console.log('[SmallBuysSync] All orders already synced.');
     return { synced: 0, duplicates, batchId: null };
   }
+
+  console.log(`[SmallBuysSync] Found ${newOrders.length} new small buy orders (${duplicates} already synced)`);
 
   // Get active terminal wallet link
   const { data: activeLink } = await supabase
@@ -137,7 +138,7 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
 
   const batchId = `SB-${Date.now()}`;
   const userId = getCurrentUserId();
-  const windowStart = new Date(windowStartMs).toISOString();
+  const windowStart = new Date(cutoffMs).toISOString();
   const windowEnd = now.toISOString();
 
   let entriesCreated = 0;
@@ -207,6 +208,6 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     synced_by: userId || null,
   });
 
-  console.log(`[SmallBuysSync] Batch ${batchId}: ${entriesCreated} entries, ${duplicates} duplicates`);
+  console.log(`[SmallBuysSync] Batch ${batchId}: ${entriesCreated} entries, ${newOrders.length} orders, ${duplicates} duplicates`);
   return { synced: entriesCreated, duplicates, batchId };
 }

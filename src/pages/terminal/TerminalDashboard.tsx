@@ -15,6 +15,7 @@ import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
 import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -36,7 +37,7 @@ export default function TerminalDashboard() {
 
     try {
       // Run all syncs in parallel
-      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult] = await Promise.allSettled([
+      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
         // 1. Order history sync
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate(
@@ -59,10 +60,14 @@ export default function TerminalDashboard() {
         supabase.functions.invoke('binance-assets', {
           body: { action: 'syncAssetMovements', force: false },
         }).then(() => 'Asset movements synced'),
+        // 7. Spot trade sync from Binance
+        syncSpotTradesFromBinance().then(r => `Spot Trades: ${r.synced} synced`),
+        // 8. Spot trades → ERP conversions
+        syncSpotTradesToConversions().then(r => `Spot Conversions: ${r.inserted} created`).catch(() => 'Spot Conversions: skipped'),
       ]);
 
       // Collect results
-      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult]) {
+      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult]) {
         if (r.status === 'fulfilled') {
           results.push(r.value);
         } else {

@@ -1,0 +1,1 @@
+ALTER TABLE public.terminal_order_size_ranges ADD COLUMN order_type text NOT NULL DEFAULT 'BOTH';

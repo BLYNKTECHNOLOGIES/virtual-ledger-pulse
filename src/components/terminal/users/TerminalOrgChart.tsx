@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,11 +104,10 @@ function OrgCardNode({
 
       {/* Children */}
       {hasChildren && !node.collapsed && (
-        <div className="flex flex-col items-center mt-1">
-          {/* Vertical line from parent */}
-          <div className="w-px h-6 bg-border" />
+        <div className="flex flex-col items-center">
+          {/* Vertical line from parent to horizontal bar */}
+          <div className="w-px h-8 bg-border" />
 
-          {/* Horizontal connector + children */}
           {node.children.length === 1 ? (
             <OrgCardNode
               node={node.children[0]}
@@ -116,25 +115,20 @@ function OrgCardNode({
               searchQuery={searchQuery}
             />
           ) : (
-            <div className="relative">
-              {/* Horizontal line */}
-              <div className="absolute top-0 left-0 right-0 h-px bg-border" style={{
-                left: `calc(50% / ${node.children.length} * 1)`,
-                right: `calc(50% / ${node.children.length} * 1)`,
-                width: 'auto',
-              }} />
-              <div className="flex items-start gap-6 relative">
-                {/* Top horizontal connector */}
-                <div
-                  className="absolute top-0 h-px bg-border"
-                  style={{
-                    left: `${100 / (2 * node.children.length)}%`,
-                    right: `${100 / (2 * node.children.length)}%`,
-                  }}
-                />
-                {node.children.map((child) => (
-                  <div key={child.userId} className="flex flex-col items-center">
-                    {/* Vertical line to child */}
+            <div className="flex flex-col items-center">
+              {/* Horizontal bar connecting all children */}
+              <div className="flex items-start gap-4">
+                {node.children.map((child, idx) => (
+                  <div key={child.userId} className="flex flex-col items-center relative">
+                    {/* Horizontal connector bar */}
+                    <div
+                      className="absolute top-0 h-px bg-border"
+                      style={{
+                        left: idx === 0 ? '50%' : 0,
+                        right: idx === node.children.length - 1 ? '50%' : 0,
+                      }}
+                    />
+                    {/* Vertical line down to child card */}
                     <div className="w-px h-6 bg-border" />
                     <OrgCardNode
                       node={child}
@@ -160,7 +154,9 @@ export function TerminalOrgChart() {
   const [searchQuery, setSearchQuery] = useState("");
   const [managerFilter, setManagerFilter] = useState("all");
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
 
   const fetchHierarchy = useCallback(async () => {
     setIsLoading(true);
@@ -316,166 +312,241 @@ export function TerminalOrgChart() {
 
   const handleZoomIn = () => setZoom(z => Math.min(z + 0.15, 2));
   const handleZoomOut = () => setZoom(z => Math.max(z - 0.15, 0.3));
-  const handleReset = () => setZoom(1);
+  const handleFullscreen = () => setIsFullscreen(f => !f);
+
+  // Close fullscreen on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isFullscreen]);
+
+  const chartContent = (
+    <>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-24">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        </div>
+      ) : filteredTree.length === 0 && orphanNodes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
+          <Users className="h-10 w-10 opacity-20" />
+          <p className="text-sm">No hierarchy configured yet.</p>
+          <p className="text-xs">Assign roles and set supervisor mappings to build the org chart.</p>
+        </div>
+      ) : (
+        <div
+          ref={containerRef}
+          className="overflow-auto p-8"
+          style={{ maxHeight: isFullscreen ? "100%" : "70vh", height: isFullscreen ? "100%" : undefined }}
+        >
+          <div
+            className="flex flex-col items-center gap-0 min-w-max"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: "top center",
+              transition: "transform 0.2s ease",
+            }}
+          >
+            {/* Connected tree */}
+            {filteredTree.map(node => (
+              <OrgCardNode
+                key={node.userId}
+                node={node}
+                onToggle={toggleNode}
+                searchQuery={searchQuery}
+              />
+            ))}
+
+            {/* Orphan nodes shown separately below with a divider */}
+            {orphanNodes.length > 0 && filteredTree.length > 0 && (
+              <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
+                <div className="flex items-center gap-2 mb-4 text-xs text-destructive font-semibold">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Disconnected Users (No Supervisor Assigned)
+                </div>
+                <div className="flex items-start gap-6 flex-wrap justify-center">
+                  {orphanNodes.map(node => (
+                    <OrgCardNode
+                      key={node.userId}
+                      node={node}
+                      onToggle={toggleNode}
+                      searchQuery={searchQuery}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filteredTree.length === 0 && orphanNodes.length > 0 && (
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2 text-xs text-destructive font-semibold">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  All users are disconnected — assign supervisors to build the hierarchy
+                </div>
+                <div className="flex items-start gap-6 flex-wrap justify-center">
+                  {orphanNodes.map(node => (
+                    <OrgCardNode
+                      key={node.userId}
+                      node={node}
+                      onToggle={toggleNode}
+                      searchQuery={searchQuery}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const zoomControls = (
+    <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
+      <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomIn}>
+        <ZoomIn className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomOut}>
+        <ZoomOut className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleFullscreen}>
+        <Maximize2 className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Reporting Managers:</span>
-            <Select value={managerFilter} onValueChange={setManagerFilter}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">All</SelectItem>
-                {managers.map(m => (
-                  <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>
+    <>
+      {/* Fullscreen overlay */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold">Organization Chart</h2>
+              <span className="text-[11px] text-muted-foreground">{totalUsers} users</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="h-8 pl-7 w-[160px] text-xs bg-secondary border-border"
+                />
+              </div>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleFullscreen}>
+                <Maximize2 className="h-3.5 w-3.5" />
+                Exit Fullscreen
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 relative overflow-hidden">
+            {zoomControls}
+            <div className="h-full overflow-auto p-8">
+              <div
+                className="flex flex-col items-center gap-0 min-w-max"
+                style={{
+                  transform: `scale(${zoom})`,
+                  transformOrigin: "top center",
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                {filteredTree.map(node => (
+                  <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="h-8 pl-7 w-[160px] text-xs bg-secondary border-border"
-            />
-          </div>
-
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchHierarchy}>
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </div>
-
-      <p className="text-[11px] text-muted-foreground">
-        Terminal organization chart based on supervisor mappings. {totalUsers} user{totalUsers !== 1 ? "s" : ""}.
-      </p>
-
-      {/* Orphan Warning Banner */}
-      {orphanNodes.length > 0 && (
-        <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/40 bg-destructive/5">
-          <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-destructive">
-              Broken Chain Detected — {orphanNodes.length} user{orphanNodes.length !== 1 ? "s" : ""} without a supervisor
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              The following users have no reporting manager assigned and are disconnected from the hierarchy. 
-              Assign a supervisor in Users &amp; Roles to fix.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {orphanNodes.map(n => (
-                <Badge key={n.userId} variant="destructive" className="text-[10px] gap-1">
-                  <Link2Off className="h-2.5 w-2.5" />
-                  {n.displayName} ({n.roleName})
-                </Badge>
-              ))}
+                {orphanNodes.length > 0 && filteredTree.length > 0 && (
+                  <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
+                    <div className="flex items-center gap-2 mb-4 text-xs text-destructive font-semibold">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Disconnected Users
+                    </div>
+                    <div className="flex items-start gap-6 flex-wrap justify-center">
+                      {orphanNodes.map(node => (
+                        <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Chart Container */}
-      <div className="relative border border-border rounded-lg bg-muted/5 overflow-hidden" style={{ minHeight: "400px" }}>
-        {/* Zoom controls */}
-        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomIn}>
-            <ZoomIn className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleZoomOut}>
-            <ZoomOut className="h-3.5 w-3.5" />
-          </Button>
-          <Button variant="outline" size="icon" className="h-7 w-7" onClick={handleReset}>
-            <Maximize2 className="h-3.5 w-3.5" />
-          </Button>
+      <div className="space-y-4">
+        {/* Controls */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Reporting Managers:</span>
+              <Select value={managerFilter} onValueChange={setManagerFilter}>
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All</SelectItem>
+                  {managers.map(m => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="h-8 pl-7 w-[160px] text-xs bg-secondary border-border"
+              />
+            </div>
+
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchHierarchy}>
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center py-24">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
-          </div>
-        ) : filteredTree.length === 0 && orphanNodes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
-            <Users className="h-10 w-10 opacity-20" />
-            <p className="text-sm">No hierarchy configured yet.</p>
-            <p className="text-xs">Assign roles and set supervisor mappings to build the org chart.</p>
-          </div>
-        ) : (
-          <div
-            ref={containerRef}
-            className="overflow-auto p-8"
-            style={{ maxHeight: "70vh" }}
-          >
-            <div
-              className="flex flex-col items-center gap-0 min-w-max"
-              style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "top center",
-                transition: "transform 0.2s ease",
-              }}
-            >
-              {/* Connected tree */}
-              {filteredTree.map(node => (
-                <OrgCardNode
-                  key={node.userId}
-                  node={node}
-                  onToggle={toggleNode}
-                  searchQuery={searchQuery}
-                />
-              ))}
+        <p className="text-[11px] text-muted-foreground">
+          Terminal organization chart based on supervisor mappings. {totalUsers} user{totalUsers !== 1 ? "s" : ""}.
+        </p>
 
-              {/* Orphan nodes shown separately below with a divider */}
-              {orphanNodes.length > 0 && filteredTree.length > 0 && (
-                <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
-                  <div className="flex items-center gap-2 mb-4 text-xs text-destructive font-semibold">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    Disconnected Users (No Supervisor Assigned)
-                  </div>
-                  <div className="flex items-start gap-6 flex-wrap justify-center">
-                    {orphanNodes.map(node => (
-                      <OrgCardNode
-                        key={node.userId}
-                        node={node}
-                        onToggle={toggleNode}
-                        searchQuery={searchQuery}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Only orphans, no connected tree */}
-              {filteredTree.length === 0 && orphanNodes.length > 0 && (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex items-center gap-2 text-xs text-destructive font-semibold">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    All users are disconnected — assign supervisors to build the hierarchy
-                  </div>
-                  <div className="flex items-start gap-6 flex-wrap justify-center">
-                    {orphanNodes.map(node => (
-                      <OrgCardNode
-                        key={node.userId}
-                        node={node}
-                        onToggle={toggleNode}
-                        searchQuery={searchQuery}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* Orphan Warning Banner */}
+        {orphanNodes.length > 0 && (
+          <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/40 bg-destructive/5">
+            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-destructive">
+                Broken Chain Detected — {orphanNodes.length} user{orphanNodes.length !== 1 ? "s" : ""} without a supervisor
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                The following users have no reporting manager assigned and are disconnected from the hierarchy. 
+                Assign a supervisor in Users &amp; Roles to fix.
+              </p>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {orphanNodes.map(n => (
+                  <Badge key={n.userId} variant="destructive" className="text-[10px] gap-1">
+                    <Link2Off className="h-2.5 w-2.5" />
+                    {n.displayName} ({n.roleName})
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
         )}
+
+        {/* Chart Container */}
+        <div ref={chartWrapperRef} className="relative border border-border rounded-lg bg-muted/5 overflow-hidden" style={{ minHeight: "400px" }}>
+          {zoomControls}
+          {chartContent}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, ReactNode, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Settings, RefreshCw, BarChart3, Activity, Zap, Target, Award, Calendar, Package, Building, GripVertical, CloudDownload } from "lucide-react";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useAuth } from "@/hooks/useAuth";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
@@ -19,6 +19,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
+import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
+import { syncSmallSales } from '@/hooks/useSmallSalesSync';
+import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+import { useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
+import { toast as sonnerToast } from 'sonner';
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
@@ -436,6 +442,8 @@ export default function Dashboard() {
   };
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [universalSyncing, setUniversalSyncing] = useState(false);
+  const syncMutation = useSyncOrderHistory();
 
   const handleRefreshDashboard = async () => {
     setIsRefreshing(true);
@@ -453,6 +461,55 @@ export default function Dashboard() {
       setIsRefreshing(false);
     }
   };
+
+  const handleUniversalSync = useCallback(async () => {
+    setUniversalSyncing(true);
+    sonnerToast.info('Universal sync started — syncing orders, purchases, sales, assets...');
+
+    const results: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult] = await Promise.allSettled([
+        new Promise<string>((resolve, reject) => {
+          syncMutation.mutate(
+            { fullSync: false },
+            {
+              onSuccess: () => resolve('Orders synced'),
+              onError: (err: any) => reject(err?.message || 'Order sync failed'),
+            }
+          );
+        }),
+        syncCompletedBuyOrders().then(r => `Purchases: ${r.synced} synced, ${r.duplicates} skipped`),
+        syncCompletedSellOrders().then(r => `Sales: ${r.synced} synced, ${r.duplicates} skipped`),
+        syncSmallSales().then(r => `Small Sales: ${r.synced} synced`).catch(() => 'Small Sales: skipped (not configured)'),
+        syncSmallBuys().then(r => `Small Buys: ${r.synced} synced`).catch(() => 'Small Buys: skipped (not configured)'),
+        supabase.functions.invoke('binance-assets', {
+          body: { action: 'syncAssetMovements', force: false },
+        }).then(() => 'Asset movements synced'),
+      ]);
+
+      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult]) {
+        if (r.status === 'fulfilled') results.push(r.value);
+        else errors.push(String(r.reason));
+      }
+
+      if (errors.length === 0) {
+        sonnerToast.success('Universal sync complete', { description: results.join(' · ') });
+      } else {
+        sonnerToast.warning(`Sync partially complete (${errors.length} errors)`, {
+          description: [...results, ...errors.map(e => `❌ ${e}`)].join(' · '),
+        });
+      }
+    } catch (err: any) {
+      sonnerToast.error('Universal sync failed', { description: err.message });
+    } finally {
+      setUniversalSyncing(false);
+      refetchMetrics();
+      refetchWarehouseStock();
+      refetchActivity();
+    }
+  }, [syncMutation, refetchMetrics, refetchWarehouseStock, refetchActivity]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-3 md:p-6">
@@ -526,6 +583,17 @@ export default function Dashboard() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={handleUniversalSync}
+                  disabled={universalSyncing || syncMutation.isPending}
+                  className="bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 shadow-sm flex-shrink-0"
+                  title="Universal Sync — orders, purchases, sales, assets from Binance"
+                >
+                  <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
+                  <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
                   className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm flex-shrink-0"
@@ -538,6 +606,14 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Universal Sync Indicator */}
+      {universalSyncing && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 border border-blue-200 text-xs text-blue-700 mb-4">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          Universal sync in progress — orders, purchases, sales, assets...
+        </div>
+      )}
 
       {/* Edit Mode Banner */}
       {isEditMode && (

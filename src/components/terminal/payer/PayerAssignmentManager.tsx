@@ -241,7 +241,7 @@ export function PayerAssignmentManager() {
                     <TableCell className="py-2">
                       <span className="text-xs text-muted-foreground">
                         {a.assignment_type === 'size_range' && a.size_range
-                          ? `${a.size_range.name} (${a.size_range.min_amount.toLocaleString()}–${a.size_range.max_amount.toLocaleString()})`
+                          ? `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`
                           : a.ad_id || '—'}
                       </span>
                     </TableCell>

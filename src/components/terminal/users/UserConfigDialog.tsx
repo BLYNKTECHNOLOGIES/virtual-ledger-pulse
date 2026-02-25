@@ -13,6 +13,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield } from "lucide-react";
+import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 
 interface UserProfile {
   user_id: string;
@@ -50,6 +51,7 @@ interface Props {
 }
 
 export function UserConfigDialog({ open, onOpenChange, userId, username, displayName, onSaved }: Props) {
+  const { isTerminalAdmin } = useTerminalAuth();
   const [profile, setProfile] = useState<UserProfile>({
     user_id: userId,
     specialization: "both",
@@ -261,8 +263,9 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
   // Can current user change this user's role?
   const canChangeRole = (() => {
+    // Super Admin from ERP always has full control
+    if (isTerminalAdmin) return true;
     if (myHierarchyLevel === null) return false;
-    
     // Super Admin (-1) can change anyone
     if (myHierarchyLevel < 0) return true;
 

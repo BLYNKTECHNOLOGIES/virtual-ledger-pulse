@@ -293,15 +293,35 @@ async function processAsset(
     if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
-    // FLOATING mode
-    const refInr = marketReferencePrice || competitorPrice;
-    const baseRatio = (competitorPrice / refInr) * 100;
+    // FLOATING mode — we need Binance's actual P2P index to compute accurate ratios.
+    // Our marketReferencePrice (coinUsdt × CoinGecko USDT/INR) ≠ Binance's index.
+    // Best approach: infer Binance's index from our own ad's current displayed price & ratio.
+    let binanceIndex = marketReferencePrice || competitorPrice;
 
-    if (rule.offset_direction === "OVERCUT") {
-      newRatio = baseRatio + offsetPct;
-    } else {
-      newRatio = baseRatio - offsetPct;
+    // Try to infer the real Binance index from the first ad we'll update
+    const firstAdNo = adNumbers[0];
+    if (firstAdNo) {
+      try {
+        const inferredIndex = await inferBinanceIndex(firstAdNo, supabase);
+        if (inferredIndex && inferredIndex > 0) {
+          console.log(`[FLOATING] Inferred Binance index for ${asset}: ₹${inferredIndex.toFixed(2)} (vs our ref ₹${(marketReferencePrice || 0).toFixed(2)})`);
+          binanceIndex = inferredIndex;
+        }
+      } catch (e) {
+        console.error(`[FLOATING] Failed to infer Binance index for ${asset}:`, e);
+      }
     }
+
+    // Calculate desired price from competitor + offset
+    let desiredPrice: number;
+    if (rule.offset_direction === "OVERCUT") {
+      desiredPrice = competitorPrice * (1 + offsetPct / 100);
+    } else {
+      desiredPrice = competitorPrice * (1 - offsetPct / 100);
+    }
+
+    // Compute ratio that produces desiredPrice on Binance: ratio = desiredPrice / binanceIndex * 100
+    newRatio = (desiredPrice / binanceIndex) * 100;
 
     if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio) {
       const delta = Math.abs(newRatio - rule.last_applied_ratio);
@@ -528,4 +548,43 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
   } catch { /* fallback */ }
 
   return 84.5;
+}
+
+/**
+ * Infer Binance's actual P2P index price by fetching our own ad's
+ * current displayed price and floating ratio.
+ * Formula: index = displayedPrice / (floatingRatio / 100)
+ */
+async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | null> {
+  const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const resp = await fetch(binanceAdsUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ action: "getAdDetail", adsNo: adNo }),
+  });
+  const result = await resp.json();
+
+  // Navigate Binance response structure
+  const adData = result?.data?.data || result?.data;
+  if (!adData) return null;
+
+  const price = parseFloat(adData.price || adData.adDetailResp?.price || "0");
+  const ratio = parseFloat(adData.priceFloatingRatio || adData.adDetailResp?.priceFloatingRatio || "0");
+  const priceType = adData.priceType ?? adData.adDetailResp?.priceType;
+
+  // Only infer index if ad is currently using floating pricing (priceType 2)
+  if (priceType === 2 && ratio > 0 && price > 0) {
+    const index = price / (ratio / 100);
+    console.log(`[inferBinanceIndex] Ad ${adNo}: price=${price}, ratio=${ratio}, inferred index=${index.toFixed(2)}`);
+    return index;
+  }
+
+  // If ad is FIXED or no ratio, we can't infer the index
+  console.log(`[inferBinanceIndex] Ad ${adNo}: priceType=${priceType}, cannot infer index`);
+  return null;
 }

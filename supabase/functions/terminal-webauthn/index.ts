@@ -244,17 +244,19 @@ Deno.serve(async (req) => {
           return errorResponse('Admin credential not found', 403);
         }
 
-        // Verify admin_user_id is actually a terminal admin
-        const { data: adminRoles } = await supabase.rpc('get_terminal_user_roles', {
-          p_user_id: admin_user_id,
-        });
-        const isAdmin = (adminRoles || []).some(
-          (r: { role_name: string }) => r.role_name.toLowerCase() === 'admin'
+        // Verify admin_user_id is actually a Super Admin (ERP role check)
+        const { data: erpRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', admin_user_id);
+        
+        const isSuperAdmin = (erpRoles || []).some(
+          (r: { role: string }) => r.role === 'super_admin'
         );
-        if (!isAdmin) {
+        if (!isSuperAdmin) {
           await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_FAILED',
-            'Non-admin user attempted admin override', { admin_user_id });
-          return errorResponse('Only admins can unlock other users terminals', 403);
+            'Non-super-admin user attempted override', { admin_user_id });
+          return errorResponse('Only Super Admins can unlock other users terminals', 403);
         }
 
         // Update sign count for admin's credential

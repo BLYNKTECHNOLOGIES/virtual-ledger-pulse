@@ -39,6 +39,7 @@ interface TerminalAuthContextType {
   hasPermission: (perm: TerminalPermission) => boolean;
   hasAnyPermission: (perms: TerminalPermission[]) => boolean;
   isTerminalAdmin: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
   refetch: () => Promise<void>;
 }
@@ -168,6 +169,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     hasPermission,
     hasAnyPermission,
     isTerminalAdmin,
+    isSuperAdmin,
     isLoading: parentLoading || isLoading,
     refetch: fetchTerminalAuth,
   };

@@ -18,7 +18,7 @@ interface BiometricAuthGateProps {
 }
 
 export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
-  const { userId, isTerminalAdmin } = useTerminalAuth();
+  const { userId, isTerminalAdmin, isSuperAdmin } = useTerminalAuth();
   const { isAuthenticated, isLoading, setSession } = useTerminalBiometricSession(userId);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
@@ -197,7 +197,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
           )}
         </Button>
 
-        {isTerminalAdmin && (
+        {isSuperAdmin && (
           <Button
             variant="outline"
             size="sm"
@@ -206,7 +206,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
             className="gap-2 text-xs"
           >
             <Shield className="h-3.5 w-3.5" />
-            Admin Override (Use Admin Fingerprint)
+            Super Admin Override (Use Your Fingerprint)
           </Button>
         )}
 

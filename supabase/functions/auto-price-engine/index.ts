@@ -219,26 +219,11 @@ async function processAsset(
   }
 
   // 5. MARKET VALIDATION
-  // Use the P2P median price as market reference for deviation checks.
-  // This is apples-to-apples: comparing competitor P2P price against other P2P prices.
-  // The old approach (coinUsdt × CoinGecko USDT/INR) used a spot/forex rate (~₹84.5)
-  // which is ~10-12% below P2P effective rates (~₹90), causing false deviation alerts.
+  // Market ref = coinUsdt × usdtInr (P2P rate)
   let marketReferencePrice: number | null = null;
   let deviationPct: number | null = null;
 
-  const allP2PPrices = searchResult.data
-    .map((item: any) => parseFloat(item.adv?.price || "0"))
-    .filter((p: number) => p > 0)
-    .sort((a: number, b: number) => a - b);
-
-  if (allP2PPrices.length >= 3) {
-    // Use median of P2P listings as the market reference
-    const midIdx = Math.floor(allP2PPrices.length / 2);
-    marketReferencePrice = allP2PPrices.length % 2 === 0
-      ? (allP2PPrices[midIdx - 1] + allP2PPrices[midIdx]) / 2
-      : allP2PPrices[midIdx];
-    console.log(`[MarketRef] ${asset}: P2P median ₹${marketReferencePrice.toFixed(2)} from ${allP2PPrices.length} listings`);
-  } else if (asset === "USDT") {
+  if (asset === "USDT") {
     marketReferencePrice = usdtInr;
   } else {
     const coinUsdt = await fetchCoinUsdtRate(asset);
@@ -531,41 +516,42 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
-  // Use the fetch-usdt-rate edge function (CoinGecko / Binance ticker) for actual market rate
-  // This is the same source used by Hybrid Adjust in Ad Manager
+  // Fetch USDT/INR P2P sell-side rate (this is the actual trading rate ~90-91)
+  try {
+    const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ asset: "USDT", fiat: "INR", tradeType: "SELL", page: 1, rows: 10, publisherType: "merchant" }),
+    });
+    const data = await resp.json();
+    if (data?.data?.length > 0) {
+      const prices = data.data.map((d: any) => parseFloat(d.adv?.price || "0")).filter((p: number) => p > 0);
+      if (prices.length > 0) {
+        // Use median of top merchant SELL prices
+        prices.sort((a: number, b: number) => a - b);
+        const mid = Math.floor(prices.length / 2);
+        const rate = prices.length % 2 === 0 ? (prices[mid - 1] + prices[mid]) / 2 : prices[mid];
+        console.log(`[fetchUsdtInr] P2P merchant median: ${rate.toFixed(2)}`);
+        return rate;
+      }
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] P2P fetch failed:", e);
+  }
+
+  // Fallback: fetch-usdt-rate edge function
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resp = await fetch(`${supabaseUrl}/functions/v1/fetch-usdt-rate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${anonKey}`,
-      },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
     });
     const data = await resp.json();
-    if (data?.rate && data.rate > 0) {
-      console.log(`[fetchUsdtInr] Got rate ${data.rate} from ${data.source}`);
-      return data.rate;
-    }
-  } catch (e) {
-    console.error("[fetchUsdtInr] fetch-usdt-rate call failed:", e);
-  }
-
-  // Fallback: CoinGecko direct call
-  try {
-    const cgResp = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
-      { headers: { Accept: "application/json" } }
-    );
-    const cgData = await cgResp.json();
-    if (cgData?.tether?.inr) {
-      console.log(`[fetchUsdtInr] CoinGecko fallback: ${cgData.tether.inr}`);
-      return cgData.tether.inr;
-    }
+    if (data?.rate && data.rate > 0) return data.rate;
   } catch { /* fallback */ }
 
-  return 84.5;
+  return 90;
 }
 
 /**

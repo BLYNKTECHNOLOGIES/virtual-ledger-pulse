@@ -55,6 +55,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
   const { user, isLoading: parentLoading } = useAuth();
   const [terminalRoles, setTerminalRoles] = useState<TerminalRole[]>([]);
   const [terminalPermissions, setTerminalPermissions] = useState<TerminalPermission[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchTerminalAuth = useCallback(async () => {
@@ -62,6 +63,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     if (!user?.id) {
       setTerminalRoles([]);
       setTerminalPermissions([]);
+      setIsSuperAdmin(false);
       setIsLoading(false);
       return;
     }
@@ -74,12 +76,15 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       if (!uuidRegex.test(user.id)) {
         setTerminalRoles([]);
         setTerminalPermissions([]);
+        setIsSuperAdmin(false);
         return;
       }
 
-      const [rolesRes, permsRes] = await Promise.all([
+      // Fetch terminal roles, permissions, AND check ERP role from DB directly
+      const [rolesRes, permsRes, erpRolesRes] = await Promise.all([
         supabase.rpc('get_terminal_user_roles', { p_user_id: user.id }),
         supabase.rpc('get_terminal_permissions', { p_user_id: user.id }),
+        supabase.rpc('get_user_with_roles', { user_uuid: user.id }),
       ]);
 
       if (rolesRes.data && Array.isArray(rolesRes.data)) {
@@ -94,10 +99,27 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       } else {
         setTerminalPermissions([]);
       }
+
+      // Check Super Admin from DB roles (not cached session)
+      let dbIsSuperAdmin = false;
+      if (erpRolesRes.data && Array.isArray(erpRolesRes.data) && erpRolesRes.data.length > 0) {
+        const erpUser = erpRolesRes.data[0] as any;
+        if (erpUser.roles && Array.isArray(erpUser.roles)) {
+          dbIsSuperAdmin = erpUser.roles.some((r: any) => {
+            const name = typeof r === 'string' ? r : r.name;
+            return name?.toLowerCase() === 'super admin';
+          });
+        }
+      }
+      // Also check from cached session as fallback
+      const sessionIsSuperAdmin = user?.roles?.some(r => r.toLowerCase() === 'super admin') || false;
+      setIsSuperAdmin(dbIsSuperAdmin || sessionIsSuperAdmin);
+
     } catch (err) {
       console.error('Error fetching terminal auth:', err);
       setTerminalRoles([]);
       setTerminalPermissions([]);
+      setIsSuperAdmin(false);
     } finally {
       setIsLoading(false);
     }
@@ -107,7 +129,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     fetchTerminalAuth();
   }, [fetchTerminalAuth]);
 
-  const isSuperAdmin = user?.roles?.some(r => r.toLowerCase() === 'super admin') || false;
+  // isSuperAdmin is now managed as state, set during fetchTerminalAuth
 
   const isTerminalAdmin = isSuperAdmin || terminalRoles.some(
     (r) => r.role_name.toLowerCase() === 'admin' || r.role_name.toLowerCase() === 'super admin'

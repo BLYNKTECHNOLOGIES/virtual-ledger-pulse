@@ -99,6 +99,13 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
         return;
       }
 
+      // Check if admin has registered their own biometric credentials
+      const adminHasCreds = await checkCredentials(adminId);
+      if (!adminHasCreds) {
+        toast.error('Admin fingerprint not registered. Please register your fingerprint first via your own terminal session.');
+        return;
+      }
+
       // Admin authenticates with their own fingerprint, but session is created for target user
       const sessionToken = await authenticateBiometric(userId, adminId);
       setSession(sessionToken);
@@ -106,7 +113,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     } catch (err: any) {
       console.error('Admin override error:', err);
       if (err.name === 'NotAllowedError') {
-        toast.error('Biometric verification was cancelled or timed out');
+        toast.error('Admin biometric verification was cancelled or timed out. Ensure your fingerprint is registered.');
       } else {
         toast.error(err.message || 'Admin override failed');
       }

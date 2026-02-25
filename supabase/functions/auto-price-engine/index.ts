@@ -118,7 +118,7 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   // Process each asset independently
   for (const currentAsset of assetsToProcess) {
     try {
-      const result = await processAsset(rule, currentAsset, assetConfig[currentAsset] || {}, binanceTradeType, usdtInr, excludedSet, supabase, now);
+      const result = await processAsset(rule, currentAsset, assetConfig[currentAsset] || {}, binanceTradeType, usdtInr, excludedSet, supabase, now, assetsToProcess.length);
       allResults.push(result);
     } catch (assetErr) {
       console.error(`Rule ${rule.id} asset ${currentAsset} error:`, assetErr);
@@ -129,6 +129,14 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
         error_message: (assetErr as Error).message,
       });
       allResults.push({ asset: currentAsset, status: "error", error: (assetErr as Error).message });
+    }
+  }
+
+  // For multi-asset rules: if ALL assets were skipped due to no_merchant/no_listings, pause the whole rule
+  if (assetsToProcess.length > 1 && rule.pause_if_no_merchant_found) {
+    const allSkippedNoMerchant = allResults.every(r => r.status === "skipped" && (r.reason === "no_merchant" || r.reason === "no_listings"));
+    if (allSkippedNoMerchant) {
+      await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
   }
 
@@ -150,13 +158,14 @@ async function processAsset(
   usdtInr: number,
   excludedSet: Set<string>,
   supabase: any,
-  now: Date
+  now: Date,
+  totalAssets: number = 1
 ) {
   // 4. FETCH COMPETITOR DATA for this asset
   const searchResult = await searchP2P(asset, rule.fiat, binanceTradeType);
 
   if (!searchResult || !searchResult.data || searchResult.data.length === 0) {
-    if (rule.pause_if_no_merchant_found) {
+    if (rule.pause_if_no_merchant_found && totalAssets === 1) {
       await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
     await supabase.from("ad_pricing_logs").insert({
@@ -188,7 +197,7 @@ async function processAsset(
   }
 
   if (!matchedMerchant || !competitorPrice) {
-    if (rule.pause_if_no_merchant_found) {
+    if (rule.pause_if_no_merchant_found && totalAssets === 1) {
       await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
     await supabase.from("ad_pricing_logs").insert({

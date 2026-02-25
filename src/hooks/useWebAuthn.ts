@@ -111,25 +111,51 @@ export async function authenticateBiometric(
 
   const challengeData = await callWebAuthn('challenge', challengeBody);
 
-  const allowCredentials = (challengeData.allowCredentials || []).map(
+  const serverCredentials = (challengeData.allowCredentials || []).map(
     (c: { id: string }) => ({
       id: base64urlToBuffer(c.id),
       type: 'public-key' as const,
     })
   );
 
-  // 2. Get assertion via browser API
-  const publicKeyOptions: PublicKeyCredentialRequestOptions = {
+  // 2. Try authentication - first with specific credentials, fallback to discoverable
+  const publicKeyBase: Omit<PublicKeyCredentialRequestOptions, 'allowCredentials'> = {
     challenge: base64urlToBuffer(challengeData.challenge),
     rpId: window.location.hostname,
-    allowCredentials,
     userVerification: 'required',
     timeout: 60000,
   };
 
-  const assertion = await navigator.credentials.get({
-    publicKey: publicKeyOptions,
-  }) as PublicKeyCredential;
+  let assertion: PublicKeyCredential | null = null;
+
+  // Try with specific allowCredentials first
+  if (serverCredentials.length > 0) {
+    try {
+      assertion = await navigator.credentials.get({
+        publicKey: { ...publicKeyBase, allowCredentials: serverCredentials },
+      }) as PublicKeyCredential;
+    } catch (firstErr: any) {
+      console.warn('Auth with specific credentials failed, trying discoverable:', firstErr.name);
+      // If user cancelled, don't retry
+      if (firstErr.name === 'NotAllowedError') {
+        // Try once more without allowCredentials to show all options (QR, etc.)
+        try {
+          assertion = await navigator.credentials.get({
+            publicKey: { ...publicKeyBase, allowCredentials: [] },
+          }) as PublicKeyCredential;
+        } catch (retryErr) {
+          throw retryErr; // throw the retry error
+        }
+      } else {
+        throw firstErr;
+      }
+    }
+  } else {
+    // No server credentials - use discoverable mode
+    assertion = await navigator.credentials.get({
+      publicKey: { ...publicKeyBase, allowCredentials: [] },
+    }) as PublicKeyCredential;
+  }
 
   if (!assertion) throw new Error('Authentication cancelled');
 

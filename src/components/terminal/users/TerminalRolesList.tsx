@@ -81,7 +81,7 @@ const PERMISSION_GROUPS: Record<string, { label: string; permissions: { key: Ter
 };
 
 export function TerminalRolesList() {
-  const { hasPermission, userId } = useTerminalAuth();
+  const { hasPermission, userId, isTerminalAdmin } = useTerminalAuth();
   const canManage = hasPermission("terminal_users_manage");
 
   const [roles, setRoles] = useState<Role[]>([]);
@@ -117,7 +117,8 @@ export function TerminalRolesList() {
   /** Can the current user edit this role? Admin (level 0) can edit everything including itself. Others can only edit roles strictly below them. */
   const canEditRole = (role: Role): boolean => {
     if (!canManage) return false;
-    // Super Admin (< 0) has full rights to edit any role including itself
+    // ERP Super Admin or terminal Super Admin (< 0) has full rights
+    if (isTerminalAdmin) return true;
     if (myHierarchyLevel !== null && myHierarchyLevel < 0) return true;
 
     // Admin (0) can edit roles with level >= 0 (cannot edit Super Admin role)

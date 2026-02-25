@@ -16,7 +16,6 @@ serve(async (req) => {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Check if a single rule was requested (manual trigger)
   let singleRuleId: string | null = null;
   try {
     const body = await req.json();
@@ -24,7 +23,6 @@ serve(async (req) => {
   } catch { /* empty body for cron */ }
 
   try {
-    // Fetch active rules (or single rule for manual trigger)
     let query = supabase.from("ad_pricing_rules").select("*");
     if (singleRuleId) {
       query = query.eq("id", singleRuleId);
@@ -39,7 +37,6 @@ serve(async (req) => {
       });
     }
 
-    // Fetch excluded ads
     const { data: exclusions } = await supabase.from("ad_automation_exclusions").select("adv_no");
     const excludedSet = new Set((exclusions || []).map((e: any) => e.adv_no));
 
@@ -47,11 +44,10 @@ serve(async (req) => {
 
     for (const rule of rules) {
       try {
-        const logEntry = await processRule(rule, excludedSet, supabase);
-        results.push({ ruleId: rule.id, ...logEntry });
+        const logEntries = await processRule(rule, excludedSet, supabase);
+        results.push({ ruleId: rule.id, results: logEntries });
       } catch (err) {
         console.error(`Rule ${rule.id} error:`, err);
-        // Increment consecutive errors
         await supabase.from("ad_pricing_rules").update({
           last_checked_at: new Date().toISOString(),
           last_error: (err as Error).message,
@@ -75,20 +71,19 @@ serve(async (req) => {
 
 async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000; // IST = UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
   const istNow = new Date(now.getTime() + istOffset);
-  const currentTimeStr = istNow.toISOString().slice(11, 19); // HH:MM:SS
+  const currentTimeStr = istNow.toISOString().slice(11, 19);
 
   // 1. CHECK SCHEDULING
   if (rule.active_hours_start && rule.active_hours_end) {
     const inWindow = currentTimeStr >= rule.active_hours_start && currentTimeStr <= rule.active_hours_end;
     if (!inWindow) {
-      // Set resting price if configured
       if (rule.resting_price || rule.resting_ratio) {
-        await applyRestingPrice(rule, excludedSet, supabase);
+        await applyRestingPriceMultiAsset(rule, excludedSet, supabase);
       }
       await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "outside_hours" });
-      return { status: "skipped", reason: "outside_hours" };
+      return [{ status: "skipped", reason: "outside_hours" }];
     }
   }
 
@@ -97,7 +92,7 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     const cooldownEnd = new Date(new Date(rule.last_manual_edit_at).getTime() + rule.manual_override_cooldown_minutes * 60000);
     if (now < cooldownEnd) {
       await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "cooldown" });
-      return { status: "skipped", reason: "cooldown" };
+      return [{ status: "skipped", reason: "cooldown" }];
     }
   }
 
@@ -105,24 +100,75 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   if (rule.consecutive_deviations >= rule.auto_pause_after_deviations) {
     await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "auto_paused" });
-    return { status: "skipped", reason: "auto_paused" };
+    return [{ status: "skipped", reason: "auto_paused" }];
   }
 
-  // 4. FETCH COMPETITOR DATA
+  // Determine assets to process: use `assets` array if available, otherwise fall back to single `asset`
+  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  const assetConfig: Record<string, any> = rule.asset_config || {};
+
   // Map terminal trade type to Binance search trade type
-  // BUY rule → search SELL page (show buyers), SELL rule → search BUY page (show sellers)
   const binanceTradeType = rule.trade_type === "BUY" ? "SELL" : "BUY";
-  const searchResult = await searchP2P(rule.asset, rule.fiat, binanceTradeType);
+
+  // Fetch USDT/INR once for all assets
+  const usdtInr = await fetchUsdtInr(supabase);
+
+  const allResults: any[] = [];
+
+  // Process each asset independently
+  for (const currentAsset of assetsToProcess) {
+    try {
+      const result = await processAsset(rule, currentAsset, assetConfig[currentAsset] || {}, binanceTradeType, usdtInr, excludedSet, supabase, now);
+      allResults.push(result);
+    } catch (assetErr) {
+      console.error(`Rule ${rule.id} asset ${currentAsset} error:`, assetErr);
+      await supabase.from("ad_pricing_logs").insert({
+        rule_id: rule.id,
+        asset: currentAsset,
+        status: "error",
+        error_message: (assetErr as Error).message,
+      });
+      allResults.push({ asset: currentAsset, status: "error", error: (assetErr as Error).message });
+    }
+  }
+
+  // Update rule's last_checked timestamp
+  await supabase.from("ad_pricing_rules").update({
+    last_checked_at: now.toISOString(),
+    last_error: null,
+    consecutive_errors: 0,
+  }).eq("id", rule.id);
+
+  return allResults;
+}
+
+async function processAsset(
+  rule: any,
+  asset: string,
+  config: any,
+  binanceTradeType: string,
+  usdtInr: number,
+  excludedSet: Set<string>,
+  supabase: any,
+  now: Date
+) {
+  // 4. FETCH COMPETITOR DATA for this asset
+  const searchResult = await searchP2P(asset, rule.fiat, binanceTradeType);
 
   if (!searchResult || !searchResult.data || searchResult.data.length === 0) {
     if (rule.pause_if_no_merchant_found) {
       await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
-    await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "no_merchant" });
-    return { status: "skipped", reason: "no_merchant" };
+    await supabase.from("ad_pricing_logs").insert({
+      rule_id: rule.id,
+      asset,
+      status: "skipped",
+      skipped_reason: "no_listings",
+    });
+    return { asset, status: "skipped", reason: "no_listings" };
   }
 
-  // Find target merchant
+  // Find target merchant in the results
   const merchants = [rule.target_merchant, ...(rule.fallback_merchants || [])].filter(Boolean);
   let matchedMerchant: string | null = null;
   let competitorPrice: number | null = null;
@@ -145,24 +191,23 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     if (rule.pause_if_no_merchant_found) {
       await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
-    await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "no_merchant" });
-    return { status: "skipped", reason: "no_merchant" };
+    await supabase.from("ad_pricing_logs").insert({
+      rule_id: rule.id,
+      asset,
+      status: "skipped",
+      skipped_reason: "no_merchant",
+    });
+    return { asset, status: "skipped", reason: "no_merchant" };
   }
 
   // 5. MARKET VALIDATION
   let marketReferencePrice: number | null = null;
   let deviationPct: number | null = null;
 
-  if (rule.asset === "USDT") {
-    // For USDT, reference is just USDT/INR rate
-    const usdtInr = await fetchUsdtInr(supabase);
+  if (asset === "USDT") {
     marketReferencePrice = usdtInr;
   } else {
-    // For non-USDT, get coin/USDT rate * USDT/INR
-    const [coinUsdt, usdtInr] = await Promise.all([
-      fetchCoinUsdtRate(rule.asset),
-      fetchUsdtInr(supabase),
-    ]);
+    const coinUsdt = await fetchCoinUsdtRate(asset);
     marketReferencePrice = coinUsdt * usdtInr;
   }
 
@@ -176,7 +221,9 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
         last_competitor_price: competitorPrice,
         last_matched_merchant: matchedMerchant,
       }).eq("id", rule.id);
-      await logAndUpdate(rule, supabase, {
+      await supabase.from("ad_pricing_logs").insert({
+        rule_id: rule.id,
+        asset,
         status: "skipped",
         skipped_reason: "deviation_exceeded",
         competitor_merchant: matchedMerchant,
@@ -184,7 +231,7 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
         market_reference_price: marketReferencePrice,
         deviation_from_market_pct: deviationPct,
       });
-      return { status: "skipped", reason: "deviation_exceeded", deviation: deviationPct };
+      return { asset, status: "skipped", reason: "deviation_exceeded", deviation: deviationPct };
     }
   }
 
@@ -193,7 +240,14 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     await supabase.from("ad_pricing_rules").update({ consecutive_deviations: 0 }).eq("id", rule.id);
   }
 
-  // 6. CALCULATE PRICE
+  // 6. CALCULATE PRICE — use per-asset config for offsets and limits
+  const offsetAmount = config.offset_amount ?? rule.offset_amount ?? 0;
+  const offsetPct = config.offset_pct ?? rule.offset_pct ?? 0;
+  const maxCeiling = config.max_ceiling ?? rule.max_ceiling;
+  const minFloor = config.min_floor ?? rule.min_floor;
+  const maxRatioCeiling = config.max_ratio_ceiling ?? rule.max_ratio_ceiling;
+  const minRatioFloor = config.min_ratio_floor ?? rule.min_ratio_floor;
+
   let newPrice: number | null = null;
   let newRatio: number | null = null;
   let wasCapped = false;
@@ -201,12 +255,12 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
 
   if (rule.price_type === "FIXED") {
     if (rule.offset_direction === "OVERCUT") {
-      newPrice = competitorPrice + (rule.offset_amount || 0);
+      newPrice = competitorPrice + offsetAmount;
     } else {
-      newPrice = competitorPrice - (rule.offset_amount || 0);
+      newPrice = competitorPrice - offsetAmount;
     }
 
-    // 7. RATE-OF-CHANGE GUARD
+    // Rate-of-change guard
     if (rule.max_price_change_per_cycle && rule.last_applied_price) {
       const delta = Math.abs(newPrice - rule.last_applied_price);
       if (delta > rule.max_price_change_per_cycle) {
@@ -216,9 +270,9 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
       }
     }
 
-    // 8. HARD LIMITS
-    if (rule.max_ceiling && newPrice > rule.max_ceiling) { newPrice = rule.max_ceiling; wasCapped = true; }
-    if (rule.min_floor && newPrice < rule.min_floor) { newPrice = rule.min_floor; wasCapped = true; }
+    // Hard limits (per-asset)
+    if (maxCeiling && newPrice > maxCeiling) { newPrice = maxCeiling; wasCapped = true; }
+    if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
     // FLOATING mode
@@ -226,12 +280,11 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     const baseRatio = (competitorPrice / refInr) * 100;
 
     if (rule.offset_direction === "OVERCUT") {
-      newRatio = baseRatio + (rule.offset_pct || 0);
+      newRatio = baseRatio + offsetPct;
     } else {
-      newRatio = baseRatio - (rule.offset_pct || 0);
+      newRatio = baseRatio - offsetPct;
     }
 
-    // Rate-of-change guard for ratio
     if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio) {
       const delta = Math.abs(newRatio - rule.last_applied_ratio);
       if (delta > rule.max_ratio_change_per_cycle) {
@@ -241,16 +294,20 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
       }
     }
 
-    // Hard limits for ratio
-    if (rule.max_ratio_ceiling && newRatio > rule.max_ratio_ceiling) { newRatio = rule.max_ratio_ceiling; wasCapped = true; }
-    if (rule.min_ratio_floor && newRatio < rule.min_ratio_floor) { newRatio = rule.min_ratio_floor; wasCapped = true; }
+    if (maxRatioCeiling && newRatio > maxRatioCeiling) { newRatio = maxRatioCeiling; wasCapped = true; }
+    if (minRatioFloor && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
   }
 
-  // 9. EXECUTE — update each ad
-  const adNumbers = (rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+  // 7. EXECUTE — get ad numbers for this specific asset from asset_config
+  const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
   if (adNumbers.length === 0) {
-    await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "no_ads" });
-    return { status: "skipped", reason: "no_ads" };
+    await supabase.from("ad_pricing_logs").insert({
+      rule_id: rule.id,
+      asset,
+      status: "skipped",
+      skipped_reason: "no_ads",
+    });
+    return { asset, status: "skipped", reason: "no_ads" };
   }
 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
@@ -261,23 +318,13 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
 
   for (const adNo of adNumbers) {
     try {
-      // Build update payload
       const adData: any = { advNo: adNo };
       if (rule.price_type === "FIXED") {
-        // Round to 2 decimals
         const roundedPrice = Math.round((newPrice!) * 100) / 100;
-        if (rule.last_applied_price && Math.abs(roundedPrice - rule.last_applied_price) < 0.01) {
-          skipCount++;
-          continue; // No change
-        }
         adData.price = roundedPrice;
         adData.priceType = 1;
       } else {
         const roundedRatio = Math.round((newRatio!) * 10000) / 10000;
-        if (rule.last_applied_ratio && Math.abs(roundedRatio - rule.last_applied_ratio) < 0.0001) {
-          skipCount++;
-          continue;
-        }
         adData.priceFloatingRatio = roundedRatio;
         adData.priceType = 2;
       }
@@ -294,10 +341,10 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
 
       if (respData.success) {
         successCount++;
-        // Log per ad
         await supabase.from("ad_pricing_logs").insert({
           rule_id: rule.id,
           ad_number: adNo,
+          asset,
           competitor_merchant: matchedMerchant,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
@@ -314,6 +361,7 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
         await supabase.from("ad_pricing_logs").insert({
           rule_id: rule.id,
           ad_number: adNo,
+          asset,
           competitor_merchant: matchedMerchant,
           competitor_price: competitorPrice,
           status: "error",
@@ -321,31 +369,21 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
         });
       }
 
-      // Delay between API calls
       await new Promise((r) => setTimeout(r, 300));
     } catch (adErr) {
-      console.error(`Failed to update ad ${adNo}:`, adErr);
+      console.error(`Failed to update ad ${adNo} for ${asset}:`, adErr);
       await supabase.from("ad_pricing_logs").insert({
         rule_id: rule.id,
         ad_number: adNo,
+        asset,
         status: "error",
         error_message: (adErr as Error).message,
       });
     }
   }
 
-  // Update rule state
-  await supabase.from("ad_pricing_rules").update({
-    last_checked_at: now.toISOString(),
-    last_competitor_price: competitorPrice,
-    last_applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : rule.last_applied_price,
-    last_applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : rule.last_applied_ratio,
-    last_matched_merchant: matchedMerchant,
-    last_error: null,
-    consecutive_errors: 0,
-  }).eq("id", rule.id);
-
   return {
+    asset,
     status: successCount > 0 ? "success" : skipCount === adNumbers.length ? "no_change" : "error",
     updated: successCount,
     skipped: skipCount,
@@ -356,33 +394,39 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   };
 }
 
-async function applyRestingPrice(rule: any, excludedSet: Set<string>, supabase: any) {
-  const adNumbers = (rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, supabase: any) {
+  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  for (const adNo of adNumbers) {
-    const adData: any = { advNo: adNo };
-    if (rule.price_type === "FIXED" && rule.resting_price) {
-      adData.price = rule.resting_price;
-      adData.priceType = 1;
-    } else if (rule.price_type === "FLOATING" && rule.resting_ratio) {
-      adData.priceFloatingRatio = rule.resting_ratio;
-      adData.priceType = 2;
-    } else {
-      continue;
-    }
+  for (const asset of assetsToProcess) {
+    const config = assetConfig[asset] || {};
+    const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
 
-    try {
-      await fetch(binanceAdsUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
-        body: JSON.stringify({ action: "updateAd", adData }),
-      });
-    } catch (e) {
-      console.error(`Resting price update failed for ${adNo}:`, e);
+    for (const adNo of adNumbers) {
+      const adData: any = { advNo: adNo };
+      if (rule.price_type === "FIXED" && rule.resting_price) {
+        adData.price = rule.resting_price;
+        adData.priceType = 1;
+      } else if (rule.price_type === "FLOATING" && rule.resting_ratio) {
+        adData.priceFloatingRatio = rule.resting_ratio;
+        adData.priceType = 2;
+      } else {
+        continue;
+      }
+
+      try {
+        await fetch(binanceAdsUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+          body: JSON.stringify({ action: "updateAd", adData }),
+        });
+      } catch (e) {
+        console.error(`Resting price update failed for ${adNo}:`, e);
+      }
+      await new Promise((r) => setTimeout(r, 300));
     }
-    await new Promise((r) => setTimeout(r, 300));
   }
 }
 
@@ -397,7 +441,6 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
 }
 
 async function searchP2P(asset: string, fiat: string, tradeType: string) {
-  // Fetch up to 500 listings (25 pages) — raw API includes many small accounts the website filters out
   const allData: any[] = [];
   for (let page = 1; page <= 25; page++) {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
@@ -416,7 +459,7 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
     const pageData = await resp.json();
     const items = pageData?.data || [];
     allData.push(...items);
-    if (items.length < 20) break; // No more pages
+    if (items.length < 20) break;
   }
   return { data: allData };
 }
@@ -433,12 +476,10 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
   try {
-    // Try to get from our fetch-usdt-rate function's cached data
     const { data } = await supabase.from("usdt_inr_rate").select("rate").order("updated_at", { ascending: false }).limit(1).single();
     if (data?.rate) return data.rate;
   } catch { /* fallback */ }
 
-  // Fallback: fetch from Binance P2P
   try {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
       method: "POST",
@@ -452,5 +493,5 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     }
   } catch { /* fallback */ }
 
-  return 90; // Last resort fallback
+  return 90;
 }

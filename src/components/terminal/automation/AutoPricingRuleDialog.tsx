@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -12,17 +12,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, User, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, User, AlertTriangle, X } from 'lucide-react';
 import {
   useCreateAutoPricingRule,
   useUpdateAutoPricingRule,
   useSearchMerchant,
   AutoPricingRule,
+  AssetConfig,
 } from '@/hooks/useAutoPricingRules';
 import { useBinanceAdsList, BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExcludedAds } from '@/hooks/useAdAutomationExclusion';
 
 const ASSETS = ['USDT', 'BTC', 'USDC', 'FDUSD', 'BNB', 'ETH', 'TRX', 'SHIB', 'XRP', 'SOL', 'TON'];
+
+const DEFAULT_ASSET_CONFIG: AssetConfig = {
+  ad_numbers: [],
+  offset_amount: 0,
+  offset_pct: 0,
+  max_ceiling: null,
+  min_floor: null,
+  max_ratio_ceiling: null,
+  min_ratio_floor: null,
+};
 
 interface AutoPricingRuleDialogProps {
   open: boolean;
@@ -38,7 +50,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   // Form state
   const [name, setName] = useState('');
-  const [asset, setAsset] = useState('USDT');
+  const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
+  const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
+  const [activeAssetTab, setActiveAssetTab] = useState('USDT');
   const [fiat] = useState('INR');
   const [tradeType, setTradeType] = useState('BUY');
   const [priceType, setPriceType] = useState('FIXED');
@@ -46,16 +60,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [fallback1, setFallback1] = useState('');
   const [fallback2, setFallback2] = useState('');
   const [fallback3, setFallback3] = useState('');
+  const [fallback4, setFallback4] = useState('');
   const [onlyOnline, setOnlyOnline] = useState(false);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
-  const [selectedAdNos, setSelectedAdNos] = useState<Set<string>>(new Set());
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');
-  const [offsetAmount, setOffsetAmount] = useState('0');
-  const [offsetPct, setOffsetPct] = useState('0');
-  const [maxCeiling, setMaxCeiling] = useState('');
-  const [minFloor, setMinFloor] = useState('');
-  const [maxRatioCeiling, setMaxRatioCeiling] = useState('');
-  const [minRatioFloor, setMinRatioFloor] = useState('');
   const [maxDeviation, setMaxDeviation] = useState('5');
   const [maxPriceChange, setMaxPriceChange] = useState('');
   const [maxRatioChange, setMaxRatioChange] = useState('');
@@ -74,20 +82,35 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const { data: adsData } = useBinanceAdsList({ page: 1, rows: 100 });
   const allAds: BinanceAd[] = adsData?.data || [];
 
-  // Filter ads by selected asset and trade type  
-  const filteredAds = allAds.filter(ad => {
-    if (ad.asset !== asset) return false;
-    // Terminal BUY = Binance SELL, Terminal SELL = Binance BUY
-    // But our ads from listAds show the raw tradeType, so:
-    if (tradeType === 'BUY' && ad.tradeType !== 'BUY') return false;
-    if (tradeType === 'SELL' && ad.tradeType !== 'SELL') return false;
-    return true;
-  });
+  // Get current asset config
+  const getConfig = (asset: string): AssetConfig => {
+    return assetConfigs[asset] || { ...DEFAULT_ASSET_CONFIG };
+  };
+
+  const updateConfig = (asset: string, updates: Partial<AssetConfig>) => {
+    setAssetConfigs(prev => ({
+      ...prev,
+      [asset]: { ...getConfig(asset), ...updates },
+    }));
+  };
+
+  // Filter ads for a specific asset
+  const getFilteredAds = (asset: string) => {
+    return allAds.filter(ad => {
+      if (ad.asset !== asset) return false;
+      if (tradeType === 'BUY' && ad.tradeType !== 'BUY') return false;
+      if (tradeType === 'SELL' && ad.tradeType !== 'SELL') return false;
+      return true;
+    });
+  };
 
   useEffect(() => {
     if (editingRule) {
       setName(editingRule.name);
-      setAsset(editingRule.asset);
+      const assets = editingRule.assets?.length > 0 ? editingRule.assets : [editingRule.asset];
+      setSelectedAssets(assets);
+      setActiveAssetTab(assets[0]);
+      setAssetConfigs(editingRule.asset_config || {});
       setTradeType(editingRule.trade_type);
       setPriceType(editingRule.price_type);
       setTargetMerchant(editingRule.target_merchant);
@@ -95,16 +118,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setFallback1(fb[0] || '');
       setFallback2(fb[1] || '');
       setFallback3(fb[2] || '');
+      setFallback4(fb[3] || '');
       setOnlyOnline(editingRule.only_counter_when_online);
       setPauseNoMerchant(editingRule.pause_if_no_merchant_found);
-      setSelectedAdNos(new Set(editingRule.ad_numbers || []));
       setOffsetDirection(editingRule.offset_direction);
-      setOffsetAmount(String(editingRule.offset_amount || 0));
-      setOffsetPct(String(editingRule.offset_pct || 0));
-      setMaxCeiling(editingRule.max_ceiling ? String(editingRule.max_ceiling) : '');
-      setMinFloor(editingRule.min_floor ? String(editingRule.min_floor) : '');
-      setMaxRatioCeiling(editingRule.max_ratio_ceiling ? String(editingRule.max_ratio_ceiling) : '');
-      setMinRatioFloor(editingRule.min_ratio_floor ? String(editingRule.min_ratio_floor) : '');
       setMaxDeviation(String(editingRule.max_deviation_from_market_pct));
       setMaxPriceChange(editingRule.max_price_change_per_cycle ? String(editingRule.max_price_change_per_cycle) : '');
       setMaxRatioChange(editingRule.max_ratio_change_per_cycle ? String(editingRule.max_ratio_change_per_cycle) : '');
@@ -116,12 +133,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setRestingRatio(editingRule.resting_ratio ? String(editingRule.resting_ratio) : '');
       setCheckInterval(String(editingRule.check_interval_seconds));
     } else {
-      // Reset to defaults
-      setName(''); setAsset('USDT'); setTradeType('BUY'); setPriceType('FIXED');
-      setTargetMerchant(''); setFallback1(''); setFallback2(''); setFallback3('');
-      setOnlyOnline(false); setPauseNoMerchant(false); setSelectedAdNos(new Set());
-      setOffsetDirection('UNDERCUT'); setOffsetAmount('0'); setOffsetPct('0');
-      setMaxCeiling(''); setMinFloor(''); setMaxRatioCeiling(''); setMinRatioFloor('');
+      setName(''); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
+      setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
+      setTargetMerchant(''); setFallback1(''); setFallback2(''); setFallback3(''); setFallback4('');
+      setOnlyOnline(false); setPauseNoMerchant(false);
+      setOffsetDirection('UNDERCUT');
       setMaxDeviation('5'); setMaxPriceChange(''); setMaxRatioChange('');
       setAutoPauseDeviations('5'); setCooldownMinutes('0');
       setActiveStart(''); setActiveEnd(''); setRestingPrice(''); setRestingRatio('');
@@ -132,47 +148,81 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   const handleSearchMerchant = (nickname: string) => {
     if (!nickname.trim()) return;
-    searchMerchant.mutate({ asset, fiat, tradeType, nickname }, {
+    searchMerchant.mutate({ asset: selectedAssets[0] || 'USDT', fiat, tradeType, nickname }, {
       onSuccess: (data) => setSearchResult(data),
     });
   };
 
-  const toggleAd = (advNo: string) => {
-    const next = new Set(selectedAdNos);
-    next.has(advNo) ? next.delete(advNo) : next.add(advNo);
-    setSelectedAdNos(next);
+  const toggleAsset = (asset: string) => {
+    setSelectedAssets(prev => {
+      if (prev.includes(asset)) {
+        if (prev.length === 1) return prev; // Must have at least 1
+        const next = prev.filter(a => a !== asset);
+        if (activeAssetTab === asset) setActiveAssetTab(next[0]);
+        return next;
+      }
+      return [...prev, asset];
+    });
   };
 
-  const selectAllFiltered = () => {
-    const allNos = filteredAds.map(a => a.advNo);
-    const allSelected = allNos.every(no => selectedAdNos.has(no));
-    const next = new Set(selectedAdNos);
+  const toggleAdForAsset = (asset: string, advNo: string) => {
+    const config = getConfig(asset);
+    const adNos = new Set(config.ad_numbers);
+    adNos.has(advNo) ? adNos.delete(advNo) : adNos.add(advNo);
+    updateConfig(asset, { ad_numbers: Array.from(adNos) });
+  };
+
+  const selectAllAdsForAsset = (asset: string) => {
+    const filtered = getFilteredAds(asset);
+    const config = getConfig(asset);
+    const allNos = filtered.map(a => a.advNo);
+    const allSelected = allNos.every(no => config.ad_numbers.includes(no));
     if (allSelected) {
-      allNos.forEach(no => next.delete(no));
+      updateConfig(asset, { ad_numbers: config.ad_numbers.filter(no => !allNos.includes(no)) });
     } else {
-      allNos.forEach(no => next.add(no));
+      updateConfig(asset, { ad_numbers: [...new Set([...config.ad_numbers, ...allNos])] });
     }
-    setSelectedAdNos(next);
   };
 
   const handleSave = () => {
-    const fallbacks = [fallback1, fallback2, fallback3].filter(Boolean);
+    const fallbacks = [fallback1, fallback2, fallback3, fallback4].filter(Boolean);
+    
+    // Collect all ad_numbers across all assets for backward compat
+    const allAdNumbers = selectedAssets.flatMap(a => getConfig(a).ad_numbers);
+    
+    // Build clean asset_config
+    const cleanConfig: Record<string, AssetConfig> = {};
+    for (const asset of selectedAssets) {
+      const cfg = getConfig(asset);
+      cleanConfig[asset] = {
+        ad_numbers: cfg.ad_numbers,
+        offset_amount: cfg.offset_amount || 0,
+        offset_pct: cfg.offset_pct || 0,
+        max_ceiling: cfg.max_ceiling,
+        min_floor: cfg.min_floor,
+        max_ratio_ceiling: cfg.max_ratio_ceiling,
+        min_ratio_floor: cfg.min_ratio_floor,
+      };
+    }
+
     const payload: any = {
       name,
-      asset,
+      asset: selectedAssets[0], // backward compat
+      assets: selectedAssets,
+      asset_config: cleanConfig,
       fiat,
       trade_type: tradeType,
       price_type: priceType,
       target_merchant: targetMerchant,
       fallback_merchants: fallbacks,
-      ad_numbers: Array.from(selectedAdNos),
+      ad_numbers: allAdNumbers,
       offset_direction: offsetDirection,
-      offset_amount: parseFloat(offsetAmount) || 0,
-      offset_pct: parseFloat(offsetPct) || 0,
-      max_ceiling: maxCeiling ? parseFloat(maxCeiling) : null,
-      min_floor: minFloor ? parseFloat(minFloor) : null,
-      max_ratio_ceiling: maxRatioCeiling ? parseFloat(maxRatioCeiling) : null,
-      min_ratio_floor: minRatioFloor ? parseFloat(minRatioFloor) : null,
+      offset_amount: 0, // defaults; per-asset overrides in asset_config
+      offset_pct: 0,
+      max_ceiling: null,
+      min_floor: null,
+      max_ratio_ceiling: null,
+      min_ratio_floor: null,
       max_deviation_from_market_pct: parseFloat(maxDeviation) || 5,
       max_price_change_per_cycle: maxPriceChange ? parseFloat(maxPriceChange) : null,
       max_ratio_change_per_cycle: maxRatioChange ? parseFloat(maxRatioChange) : null,
@@ -195,34 +245,26 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   };
 
   const isFixed = priceType === 'FIXED';
+  const totalAds = selectedAssets.reduce((sum, a) => sum + getConfig(a).ad_numbers.length, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{editingRule ? 'Edit' : 'Create'} Auto-Pricing Rule</DialogTitle>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] pr-4">
-          <Accordion type="multiple" defaultValue={['basic', 'merchants', 'ads', 'offset', 'limits']} className="space-y-0">
+          <Accordion type="multiple" defaultValue={['basic', 'merchants', 'assets-config', 'anti-exploit']} className="space-y-0">
             {/* Section 1: Basic */}
             <AccordionItem value="basic">
               <AccordionTrigger className="text-sm font-semibold">Basic Settings</AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
                 <div>
                   <Label>Rule Name</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. USDT Buy Undercut" />
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Asset</Label>
-                    <Select value={asset} onValueChange={setAsset}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {ASSETS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div>
                     <Label>Trade Type</Label>
                     <Select value={tradeType} onValueChange={setTradeType}>
@@ -233,7 +275,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                       </SelectContent>
                     </Select>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      BUY = monitors Binance SELL page, SELL = monitors Binance BUY page
+                      BUY = monitors Binance SELL page
                     </p>
                   </div>
                   <div>
@@ -245,6 +287,32 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         <SelectItem value="FLOATING">Floating</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label>Direction</Label>
+                    <Select value={offsetDirection} onValueChange={setOffsetDirection}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="OVERCUT">Overcut (+)</SelectItem>
+                        <SelectItem value="UNDERCUT">Undercut (−)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Asset Selection */}
+                <div>
+                  <Label className="mb-2 block">Assets ({selectedAssets.length} selected)</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ASSETS.map(a => (
+                      <Badge
+                        key={a}
+                        variant={selectedAssets.includes(a) ? 'default' : 'outline'}
+                        className="cursor-pointer text-xs px-2.5 py-1 select-none"
+                        onClick={() => toggleAsset(a)}
+                      >
+                        {a}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
               </AccordionContent>
@@ -283,7 +351,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs">Fallback 1</Label>
                     <Input value={fallback1} onChange={e => setFallback1(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
@@ -295,6 +363,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   <div>
                     <Label className="text-xs">Fallback 3</Label>
                     <Input value={fallback3} onChange={e => setFallback3(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Fallback 4</Label>
+                    <Input value={fallback4} onChange={e => setFallback4(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
                   </div>
                 </div>
 
@@ -311,138 +383,188 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
               </AccordionContent>
             </AccordionItem>
 
-            {/* Section 3: Ad Selection */}
-            <AccordionItem value="ads">
-              <AccordionTrigger className="text-sm font-semibold">Ad Selection ({selectedAdNos.size} selected)</AccordionTrigger>
-              <AccordionContent className="space-y-2 px-1">
-                {filteredAds.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No {asset} {tradeType} ads found. Make sure you have active ads.</p>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Checkbox
-                        checked={filteredAds.length > 0 && filteredAds.every(a => selectedAdNos.has(a.advNo))}
-                        onCheckedChange={selectAllFiltered}
-                      />
-                      <Label className="text-xs">Select All ({filteredAds.length})</Label>
-                    </div>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {filteredAds.map(ad => {
-                        const isExcluded = excludedAds?.has(ad.advNo);
-                        return (
-                          <div key={ad.advNo} className={`flex items-start gap-2 p-2 rounded border border-border/50 text-xs ${isExcluded ? 'opacity-40' : ''} ${selectedAdNos.has(ad.advNo) ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/30'}`}>
-                            <Checkbox
-                              checked={selectedAdNos.has(ad.advNo)}
-                              onCheckedChange={() => toggleAd(ad.advNo)}
-                              disabled={isExcluded}
-                              className="mt-0.5"
-                            />
-                            <div className="flex-1 min-w-0 space-y-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-mono font-medium">…{ad.advNo.slice(-8)}</span>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
-                                <Badge 
-                                  variant="outline" 
-                                  className={`text-[10px] px-1.5 py-0 ${
-                                    ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'border-success text-success' 
-                                    : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500' 
-                                    : 'border-muted-foreground text-muted-foreground'
-                                  }`}
-                                >
-                                  {getAdStatusLabel(ad.advStatus)}
-                                </Badge>
-                                {isExcluded && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">Excluded</Badge>}
-                              </div>
-                              <div className="flex items-center gap-3 text-muted-foreground">
-                                <span className="font-semibold text-foreground">₹{Number(ad.price).toLocaleString('en-IN')}</span>
-                                {ad.priceType === 2 && ad.priceFloatingRatio && (
-                                  <span>Ratio: {Number(ad.priceFloatingRatio).toFixed(2)}%</span>
-                                )}
-                                <span>Limit: ₹{Number(ad.minSingleTransAmount).toLocaleString('en-IN')}–₹{Number(ad.maxSingleTransAmount).toLocaleString('en-IN')}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-muted-foreground">
-                                <span>Qty: {Number(ad.surplusAmount || 0).toLocaleString()} / {Number(ad.initAmount || 0).toLocaleString()} {ad.asset}</span>
-                                {ad.tradeMethods?.length > 0 && (
-                                  <span>Pay: {ad.tradeMethods.map(m => m.identifier || m.tradeMethodName || m.payType).join(', ')}</span>
-                                )}
-                              </div>
+            {/* Section 3: Per-Asset Configuration */}
+            <AccordionItem value="assets-config">
+              <AccordionTrigger className="text-sm font-semibold">
+                Per-Asset Config ({totalAds} ads across {selectedAssets.length} assets)
+              </AccordionTrigger>
+              <AccordionContent className="px-1">
+                <Tabs value={activeAssetTab} onValueChange={setActiveAssetTab}>
+                  <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 mb-3">
+                    {selectedAssets.map(asset => {
+                      const cfg = getConfig(asset);
+                      return (
+                        <TabsTrigger
+                          key={asset}
+                          value={asset}
+                          className="text-xs px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border"
+                        >
+                          {asset}
+                          {cfg.ad_numbers.length > 0 && (
+                            <span className="ml-1 text-[10px] opacity-70">({cfg.ad_numbers.length})</span>
+                          )}
+                        </TabsTrigger>
+                      );
+                    })}
+                  </TabsList>
+
+                  {selectedAssets.map(asset => {
+                    const cfg = getConfig(asset);
+                    const filteredAds = getFilteredAds(asset);
+
+                    return (
+                      <TabsContent key={asset} value={asset} className="space-y-4 mt-0">
+                        {/* Offset for this asset */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {isFixed ? (
+                            <div>
+                              <Label className="text-xs">Offset Amount (₹) for {asset}</Label>
+                              <Input
+                                type="number"
+                                value={cfg.offset_amount || ''}
+                                onChange={e => updateConfig(asset, { offset_amount: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g. 0.05"
+                                step="0.01"
+                                className="h-8 text-xs"
+                              />
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                          ) : (
+                            <div>
+                              <Label className="text-xs">Offset % for {asset}</Label>
+                              <Input
+                                type="number"
+                                value={cfg.offset_pct || ''}
+                                onChange={e => updateConfig(asset, { offset_pct: parseFloat(e.target.value) || 0 })}
+                                placeholder="e.g. 0.05"
+                                step="0.01"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          )}
+                          {isFixed ? (
+                            <>
+                              <div>
+                                <Label className="text-xs">Max Ceiling (₹)</Label>
+                                <Input
+                                  type="number"
+                                  value={cfg.max_ceiling ?? ''}
+                                  onChange={e => updateConfig(asset, { max_ceiling: e.target.value ? parseFloat(e.target.value) : null })}
+                                  placeholder="No max"
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </>
+                          ) : (
+                            <div>
+                              <Label className="text-xs">Max Ratio Ceiling (%)</Label>
+                              <Input
+                                type="number"
+                                value={cfg.max_ratio_ceiling ?? ''}
+                                onChange={e => updateConfig(asset, { max_ratio_ceiling: e.target.value ? parseFloat(e.target.value) : null })}
+                                placeholder="No max"
+                                step="0.01"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {isFixed ? (
+                            <div>
+                              <Label className="text-xs">Min Floor (₹)</Label>
+                              <Input
+                                type="number"
+                                value={cfg.min_floor ?? ''}
+                                onChange={e => updateConfig(asset, { min_floor: e.target.value ? parseFloat(e.target.value) : null })}
+                                placeholder="No min"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <Label className="text-xs">Min Ratio Floor (%)</Label>
+                              <Input
+                                type="number"
+                                value={cfg.min_ratio_floor ?? ''}
+                                onChange={e => updateConfig(asset, { min_ratio_floor: e.target.value ? parseFloat(e.target.value) : null })}
+                                placeholder="No min"
+                                step="0.01"
+                                className="h-8 text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Ad Selection for this asset */}
+                        <div>
+                          <Label className="text-xs font-medium">Ads for {asset} ({cfg.ad_numbers.length} selected)</Label>
+                          {filteredAds.length === 0 ? (
+                            <p className="text-xs text-muted-foreground mt-1">No {asset} {tradeType} ads found.</p>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2 mt-1 mb-2">
+                                <Checkbox
+                                  checked={filteredAds.length > 0 && filteredAds.every(a => cfg.ad_numbers.includes(a.advNo))}
+                                  onCheckedChange={() => selectAllAdsForAsset(asset)}
+                                />
+                                <Label className="text-[10px]">Select All ({filteredAds.length})</Label>
+                              </div>
+                              <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                                {filteredAds.map(ad => {
+                                  const isExcluded = excludedAds?.has(ad.advNo);
+                                  const isSelected = cfg.ad_numbers.includes(ad.advNo);
+                                  return (
+                                    <div key={ad.advNo} className={`flex items-start gap-2 p-2 rounded border border-border/50 text-xs ${isExcluded ? 'opacity-40' : ''} ${isSelected ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/30'}`}>
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={() => toggleAdForAsset(asset, ad.advNo)}
+                                        disabled={isExcluded}
+                                        className="mt-0.5"
+                                      />
+                                      <div className="flex-1 min-w-0 space-y-0.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="font-mono font-medium">…{ad.advNo.slice(-8)}</span>
+                                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
+                                          <Badge
+                                            variant="outline"
+                                            className={`text-[10px] px-1.5 py-0 ${
+                                              ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'border-success text-success'
+                                              : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500'
+                                              : 'border-muted-foreground text-muted-foreground'
+                                            }`}
+                                          >
+                                            {getAdStatusLabel(ad.advStatus)}
+                                          </Badge>
+                                          {isExcluded && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">Excluded</Badge>}
+                                        </div>
+                                        <div className="flex items-center gap-3 text-muted-foreground">
+                                          <span className="font-semibold text-foreground">₹{Number(ad.price).toLocaleString('en-IN')}</span>
+                                          <span>Qty: {Number(ad.surplusAmount || 0).toLocaleString()} {ad.asset}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </TabsContent>
+                    );
+                  })}
+                </Tabs>
               </AccordionContent>
             </AccordionItem>
 
-            {/* Section 4: Pricing Offset */}
-            <AccordionItem value="offset">
-              <AccordionTrigger className="text-sm font-semibold">Pricing Offset</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div>
-                  <Label>Direction</Label>
-                  <Select value={offsetDirection} onValueChange={setOffsetDirection}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="OVERCUT">Overcut (price goes UP from competitor)</SelectItem>
-                      <SelectItem value="UNDERCUT">Undercut (price goes DOWN from competitor)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {isFixed ? (
-                  <div>
-                    <Label>Offset Amount (INR)</Label>
-                    <Input type="number" value={offsetAmount} onChange={e => setOffsetAmount(e.target.value)} placeholder="e.g. 0.05" step="0.01" />
-                  </div>
-                ) : (
-                  <div>
-                    <Label>Offset Percentage (%)</Label>
-                    <Input type="number" value={offsetPct} onChange={e => setOffsetPct(e.target.value)} placeholder="e.g. 0.05" step="0.01" />
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Section 5: Safety Limits */}
-            <AccordionItem value="limits">
-              <AccordionTrigger className="text-sm font-semibold">Safety Limits</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                {isFixed ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Max Ceiling (₹)</Label>
-                      <Input type="number" value={maxCeiling} onChange={e => setMaxCeiling(e.target.value)} placeholder="No max" />
-                    </div>
-                    <div>
-                      <Label>Min Floor (₹)</Label>
-                      <Input type="number" value={minFloor} onChange={e => setMinFloor(e.target.value)} placeholder="No min" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Max Ratio Ceiling (%)</Label>
-                      <Input type="number" value={maxRatioCeiling} onChange={e => setMaxRatioCeiling(e.target.value)} placeholder="No max" step="0.01" />
-                    </div>
-                    <div>
-                      <Label>Min Ratio Floor (%)</Label>
-                      <Input type="number" value={minRatioFloor} onChange={e => setMinRatioFloor(e.target.value)} placeholder="No min" step="0.01" />
-                    </div>
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Section 6: Anti-Exploitation */}
+            {/* Section 4: Anti-Exploitation */}
             <AccordionItem value="anti-exploit">
-              <AccordionTrigger className="text-sm font-semibold">Anti-Exploitation</AccordionTrigger>
+              <AccordionTrigger className="text-sm font-semibold">Anti-Exploitation & Safety</AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>Max Deviation from Market (%)</Label>
                     <Input type="number" value={maxDeviation} onChange={e => setMaxDeviation(e.target.value)} step="0.5" />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Skips update if competitor deviates more than this from fair value</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Skips update if competitor deviates more than this</p>
                   </div>
                   <div>
                     <Label>Auto-Pause After N Deviations</Label>
@@ -469,7 +591,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
               </AccordionContent>
             </AccordionItem>
 
-            {/* Section 7: Scheduling */}
+            {/* Section 5: Scheduling */}
             <AccordionItem value="scheduling">
               <AccordionTrigger className="text-sm font-semibold">Scheduling</AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
@@ -508,7 +630,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !targetMerchant.trim() || createRule.isPending || updateRule.isPending}>
+          <Button onClick={handleSave} disabled={!name.trim() || !targetMerchant.trim() || selectedAssets.length === 0 || createRule.isPending || updateRule.isPending}>
             {editingRule ? 'Update Rule' : 'Create Rule'}
           </Button>
         </DialogFooter>

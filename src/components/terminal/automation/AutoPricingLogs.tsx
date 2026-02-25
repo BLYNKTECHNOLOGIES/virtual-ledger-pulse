@@ -74,6 +74,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead>Rule</TableHead>
+                  <TableHead>Asset</TableHead>
                   <TableHead>Ad</TableHead>
                   <TableHead>Merchant</TableHead>
                   <TableHead>Competitor ₹</TableHead>
@@ -91,6 +92,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                       {format(new Date(log.created_at), 'dd MMM HH:mm:ss')}
                     </TableCell>
                     <TableCell className="text-xs font-medium">{ruleMap[log.rule_id] || '—'}</TableCell>
+                    <TableCell><Badge variant="outline" className="text-[10px]">{log.asset || '—'}</Badge></TableCell>
                     <TableCell className="font-mono text-xs">{log.ad_number ? `…${log.ad_number.slice(-6)}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.competitor_merchant || '—'}</TableCell>
                     <TableCell className="text-xs">{log.competitor_price ? `₹${Number(log.competitor_price).toLocaleString('en-IN')}` : '—'}</TableCell>

@@ -79,8 +79,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [restingRatio, setRestingRatio] = useState('');
   const [checkInterval, setCheckInterval] = useState('120');
 
-  // Merchant search preview
+  // Merchant search preview — per-asset results
   const [searchResult, setSearchResult] = useState<any>(null);
+  const [multiAssetSearchResults, setMultiAssetSearchResults] = useState<Record<string, { found: boolean; price?: string; userType?: string }>>({});
+  const [isMultiSearching, setIsMultiSearching] = useState(false);
 
   // Fetch ads for ad selection
   const { data: adsData } = useBinanceAdsList({ page: 1, rows: 100 });
@@ -177,14 +179,39 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCheckInterval('120');
     }
     setSearchResult(null);
+    setMultiAssetSearchResults({});
+    setIsMultiSearching(false);
     setNewMerchantInput('');
   }, [editingRule, open]);
 
-  const handleSearchMerchant = (nickname: string) => {
+  const handleSearchMerchant = async (nickname: string) => {
     if (!nickname.trim()) return;
-    searchMerchant.mutate({ asset: selectedAssets[0] || 'USDT', fiat, tradeType, nickname }, {
-      onSuccess: (data) => setSearchResult(data),
+    setIsMultiSearching(true);
+    setSearchResult(null);
+    setMultiAssetSearchResults({});
+
+    const results: Record<string, { found: boolean; price?: string; userType?: string }> = {};
+    let firstFound: any = null;
+
+    // Search across all selected assets in parallel
+    const searches = selectedAssets.map(async (asset) => {
+      try {
+        const data = await searchMerchant.mutateAsync({ asset, fiat, tradeType, nickname });
+        if (data?.target) {
+          results[asset] = { found: true, price: data.target.price, userType: data.target.userType };
+          if (!firstFound) firstFound = data;
+        } else {
+          results[asset] = { found: false };
+        }
+      } catch {
+        results[asset] = { found: false };
+      }
     });
+
+    await Promise.all(searches);
+    setMultiAssetSearchResults(results);
+    setSearchResult(firstFound);
+    setIsMultiSearching(false);
   };
 
   const toggleAsset = (asset: string) => {
@@ -376,7 +403,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                           onChange={(val) => updateMerchantAt(index, val)}
                           onRemove={() => removeMerchant(merchant)}
                           onPreview={() => handleSearchMerchant(merchant)}
-                          isSearching={searchMerchant.isPending}
+                          isSearching={isMultiSearching || searchMerchant.isPending}
                           canRemove={priorityMerchants.length > 1}
                           isDraggable={priorityMerchants.length > 1 && merchant.trim() !== ''}
                         />
@@ -399,22 +426,44 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </Button>
                 </div>
 
-                {searchResult?.target && (
-                  <div className="p-3 border rounded-md bg-muted/30 text-xs space-y-1">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span className="font-medium">{searchResult.target.nickName}</span>
-                      <Badge variant="outline" className="text-[10px]">{searchResult.target.userType}</Badge>
+                {/* Multi-asset search results */}
+                {Object.keys(multiAssetSearchResults).length > 0 && (
+                  <div className="space-y-2">
+                    {searchResult?.target && (
+                      <div className="p-3 border rounded-md bg-muted/30 text-xs space-y-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span className="font-medium">{searchResult.target.nickName}</span>
+                          <Badge variant="outline" className="text-[10px]">{searchResult.target.userType}</Badge>
+                        </div>
+                        <p>Completion Rate: {(Number(searchResult.target.completionRate) * 100).toFixed(1)}%</p>
+                        <p>Monthly Orders: {searchResult.target.orderCount}</p>
+                      </div>
+                    )}
+                    <div className="p-3 border rounded-md bg-muted/20 text-xs space-y-1.5">
+                      <p className="text-[10px] text-muted-foreground font-medium">Availability across assets:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedAssets.map(asset => {
+                          const r = multiAssetSearchResults[asset];
+                          if (!r) return null;
+                          return (
+                            <Badge
+                              key={asset}
+                              variant={r.found ? 'default' : 'outline'}
+                              className={`text-[10px] ${r.found ? 'bg-green-600/80 hover:bg-green-600' : 'text-muted-foreground opacity-60'}`}
+                            >
+                              {asset} {r.found ? `₹${Number(r.price).toLocaleString('en-IN')}` : '✕'}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                      {Object.values(multiAssetSearchResults).every(r => !r.found) && (
+                        <div className="flex items-center gap-2 text-warning mt-1">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          <span>Merchant not found in any selected asset's top 500 listings</span>
+                        </div>
+                      )}
                     </div>
-                    <p>Price: ₹{Number(searchResult.target.price).toLocaleString('en-IN')}</p>
-                    <p>Completion Rate: {(Number(searchResult.target.completionRate) * 100).toFixed(1)}%</p>
-                    <p>Monthly Orders: {searchResult.target.orderCount}</p>
-                  </div>
-                )}
-                {searchResult && !searchResult.target && (
-                  <div className="p-3 border rounded-md border-warning bg-warning/10 text-xs flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
-                    <span>Merchant not found in top 500 listings</span>
                   </div>
                 )}
 

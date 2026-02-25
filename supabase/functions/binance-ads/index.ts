@@ -662,6 +662,45 @@ serve(async (req) => {
         break;
       }
 
+      case "searchP2PMerchant": {
+        // Public Binance P2P search — no proxy auth needed
+        const binanceTradeType = payload.tradeType === "BUY" ? "SELL" : "BUY";
+        const searchResp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            asset: payload.asset || "USDT",
+            fiat: payload.fiat || "INR",
+            tradeType: binanceTradeType,
+            page: 1,
+            rows: 20,
+          }),
+        });
+        const searchData = await searchResp.json();
+        const allMerchants = (searchData?.data || []).map((item: any) => ({
+          nickName: item.advertiser?.nickName,
+          price: item.adv?.price,
+          surplusAmount: item.adv?.surplusAmount,
+          tradeType: item.adv?.tradeType,
+          asset: item.adv?.asset,
+          completionRate: item.advertiser?.monthFinishRate,
+          orderCount: item.advertiser?.monthOrderCount,
+          userType: item.advertiser?.userType,
+          isOnline: item.advertiser?.isOnline,
+        }));
+
+        // If nickname filter provided, highlight the match
+        if (payload.nickname) {
+          const target = allMerchants.find((m: any) =>
+            m.nickName?.toLowerCase() === payload.nickname.toLowerCase()
+          );
+          result = { merchants: allMerchants, target: target || null };
+        } else {
+          result = { merchants: allMerchants };
+        }
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),

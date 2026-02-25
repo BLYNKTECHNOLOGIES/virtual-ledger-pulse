@@ -107,6 +107,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ad_automation_exclusions: {
+        Row: {
+          adv_no: string
+          excluded_at: string | null
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          adv_no: string
+          excluded_at?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          adv_no?: string
+          excluded_at?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       ad_payment_methods: {
         Row: {
           binance_ad_id: string
@@ -141,6 +162,203 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ad_pricing_logs: {
+        Row: {
+          ad_number: string | null
+          applied_price: number | null
+          applied_ratio: number | null
+          calculated_price: number | null
+          calculated_ratio: number | null
+          competitor_merchant: string | null
+          competitor_price: number | null
+          created_at: string | null
+          deviation_from_market_pct: number | null
+          error_message: string | null
+          id: string
+          market_reference_price: number | null
+          rule_id: string | null
+          skipped_reason: string | null
+          status: string
+          was_capped: boolean | null
+          was_rate_limited: boolean | null
+        }
+        Insert: {
+          ad_number?: string | null
+          applied_price?: number | null
+          applied_ratio?: number | null
+          calculated_price?: number | null
+          calculated_ratio?: number | null
+          competitor_merchant?: string | null
+          competitor_price?: number | null
+          created_at?: string | null
+          deviation_from_market_pct?: number | null
+          error_message?: string | null
+          id?: string
+          market_reference_price?: number | null
+          rule_id?: string | null
+          skipped_reason?: string | null
+          status?: string
+          was_capped?: boolean | null
+          was_rate_limited?: boolean | null
+        }
+        Update: {
+          ad_number?: string | null
+          applied_price?: number | null
+          applied_ratio?: number | null
+          calculated_price?: number | null
+          calculated_ratio?: number | null
+          competitor_merchant?: string | null
+          competitor_price?: number | null
+          created_at?: string | null
+          deviation_from_market_pct?: number | null
+          error_message?: string | null
+          id?: string
+          market_reference_price?: number | null
+          rule_id?: string | null
+          skipped_reason?: string | null
+          status?: string
+          was_capped?: boolean | null
+          was_rate_limited?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_pricing_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ad_pricing_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_pricing_rules: {
+        Row: {
+          active_hours_end: string | null
+          active_hours_start: string | null
+          ad_numbers: string[]
+          asset: string
+          auto_pause_after_deviations: number | null
+          check_interval_seconds: number | null
+          consecutive_deviations: number | null
+          consecutive_errors: number | null
+          created_at: string | null
+          fallback_merchants: string[] | null
+          fiat: string
+          id: string
+          is_active: boolean
+          last_applied_price: number | null
+          last_applied_ratio: number | null
+          last_checked_at: string | null
+          last_competitor_price: number | null
+          last_error: string | null
+          last_manual_edit_at: string | null
+          last_matched_merchant: string | null
+          manual_override_cooldown_minutes: number | null
+          max_ceiling: number | null
+          max_deviation_from_market_pct: number | null
+          max_price_change_per_cycle: number | null
+          max_ratio_ceiling: number | null
+          max_ratio_change_per_cycle: number | null
+          min_floor: number | null
+          min_ratio_floor: number | null
+          name: string
+          offset_amount: number | null
+          offset_direction: string
+          offset_pct: number | null
+          only_counter_when_online: boolean | null
+          pause_if_no_merchant_found: boolean | null
+          price_type: string
+          resting_price: number | null
+          resting_ratio: number | null
+          target_merchant: string
+          trade_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          active_hours_end?: string | null
+          active_hours_start?: string | null
+          ad_numbers?: string[]
+          asset?: string
+          auto_pause_after_deviations?: number | null
+          check_interval_seconds?: number | null
+          consecutive_deviations?: number | null
+          consecutive_errors?: number | null
+          created_at?: string | null
+          fallback_merchants?: string[] | null
+          fiat?: string
+          id?: string
+          is_active?: boolean
+          last_applied_price?: number | null
+          last_applied_ratio?: number | null
+          last_checked_at?: string | null
+          last_competitor_price?: number | null
+          last_error?: string | null
+          last_manual_edit_at?: string | null
+          last_matched_merchant?: string | null
+          manual_override_cooldown_minutes?: number | null
+          max_ceiling?: number | null
+          max_deviation_from_market_pct?: number | null
+          max_price_change_per_cycle?: number | null
+          max_ratio_ceiling?: number | null
+          max_ratio_change_per_cycle?: number | null
+          min_floor?: number | null
+          min_ratio_floor?: number | null
+          name: string
+          offset_amount?: number | null
+          offset_direction?: string
+          offset_pct?: number | null
+          only_counter_when_online?: boolean | null
+          pause_if_no_merchant_found?: boolean | null
+          price_type: string
+          resting_price?: number | null
+          resting_ratio?: number | null
+          target_merchant: string
+          trade_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          active_hours_end?: string | null
+          active_hours_start?: string | null
+          ad_numbers?: string[]
+          asset?: string
+          auto_pause_after_deviations?: number | null
+          check_interval_seconds?: number | null
+          consecutive_deviations?: number | null
+          consecutive_errors?: number | null
+          created_at?: string | null
+          fallback_merchants?: string[] | null
+          fiat?: string
+          id?: string
+          is_active?: boolean
+          last_applied_price?: number | null
+          last_applied_ratio?: number | null
+          last_checked_at?: string | null
+          last_competitor_price?: number | null
+          last_error?: string | null
+          last_manual_edit_at?: string | null
+          last_matched_merchant?: string | null
+          manual_override_cooldown_minutes?: number | null
+          max_ceiling?: number | null
+          max_deviation_from_market_pct?: number | null
+          max_price_change_per_cycle?: number | null
+          max_ratio_ceiling?: number | null
+          max_ratio_change_per_cycle?: number | null
+          min_floor?: number | null
+          min_ratio_floor?: number | null
+          name?: string
+          offset_amount?: number | null
+          offset_direction?: string
+          offset_pct?: number | null
+          only_counter_when_online?: boolean | null
+          pause_if_no_merchant_found?: boolean | null
+          price_type?: string
+          resting_price?: number | null
+          resting_ratio?: number | null
+          target_merchant?: string
+          trade_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       ad_rest_timer: {
         Row: {

@@ -32,6 +32,7 @@ import {
   Timer,
   Package,
   Blend,
+  Crosshair,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -54,6 +55,7 @@ import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySetting
 import { SmallSalesConfig } from '@/components/terminal/automation/SmallSalesConfig';
 import { SmallBuysConfig } from '@/components/terminal/automation/SmallBuysConfig';
 import { HybridPriceAdjuster } from '@/components/terminal/automation/HybridPriceAdjuster';
+import { AutoPricingRules } from '@/components/terminal/automation/AutoPricingRules';
 import { ShoppingCart } from 'lucide-react';
 
 const TRIGGER_COLORS: Record<string, string> = {
@@ -153,6 +155,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="hybrid" className="gap-1.5">
             <Blend className="h-3.5 w-3.5" />
             Hybrid Pricing
+          </TabsTrigger>
+          <TabsTrigger value="auto-pricing" className="gap-1.5">
+            <Crosshair className="h-3.5 w-3.5" />
+            Auto Pricing
           </TabsTrigger>
         </TabsList>
 
@@ -401,6 +407,11 @@ export default function TerminalAutomation() {
         {/* ═══ HYBRID PRICING ═══ */}
         <TabsContent value="hybrid" className="mt-4">
           <HybridPriceAdjuster />
+        </TabsContent>
+
+        {/* ═══ AUTO PRICING ═══ */}
+        <TabsContent value="auto-pricing" className="mt-4">
+          <AutoPricingRules />
         </TabsContent>
       </Tabs>
 

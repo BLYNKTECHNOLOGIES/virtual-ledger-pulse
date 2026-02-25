@@ -5,11 +5,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight } from 'lucide-react';
+import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { format } from 'date-fns';
 import { useState } from 'react';
+import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CategorizedAdTableProps {
   ads: BinanceAd[];
@@ -143,6 +145,8 @@ function categorizeAds(
 
 export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange }: CategorizedAdTableProps) {
   const { buyConfig, sellConfig } = useSmallConfigs();
+  const { data: excludedAds } = useExcludedAds();
+  const toggleExclusion = useToggleAdExclusion();
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -347,6 +351,28 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => toggleExclusion.mutate({ advNo: ad.advNo, exclude: !excludedAds?.has(ad.advNo) })}
+                                disabled={toggleExclusion.isPending}
+                              >
+                                {excludedAds?.has(ad.advNo) ? (
+                                  <ShieldBan className="h-3.5 w-3.5 text-destructive" />
+                                ) : (
+                                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {excludedAds?.has(ad.advNo) ? 'Excluded from automation — click to include' : 'Click to exclude from automation'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(ad)}>
                           <Edit className="h-3.5 w-3.5" />
                         </Button>

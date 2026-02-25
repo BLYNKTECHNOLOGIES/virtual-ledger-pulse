@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.terminal-webauthn]
 verify_jwt = false
+
+[functions.auto-price-engine]
+verify_jwt = false

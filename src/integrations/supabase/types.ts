@@ -10927,7 +10927,7 @@ export type Database = {
       }
       delete_user_with_cleanup: {
         Args: { target_user_id: string }
-        Returns: boolean
+        Returns: Json
       }
       delete_wallet_transaction_with_reversal: {
         Args: { p_deleted_by?: string; p_transaction_id: string }

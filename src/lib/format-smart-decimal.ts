@@ -7,8 +7,8 @@ export function formatSmartDecimal(value: number | string, maxDecimals: number =
   const num = Number(value);
   if (isNaN(num)) return '0';
   
-  // For zero, return simple format
-  if (num === 0) return '0.00';
+  // Treat floating-point dust (e.g. -1e-17, 3e-15) as zero
+  if (num === 0 || Math.abs(num) < 1e-10) return '0.00';
   
   // Use toFixed with max decimals then strip trailing zeros
   const fixed = num.toFixed(maxDecimals);

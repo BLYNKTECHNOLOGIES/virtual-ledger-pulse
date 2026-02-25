@@ -31,12 +31,24 @@ interface BinanceOrder {
   orderStatus: string | number;
   createTime: number;
   counterPartNickName: string;
+  buyerRealName?: string;
+  sellerRealName?: string;
   payMethodName?: string;
   notifyPayEndTime?: number;
   notifyPayedExpireMinute?: number;
 }
 
+function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
+  // Priority: verified_name from DB > realName fields from API > nickname > fallback
+  if (verifiedName) return verifiedName;
+  if (order.buyerRealName) return order.buyerRealName;
+  if (order.sellerRealName) return order.sellerRealName;
+  if (order.counterPartNickName && order.counterPartNickName !== "") return order.counterPartNickName;
+  return "Trader";
+}
+
 function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string {
+  const name = getCounterpartyName(order, verifiedName);
   return template
     .replace(/\{\{orderNumber\}\}/g, order.orderNumber)
     .replace(/\{\{amount\}\}/g, order.amount)
@@ -44,7 +56,7 @@ function renderTemplate(template: string, order: BinanceOrder, verifiedName?: st
     .replace(/\{\{unitPrice\}\}/g, order.unitPrice)
     .replace(/\{\{asset\}\}/g, order.asset || "USDT")
     .replace(/\{\{fiat\}\}/g, order.fiatUnit || "INR")
-    .replace(/\{\{counterparty\}\}/g, verifiedName || order.counterPartNickName || "Trader")
+    .replace(/\{\{counterparty\}\}/g, name)
     .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
 }
 
@@ -52,7 +64,13 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
   const status = String(order.orderStatus ?? "").toUpperCase();
 
-  if (!status.includes("COMPLETED") && !status.includes("CANCEL") && !status.includes("APPEAL") && !status.includes("EXPIRED")) {
+  // Skip completed/cancelled/expired orders entirely — we can't message them
+  if (status.includes("COMPLETED") || status === "4" || status === "5" ||
+      status.includes("CANCEL") || status.includes("EXPIRED")) {
+    return events;
+  }
+
+  if (!status.includes("APPEAL")) {
     events.push("order_received");
   }
 
@@ -60,20 +78,12 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
     events.push("payment_marked");
   }
 
-  if (status.includes("COMPLETED") || status === "4" || status === "5") {
-    events.push("order_completed");
-  }
-
-  if (status.includes("CANCEL")) {
-    events.push("order_cancelled");
-  }
-
   if (status.includes("APPEAL")) {
     events.push("order_appealed");
   }
 
   const ageMinutes = (Date.now() - order.createTime) / 60000;
-  if (ageMinutes > 15 && !status.includes("COMPLETED") && !status.includes("CANCEL")) {
+  if (ageMinutes > 15) {
     events.push("timer_breach");
   }
 
@@ -139,7 +149,7 @@ serve(async (req) => {
 
     console.log(`Rules: ${rules?.length || 0}, AutoPay: ${autoPayActive ? `ON (${autoPayMinutes}min)` : "OFF"}`);
 
-    // 3. Fetch active orders from Binance
+    // 3. Fetch ONLY active orders — completed orders can't receive messages
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
       method: "POST",
       headers: proxyHeaders,
@@ -148,26 +158,7 @@ serve(async (req) => {
     const activeData = await activeRes.json();
     const activeOrders: BinanceOrder[] = activeData?.data || [];
 
-    // 4. Also check recent history for completed/cancelled events (fetch more to catch small buys)
-    const historyRes = await fetch(
-      `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory`,
-      {
-        method: "POST",
-        headers: proxyHeaders,
-        body: JSON.stringify({ page: 1, rows: 50 }),
-      }
-    );
-    const historyData = await historyRes.json();
-    const historyOrders: BinanceOrder[] = historyData?.data || [];
-
-    // Merge, dedup by orderNumber
-    const orderMap = new Map<string, BinanceOrder>();
-    for (const o of [...activeOrders, ...historyOrders]) {
-      if (!orderMap.has(o.orderNumber)) orderMap.set(o.orderNumber, o);
-    }
-
-    const allOrders = Array.from(orderMap.values());
-    console.log(`Processing ${allOrders.length} orders (${activeOrders.length} active, ${historyOrders.length} history)`);
+    console.log(`Processing ${activeOrders.length} active orders`);
 
     let processed = 0;
     let errors = 0;
@@ -175,7 +166,6 @@ serve(async (req) => {
 
     // ===== AUTO-PAY LOGIC =====
     if (autoPayActive) {
-      // Only process active BUY orders that haven't been paid yet
       const buyOrdersPendingPayment = activeOrders.filter((o) => {
         const status = String(o.orderStatus ?? "").toUpperCase();
         return (
@@ -193,7 +183,6 @@ serve(async (req) => {
 
       for (const order of buyOrdersPendingPayment) {
         try {
-          // Calculate time remaining to expiry
           let expiryTimeMs: number | null = null;
 
           if (order.notifyPayEndTime) {
@@ -203,7 +192,6 @@ serve(async (req) => {
           }
 
           if (!expiryTimeMs) {
-            // Fallback: assume 15 min payment window from createTime
             expiryTimeMs = order.createTime + 15 * 60 * 1000;
           }
 
@@ -212,9 +200,7 @@ serve(async (req) => {
 
           console.log(`Order ${order.orderNumber}: ${minutesRemaining.toFixed(1)} min remaining, threshold: ${autoPayMinutes} min`);
 
-          // Check if within the auto-pay window (less than X minutes remaining, but still positive)
           if (minutesRemaining <= autoPayMinutes && minutesRemaining > 0) {
-            // Check if already auto-paid
             const { data: alreadyPaid } = await supabase
               .from("p2p_auto_pay_log")
               .select("id")
@@ -227,7 +213,6 @@ serve(async (req) => {
               continue;
             }
 
-            // Mark as paid via Binance API
             console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining)`);
 
             const markPaidRes = await fetch(
@@ -274,7 +259,7 @@ serve(async (req) => {
       }
     }
 
-    // ===== AUTO-REPLY LOGIC (existing) =====
+    // ===== AUTO-REPLY LOGIC =====
     if (hasRules) {
       // Fetch auto-reply exclusions
       const { data: exclusionRows } = await supabase
@@ -282,7 +267,7 @@ serve(async (req) => {
         .select("order_number");
       const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
 
-      // Fetch small buys and small sales config for range-based filtering (fetch first row, not by id)
+      // Fetch small buys and small sales config
       const { data: sbConfig } = await supabase
         .from("small_buys_config")
         .select("is_enabled, min_amount, max_amount")
@@ -297,24 +282,23 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      // Pre-fetch verified names from binance_order_history for all orders in batch
-      const orderNumbers = allOrders.map((o) => o.orderNumber);
+      // Pre-fetch verified names from binance_order_history
+      const orderNumbers = activeOrders.map((o) => o.orderNumber);
       const verifiedNameMap = new Map<string, string>();
       if (orderNumbers.length > 0) {
         const { data: nameRows } = await supabase
           .from("binance_order_history")
-          .select("order_number, verified_name")
-          .in("order_number", orderNumbers)
-          .not("verified_name", "is", null);
+          .select("order_number, verified_name, counter_part_nick_name")
+          .in("order_number", orderNumbers);
         if (nameRows) {
           for (const row of nameRows) {
-            if (row.verified_name) verifiedNameMap.set(row.order_number, row.verified_name);
+            const name = row.verified_name || row.counter_part_nick_name;
+            if (name) verifiedNameMap.set(row.order_number, name);
           }
         }
       }
 
-      for (const order of allOrders) {
-        // Skip excluded orders
+      for (const order of activeOrders) {
         if (excludedOrders.has(order.orderNumber)) {
           console.log(`⏭ Skipping excluded order ${order.orderNumber}`);
           continue;
@@ -322,22 +306,23 @@ serve(async (req) => {
         const triggerEvents = detectTriggerEvents(order);
         const totalPrice = parseFloat(order.totalPrice || "0");
 
+        // Log counterparty info for debugging
+        const resolvedName = getCounterpartyName(order, verifiedNameMap.get(order.orderNumber) || null);
+        console.log(`Order ${order.orderNumber}: counterPartNickName="${order.counterPartNickName}", buyerRealName="${order.buyerRealName}", sellerRealName="${order.sellerRealName}", dbName="${verifiedNameMap.get(order.orderNumber) || 'N/A'}", resolved="${resolvedName}", triggers=[${triggerEvents.join(',')}]`);
+
         for (const event of triggerEvents) {
           const matchingRules = (rules as AutoReplyRule[]).filter((r) => {
             if (r.trigger_event !== event) return false;
             if (r.trade_type) {
               if (r.trade_type === "SMALL_BUY") {
-                // Match BUY orders within small buys range
                 if (order.tradeType !== "BUY") return false;
                 if (!sbConfig?.is_enabled) return false;
                 if (totalPrice < sbConfig.min_amount || totalPrice > sbConfig.max_amount) return false;
               } else if (r.trade_type === "SMALL_SELL") {
-                // Match SELL orders within small sales range
                 if (order.tradeType !== "SELL") return false;
                 if (!ssConfig?.is_enabled) return false;
                 if (totalPrice < ssConfig.min_amount || totalPrice > ssConfig.max_amount) return false;
               } else {
-                // Standard BUY/SELL matching
                 if (r.trade_type !== order.tradeType) return false;
               }
             }
@@ -362,8 +347,8 @@ serve(async (req) => {
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
             try {
-              // Send via direct REST sendMessage endpoint on the proxy
-              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage`, {
+              // Send via WebSocket bridge on proxy (REST sendMessage endpoint doesn't exist on Binance)
+              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/chat/send`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -376,9 +361,9 @@ serve(async (req) => {
                 }),
               });
               const sendResult = await sendRes.json();
-              console.log(`sendMessage response for ${order.orderNumber}:`, JSON.stringify(sendResult));
+              console.log(`Chat send response for ${order.orderNumber}:`, JSON.stringify(sendResult));
 
-              if (sendResult?.code === "000000" || sendRes.ok) {
+              if (sendRes.ok && !sendResult?.error) {
                 await supabase.from("p2p_auto_reply_processed").insert({
                   order_number: order.orderNumber,
                   trigger_event: event,
@@ -429,7 +414,7 @@ serve(async (req) => {
       processed,
       autoPaid: autoPaidCount,
       errors,
-      ordersChecked: allOrders.length,
+      ordersChecked: activeOrders.length,
       rulesActive: rules?.length || 0,
       autoPayActive,
     };

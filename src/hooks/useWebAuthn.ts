@@ -34,7 +34,12 @@ async function callWebAuthn(action: string, body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('terminal-webauthn', {
     body: { action, ...body },
   });
-  if (error) throw new Error(error.message || 'WebAuthn request failed');
+  if (error) {
+    // Try to extract server error message from data
+    const serverMsg = data?.error || error.message || 'WebAuthn request failed';
+    console.error('WebAuthn callWebAuthn error:', { action, serverMsg, data, error });
+    throw new Error(serverMsg);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 }

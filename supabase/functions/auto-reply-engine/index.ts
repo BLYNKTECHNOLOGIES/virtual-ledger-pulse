@@ -362,8 +362,8 @@ serve(async (req) => {
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
             try {
-              // Send via WebSocket HTTP bridge on the main proxy (port 3000)
-              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/chat/send`, {
+              // Send via direct REST sendMessage endpoint on the proxy
+              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -376,6 +376,7 @@ serve(async (req) => {
                 }),
               });
               const sendResult = await sendRes.json();
+              console.log(`sendMessage response for ${order.orderNumber}:`, JSON.stringify(sendResult));
 
               if (sendResult?.code === "000000" || sendRes.ok) {
                 await supabase.from("p2p_auto_reply_processed").insert({

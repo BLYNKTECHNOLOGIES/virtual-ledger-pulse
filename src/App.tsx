@@ -5,6 +5,7 @@ import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
 import TerminalPayer from './pages/terminal/TerminalPayer';
 import TerminalMPI from './pages/terminal/TerminalMPI';
 import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
+import TerminalOperatorDetail from './pages/terminal/TerminalOperatorDetail';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
@@ -543,6 +544,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalMPI />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/mpi/:userId",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalOperatorDetail />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

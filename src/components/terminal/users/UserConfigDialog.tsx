@@ -238,6 +238,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   // EXCEPT: Super Admin (-1) can assign anything.
   // Admin (0) can assign anything >= 0.
   const assignableRoles = allRoles.filter(r => {
+    // Super Admin from ERP can assign any role
+    if (isTerminalAdmin) return true;
     if (myHierarchyLevel === null) return false; // can't assign if no hierarchy
     
     // Super Admin (-1) can assign all roles

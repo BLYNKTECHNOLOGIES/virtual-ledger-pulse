@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Edit, Trash2, Play, RotateCcw, AlertTriangle, CheckCircle, Clock
+  Plus, Edit, Trash2, Play, RotateCcw, AlertTriangle, CheckCircle, Clock, XCircle, Bell
 } from 'lucide-react';
 import {
   useAutoPricingRules,
@@ -23,11 +23,27 @@ import {
   useDeleteAutoPricingRule,
   useManualTriggerRule,
   useResetRuleState,
+  useDismissRuleAlert,
+  getRuleAlertState,
   AutoPricingRule,
 } from '@/hooks/useAutoPricingRules';
 import { AutoPricingRuleDialog } from './AutoPricingRuleDialog';
 import { AutoPricingLogs } from './AutoPricingLogs';
 import { formatDistanceToNow } from 'date-fns';
+
+const ALERT_STYLES: Record<string, string> = {
+  merchant_missing: 'border-amber-500 ring-2 ring-amber-500/30 animate-pulse',
+  deviation: 'border-orange-500 ring-2 ring-orange-500/30 animate-pulse',
+  error: 'border-destructive ring-2 ring-destructive/30 animate-pulse',
+  auto_paused: 'border-destructive ring-2 ring-destructive/40 animate-pulse',
+};
+
+const ALERT_BADGE_STYLES: Record<string, string> = {
+  merchant_missing: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+  deviation: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
+  error: 'bg-destructive/20 text-destructive border-destructive/40',
+  auto_paused: 'bg-destructive/20 text-destructive border-destructive/40',
+};
 
 export function AutoPricingRules() {
   const { data: rules = [], isLoading } = useAutoPricingRules();
@@ -35,9 +51,11 @@ export function AutoPricingRules() {
   const deleteRule = useDeleteAutoPricingRule();
   const triggerRule = useManualTriggerRule();
   const resetRule = useResetRuleState();
+  const dismissAlert = useDismissRuleAlert();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutoPricingRule | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteRuleName, setDeleteRuleName] = useState<string>('');
   const [showLogs, setShowLogs] = useState(false);
   const [logRuleId, setLogRuleId] = useState<string | undefined>();
 
@@ -46,6 +64,7 @@ export function AutoPricingRules() {
 
   const activeCount = rules.filter(r => r.is_active).length;
   const pausedCount = rules.filter(r => !r.is_active).length;
+  const alertCount = rules.filter(r => getRuleAlertState(r).hasAlert).length;
 
   const getHealthColor = (rule: AutoPricingRule) => {
     if (!rule.is_active) return 'text-muted-foreground';
@@ -77,6 +96,11 @@ export function AutoPricingRules() {
           <Badge variant="outline">{rules.length} Rules</Badge>
           <Badge className="bg-success/20 text-success">{activeCount} Active</Badge>
           {pausedCount > 0 && <Badge variant="destructive">{pausedCount} Paused</Badge>}
+          {alertCount > 0 && (
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse">
+              <Bell className="h-3 w-3 mr-1" /> {alertCount} Alert{alertCount > 1 ? 's' : ''}
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => { setLogRuleId(undefined); setShowLogs(true); }}>
@@ -102,92 +126,119 @@ export function AutoPricingRules() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {rules.map(rule => (
-            <Card key={rule.id} className={`${!rule.is_active ? 'opacity-60' : ''}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  {/* Left: Info */}
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <Switch
-                      checked={rule.is_active}
-                      onCheckedChange={(v) => updateRule.mutate({ id: rule.id, is_active: v })}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{rule.name}</span>
-                        {(rule.assets?.length > 0 ? rule.assets : [rule.asset]).map(a => (
-                          <Badge key={a} variant="outline" className="text-[10px]">{a}</Badge>
-                        ))}
-                        <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
-                          {rule.trade_type}
-                        </Badge>
-                        <Badge variant="outline" className="text-[10px]">{rule.price_type}</Badge>
-                        <Badge variant="outline" className="text-[10px]">
-                          {rule.offset_direction}
+          {rules.map(rule => {
+            const alertState = getRuleAlertState(rule);
+            const alertStyle = alertState.hasAlert && alertState.alertType ? ALERT_STYLES[alertState.alertType] : '';
+            const alertBadgeStyle = alertState.hasAlert && alertState.alertType ? ALERT_BADGE_STYLES[alertState.alertType] : '';
+
+            return (
+              <Card key={rule.id} className={`transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
+                <CardContent className="p-4">
+                  {/* Alert Banner */}
+                  {alertState.hasAlert && (
+                    <div className="flex items-center justify-between mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                        <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
+                        <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
+                          {alertState.alertType?.replace('_', ' ')}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                        <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
-                        {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
-                        <span>{rule.ad_numbers?.length || 0} ad(s)</span>
-                        {rule.active_hours_start && (
-                          <span>⏰ {rule.active_hours_start?.slice(0,5)}–{rule.active_hours_end?.slice(0,5)}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => dismissAlert.mutate({ id: rule.id, ruleName: rule.name, alertMessage: alertState.alertMessage || '' })}
+                      >
+                        <XCircle className="h-3.5 w-3.5 mr-1" /> Dismiss
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Left: Info */}
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Switch
+                        checked={rule.is_active}
+                        onCheckedChange={(v) => updateRule.mutate({ id: rule.id, is_active: v })}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{rule.name}</span>
+                          {(rule.assets?.length > 0 ? rule.assets : [rule.asset]).map(a => (
+                            <Badge key={a} variant="outline" className="text-[10px]">{a}</Badge>
+                          ))}
+                          <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
+                            {rule.trade_type}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px]">{rule.price_type}</Badge>
+                          <Badge variant="outline" className="text-[10px]">
+                            {rule.offset_direction}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                          <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
+                          {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
+                          <span>{rule.ad_numbers?.length || 0} ad(s)</span>
+                          {rule.active_hours_start && (
+                            <span>⏰ {rule.active_hours_start?.slice(0,5)}–{rule.active_hours_end?.slice(0,5)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                          {rule.last_competitor_price && (
+                            <span>Competitor: ₹{Number(rule.last_competitor_price).toLocaleString('en-IN')}</span>
+                          )}
+                          {rule.last_applied_price && rule.price_type === 'FIXED' && (
+                            <span>Applied: ₹{Number(rule.last_applied_price).toLocaleString('en-IN')}</span>
+                          )}
+                          {rule.last_applied_ratio && rule.price_type === 'FLOATING' && (
+                            <span>Applied: {Number(rule.last_applied_ratio).toFixed(4)}%</span>
+                          )}
+                          {rule.last_checked_at && (
+                            <span>Checked {formatDistanceToNow(new Date(rule.last_checked_at), { addSuffix: true })}</span>
+                          )}
+                        </div>
+                        {rule.last_error && !alertState.hasAlert && (
+                          <p className="text-xs text-destructive mt-1 truncate">{rule.last_error}</p>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                        {rule.last_competitor_price && (
-                          <span>Competitor: ₹{Number(rule.last_competitor_price).toLocaleString('en-IN')}</span>
-                        )}
-                        {rule.last_applied_price && rule.price_type === 'FIXED' && (
-                          <span>Applied: ₹{Number(rule.last_applied_price).toLocaleString('en-IN')}</span>
-                        )}
-                        {rule.last_applied_ratio && rule.price_type === 'FLOATING' && (
-                          <span>Applied: {Number(rule.last_applied_ratio).toFixed(4)}%</span>
-                        )}
-                        {rule.last_checked_at && (
-                          <span>Checked {formatDistanceToNow(new Date(rule.last_checked_at), { addSuffix: true })}</span>
-                        )}
-                      </div>
-                      {rule.last_error && (
-                        <p className="text-xs text-destructive mt-1 truncate">{rule.last_error}</p>
+                    </div>
+
+                    {/* Right: Health + Actions */}
+                    <div className="flex items-center gap-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={`${getHealthColor(rule)}`}>{getHealthIcon(rule)}</div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Errors: {rule.consecutive_errors} | Deviations: {rule.consecutive_deviations}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => triggerRule.mutate({ id: rule.id, ruleName: rule.name })} disabled={triggerRule.isPending} title="Manual Trigger">
+                        <Play className="h-3.5 w-3.5" />
+                      </Button>
+                      {(rule.consecutive_errors > 0 || rule.consecutive_deviations > 0 || !rule.is_active) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => resetRule.mutate({ id: rule.id, ruleName: rule.name })} title="Reset & Re-enable">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </Button>
                       )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setLogRuleId(rule.id); setShowLogs(true); }} title="View Logs">
+                        <Clock className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
+                        <Edit className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(rule.id); setDeleteRuleName(rule.name); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Right: Health + Actions */}
-                  <div className="flex items-center gap-1">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className={`${getHealthColor(rule)}`}>{getHealthIcon(rule)}</div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Errors: {rule.consecutive_errors} | Deviations: {rule.consecutive_deviations}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => triggerRule.mutate(rule.id)} disabled={triggerRule.isPending} title="Manual Trigger">
-                      <Play className="h-3.5 w-3.5" />
-                    </Button>
-                    {(rule.consecutive_errors > 0 || rule.consecutive_deviations > 0 || !rule.is_active) && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => resetRule.mutate(rule.id)} title="Reset & Re-enable">
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setLogRuleId(rule.id); setShowLogs(true); }} title="View Logs">
-                      <Clock className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
-                      <Edit className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(rule.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -201,7 +252,7 @@ export function AutoPricingRules() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteId) deleteRule.mutate(deleteId); setDeleteId(null); }}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={() => { if (deleteId) deleteRule.mutate({ id: deleteId, ruleName: deleteRuleName }); setDeleteId(null); }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

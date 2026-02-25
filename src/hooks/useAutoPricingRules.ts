@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 export interface AssetConfig {
   ad_numbers: string[];
@@ -78,6 +79,37 @@ export interface AutoPricingLog {
   created_at: string;
 }
 
+/** Determine if a rule is in an alert state that needs attention */
+export function getRuleAlertState(rule: AutoPricingRule): {
+  hasAlert: boolean;
+  alertType: 'merchant_missing' | 'deviation' | 'error' | 'auto_paused' | null;
+  alertMessage: string | null;
+} {
+  if (!rule.is_active && (rule.consecutive_deviations >= rule.auto_pause_after_deviations)) {
+    return { hasAlert: true, alertType: 'auto_paused', alertMessage: 'Auto-paused: deviation limit exceeded' };
+  }
+  if (rule.last_error) {
+    const err = rule.last_error.toLowerCase();
+    if (err.includes('no_merchant') || err.includes('merchant not found') || err.includes('no_listings')) {
+      return { hasAlert: true, alertType: 'merchant_missing', alertMessage: `Merchant not found: ${rule.target_merchant}` };
+    }
+    if (err.includes('deviation')) {
+      return { hasAlert: true, alertType: 'deviation', alertMessage: 'Price deviation limit triggered' };
+    }
+    if (err.includes('break') || err.includes('rest')) {
+      return { hasAlert: true, alertType: 'error', alertMessage: 'Binance rest/break mode active' };
+    }
+    return { hasAlert: true, alertType: 'error', alertMessage: rule.last_error };
+  }
+  if (rule.consecutive_errors > 3) {
+    return { hasAlert: true, alertType: 'error', alertMessage: `${rule.consecutive_errors} consecutive errors` };
+  }
+  if (rule.consecutive_deviations > 2) {
+    return { hasAlert: true, alertType: 'deviation', alertMessage: `${rule.consecutive_deviations} consecutive deviations` };
+  }
+  return { hasAlert: false, alertType: null, alertMessage: null };
+}
+
 export function useAutoPricingRules() {
   return useQuery({
     queryKey: ['auto-pricing-rules'],
@@ -101,9 +133,23 @@ export function useCreateAutoPricingRule() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
       toast({ title: 'Rule Created', description: 'Auto-pricing rule created successfully.' });
+      logAdAction({
+        actionType: AdActionTypes.PRICING_RULE_CREATED,
+        metadata: {
+          rule_id: data.id,
+          rule_name: data.name,
+          trade_type: data.trade_type,
+          price_type: data.price_type,
+          target_merchant: data.target_merchant,
+          assets: data.assets || [data.asset],
+          ad_numbers: data.ad_numbers,
+          offset_direction: data.offset_direction,
+          description: `Created auto-pricing rule "${data.name}" targeting merchant "${data.target_merchant}" for ${data.trade_type} ${(data.assets || [data.asset]).join(', ')} with ${data.offset_direction} offset`,
+        },
+      });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -116,11 +162,39 @@ export function useUpdateAutoPricingRule() {
     mutationFn: async ({ id, ...updates }: Partial<AutoPricingRule> & { id: string }) => {
       const { data, error } = await supabase.from('ad_pricing_rules').update(updates as any).eq('id', id).select().single();
       if (error) throw error;
-      return data;
+      return { data, updates, id };
     },
-    onSuccess: () => {
+    onSuccess: ({ data, updates, id }) => {
       qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
-      toast({ title: 'Rule Updated' });
+      
+      // Determine if this is a toggle or a general update
+      const isToggle = Object.keys(updates).length === 1 && 'is_active' in updates;
+      
+      if (isToggle) {
+        toast({ title: updates.is_active ? 'Rule Enabled' : 'Rule Paused' });
+        logAdAction({
+          actionType: AdActionTypes.PRICING_RULE_TOGGLED,
+          metadata: {
+            rule_id: id,
+            rule_name: data.name,
+            new_state: updates.is_active ? 'enabled' : 'disabled',
+            description: `${updates.is_active ? 'Enabled' : 'Disabled'} auto-pricing rule "${data.name}"`,
+          },
+        });
+      } else {
+        toast({ title: 'Rule Updated' });
+        const changedFields = Object.keys(updates).filter(k => k !== 'id');
+        logAdAction({
+          actionType: AdActionTypes.PRICING_RULE_UPDATED,
+          metadata: {
+            rule_id: id,
+            rule_name: data.name,
+            changed_fields: changedFields,
+            updates,
+            description: `Updated auto-pricing rule "${data.name}" — changed: ${changedFields.join(', ')}`,
+          },
+        });
+      }
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -130,13 +204,22 @@ export function useDeleteAutoPricingRule() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, ruleName }: { id: string; ruleName: string }) => {
       const { error } = await supabase.from('ad_pricing_rules').delete().eq('id', id);
       if (error) throw error;
+      return { id, ruleName };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, ruleName }) => {
       qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
       toast({ title: 'Rule Deleted' });
+      logAdAction({
+        actionType: AdActionTypes.PRICING_RULE_DELETED,
+        metadata: {
+          rule_id: id,
+          rule_name: ruleName,
+          description: `Deleted auto-pricing rule "${ruleName}"`,
+        },
+      });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });
@@ -178,17 +261,25 @@ export function useManualTriggerRule() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (ruleId: string) => {
+    mutationFn: async ({ id, ruleName }: { id: string; ruleName: string }) => {
       const { data, error } = await supabase.functions.invoke('auto-price-engine', {
-        body: { ruleId },
+        body: { ruleId: id },
       });
       if (error) throw new Error(error.message);
-      return data;
+      return { data, id, ruleName };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, ruleName }) => {
       qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
       qc.invalidateQueries({ queryKey: ['auto-pricing-logs'] });
       toast({ title: 'Rule Triggered', description: 'Manual execution completed.' });
+      logAdAction({
+        actionType: AdActionTypes.PRICING_RULE_MANUAL_TRIGGER,
+        metadata: {
+          rule_id: id,
+          rule_name: ruleName,
+          description: `Manually triggered auto-pricing rule "${ruleName}"`,
+        },
+      });
     },
     onError: (e: Error) => toast({ title: 'Trigger Failed', description: e.message, variant: 'destructive' }),
   });
@@ -198,7 +289,7 @@ export function useResetRuleState() {
   const qc = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, ruleName }: { id: string; ruleName: string }) => {
       const { error } = await supabase.from('ad_pricing_rules').update({
         consecutive_deviations: 0,
         consecutive_errors: 0,
@@ -206,10 +297,47 @@ export function useResetRuleState() {
         is_active: true,
       } as any).eq('id', id);
       if (error) throw error;
+      return { id, ruleName };
     },
-    onSuccess: () => {
+    onSuccess: ({ id, ruleName }) => {
       qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
       toast({ title: 'Rule Reset', description: 'Errors and deviations cleared, rule re-enabled.' });
+      logAdAction({
+        actionType: AdActionTypes.PRICING_RULE_RESET,
+        metadata: {
+          rule_id: id,
+          rule_name: ruleName,
+          description: `Reset and re-enabled auto-pricing rule "${ruleName}" — cleared errors and deviations`,
+        },
+      });
+    },
+    onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+}
+
+export function useDismissRuleAlert() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, ruleName, alertMessage }: { id: string; ruleName: string; alertMessage: string }) => {
+      const { error } = await supabase.from('ad_pricing_rules').update({
+        last_error: null,
+      } as any).eq('id', id);
+      if (error) throw error;
+      return { id, ruleName, alertMessage };
+    },
+    onSuccess: ({ id, ruleName, alertMessage }) => {
+      qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
+      toast({ title: 'Alert Dismissed' });
+      logAdAction({
+        actionType: AdActionTypes.PRICING_RULE_ALERT_DISMISSED,
+        metadata: {
+          rule_id: id,
+          rule_name: ruleName,
+          dismissed_alert: alertMessage,
+          description: `Dismissed alert on rule "${ruleName}": ${alertMessage}`,
+        },
+      });
     },
     onError: (e: Error) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
   });

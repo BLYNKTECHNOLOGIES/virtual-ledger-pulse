@@ -35,6 +35,14 @@ export const AdActionTypes = {
   // Assets
   SPOT_TRADE_EXECUTED: 'asset.spot_trade_executed',
   SPOT_TRADE_FAILED: 'asset.spot_trade_failed',
+  // Auto-Pricing Rules
+  PRICING_RULE_CREATED: 'automation.pricing_rule_created',
+  PRICING_RULE_UPDATED: 'automation.pricing_rule_updated',
+  PRICING_RULE_TOGGLED: 'automation.pricing_rule_toggled',
+  PRICING_RULE_DELETED: 'automation.pricing_rule_deleted',
+  PRICING_RULE_RESET: 'automation.pricing_rule_reset',
+  PRICING_RULE_MANUAL_TRIGGER: 'automation.pricing_rule_manual_trigger',
+  PRICING_RULE_ALERT_DISMISSED: 'automation.pricing_rule_alert_dismissed',
 } as const;
 
 export type AdActionType = typeof AdActionTypes[keyof typeof AdActionTypes];
@@ -60,6 +68,10 @@ export const ACTION_CATEGORIES: Record<ActionCategory, string[]> = {
     AdActionTypes.AUTO_REPLY_RULE_TOGGLED, AdActionTypes.AUTO_REPLY_RULE_DELETED,
     AdActionTypes.SCHEDULE_CREATED, AdActionTypes.SCHEDULE_UPDATED,
     AdActionTypes.SCHEDULE_TOGGLED, AdActionTypes.SCHEDULE_DELETED,
+    AdActionTypes.PRICING_RULE_CREATED, AdActionTypes.PRICING_RULE_UPDATED,
+    AdActionTypes.PRICING_RULE_TOGGLED, AdActionTypes.PRICING_RULE_DELETED,
+    AdActionTypes.PRICING_RULE_RESET, AdActionTypes.PRICING_RULE_MANUAL_TRIGGER,
+    AdActionTypes.PRICING_RULE_ALERT_DISMISSED,
   ],
   assets: [
     AdActionTypes.SPOT_TRADE_EXECUTED, AdActionTypes.SPOT_TRADE_FAILED,
@@ -161,6 +173,14 @@ export function getAdActionLabel(actionType: string): string {
     // Assets
     case AdActionTypes.SPOT_TRADE_EXECUTED: return 'Spot Trade Executed';
     case AdActionTypes.SPOT_TRADE_FAILED: return 'Spot Trade Failed';
+    // Auto-Pricing Rules
+    case AdActionTypes.PRICING_RULE_CREATED: return 'Pricing Rule Created';
+    case AdActionTypes.PRICING_RULE_UPDATED: return 'Pricing Rule Updated';
+    case AdActionTypes.PRICING_RULE_TOGGLED: return 'Pricing Rule Toggled';
+    case AdActionTypes.PRICING_RULE_DELETED: return 'Pricing Rule Deleted';
+    case AdActionTypes.PRICING_RULE_RESET: return 'Pricing Rule Reset';
+    case AdActionTypes.PRICING_RULE_MANUAL_TRIGGER: return 'Pricing Rule Manual Trigger';
+    case AdActionTypes.PRICING_RULE_ALERT_DISMISSED: return 'Pricing Alert Dismissed';
     default: return actionType;
   }
 }

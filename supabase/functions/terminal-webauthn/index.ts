@@ -258,7 +258,7 @@ Deno.serve(async (req) => {
         }
 
         // Update sign count for admin's credential
-        if (sign_count !== undefined && sign_count !== null && sign_count <= matchedCred.sign_count) {
+        if (sign_count !== undefined && sign_count !== null && matchedCred.sign_count > 0 && sign_count < matchedCred.sign_count) {
           await logBiometricEvent(supabase, admin_user_id, 'BIOMETRIC_CLONE_DETECTED',
             'Possible authenticator cloning detected during admin override');
           return errorResponse('Possible credential cloning detected', 403);
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
       }
 
       // Check sign_count to prevent replay / cloning
-      if (sign_count !== undefined && sign_count !== null && sign_count <= matchedCred.sign_count) {
+      if (sign_count !== undefined && sign_count !== null && matchedCred.sign_count > 0 && sign_count < matchedCred.sign_count) {
         await logBiometricEvent(supabase, userId, 'BIOMETRIC_CLONE_DETECTED',
           'Possible authenticator cloning detected - sign_count regression', {
             expected_min: matchedCred.sign_count + 1,

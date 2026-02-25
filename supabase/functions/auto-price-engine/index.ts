@@ -271,6 +271,9 @@ async function processAsset(
   let wasCapped = false;
   let wasRateLimited = false;
 
+  // Resolve ad numbers early (needed by FLOATING mode to infer Binance index)
+  const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+
   if (rule.price_type === "FIXED") {
     if (rule.offset_direction === "OVERCUT") {
       newPrice = competitorPrice + offsetAmount;
@@ -336,8 +339,7 @@ async function processAsset(
     if (minRatioFloor && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
   }
 
-  // 7. EXECUTE — get ad numbers for this specific asset from asset_config
-  const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+  // 7. EXECUTE — ad numbers already resolved above
   if (adNumbers.length === 0) {
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,

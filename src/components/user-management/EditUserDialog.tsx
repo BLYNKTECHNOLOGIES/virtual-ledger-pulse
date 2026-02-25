@@ -13,11 +13,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { UserCheck, Link2 } from "lucide-react";
 
-const TERMINAL_ROLES = {
-  ADMIN: "1b88841c-bced-47e4-b09d-9b442f4bcdd7",
-  OPERATOR: "ac815807-39db-4c83-ab25-8783e10d0f64",
-  VIEWER: "e1f3e3e6-45b5-4932-b70b-d85402a32545",
-};
+interface TerminalRole {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface Role {
   id: string;
@@ -55,7 +55,8 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [terminalAccess, setTerminalAccess] = useState(false);
   const [currentTerminalRoleId, setCurrentTerminalRoleId] = useState<string | null>(null);
-  const [terminalRoleId, setTerminalRoleId] = useState<string>(TERMINAL_ROLES.OPERATOR);
+  const [terminalRoleId, setTerminalRoleId] = useState<string>("");
+  const [terminalRoles, setTerminalRoles] = useState<TerminalRole[]>([]);
   const [linkedEmployee, setLinkedEmployee] = useState<LinkedEmployee | null>(null);
   const [isCheckingBadge, setIsCheckingBadge] = useState(false);
   const { toast } = useToast();
@@ -67,11 +68,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         .from('roles')
         .select('id, name, description')
         .order('name');
-      if (error) {
-        console.error('Error fetching roles:', error);
-        return;
-      }
-      setRoles(data || []);
+      if (!error) setRoles(data || []);
     };
 
     const fetchTerminalAccess = async () => {
@@ -83,8 +80,16 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       }
     };
 
+    const fetchTerminalRoles = async () => {
+      const { data, error } = await supabase.rpc('list_terminal_roles');
+      if (!error && data) {
+        setTerminalRoles(data.map((r: any) => ({ id: r.id, name: r.name, description: r.description })));
+      }
+    };
+
     fetchRoles();
     fetchTerminalAccess();
+    fetchTerminalRoles();
   }, [user.id]);
 
   // Look up linked employee whenever badge_id changes
@@ -162,8 +167,9 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         const hadAccess = !!currentTerminalRoleId;
         if (terminalAccess && !hadAccess) {
           const selectedErpRole = roles.find(r => r.id === formData.role_id);
-          const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin'
-            ? TERMINAL_ROLES.ADMIN
+          const adminTerminalRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
+          const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
+            ? adminTerminalRole.id
             : terminalRoleId;
           const sessionStr = localStorage.getItem('userSession');
           const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
@@ -327,7 +333,8 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
               const selectedRole = roles.find(r => r.id === value);
               if (selectedRole?.name?.toLowerCase() === 'admin') {
                 setTerminalAccess(true);
-                setTerminalRoleId(TERMINAL_ROLES.ADMIN);
+                const adminRole = terminalRoles.find(r => r.name.toLowerCase() === 'admin');
+                if (adminRole) setTerminalRoleId(adminRole.id);
               }
             }}>
               <SelectTrigger>
@@ -381,9 +388,9 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={TERMINAL_ROLES.ADMIN}>Admin</SelectItem>
-                    <SelectItem value={TERMINAL_ROLES.OPERATOR}>Operator</SelectItem>
-                    <SelectItem value={TERMINAL_ROLES.VIEWER}>Viewer</SelectItem>
+                    {terminalRoles.map((tr) => (
+                      <SelectItem key={tr.id} value={tr.id}>{tr.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

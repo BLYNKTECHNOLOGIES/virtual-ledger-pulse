@@ -362,18 +362,20 @@ serve(async (req) => {
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
             try {
-              const sendParams = new URLSearchParams({
-                orderNo: order.orderNumber,
-                content: message,
-                contentType: "TEXT",
+              // Send via WebSocket HTTP bridge (REST sendMessage doesn't exist in Binance API)
+              const CHAT_SEND_URL = BINANCE_PROXY_URL.replace(':3000', ':8081');
+              const sendRes = await fetch(`${CHAT_SEND_URL}/api/chat/send`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-proxy-token": BINANCE_PROXY_TOKEN,
+                },
+                body: JSON.stringify({
+                  orderNo: order.orderNumber,
+                  content: message,
+                  contentType: "TEXT",
+                }),
               });
-              const sendRes = await fetch(
-                `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?${sendParams.toString()}`,
-                {
-                  method: "POST",
-                  headers: proxyHeaders,
-                }
-              );
               const sendResult = await sendRes.json();
 
               if (sendResult?.code === "000000" || sendRes.ok) {

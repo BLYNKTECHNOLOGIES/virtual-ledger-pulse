@@ -116,8 +116,14 @@ export interface AssetAlertInfo {
   reason: string | null;
   error: string | null;
   competitor_merchant: string | null;
+  competitor_price: number | null;
   applied_price: number | null;
   applied_ratio: number | null;
+  market_reference_price: number | null;
+  deviation_from_market_pct: number | null;
+  was_capped: boolean | null;
+  was_rate_limited: boolean | null;
+  created_at: string | null;
 }
 
 export function useAutoPricingRules() {
@@ -143,7 +149,7 @@ export function useLatestAssetLogs(ruleIds: string[]) {
       // Fetch recent logs for all active rules (last cycle only, ~1 per asset)
       const { data, error } = await supabase
         .from('ad_pricing_logs')
-        .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, applied_price, applied_ratio, created_at')
+        .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, competitor_price, applied_price, applied_ratio, market_reference_price, deviation_from_market_pct, was_capped, was_rate_limited, created_at')
         .in('rule_id', ruleIds)
         .order('created_at', { ascending: false })
         .limit(200);
@@ -163,8 +169,14 @@ export function useLatestAssetLogs(ruleIds: string[]) {
           reason: log.skipped_reason,
           error: log.error_message,
           competitor_merchant: log.competitor_merchant,
+          competitor_price: log.competitor_price,
           applied_price: log.applied_price,
           applied_ratio: log.applied_ratio,
+          market_reference_price: log.market_reference_price,
+          deviation_from_market_pct: log.deviation_from_market_pct,
+          was_capped: log.was_capped,
+          was_rate_limited: log.was_rate_limited,
+          created_at: log.created_at,
         });
       }
       return byRule;

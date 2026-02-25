@@ -21,6 +21,9 @@ export function StockStatusBadge({
 
   // If currentStock is provided, use it directly (simple mode)
   if (currentStock !== undefined) {
+    // Clamp dust/negative to zero
+    const safeStock = Math.abs(currentStock) < 1e-10 ? 0 : Math.max(0, currentStock);
+    
     const getBadgeVariant = (stock: number, minLevel?: number) => {
       if (stock <= 0) return "destructive";
       if (minLevel && stock <= minLevel) return "secondary";
@@ -29,8 +32,8 @@ export function StockStatusBadge({
     };
 
     return (
-      <Badge variant={getBadgeVariant(currentStock, minStock)} className={className}>
-        {currentStock}
+      <Badge variant={getBadgeVariant(safeStock, minStock)} className={className}>
+        {safeStock}
       </Badge>
     );
   }

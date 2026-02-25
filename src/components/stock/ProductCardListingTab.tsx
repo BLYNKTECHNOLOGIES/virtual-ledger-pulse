@@ -62,12 +62,17 @@ export function ProductCardListingTab() {
   // Combine products with stock data
   const combinedProducts = allProducts?.map(product => {
     const stockInfo = productsWithStock?.find(p => p.product_code === product.code);
+    const rawStock = stockInfo?.total_stock || 0;
+    const clampedStock = Math.abs(rawStock) < 1e-10 ? 0 : Math.max(0, rawStock);
     return {
       ...product,
-      total_stock: stockInfo?.total_stock || 0,
+      total_stock: clampedStock,
       average_cost: stockInfo?.average_cost || 0,
-      total_value: stockInfo?.total_value || 0,
-      wallet_stocks: stockInfo?.wallet_stocks || []
+      total_value: clampedStock === 0 ? 0 : (stockInfo?.total_value || 0),
+      wallet_stocks: (stockInfo?.wallet_stocks || []).map(w => ({
+        ...w,
+        balance: Math.abs(w.balance) < 1e-10 ? 0 : w.balance,
+      }))
     };
   }) || [];
 

@@ -11021,6 +11021,10 @@ export type Database = {
           transaction_type: string
         }[]
       }
+      get_user_min_hierarchy_level: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_user_permissions:
         | {
             Args: { user_uuid: string }
@@ -11099,6 +11103,7 @@ export type Database = {
         Args: never
         Returns: {
           description: string
+          hierarchy_level: number
           id: string
           is_default: boolean
           name: string
@@ -11287,6 +11292,7 @@ export type Database = {
       save_terminal_role: {
         Args: {
           p_description?: string
+          p_hierarchy_level?: number
           p_name?: string
           p_permissions?: string[]
           p_role_id?: string

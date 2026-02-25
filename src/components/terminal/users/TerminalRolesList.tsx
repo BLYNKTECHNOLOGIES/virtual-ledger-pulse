@@ -71,6 +71,13 @@ const PERMISSION_GROUPS: Record<string, { label: string; permissions: { key: Ter
       { key: "terminal_users_manage", label: "Manage Users" },
     ],
   },
+  payer: {
+    label: "Payer",
+    permissions: [
+      { key: "terminal_payer_view", label: "View Payer Module" },
+      { key: "terminal_payer_manage", label: "Manage Payer Assignments" },
+    ],
+  },
 };
 
 export function TerminalRolesList() {

@@ -401,8 +401,8 @@ export function useUsers() {
       }
       
       // Use the new database function to handle deletion with proper permissions
-      const { data, error } = await supabase.rpc('delete_user_with_cleanup', {
-        target_user_id: userId
+const { data, error } = await supabase.rpc('delete_user_with_cleanup', {
+        p_user_id: userId
       });
 
       if (error) {

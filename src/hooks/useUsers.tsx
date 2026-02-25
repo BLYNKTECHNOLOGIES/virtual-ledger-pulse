@@ -410,8 +410,16 @@ export function useUsers() {
         throw error;
       }
 
-      if (!data) {
+      // Handle JSON response (new) or boolean (legacy)
+      if (data && typeof data === 'object' && 'success' in data) {
+        const result = data as { success: boolean; error?: string };
+        if (!result.success) {
+          throw new Error(result.error || 'User deletion failed');
+        }
+      } else if (data === false) {
         throw new Error('User deletion failed - no result returned');
+      } else if (data === null) {
+         throw new Error('User deletion failed - no result returned');
       }
 
       toast({
